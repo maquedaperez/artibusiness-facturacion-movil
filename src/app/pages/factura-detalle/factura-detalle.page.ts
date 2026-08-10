@@ -5,7 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
-  IonItem, IonInput, IonSelect, IonSelectOption, IonCheckbox, IonText, IonBadge, IonChip, IonLabel,
+  IonItem, IonInput, IonSelect, IonSelectOption, IonText, IonBadge, IonChip, IonLabel,
   IonCard, IonCardContent,
   ModalController, AlertController, ToastController,
 } from '@ionic/angular/standalone';
@@ -25,7 +25,7 @@ import { ClienteSelectorComponent } from '../../modals/cliente-selector/cliente-
   imports: [
     CommonModule, FormsModule,
     IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
-    IonItem, IonInput, IonSelect, IonSelectOption, IonCheckbox, IonText, IonBadge, IonChip, IonLabel,
+    IonItem, IonInput, IonSelect, IonSelectOption, IonText, IonBadge, IonChip, IonLabel,
     IonCard, IonCardContent,
   ],
 })
@@ -110,7 +110,6 @@ export class FacturaDetallePage implements OnInit {
       precioUnitario: 0,
       descuentoPct: 0,
       ivaPct: 21,
-      esSuplido: false,
     };
     this.working.lineas.push(nueva);
   }
@@ -121,7 +120,7 @@ export class FacturaDetallePage implements OnInit {
   }
 
   totales() {
-    if (!this.working) return { base: 0, suplidos: 0, desgloseIva: [], ivaTotal: 0, total: 0 };
+    if (!this.working) return { base: 0, desgloseIva: [], ivaTotal: 0, total: 0 };
     return this.mock.totalesFactura(this.working);
   }
 

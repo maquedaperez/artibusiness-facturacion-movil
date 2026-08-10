@@ -117,10 +117,6 @@
             </ion-item>
           </div>
 
-          <ion-item lines="none">
-            <ion-checkbox [(ngModel)]="l.esSuplido">Es suplido (no lleva IVA)</ion-checkbox>
-          </ion-item>
-
           <ion-button expand="block" fill="clear" color="danger" size="small" (click)="eliminarLinea(l)">
             <ion-icon slot="start" name="trash-outline"></ion-icon>
             Eliminar línea
@@ -132,8 +128,7 @@
           <p class="ion-no-margin">
             {{ l.cantidad }} × {{ formatEuros(l.precioUnitario) }}
             <span *ngIf="l.descuentoPct"> · Dto {{ l.descuentoPct }}%</span>
-            <span *ngIf="!l.esSuplido"> · IVA {{ l.ivaPct }}%</span>
-            <span *ngIf="l.esSuplido"> · Suplido</span>
+            <span> · IVA {{ l.ivaPct }}%</span>
           </p>
         </ng-template>
       </ion-card-content>
@@ -155,9 +150,6 @@
         <p class="ion-no-margin">Base imponible: {{ formatEuros(totales().base) }}</p>
         <p class="ion-no-margin" *ngFor="let d of totales().desgloseIva">
           IVA {{ d.pct }}% sobre {{ formatEuros(d.baseGravada) }}: {{ formatEuros(d.cuota) }}
-        </p>
-        <p class="ion-no-margin" *ngIf="totales().suplidos">
-          Suplidos: {{ formatEuros(totales().suplidos) }}
         </p>
         <p class="ion-no-margin" *ngIf="f.irpfBase">
           IRPF: −{{ formatEuros(f.irpfBase) }}

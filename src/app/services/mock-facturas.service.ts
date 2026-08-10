@@ -31,7 +31,6 @@ export type LineaFactura = {
   precioUnitario: number;
   descuentoPct: number;
   ivaPct: number;
-  esSuplido: boolean;
 };
 
 export type FacturaEmitida = {
@@ -50,7 +49,6 @@ export type DesgloseIva = { pct: number; baseGravada: number; cuota: number };
 
 export type TotalesFactura = {
   base: number;
-  suplidos: number;
   desgloseIva: DesgloseIva[];
   ivaTotal: number;
   total: number;
@@ -112,7 +110,7 @@ export class MockFacturasService {
       id: 1, numFactura: 'A-2026-014', numeradorId: 1, fecha: '2026-08-05',
       destinatario: this.clientes[0],
       lineas: [
-        { id: 1, descripcion: 'Revisión anual instalación', cantidad: 1, precioUnitario: 1200, descuentoPct: 0, ivaPct: 21, esSuplido: false },
+        { id: 1, descripcion: 'Revisión anual instalación', cantidad: 1, precioUnitario: 1200, descuentoPct: 0, ivaPct: 21 },
       ],
       irpfBase: 0, estado: 'borrador',
     },
@@ -120,7 +118,7 @@ export class MockFacturasService {
       id: 2, numFactura: 'A-2026-015', numeradorId: 1, fecha: '2026-08-07',
       destinatario: this.clientes[1],
       lineas: [
-        { id: 2, descripcion: 'Servicio de transporte mensual', cantidad: 1, precioUnitario: 850, descuentoPct: 0, ivaPct: 21, esSuplido: false },
+        { id: 2, descripcion: 'Servicio de transporte mensual', cantidad: 1, precioUnitario: 850, descuentoPct: 0, ivaPct: 21 },
       ],
       irpfBase: 0, estado: 'borrador',
     },
@@ -128,7 +126,7 @@ export class MockFacturasService {
       id: 3, numFactura: 'A-2026-011', numeradorId: 1, fecha: '2026-07-28',
       destinatario: this.clientes[3],
       lineas: [
-        { id: 3, descripcion: 'Asesoría fiscal julio', cantidad: 1, precioUnitario: 600, descuentoPct: 0, ivaPct: 21, esSuplido: false },
+        { id: 3, descripcion: 'Asesoría fiscal julio', cantidad: 1, precioUnitario: 600, descuentoPct: 0, ivaPct: 21 },
       ],
       irpfBase: 90, estado: 'contabilizada', estadoAeat: 'PendienteEnvio',
     },
@@ -136,8 +134,8 @@ export class MockFacturasService {
       id: 4, numFactura: 'B-2026-003', numeradorId: 2, fecha: '2026-07-30',
       destinatario: this.clientes[1],
       lineas: [
-        { id: 4, descripcion: 'Reparación flota', cantidad: 1, precioUnitario: 2100, descuentoPct: 0, ivaPct: 21, esSuplido: false },
-        { id: 5, descripcion: 'Tasas de gestoría (suplido)', cantidad: 1, precioUnitario: 35, descuentoPct: 0, ivaPct: 0, esSuplido: true },
+        { id: 4, descripcion: 'Reparación flota', cantidad: 1, precioUnitario: 2100, descuentoPct: 0, ivaPct: 21 },
+        { id: 5, descripcion: 'Tasas de gestoría', cantidad: 1, precioUnitario: 35, descuentoPct: 0, ivaPct: 0 },
       ],
       irpfBase: 0, estado: 'contabilizada', estadoAeat: 'RequiereRevisionManual',
     },
@@ -145,7 +143,7 @@ export class MockFacturasService {
       id: 5, numFactura: 'A-2026-009', numeradorId: 1, fecha: '2026-07-15',
       destinatario: this.clientes[0],
       lineas: [
-        { id: 6, descripcion: 'Material fungible', cantidad: 1, precioUnitario: 340, descuentoPct: 0, ivaPct: 21, esSuplido: false },
+        { id: 6, descripcion: 'Material fungible', cantidad: 1, precioUnitario: 340, descuentoPct: 0, ivaPct: 21 },
       ],
       irpfBase: 0, estado: 'firmada', estadoAeat: 'Correcto',
     },
@@ -153,8 +151,8 @@ export class MockFacturasService {
       id: 6, numFactura: 'A-2026-008', numeradorId: 2, fecha: '2026-07-10',
       destinatario: this.clientes[3],
       lineas: [
-        { id: 7, descripcion: 'Consultoría de proceso A', cantidad: 2, precioUnitario: 50, descuentoPct: 0, ivaPct: 21, esSuplido: false },
-        { id: 8, descripcion: 'Mantenimiento B', cantidad: 3, precioUnitario: 20, descuentoPct: 8.33, ivaPct: 10, esSuplido: false },
+        { id: 7, descripcion: 'Consultoría de proceso A', cantidad: 2, precioUnitario: 50, descuentoPct: 0, ivaPct: 21 },
+        { id: 8, descripcion: 'Mantenimiento B', cantidad: 3, precioUnitario: 20, descuentoPct: 8.33, ivaPct: 10 },
       ],
       irpfBase: 147, estado: 'firmada', estadoAeat: 'AceptadoConErrores',
     },
@@ -255,17 +253,12 @@ export class MockFacturasService {
 
   totalesFactura(f: FacturaEmitida): TotalesFactura {
     let base = 0;
-    let suplidos = 0;
     const grupos = new Map<number, number>();
 
     for (const l of f.lineas) {
       const importe = l.cantidad * l.precioUnitario * (1 - l.descuentoPct / 100);
-      if (l.esSuplido) {
-        suplidos += importe;
-      } else {
-        base += importe;
-        grupos.set(l.ivaPct, (grupos.get(l.ivaPct) ?? 0) + importe);
-      }
+      base += importe;
+      grupos.set(l.ivaPct, (grupos.get(l.ivaPct) ?? 0) + importe);
     }
 
     const desgloseIva: DesgloseIva[] = Array.from(grupos.entries())
@@ -273,9 +266,9 @@ export class MockFacturasService {
       .sort((a, b) => b.pct - a.pct);
 
     const ivaTotal = desgloseIva.reduce((s, d) => s + d.cuota, 0);
-    const total = base + ivaTotal + suplidos - (f.irpfBase || 0);
+    const total = base + ivaTotal - (f.irpfBase || 0);
 
-    return { base, suplidos, desgloseIva, ivaTotal, total };
+    return { base, desgloseIva, ivaTotal, total };
   }
 
   // ---------- Facturas recibidas ----------
