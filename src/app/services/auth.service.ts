@@ -108,9 +108,9 @@ logout(): void {
 }
 
   async login(req: LoginRequest): Promise<LoginResult> {
-    // Facturación usa UsersController (clientes de ARTIBusiness), no EmployeesController
-    // (ese es el dominio de Fichajes/empleados internos). Confirmado contra el código padre.
-    const res = await this.api.post<ApiLoginResponse>('/api/Users/authenticate', {
+    // ⚠️ Revertido a Employees temporalmente: Users/authenticate no funcionó en pruebas
+    // reales (pendiente de investigar por qué). Confirmar de nuevo antes de recambiar.
+    const res = await this.api.post<ApiLoginResponse>('/api/Employees/authenticate', {
       Company: req.company,
       BusinessUnit: req.businessUnit,
       username: req.username,
@@ -226,7 +226,7 @@ logout(): void {
     const { value: password } = await Preferences.get({ key: 'saved_password' });
     if (!password) throw new Error('No se pudieron recuperar las credenciales');
 
-    await this.api.post<ApiLoginResponse>('/api/Users/authenticate', {
+    await this.api.post<ApiLoginResponse>('/api/Employees/authenticate', {
       Company: cfg.company,
       BusinessUnit: cfg.businessUnit,
       username,
