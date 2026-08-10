@@ -16,5 +16,11 @@ module.exports = {
         );
       }
     }
+  },
+  '/config-api': {
+    target: 'https://configurationapidispatcher-h2g0g4amcgdmaddh.westeurope-01.azurewebsites.net',
+    secure: true,
+    changeOrigin: true,
+    pathRewrite: { '^/config-api': '/api' },
   }
 };

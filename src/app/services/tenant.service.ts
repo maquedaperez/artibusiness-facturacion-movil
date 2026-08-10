@@ -10,7 +10,9 @@ export type TenantConfig = {
   businessUnit: number;
 };
 
-const CONFIG_API_URL = 'https://configurationapidispatcher-h2g0g4amcgdmaddh.westeurope-01.azurewebsites.net/api/configuration';
+const CONFIG_API_URL_NATIVE = 'https://configurationapidispatcher-h2g0g4amcgdmaddh.westeurope-01.azurewebsites.net/api/configuration';
+// En web se pasa por un proxy same-origin (netlify.toml / proxy.conf.js) para evitar CORS.
+const CONFIG_API_URL_WEB = '/config-api/configuration';
 
 @Injectable({ providedIn: 'root' })
 export class TenantService {
@@ -46,7 +48,7 @@ export class TenantService {
 
       if (Capacitor.isNativePlatform()) {
         const res = await CapacitorHttp.request({
-          url: CONFIG_API_URL,
+          url: CONFIG_API_URL_NATIVE,
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           data: { clave },
@@ -60,7 +62,7 @@ export class TenantService {
 
         data = res.data;
       } else {
-        const res = await fetch(CONFIG_API_URL, {
+        const res = await fetch(CONFIG_API_URL_WEB, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ clave }),

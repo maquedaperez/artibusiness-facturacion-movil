@@ -5,6 +5,20 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# Proxies server-a-servidor para evitar CORS en el build web (Netlify).
+# La build nativa (Capacitor/CapacitorHttp) no pasa por aquí y no le afecta.
+[[redirects]]
+  from = "/api/*"
+  to = "https://webapiartibusiness-dvh6d7b8a7c9dsfr.westeurope-01.azurewebsites.net/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/config-api/configuration"
+  to = "https://configurationapidispatcher-h2g0g4amcgdmaddh.westeurope-01.azurewebsites.net/api/configuration"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
