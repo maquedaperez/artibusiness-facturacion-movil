@@ -143,7 +143,7 @@ export class FacturaDetallePage implements OnInit {
 
     const alert = await this.alertCtrl.create({
       header: 'Contabilizar factura',
-      message: `¿Contabilizar la factura de ${this.working.destinatario.nombre} por ${this.formatEuros(this.totales().total)}? Se guardarán los cambios pendientes.`,
+      message: `¿Contabilizar la factura de ${this.working.destinatario.nombre} por ${this.formatEuros(this.totales().total)}? Esta acción envía la factura a Verifactu/AEAT. Se guardarán los cambios pendientes.`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         {
@@ -165,7 +165,7 @@ export class FacturaDetallePage implements OnInit {
 
     const alert = await this.alertCtrl.create({
       header: 'Firmar factura',
-      message: `¿Firmar esta factura? Esta acción envía la factura a Verifactu/AEAT.`,
+      message: `¿Firmar esta factura? Esta acción inicia el proceso de autofirma.`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         {
