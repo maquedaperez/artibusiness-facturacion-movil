@@ -108,7 +108,9 @@ logout(): void {
 }
 
   async login(req: LoginRequest): Promise<LoginResult> {
-    const res = await this.api.post<ApiLoginResponse>('/api/Employees/authenticate', {
+    // Facturación usa UsersController (clientes de ARTIBusiness), no EmployeesController
+    // (ese es el dominio de Fichajes/empleados internos). Confirmado contra el código padre.
+    const res = await this.api.post<ApiLoginResponse>('/api/Users/authenticate', {
       Company: req.company,
       BusinessUnit: req.businessUnit,
       username: req.username,
@@ -161,7 +163,9 @@ logout(): void {
     throw new Error('Login inválido');
   }
 
-  // ✅ Implementación real MFA
+  // ⚠️ Pendiente de confirmar: no hay evidencia de que UsersController tenga paso de MFA
+  // en el login (solo login directo). Esta ruta sigue apuntando a Employees porque no se
+  // ha confirmado el endpoint equivalente en Users — probablemente no se llegue a usar.
   async verifyMfaCode(challengeId: string, code: string, username: string): Promise<void> {
     const cfg = await this.tenant.getTenantConfig();
     if (!cfg) throw new Error('Tenant no configurado');
@@ -200,6 +204,9 @@ logout(): void {
     localStorage.setItem(this.SESSION_EXPIRY_KEY, String(Date.now() + this.SESSION_DURATION_MS));
   }
 
+  // ⚠️ Pendiente de confirmar ruta/payload exactos de recuperación en Users
+  // (existe UsersController con forgot/getUserCode/validateUserCode, pero no se ha
+  // verificado si son literalmente estas rutas o los nombres de acción reales).
   async forgotPassword(_tenantKey: string, identifier: string): Promise<{ ok: true }> {
     const cfg = await this.tenant.getTenantConfig();
     if (!cfg) throw new Error('Tenant no configurado');
@@ -219,7 +226,7 @@ logout(): void {
     const { value: password } = await Preferences.get({ key: 'saved_password' });
     if (!password) throw new Error('No se pudieron recuperar las credenciales');
 
-    await this.api.post<ApiLoginResponse>('/api/Employees/authenticate', {
+    await this.api.post<ApiLoginResponse>('/api/Users/authenticate', {
       Company: cfg.company,
       BusinessUnit: cfg.businessUnit,
       username,

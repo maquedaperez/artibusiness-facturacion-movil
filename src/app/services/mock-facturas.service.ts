@@ -8,19 +8,52 @@ export type Numerador = {
   nombre: string;
 };
 
+// Forma alineada con Clientes/ClienteUsuario del backend real (findbynif/findbyname/insert).
+export type ClienteMock = {
+  id: number;
+  nif: string;
+  nombre: string;
+  esEmpresa: boolean;
+  direccion?: string;
+  poblacion?: string;
+  cp?: string;
+  provincia?: string;
+};
+
+export type Destinatario = Omit<ClienteMock, 'id'>;
+
+// Forma alineada con FacturacionFacturasEmitidasLineas del backend real.
+// ivaPct sustituye a IdImpuesto (catálogo de impuestos) mientras no exista el endpoint.
+export type LineaFactura = {
+  id: number;
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+  descuentoPct: number;
+  ivaPct: number;
+  esSuplido: boolean;
+};
+
 export type FacturaEmitida = {
   id: number;
   numFactura: string;
-  cliente: string;
+  numeradorId: number;
   fecha: string;
-  totalBase: number;
-  ivaBase: number;
-  suplidosBase: number;
+  destinatario: Destinatario;
+  lineas: LineaFactura[];
   irpfBase: number;
-  totalFactura: number;
   estado: EstadoFactura;
   estadoAeat?: EstadoAeat;
-  numeradorId: number;
+};
+
+export type DesgloseIva = { pct: number; baseGravada: number; cuota: number };
+
+export type TotalesFactura = {
+  base: number;
+  suplidos: number;
+  desgloseIva: DesgloseIva[];
+  ivaTotal: number;
+  total: number;
 };
 
 export type FacturaRecibida = {
@@ -41,6 +74,11 @@ const ESTADO_AEAT_LABELS: Record<EstadoAeat, string> = {
   RequiereRevisionManual: 'Requiere revisión manual',
 };
 
+export const IVA_RATES = [0, 4, 10, 21];
+
+let nextEmitidaId = 100;
+let nextLineaId = 1000;
+let nextClienteId = 100;
 let nextRecibidaId = 100;
 
 @Injectable({ providedIn: 'root' })
@@ -50,36 +88,75 @@ export class MockFacturasService {
     { id: 2, nombre: 'Serie B 2026' },
   ];
 
+  private clientes: ClienteMock[] = [
+    {
+      id: 1, nif: 'B12345678', nombre: 'Clínica Dental Sonrisas SL', esEmpresa: true,
+      direccion: 'Calle Mayor 12', poblacion: 'Madrid', cp: '28013', provincia: 'Madrid',
+    },
+    {
+      id: 2, nif: 'A87654321', nombre: 'Transportes Ibáñez SA', esEmpresa: true,
+      direccion: 'Polígono Industrial Norte, Nave 4', poblacion: 'Getafe', cp: '28905', provincia: 'Madrid',
+    },
+    {
+      id: 3, nif: '12345678Z', nombre: 'María Fernández López', esEmpresa: false,
+      direccion: 'Avenida de la Constitución 5', poblacion: 'Alcorcón', cp: '28921', provincia: 'Madrid',
+    },
+    {
+      id: 4, nif: 'B99887766', nombre: 'Asesoría Martín & Ruiz SL', esEmpresa: true,
+      direccion: 'Calle Alcalá 200', poblacion: 'Madrid', cp: '28028', provincia: 'Madrid',
+    },
+  ];
+
   private emitidas: FacturaEmitida[] = [
     {
-      id: 1, numFactura: 'A-2026-014', cliente: 'Clínica Dental Sonrisas SL', fecha: '2026-08-05',
-      totalBase: 1200, ivaBase: 252, suplidosBase: 0, irpfBase: 0, totalFactura: 1452,
-      estado: 'borrador', numeradorId: 1,
+      id: 1, numFactura: 'A-2026-014', numeradorId: 1, fecha: '2026-08-05',
+      destinatario: this.clientes[0],
+      lineas: [
+        { id: 1, descripcion: 'Revisión anual instalación', cantidad: 1, precioUnitario: 1200, descuentoPct: 0, ivaPct: 21, esSuplido: false },
+      ],
+      irpfBase: 0, estado: 'borrador',
     },
     {
-      id: 2, numFactura: 'A-2026-015', cliente: 'Transportes Ibáñez SA', fecha: '2026-08-07',
-      totalBase: 850, ivaBase: 178.5, suplidosBase: 0, irpfBase: 0, totalFactura: 1028.5,
-      estado: 'borrador', numeradorId: 1,
+      id: 2, numFactura: 'A-2026-015', numeradorId: 1, fecha: '2026-08-07',
+      destinatario: this.clientes[1],
+      lineas: [
+        { id: 2, descripcion: 'Servicio de transporte mensual', cantidad: 1, precioUnitario: 850, descuentoPct: 0, ivaPct: 21, esSuplido: false },
+      ],
+      irpfBase: 0, estado: 'borrador',
     },
     {
-      id: 3, numFactura: 'A-2026-011', cliente: 'Asesoría Martín & Ruiz', fecha: '2026-07-28',
-      totalBase: 600, ivaBase: 126, suplidosBase: 0, irpfBase: 90, totalFactura: 636,
-      estado: 'contabilizada', estadoAeat: 'PendienteEnvio', numeradorId: 1,
+      id: 3, numFactura: 'A-2026-011', numeradorId: 1, fecha: '2026-07-28',
+      destinatario: this.clientes[3],
+      lineas: [
+        { id: 3, descripcion: 'Asesoría fiscal julio', cantidad: 1, precioUnitario: 600, descuentoPct: 0, ivaPct: 21, esSuplido: false },
+      ],
+      irpfBase: 90, estado: 'contabilizada', estadoAeat: 'PendienteEnvio',
     },
     {
-      id: 4, numFactura: 'B-2026-003', cliente: 'Talleres Robledo', fecha: '2026-07-30',
-      totalBase: 2100, ivaBase: 441, suplidosBase: 35, irpfBase: 0, totalFactura: 2576,
-      estado: 'contabilizada', estadoAeat: 'RequiereRevisionManual', numeradorId: 2,
+      id: 4, numFactura: 'B-2026-003', numeradorId: 2, fecha: '2026-07-30',
+      destinatario: this.clientes[1],
+      lineas: [
+        { id: 4, descripcion: 'Reparación flota', cantidad: 1, precioUnitario: 2100, descuentoPct: 0, ivaPct: 21, esSuplido: false },
+        { id: 5, descripcion: 'Tasas de gestoría (suplido)', cantidad: 1, precioUnitario: 35, descuentoPct: 0, ivaPct: 0, esSuplido: true },
+      ],
+      irpfBase: 0, estado: 'contabilizada', estadoAeat: 'RequiereRevisionManual',
     },
     {
-      id: 5, numFactura: 'A-2026-009', cliente: 'Panadería Los Hornos SL', fecha: '2026-07-15',
-      totalBase: 340, ivaBase: 71.4, suplidosBase: 0, irpfBase: 0, totalFactura: 411.4,
-      estado: 'firmada', estadoAeat: 'Correcto', numeradorId: 1,
+      id: 5, numFactura: 'A-2026-009', numeradorId: 1, fecha: '2026-07-15',
+      destinatario: this.clientes[0],
+      lineas: [
+        { id: 6, descripcion: 'Material fungible', cantidad: 1, precioUnitario: 340, descuentoPct: 0, ivaPct: 21, esSuplido: false },
+      ],
+      irpfBase: 0, estado: 'firmada', estadoAeat: 'Correcto',
     },
     {
-      id: 6, numFactura: 'A-2026-008', cliente: 'Gestoría Fernández', fecha: '2026-07-10',
-      totalBase: 980, ivaBase: 205.8, suplidosBase: 0, irpfBase: 147, totalFactura: 1038.8,
-      estado: 'firmada', estadoAeat: 'AceptadoConErrores', numeradorId: 2,
+      id: 6, numFactura: 'A-2026-008', numeradorId: 2, fecha: '2026-07-10',
+      destinatario: this.clientes[3],
+      lineas: [
+        { id: 7, descripcion: 'Consultoría de proceso A', cantidad: 2, precioUnitario: 50, descuentoPct: 0, ivaPct: 21, esSuplido: false },
+        { id: 8, descripcion: 'Mantenimiento B', cantidad: 3, precioUnitario: 20, descuentoPct: 8.33, ivaPct: 10, esSuplido: false },
+      ],
+      irpfBase: 147, estado: 'firmada', estadoAeat: 'AceptadoConErrores',
     },
   ];
 
@@ -94,9 +171,7 @@ export class MockFacturasService {
     },
   ];
 
-  estadoAeatLabel(estado?: EstadoAeat): string {
-    return estado ? ESTADO_AEAT_LABELS[estado] : '—';
-  }
+  // ---------- Numeradores ----------
 
   getNumeradores(): Numerador[] {
     return [...this.numeradores];
@@ -106,11 +181,62 @@ export class MockFacturasService {
     return this.numeradores.find(n => n.id === id)?.nombre ?? '—';
   }
 
+  // ---------- Clientes ----------
+
+  buscarClientes(query: string): ClienteMock[] {
+    const q = query.trim().toLowerCase();
+    if (!q) return [...this.clientes];
+    return this.clientes.filter(c =>
+      c.nombre.toLowerCase().includes(q) || c.nif.toLowerCase().includes(q)
+    );
+  }
+
+  crearClienteAdHoc(data: Destinatario): ClienteMock {
+    const nuevo: ClienteMock = { id: nextClienteId++, ...data };
+    this.clientes.push(nuevo);
+    return nuevo;
+  }
+
+  // ---------- Facturas emitidas ----------
+
+  estadoAeatLabel(estado?: EstadoAeat): string {
+    return estado ? ESTADO_AEAT_LABELS[estado] : '—';
+  }
+
   getFacturasEmitidas(estado: EstadoFactura, numeradorId: number | null = null): FacturaEmitida[] {
     return this.emitidas
       .filter(f => f.estado === estado)
       .filter(f => numeradorId == null || f.numeradorId === numeradorId)
       .sort((a, b) => b.fecha.localeCompare(a.fecha));
+  }
+
+  getFacturaById(id: number): FacturaEmitida | undefined {
+    return this.emitidas.find(f => f.id === id);
+  }
+
+  crearBorrador(numeradorId: number, destinatario: Destinatario): FacturaEmitida {
+    const nueva: FacturaEmitida = {
+      id: nextEmitidaId++,
+      numFactura: `${this.numeradorNombre(numeradorId).split(' ')[1] ?? 'X'}-BORRADOR-${nextEmitidaId}`,
+      numeradorId,
+      fecha: new Date().toISOString().slice(0, 10),
+      destinatario,
+      lineas: [],
+      irpfBase: 0,
+      estado: 'borrador',
+    };
+    this.emitidas.unshift(nueva);
+    return nueva;
+  }
+
+  actualizarBorrador(id: number, cambios: Partial<Pick<FacturaEmitida, 'fecha' | 'destinatario' | 'lineas' | 'irpfBase' | 'numeradorId'>>): void {
+    const f = this.emitidas.find(e => e.id === id);
+    if (!f || f.estado !== 'borrador') return;
+    Object.assign(f, cambios);
+  }
+
+  nuevoIdLinea(): number {
+    return nextLineaId++;
   }
 
   contabilizar(id: number): void {
@@ -126,6 +252,33 @@ export class MockFacturasService {
     f.estado = 'firmada';
     f.estadoAeat = 'Correcto';
   }
+
+  totalesFactura(f: FacturaEmitida): TotalesFactura {
+    let base = 0;
+    let suplidos = 0;
+    const grupos = new Map<number, number>();
+
+    for (const l of f.lineas) {
+      const importe = l.cantidad * l.precioUnitario * (1 - l.descuentoPct / 100);
+      if (l.esSuplido) {
+        suplidos += importe;
+      } else {
+        base += importe;
+        grupos.set(l.ivaPct, (grupos.get(l.ivaPct) ?? 0) + importe);
+      }
+    }
+
+    const desgloseIva: DesgloseIva[] = Array.from(grupos.entries())
+      .map(([pct, baseGravada]) => ({ pct, baseGravada, cuota: baseGravada * pct / 100 }))
+      .sort((a, b) => b.pct - a.pct);
+
+    const ivaTotal = desgloseIva.reduce((s, d) => s + d.cuota, 0);
+    const total = base + ivaTotal + suplidos - (f.irpfBase || 0);
+
+    return { base, suplidos, desgloseIva, ivaTotal, total };
+  }
+
+  // ---------- Facturas recibidas ----------
 
   getFacturasRecibidas(): FacturaRecibida[] {
     return [...this.recibidas].sort((a, b) => b.fecha.localeCompare(a.fecha));

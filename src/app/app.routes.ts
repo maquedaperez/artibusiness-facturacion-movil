@@ -49,6 +49,11 @@ export const routes: Routes = [
           import('./pages/facturas-emitidas/facturas-emitidas.page').then(m => m.FacturasEmitidasPage),
       },
       {
+        path: 'emitidas/:id',
+        loadComponent: () =>
+          import('./pages/factura-detalle/factura-detalle.page').then(m => m.FacturaDetallePage),
+      },
+      {
         path: 'recibidas',
         loadComponent: () =>
           import('./pages/facturas-recibidas/facturas-recibidas.page').then(m => m.FacturasRecibidasPage),

@@ -1,17 +1,18 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonContent,
   IonSegment, IonSegmentButton, IonLabel,
   IonSelect, IonSelectOption,
   IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonCardSubtitle,
-  IonText, IonIcon, IonButton, IonBadge, IonChip,
+  IonText, IonIcon, IonButton, IonBadge, IonChip, IonFab, IonFabButton,
   AlertController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { documentTextOutline, checkmarkCircleOutline, ribbonOutline } from 'ionicons/icons';
+import { documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline } from 'ionicons/icons';
 
 import { MockFacturasService, EstadoFactura, FacturaEmitida, Numerador } from '../../services/mock-facturas.service';
 
@@ -26,7 +27,7 @@ import { MockFacturasService, EstadoFactura, FacturaEmitida, Numerador } from '.
     IonSegment, IonSegmentButton, IonLabel,
     IonSelect, IonSelectOption,
     IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonCardSubtitle,
-    IonText, IonIcon, IonButton, IonBadge, IonChip,
+    IonText, IonIcon, IonButton, IonBadge, IonChip, IonFab, IonFabButton,
   ],
 })
 export class FacturasEmitidasPage implements OnInit {
@@ -37,14 +38,19 @@ export class FacturasEmitidasPage implements OnInit {
 
   constructor(
     private mock: MockFacturasService,
+    private router: Router,
     private alertCtrl: AlertController,
     private toastCtrl: ToastController,
   ) {
-    addIcons({ documentTextOutline, checkmarkCircleOutline, ribbonOutline });
+    addIcons({ documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline });
   }
 
   ngOnInit() {
     this.numeradores = this.mock.getNumeradores();
+    this.refresh();
+  }
+
+  ionViewWillEnter() {
     this.refresh();
   }
 
@@ -60,6 +66,22 @@ export class FacturasEmitidasPage implements OnInit {
 
   refresh() {
     this.facturas = this.mock.getFacturasEmitidas(this.estado, this.numeradorId);
+  }
+
+  abrir(f: FacturaEmitida) {
+    this.router.navigate(['/app/emitidas', f.id]);
+  }
+
+  crearBorrador() {
+    this.router.navigate(['/app/emitidas', 'nueva']);
+  }
+
+  clienteNombre(f: FacturaEmitida): string {
+    return f.destinatario.nombre;
+  }
+
+  totalFactura(f: FacturaEmitida): number {
+    return this.mock.totalesFactura(f).total;
   }
 
   numeradorNombre(f: FacturaEmitida): string {
@@ -80,10 +102,11 @@ export class FacturasEmitidasPage implements OnInit {
     }
   }
 
-  async confirmarContabilizar(f: FacturaEmitida) {
+  async confirmarContabilizar(event: Event, f: FacturaEmitida) {
+    event.stopPropagation();
     const alert = await this.alertCtrl.create({
       header: 'Contabilizar factura',
-      message: `¿Contabilizar la factura ${f.numFactura} de ${f.cliente} por ${this.formatEuros(f.totalFactura)}?`,
+      message: `¿Contabilizar la factura de ${f.destinatario.nombre} por ${this.formatEuros(this.totalFactura(f))}?`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         {
@@ -91,7 +114,7 @@ export class FacturasEmitidasPage implements OnInit {
           handler: async () => {
             this.mock.contabilizar(f.id);
             this.refresh();
-            await this.showToast(`Factura ${f.numFactura} contabilizada.`);
+            await this.showToast(`Factura de ${f.destinatario.nombre} contabilizada.`);
           },
         },
       ],
@@ -99,10 +122,11 @@ export class FacturasEmitidasPage implements OnInit {
     await alert.present();
   }
 
-  async confirmarFirmar(f: FacturaEmitida) {
+  async confirmarFirmar(event: Event, f: FacturaEmitida) {
+    event.stopPropagation();
     const alert = await this.alertCtrl.create({
       header: 'Firmar factura',
-      message: `¿Firmar la factura ${f.numFactura} de ${f.cliente}? Esta acción envía la factura a Verifactu/AEAT.`,
+      message: `¿Firmar la factura de ${f.destinatario.nombre}? Esta acción envía la factura a Verifactu/AEAT.`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         {
@@ -110,7 +134,7 @@ export class FacturasEmitidasPage implements OnInit {
           handler: async () => {
             this.mock.firmar(f.id);
             this.refresh();
-            await this.showToast(`Factura ${f.numFactura} firmada.`);
+            await this.showToast(`Factura de ${f.destinatario.nombre} firmada.`);
           },
         },
       ],

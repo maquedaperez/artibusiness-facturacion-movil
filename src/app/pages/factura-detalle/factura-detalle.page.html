@@ -1,0 +1,187 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="volver()">
+        <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title class="title-bold">{{ working?.numFactura || 'Nueva factura' }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+
+  <ion-chip color="medium" class="mock-chip">
+    <ion-icon name="document-text-outline"></ion-icon>
+    <ion-label>Datos de ejemplo — pendiente conectar backend</ion-label>
+  </ion-chip>
+
+  <ion-text color="danger" *ngIf="errorMsg">
+    <p>{{ errorMsg }}</p>
+  </ion-text>
+
+  <!-- Paso inicial: elegir numerador + cliente para arrancar un borrador nuevo -->
+  <ion-card *ngIf="esNueva && !working">
+    <ion-card-content>
+      <ion-item>
+        <ion-select
+          label="Numerador / Serie"
+          interface="popover"
+          [(ngModel)]="numeradorSeleccionado"
+        >
+          <ion-select-option *ngFor="let n of numeradores" [value]="n.id">{{ n.nombre }}</ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <ion-button expand="block" class="ion-margin-top" (click)="elegirCliente()">
+        <ion-icon slot="start" name="person-circle-outline"></ion-icon>
+        Elegir cliente y empezar
+      </ion-button>
+    </ion-card-content>
+  </ion-card>
+
+  <ng-container *ngIf="working as f">
+
+    <ion-badge *ngIf="f.estado !== 'borrador'" color="medium" class="estado-badge">
+      {{ f.estado === 'contabilizada' ? 'Contabilizada' : 'Firmada' }}
+      <span *ngIf="f.estadoAeat"> · Estado AEAT: {{ estadoAeatLabel() }}</span>
+    </ion-badge>
+
+    <!-- Cliente -->
+    <ion-card>
+      <ion-card-content>
+        <div class="section-title">Cliente</div>
+        <p class="ion-no-margin"><strong>{{ f.destinatario.nombre }}</strong></p>
+        <p class="ion-no-margin">{{ f.destinatario.nif }} · {{ f.destinatario.esEmpresa ? 'Empresa' : 'Particular' }}</p>
+        <p class="ion-no-margin" *ngIf="f.destinatario.direccion">
+          {{ f.destinatario.direccion }}, {{ f.destinatario.cp }} {{ f.destinatario.poblacion }} ({{ f.destinatario.provincia }})
+        </p>
+
+        <ion-button *ngIf="esEditable" size="small" fill="outline" class="ion-margin-top" (click)="elegirCliente()">
+          Cambiar cliente
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Datos de cabecera -->
+    <ion-card>
+      <ion-card-content>
+        <ion-item [disabled]="!esEditable">
+          <ion-select label="Numerador / Serie" interface="popover" [(ngModel)]="f.numeradorId">
+            <ion-select-option *ngFor="let n of numeradores" [value]="n.id">{{ n.nombre }}</ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-item [disabled]="!esEditable">
+          <ion-input label="Fecha" labelPlacement="stacked" type="date" [(ngModel)]="f.fecha"></ion-input>
+        </ion-item>
+
+        <ion-item [disabled]="!esEditable">
+          <ion-input
+            label="IRPF (€) — pendiente confirmar regla fiscal"
+            labelPlacement="stacked"
+            type="number"
+            [(ngModel)]="f.irpfBase"
+          ></ion-input>
+        </ion-item>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Líneas -->
+    <div class="section-title lineas-title">Líneas</div>
+
+    <ion-card *ngFor="let l of f.lineas">
+      <ion-card-content>
+        <ng-container *ngIf="esEditable; else lineaReadonly">
+          <ion-item>
+            <ion-input label="Descripción" labelPlacement="stacked" [(ngModel)]="l.descripcion"></ion-input>
+          </ion-item>
+
+          <div class="linea-grid">
+            <ion-item>
+              <ion-input label="Cantidad" labelPlacement="stacked" type="number" [(ngModel)]="l.cantidad"></ion-input>
+            </ion-item>
+            <ion-item>
+              <ion-input label="Precio unitario" labelPlacement="stacked" type="number" [(ngModel)]="l.precioUnitario"></ion-input>
+            </ion-item>
+          </div>
+
+          <div class="linea-grid">
+            <ion-item>
+              <ion-input label="% Dto" labelPlacement="stacked" type="number" [(ngModel)]="l.descuentoPct"></ion-input>
+            </ion-item>
+            <ion-item>
+              <ion-select label="% IVA" labelPlacement="stacked" [(ngModel)]="l.ivaPct">
+                <ion-select-option *ngFor="let r of ivaRates" [value]="r">{{ r }}%</ion-select-option>
+              </ion-select>
+            </ion-item>
+          </div>
+
+          <ion-item lines="none">
+            <ion-checkbox [(ngModel)]="l.esSuplido">Es suplido (no lleva IVA)</ion-checkbox>
+          </ion-item>
+
+          <ion-button expand="block" fill="clear" color="danger" size="small" (click)="eliminarLinea(l)">
+            <ion-icon slot="start" name="trash-outline"></ion-icon>
+            Eliminar línea
+          </ion-button>
+        </ng-container>
+
+        <ng-template #lineaReadonly>
+          <p class="ion-no-margin"><strong>{{ l.descripcion || '—' }}</strong></p>
+          <p class="ion-no-margin">
+            {{ l.cantidad }} × {{ formatEuros(l.precioUnitario) }}
+            <span *ngIf="l.descuentoPct"> · Dto {{ l.descuentoPct }}%</span>
+            <span *ngIf="!l.esSuplido"> · IVA {{ l.ivaPct }}%</span>
+            <span *ngIf="l.esSuplido"> · Suplido</span>
+          </p>
+        </ng-template>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-button *ngIf="esEditable" expand="block" fill="outline" (click)="agregarLinea()">
+      <ion-icon slot="start" name="add-outline"></ion-icon>
+      Añadir línea
+    </ion-button>
+
+    <ion-text color="medium" *ngIf="f.lineas.length === 0">
+      <p class="ion-padding-top">Esta factura todavía no tiene líneas.</p>
+    </ion-text>
+
+    <!-- Totales -->
+    <ion-card class="totales-card">
+      <ion-card-content>
+        <div class="section-title">Totales</div>
+        <p class="ion-no-margin">Base imponible: {{ formatEuros(totales().base) }}</p>
+        <p class="ion-no-margin" *ngFor="let d of totales().desgloseIva">
+          IVA {{ d.pct }}% sobre {{ formatEuros(d.baseGravada) }}: {{ formatEuros(d.cuota) }}
+        </p>
+        <p class="ion-no-margin" *ngIf="totales().suplidos">
+          Suplidos: {{ formatEuros(totales().suplidos) }}
+        </p>
+        <p class="ion-no-margin" *ngIf="f.irpfBase">
+          IRPF: −{{ formatEuros(f.irpfBase) }}
+        </p>
+        <p class="total-line">Total: <strong>{{ formatEuros(totales().total) }}</strong></p>
+      </ion-card-content>
+    </ion-card>
+
+  </ng-container>
+
+</ion-content>
+
+<ion-footer *ngIf="working as f">
+  <div class="footer-actions">
+    <ion-button *ngIf="esEditable" expand="block" fill="outline" (click)="guardar()">
+      Guardar borrador
+    </ion-button>
+
+    <ion-button *ngIf="f.estado === 'borrador'" expand="block" (click)="confirmarContabilizar()">
+      Contabilizar
+    </ion-button>
+
+    <ion-button *ngIf="f.estado === 'contabilizada'" expand="block" (click)="confirmarFirmar()">
+      Firmar
+    </ion-button>
+  </div>
+</ion-footer>

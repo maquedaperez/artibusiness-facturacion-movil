@@ -37,18 +37,17 @@
   </ion-segment>
 
   <div class="facturas-list">
-    <ion-card *ngFor="let f of facturas">
+    <ion-card *ngFor="let f of facturas" button (click)="abrir(f)">
       <ion-card-header>
         <ion-card-subtitle>{{ numeradorNombre(f) }} · {{ formatFecha(f.fecha) }}</ion-card-subtitle>
-        <ion-card-title>{{ f.numFactura }} — {{ f.cliente }}</ion-card-title>
+        <ion-card-title>{{ f.numFactura }} — {{ clienteNombre(f) }}</ion-card-title>
       </ion-card-header>
 
       <ion-card-content>
-        <p class="ion-no-margin">
-          Base: {{ formatEuros(f.totalBase) }} · IVA: {{ formatEuros(f.ivaBase) }}
-          <span *ngIf="f.irpfBase"> · IRPF: {{ formatEuros(f.irpfBase) }}</span>
+        <p class="total-line">Total: <strong>{{ formatEuros(totalFactura(f)) }}</strong></p>
+        <p class="ion-no-margin" *ngIf="f.lineas.length === 0" style="color: var(--ion-color-medium);">
+          Sin líneas todavía
         </p>
-        <p class="total-line">Total: <strong>{{ formatEuros(f.totalFactura) }}</strong></p>
 
         <ion-badge *ngIf="f.estado !== 'borrador'" [color]="estadoAeatColor(f)" class="aeat-badge">
           Estado AEAT: {{ estadoAeatLabel(f) }}
@@ -58,7 +57,7 @@
           *ngIf="f.estado === 'borrador'"
           expand="block"
           fill="outline"
-          (click)="confirmarContabilizar(f)"
+          (click)="confirmarContabilizar($event, f)"
         >
           <ion-icon slot="start" name="checkmark-circle-outline"></ion-icon>
           Contabilizar
@@ -68,7 +67,7 @@
           *ngIf="f.estado === 'contabilizada'"
           expand="block"
           fill="outline"
-          (click)="confirmarFirmar(f)"
+          (click)="confirmarFirmar($event, f)"
         >
           <ion-icon slot="start" name="ribbon-outline"></ion-icon>
           Firmar
@@ -85,5 +84,11 @@
       </ion-card-content>
     </ion-card>
   </div>
+
+  <ion-fab *ngIf="estado === 'borrador'" vertical="bottom" horizontal="end" slot="fixed">
+    <ion-fab-button (click)="crearBorrador()">
+      <ion-icon name="add-outline"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
 
 </ion-content>
