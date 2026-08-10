@@ -1,5 +1,6 @@
 import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonContent,
@@ -33,6 +34,7 @@ export class FacturasRecibidasPage implements OnInit {
   constructor(
     private mock: MockFacturasService,
     private toastCtrl: ToastController,
+    private router: Router,
   ) {
     addIcons({ cameraOutline, receiptOutline, documentTextOutline });
   }
@@ -43,6 +45,10 @@ export class FacturasRecibidasPage implements OnInit {
 
   refresh() {
     this.facturas = this.mock.getFacturasRecibidas();
+  }
+
+  abrir(f: FacturaRecibida) {
+    this.router.navigate(['/app/recibidas', f.id]);
   }
 
   triggerUpload() {
@@ -57,16 +63,20 @@ export class FacturasRecibidasPage implements OnInit {
 
     this.processing = true;
     try {
-      const nueva = await this.mock.crearDesdeOcr(file.name);
+      // El servicio recibe el File real: la integración real solo cambia la
+      // implementación interna por una subida multipart a POST /api/FacturaRecibida/desde-ocr.
+      const nueva = await this.mock.crearDesdeOcr(file);
       this.refresh();
-      await this.showToast(`Borrador creado desde "${file.name}": ${nueva.proveedor}.`);
+      await this.showToast(`Borrador creado desde "${file.name}": ${nueva.proveedor}.`, 'success');
+    } catch (e: any) {
+      await this.showToast(e?.message ?? 'No se pudo procesar la imagen. Inténtalo de nuevo.', 'danger');
     } finally {
       this.processing = false;
     }
   }
 
-  private async showToast(message: string) {
-    const toast = await this.toastCtrl.create({ message, duration: 3000, position: 'bottom', color: 'success' });
+  private async showToast(message: string, color: 'success' | 'danger' = 'success') {
+    const toast = await this.toastCtrl.create({ message, duration: 3000, position: 'bottom', color });
     await toast.present();
   }
 

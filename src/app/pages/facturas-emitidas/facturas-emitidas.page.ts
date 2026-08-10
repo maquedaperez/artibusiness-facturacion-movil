@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonContent,
@@ -39,6 +39,7 @@ export class FacturasEmitidasPage implements OnInit {
   constructor(
     private mock: MockFacturasService,
     private router: Router,
+    private route: ActivatedRoute,
     private alertCtrl: AlertController,
     private toastCtrl: ToastController,
   ) {
@@ -47,6 +48,12 @@ export class FacturasEmitidasPage implements OnInit {
 
   ngOnInit() {
     this.numeradores = this.mock.getNumeradores();
+
+    const estadoParam = this.route.snapshot.queryParamMap.get('estado');
+    if (estadoParam === 'borrador' || estadoParam === 'contabilizada' || estadoParam === 'firmada') {
+      this.estado = estadoParam;
+    }
+
     this.refresh();
   }
 

@@ -13,7 +13,7 @@ import { addIcons } from 'ionicons';
 import { arrowBackOutline, addOutline, trashOutline, personCircleOutline, documentTextOutline } from 'ionicons/icons';
 
 import {
-  MockFacturasService, FacturaEmitida, LineaFactura, Destinatario, Numerador, IVA_RATES,
+  MockFacturasService, FacturaEmitida, LineaFactura, Destinatario, Numerador, IVA_RATES, EmisorFiscal,
 } from '../../services/mock-facturas.service';
 import { ClienteSelectorComponent } from '../../modals/cliente-selector/cliente-selector.component';
 
@@ -37,6 +37,7 @@ export class FacturaDetallePage implements OnInit {
   numeradores: Numerador[] = [];
   numeradorSeleccionado: number | null = null;
   ivaRates = IVA_RATES;
+  emisor: EmisorFiscal | null = null;
 
   working: FacturaEmitida | null = null;
   errorMsg = '';
@@ -54,6 +55,7 @@ export class FacturaDetallePage implements OnInit {
 
   ngOnInit() {
     this.numeradores = this.mock.getNumeradores();
+    this.emisor = this.mock.getEmisor();
     const param = this.route.snapshot.paramMap.get('id');
 
     if (param === 'nueva') {
@@ -187,7 +189,8 @@ export class FacturaDetallePage implements OnInit {
   }
 
   volver() {
-    this.router.navigateByUrl('/app/emitidas', { replaceUrl: true });
+    const estado = this.working?.estado ?? 'borrador';
+    this.router.navigate(['/app/emitidas'], { queryParams: { estado }, replaceUrl: true });
   }
 
   estadoAeatLabel(): string {

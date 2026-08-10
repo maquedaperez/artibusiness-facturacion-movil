@@ -47,6 +47,18 @@
       <span *ngIf="f.estadoAeat"> · Estado AEAT: {{ estadoAeatLabel() }}</span>
     </ion-badge>
 
+    <!-- Emisor -->
+    <ion-card *ngIf="emisor">
+      <ion-card-content>
+        <div class="section-title">Emisor</div>
+        <p class="ion-no-margin"><strong>{{ emisor.nombre }}</strong></p>
+        <p class="ion-no-margin">{{ emisor.nif }} · {{ emisor.esEmpresa ? 'Empresa' : 'Autónomo' }}</p>
+        <p class="ion-no-margin" *ngIf="emisor.direccion">
+          {{ emisor.direccion }}, {{ emisor.cp }} {{ emisor.poblacion }} ({{ emisor.provincia }})
+        </p>
+      </ion-card-content>
+    </ion-card>
+
     <!-- Cliente -->
     <ion-card>
       <ion-card-content>

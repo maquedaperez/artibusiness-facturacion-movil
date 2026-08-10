@@ -54,6 +54,10 @@ export class PerfilPage {
     this.user = this.auth.getUser();
   }
 
+  irADatosEmisor() {
+    this.router.navigate(['/app/perfil/emisor']);
+  }
+
   logout() {
     this.auth.logout();
     this.router.navigateByUrl('/login', { replaceUrl: true });

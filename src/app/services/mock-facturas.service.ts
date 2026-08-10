@@ -22,6 +22,24 @@ export type ClienteMock = {
 
 export type Destinatario = Omit<ClienteMock, 'id'>;
 
+// Datos fiscales del emisor (nuestra empresa/tenant). Alineado con el modelo real
+// Empresa.cs (CifEmpresa, IdDireccion, RegistroMercantil/Hoja/Folio/Tomo, Cnae, Iban, Swift),
+// más el toggle autónomo/empresa que pidió el jefe — pendiente de confirmar si el backend
+// real lo soporta (Empresa.cs de ARTI Software no lo tenía, pero puede variar por cliente).
+export type EmisorFiscal = {
+  esEmpresa: boolean;
+  nombre: string;
+  nif: string;
+  direccion: string;
+  poblacion: string;
+  cp: string;
+  provincia: string;
+  registroMercantil: string;
+  cnae: string;
+  iban: string;
+  swift: string;
+};
+
 // Forma alineada con FacturacionFacturasEmitidasLineas del backend real.
 // ivaPct sustituye a IdImpuesto (catálogo de impuestos) mientras no exista el endpoint.
 export type LineaFactura = {
@@ -57,8 +75,12 @@ export type TotalesFactura = {
 export type FacturaRecibida = {
   id: number;
   proveedor: string;
+  proveedorNif?: string;
   numFactura: string;
   fecha: string;
+  baseImponible: number;
+  iva: number;
+  irpf: number;
   totalFactura: number;
   estado: 'borrador' | 'contabilizada';
   origenOcr: boolean;
@@ -81,6 +103,20 @@ let nextRecibidaId = 100;
 
 @Injectable({ providedIn: 'root' })
 export class MockFacturasService {
+  private emisor: EmisorFiscal = {
+    esEmpresa: true,
+    nombre: 'Mi Empresa de Ejemplo S.L.',
+    nif: 'B00000000',
+    direccion: 'Calle de Ejemplo 1',
+    poblacion: 'Madrid',
+    cp: '28001',
+    provincia: 'Madrid',
+    registroMercantil: '',
+    cnae: '',
+    iban: '',
+    swift: '',
+  };
+
   private numeradores: Numerador[] = [
     { id: 1, nombre: 'Serie A 2026' },
     { id: 2, nombre: 'Serie B 2026' },
@@ -160,14 +196,28 @@ export class MockFacturasService {
 
   private recibidas: FacturaRecibida[] = [
     {
-      id: 1, proveedor: 'Suministros Oficina Norte SL', numFactura: 'F-4521', fecha: '2026-08-04',
-      totalFactura: 187.32, estado: 'contabilizada', origenOcr: false,
+      id: 1, proveedor: 'Suministros Oficina Norte SL', proveedorNif: 'B11223344',
+      numFactura: 'F-4521', fecha: '2026-08-04',
+      baseImponible: 154.81, iva: 32.51, irpf: 0, totalFactura: 187.32,
+      estado: 'contabilizada', origenOcr: false,
     },
     {
-      id: 2, proveedor: 'Electricidad Vidal e Hijos', numFactura: 'FV-2026-0912', fecha: '2026-08-06',
-      totalFactura: 542.10, estado: 'borrador', origenOcr: true,
+      id: 2, proveedor: 'Electricidad Vidal e Hijos', proveedorNif: '44556677Q',
+      numFactura: 'FV-2026-0912', fecha: '2026-08-06',
+      baseImponible: 448.02, iva: 94.08, irpf: 0, totalFactura: 542.10,
+      estado: 'borrador', origenOcr: true,
     },
   ];
+
+  // ---------- Emisor (datos fiscales de la empresa) ----------
+
+  getEmisor(): EmisorFiscal {
+    return { ...this.emisor };
+  }
+
+  actualizarEmisor(data: EmisorFiscal): void {
+    this.emisor = { ...data };
+  }
 
   // ---------- Numeradores ----------
 
@@ -277,15 +327,27 @@ export class MockFacturasService {
     return [...this.recibidas].sort((a, b) => b.fecha.localeCompare(a.fecha));
   }
 
-  async crearDesdeOcr(fileName: string): Promise<FacturaRecibida> {
+  getFacturaRecibidaById(id: number): FacturaRecibida | undefined {
+    return this.recibidas.find(f => f.id === id);
+  }
+
+  // Recibe el File real (no solo el nombre) para que la integración real solo tenga que
+  // cambiar el cuerpo de este método por una subida multipart a POST /api/FacturaRecibida/desde-ocr.
+  async crearDesdeOcr(file: File): Promise<FacturaRecibida> {
     await new Promise(resolve => setTimeout(resolve, 1200));
+
+    const base = Math.round((Math.random() * 400 + 50) * 100) / 100;
+    const iva = Math.round(base * 0.21 * 100) / 100;
 
     const nueva: FacturaRecibida = {
       id: nextRecibidaId++,
-      proveedor: `Proveedor detectado (${fileName})`,
+      proveedor: `Proveedor detectado (${file.name})`,
       numFactura: `OCR-${Math.floor(Math.random() * 9000 + 1000)}`,
       fecha: new Date().toISOString().slice(0, 10),
-      totalFactura: Math.round((Math.random() * 500 + 50) * 100) / 100,
+      baseImponible: base,
+      iva,
+      irpf: 0,
+      totalFactura: Math.round((base + iva) * 100) / 100,
       estado: 'borrador',
       origenOcr: true,
     };

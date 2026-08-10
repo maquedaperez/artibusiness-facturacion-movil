@@ -1,0 +1,58 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="volver()">
+        <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title class="title-bold">{{ factura?.numFactura || 'Factura recibida' }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+
+  <ion-chip color="medium" class="mock-chip">
+    <ion-icon name="document-text-outline"></ion-icon>
+    <ion-label>Datos de ejemplo — pendiente conectar backend</ion-label>
+  </ion-chip>
+
+  <ion-text color="danger" *ngIf="errorMsg">
+    <p>{{ errorMsg }}</p>
+  </ion-text>
+
+  <ng-container *ngIf="factura as f">
+
+    <ion-card>
+      <ion-card-content>
+        <div class="section-title">Proveedor</div>
+        <p class="ion-no-margin"><strong>{{ f.proveedor }}</strong></p>
+        <p class="ion-no-margin" *ngIf="f.proveedorNif">{{ f.proveedorNif }}</p>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-content>
+        <div class="section-title">Datos de la factura</div>
+        <p class="ion-no-margin">Número: {{ f.numFactura }}</p>
+        <p class="ion-no-margin">Fecha: {{ formatFecha(f.fecha) }}</p>
+
+        <ion-badge [color]="f.estado === 'contabilizada' ? 'success' : 'medium'" class="estado-badge">
+          {{ f.estado === 'contabilizada' ? 'Contabilizada' : 'Borrador' }}
+        </ion-badge>
+        <ion-badge *ngIf="f.origenOcr" color="tertiary" class="estado-badge">Desde OCR</ion-badge>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card class="totales-card">
+      <ion-card-content>
+        <div class="section-title">Importes</div>
+        <p class="ion-no-margin">Base imponible: {{ formatEuros(f.baseImponible) }}</p>
+        <p class="ion-no-margin">IVA: {{ formatEuros(f.iva) }}</p>
+        <p class="ion-no-margin" *ngIf="f.irpf">IRPF: −{{ formatEuros(f.irpf) }}</p>
+        <p class="total-line">Total: <strong>{{ formatEuros(f.totalFactura) }}</strong></p>
+      </ion-card-content>
+    </ion-card>
+
+  </ng-container>
+
+</ion-content>

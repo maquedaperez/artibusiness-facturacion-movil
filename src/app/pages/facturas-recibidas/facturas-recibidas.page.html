@@ -33,7 +33,7 @@
   </ion-button>
 
   <div class="facturas-list">
-    <ion-card *ngFor="let f of facturas">
+    <ion-card *ngFor="let f of facturas" button (click)="abrir(f)">
       <ion-card-header>
         <ion-card-subtitle>{{ formatFecha(f.fecha) }}</ion-card-subtitle>
         <ion-card-title>{{ f.numFactura }} — {{ f.proveedor }}</ion-card-title>

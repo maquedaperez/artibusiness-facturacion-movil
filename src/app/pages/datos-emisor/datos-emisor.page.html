@@ -1,0 +1,91 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="volver()">
+        <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title class="title-bold">Datos fiscales de la empresa</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+
+  <ion-chip color="medium" class="mock-chip">
+    <ion-icon name="document-text-outline"></ion-icon>
+    <ion-label>Datos de ejemplo — pendiente conectar backend</ion-label>
+  </ion-chip>
+
+  <ion-text color="medium">
+    <p class="ion-no-margin ion-padding-bottom">
+      Estos son los datos que aparecerán como emisor en tus facturas.
+    </p>
+  </ion-text>
+
+  <ion-item>
+    <ion-checkbox [(ngModel)]="emisor.esEmpresa">¿Empresa? (si no, autónomo)</ion-checkbox>
+  </ion-item>
+
+  <ion-item>
+    <ion-input
+      [label]="emisor.esEmpresa ? 'Razón social' : 'Nombre y apellidos'"
+      labelPlacement="stacked"
+      [(ngModel)]="emisor.nombre"
+    ></ion-input>
+  </ion-item>
+
+  <ion-item>
+    <ion-input
+      [label]="emisor.esEmpresa ? 'CIF' : 'NIF'"
+      labelPlacement="stacked"
+      [(ngModel)]="emisor.nif"
+    ></ion-input>
+  </ion-item>
+
+  <div class="section-title">Dirección fiscal</div>
+
+  <ion-item>
+    <ion-input label="Dirección" labelPlacement="stacked" [(ngModel)]="emisor.direccion"></ion-input>
+  </ion-item>
+
+  <ion-item>
+    <ion-input label="Población" labelPlacement="stacked" [(ngModel)]="emisor.poblacion"></ion-input>
+  </ion-item>
+
+  <ion-item>
+    <ion-input label="Código postal" labelPlacement="stacked" [(ngModel)]="emisor.cp"></ion-input>
+  </ion-item>
+
+  <ion-item>
+    <ion-input label="Provincia" labelPlacement="stacked" [(ngModel)]="emisor.provincia"></ion-input>
+  </ion-item>
+
+  <ng-container *ngIf="emisor.esEmpresa">
+    <div class="section-title">Datos adicionales (empresa)</div>
+
+    <ion-item>
+      <ion-input label="Registro mercantil (Tomo/Folio/Hoja)" labelPlacement="stacked" [(ngModel)]="emisor.registroMercantil"></ion-input>
+    </ion-item>
+
+    <ion-item>
+      <ion-input label="CNAE" labelPlacement="stacked" [(ngModel)]="emisor.cnae"></ion-input>
+    </ion-item>
+
+    <ion-item>
+      <ion-input label="IBAN" labelPlacement="stacked" [(ngModel)]="emisor.iban"></ion-input>
+    </ion-item>
+
+    <ion-item>
+      <ion-input label="SWIFT" labelPlacement="stacked" [(ngModel)]="emisor.swift"></ion-input>
+    </ion-item>
+  </ng-container>
+
+  <ion-text color="danger" *ngIf="errorMsg">
+    <p class="ion-padding-top">{{ errorMsg }}</p>
+  </ion-text>
+
+  <ion-button expand="block" class="ion-margin-top" (click)="guardar()">
+    Guardar
+  </ion-button>
+
+</ion-content>
