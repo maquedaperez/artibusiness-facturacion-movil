@@ -1,0 +1,17 @@
+.splash {
+  --background: #ffffff;
+}
+.center {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+.logo {
+  width: 80%;
+  height: auto;
+  margin-bottom: 12px;
+}
+ion-spinner {
+  margin-top: 16px;
+}

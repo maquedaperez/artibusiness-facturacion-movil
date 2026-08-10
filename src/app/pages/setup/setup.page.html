@@ -1,0 +1,59 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title class="title-bold">Configuración inicial</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding" [scrollY]="true">
+  <div class="page-center">
+    <div class="box">
+
+      <!-- LOGO más pequeño -->
+      <div class="brand-logo-small">
+        <img src="assets/icon/LogoHD.png" alt="ARTI" />
+      </div>
+
+      <!-- TEXTO -->
+      <ion-text color="medium">
+        <p class="ion-no-margin">
+          Introduce tu <strong>clave de acceso</strong>
+        </p>
+      </ion-text>
+
+      <!-- FORM -->
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <ion-item class="ion-margin-top">
+          <ion-input
+            label="Clave"
+            label-placement="stacked"
+            formControlName="tenantKey"
+            autocapitalize="off"
+            autocomplete="off"
+          ></ion-input>
+        </ion-item>
+
+        <ion-text
+          color="danger"
+          *ngIf="submitted && form.controls.tenantKey.invalid"
+        >
+          <small>La clave es obligatoria (mín. 3 caracteres).</small>
+        </ion-text>
+
+        <ion-text color="danger" *ngIf="submitted && invalidTenant">
+          <small>La clave no es válida. Revisa la clave y prueba de nuevo.</small>
+        </ion-text>
+
+        <ion-button expand="block" class="ion-margin-top" type="submit">
+          Continuar
+        </ion-button>
+
+        <div class="ion-text-center ion-margin-top">
+          <a (click)="openLink()" style="color: #007aff; cursor: pointer; font-size: 14px;">
+            Obtener clave
+          </a>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</ion-content>

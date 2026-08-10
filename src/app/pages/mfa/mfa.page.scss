@@ -1,0 +1,20 @@
+.center-wrap {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  padding: 16px;
+
+  border: none;
+}
+ion-text {
+  text-align: center;
+  line-height: 1.4;
+}

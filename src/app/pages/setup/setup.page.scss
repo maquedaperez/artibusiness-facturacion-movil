@@ -1,0 +1,40 @@
+.page-center {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.box {
+  width: 100%;
+  max-width: 380px;
+  text-align: center; // 🔥 clave
+}
+
+.title-bold {
+  text-align: center;
+  font-weight: 700;
+}
+
+.top-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.top-logo img {
+  width: 60px;
+  height: auto;
+}
+
+.brand-logo-small {
+  width: 80%;
+  max-width: 280px;
+  margin: 0 auto 24px auto;
+  
+  img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+}

@@ -1,0 +1,57 @@
+<ion-content class="ion-padding">
+  <div class="center-wrap">
+    <div class="card">
+
+      <ion-text color="medium">
+        <p class="ion-no-margin">
+          Hemos enviado un código de seguridad a:
+          <br />
+          <strong>{{ maskedEmail || 'tu correo' }}</strong>
+        </p>
+
+        <p class="ion-no-margin ion-margin-top">
+          Tiempo restante: <strong>{{ minutesLeftLabel }}</strong>
+        </p>
+      </ion-text>
+
+      <form [formGroup]="form" (ngSubmit)="submit()">
+
+        <ion-item class="ion-margin-top">
+          <ion-input
+            label="Código de validación"
+            label-placement="stacked"
+            placeholder="123456"
+            inputmode="numeric"
+            formControlName="code"
+          ></ion-input>
+        </ion-item>
+
+        <ion-text color="danger" *ngIf="submitted && form.controls.code.invalid">
+          <small>Introduce un código válido de 6 dígitos.</small>
+        </ion-text>
+
+        <ion-text color="danger" *ngIf="errorMsg">
+          <p class="ion-no-margin ion-margin-top"><small>{{ errorMsg }}</small></p>
+        </ion-text>
+
+        <ion-text color="success" *ngIf="successMsg">
+          <p class="ion-no-margin ion-margin-top"><small>{{ successMsg }}</small></p>
+        </ion-text>
+
+        <ion-button expand="block" class="ion-margin-top" type="submit">
+          Validar
+        </ion-button>
+
+        <ion-button expand="block" fill="clear" type="button" (click)="resend()">
+          Reenviar código
+        </ion-button>
+
+        <ion-button expand="block" fill="clear" type="button" (click)="backToLogin()">
+          Volver al login
+        </ion-button>
+
+      </form>
+
+    </div>
+  </div>
+</ion-content>

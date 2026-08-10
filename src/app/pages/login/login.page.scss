@@ -1,0 +1,36 @@
+.page-center {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-box {
+  width: 100%;
+  max-width: 380px;
+}
+
+.brand-logo-small {
+  width: 60%;
+  max-width: 200px;
+  margin: 0 auto 24px auto;
+
+  img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+}
+
+.login-card {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+}
+
+.forgot {
+  text-align: center;
+  display: block;
+}

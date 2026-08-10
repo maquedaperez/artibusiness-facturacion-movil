@@ -1,0 +1,64 @@
+<ion-content class="ion-padding" [scrollY]="true">
+  <div class="page-center">
+    <div class="login-box">
+
+      <div class="brand-logo-small">
+        <img src="assets/dadadada.svg" alt="ARTI" />
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" class="login-card">
+
+        <ion-item>
+          <ion-input
+            formControlName="username"
+            label="Usuario"
+            label-placement="stacked"
+            placeholder="usuario@empresa.com">
+          </ion-input>
+        </ion-item>
+
+        <ion-text color="danger" *ngIf="submitted && form.controls.username.invalid">
+          <small>El usuario es obligatorio.</small>
+        </ion-text>
+
+        <ion-item>
+          <ion-input
+            formControlName="password"
+            label="Contraseña"
+            label-placement="stacked"
+            type="password">
+          </ion-input>
+        </ion-item>
+
+        <ion-text color="danger" *ngIf="submitted && form.controls.password.invalid">
+          <small>Contraseña incorrecta.</small>
+        </ion-text>
+
+        <ion-text color="danger" *ngIf="errorMsg">
+          <p style="margin: 12px 0 0 0; font-size: 14px; text-align: center;">{{ errorMsg }}</p>
+        </ion-text>
+
+        <ion-button type="submit" expand="block" class="ion-margin-top">
+          Entrar
+        </ion-button>
+
+        <ion-button
+          fill="clear"
+          size="small"
+          class="forgot"
+          routerLink="/forgot-password"
+          type="button"
+        >
+          ¿Has olvidado tu contraseña?
+        </ion-button>
+
+        <div class="ion-text-center ion-margin-top">
+          <a (click)="goToSetup()" style="color: #007aff; cursor: pointer; font-size: 13px;">
+            Cambiar clave de acceso
+          </a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</ion-content>

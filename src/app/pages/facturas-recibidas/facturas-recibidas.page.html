@@ -1,0 +1,61 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title class="title-bold">Facturas recibidas</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+
+  <ion-chip color="medium" class="mock-chip">
+    <ion-icon name="document-text-outline"></ion-icon>
+    <ion-label>Datos de ejemplo — OCR simulado, pendiente conectar backend</ion-label>
+  </ion-chip>
+
+  <input
+    #fileInput
+    type="file"
+    accept="image/*"
+    capture="environment"
+    hidden
+    (change)="onFileSelected($event)"
+  />
+
+  <ion-button
+    expand="block"
+    size="large"
+    class="scan-button"
+    [disabled]="processing"
+    (click)="triggerUpload()"
+  >
+    <ion-spinner *ngIf="processing" slot="start" name="crescent"></ion-spinner>
+    <ion-icon *ngIf="!processing" slot="start" name="camera-outline"></ion-icon>
+    {{ processing ? 'Procesando...' : 'Escanear / subir factura' }}
+  </ion-button>
+
+  <div class="facturas-list">
+    <ion-card *ngFor="let f of facturas">
+      <ion-card-header>
+        <ion-card-subtitle>{{ formatFecha(f.fecha) }}</ion-card-subtitle>
+        <ion-card-title>{{ f.numFactura }} — {{ f.proveedor }}</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="total-line">Total: <strong>{{ formatEuros(f.totalFactura) }}</strong></p>
+        <ion-badge [color]="f.estado === 'contabilizada' ? 'success' : 'medium'">
+          {{ f.estado === 'contabilizada' ? 'Contabilizada' : 'Borrador' }}
+        </ion-badge>
+        <ion-badge *ngIf="f.origenOcr" color="tertiary" class="ocr-badge">Desde OCR</ion-badge>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card *ngIf="facturas.length === 0" class="empty-state">
+      <ion-card-content>
+        <ion-icon name="receipt-outline"></ion-icon>
+        <ion-text color="medium">
+          <p class="ion-no-margin">Todavía no hay facturas recibidas.</p>
+        </ion-text>
+      </ion-card-content>
+    </ion-card>
+  </div>
+
+</ion-content>

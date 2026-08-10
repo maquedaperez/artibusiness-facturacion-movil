@@ -1,0 +1,89 @@
+/*:root {
+  --ion-color-primary: #436F9B;
+  --ion-color-primary-rgb: 67, 111, 155;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #00547e;
+  --ion-color-primary-tint: #1a70a0;
+
+  --ion-color-success: #006090;
+  --ion-color-success-rgb: 0, 96, 144;
+  --ion-color-success-contrast: #ffffff;
+  --ion-color-success-contrast-rgb: 255, 255, 255;
+  --ion-color-success-shade: #00547e;
+  --ion-color-success-tint: #1a70a0;
+
+  --ion-text-color: #102040;
+  --ion-background-color: #ffffff;
+  --ion-item-background: #ffffff;
+  --ion-card-background: #ffffff;
+  --ion-border-color: #e0e6ed;
+  --ion-placeholder-color: #8a94a6;
+  --ion-toolbar-background: #ffffff;
+  --ion-toolbar-color: #102040;
+}
+
+// ✅ Color toolbar/cabecera global
+ion-toolbar {
+  --background: #436F9B;
+  --color: #ffffff;
+}
+
+// ✅ Tab activa resaltada
+ion-tab-bar {
+  --color-selected: #436F9B;
+  --color: #8a94a6;
+}
+
+ion-tab-button.tab-selected ion-label {
+  font-weight: 1000;
+}*/
+
+:root {
+  /* 🔵 PRIMARY → Azul medio (botones, header, acciones) */
+  --ion-color-primary: #2F6FA3;
+  --ion-color-primary-rgb: 67, 111, 155;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #3b6289;
+  --ion-color-primary-tint: #5780a8;
+
+  /* ✅ SUCCESS igual que primary (estilo unificado) */
+  --ion-color-success: #2F6FA3;
+  --ion-color-success-rgb: 67, 111, 155;
+  --ion-color-success-contrast: #ffffff;
+  --ion-color-success-contrast-rgb: 255, 255, 255;
+  --ion-color-success-shade: #3b6289;
+  --ion-color-success-tint: #5780a8;
+
+  /* 🔷 TEXTO PRINCIPAL → Azul oscuro */
+  --ion-text-color: #000000;
+
+  /* Fondos */
+  --ion-background-color: #ffffff;
+  --ion-item-background: #ffffff;
+  --ion-card-background: #ffffff;
+
+  /* Bordes y placeholder */
+  --ion-border-color: #e0e6ed;
+  --ion-placeholder-color: #8a94a6;
+
+  /* Toolbar */
+  --ion-toolbar-background: #2F6FA3;
+  --ion-toolbar-color: #ffffff;
+}
+
+ion-toolbar {
+  --background: #2F6FA3;
+  --color: #ffffff;
+}
+
+ion-tab-bar {
+  --color-selected: #1F3B5C; /* oscuro */
+  --color: #8a94a6;         /* gris */
+}
+
+ion-tab-button.tab-selected ion-label {
+  font-weight: 700;
+}
+

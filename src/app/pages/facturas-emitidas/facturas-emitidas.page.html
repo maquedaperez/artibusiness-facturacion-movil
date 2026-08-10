@@ -1,0 +1,89 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title class="title-bold">Facturas emitidas</ion-title>
+  </ion-toolbar>
+
+  <ion-toolbar>
+    <ion-select
+      label="Numerador / Serie"
+      placeholder="Todos"
+      interface="popover"
+      [value]="numeradorId"
+      (ionChange)="onNumeradorChange($event.detail.value)"
+    >
+      <ion-select-option [value]="null">Todos</ion-select-option>
+      <ion-select-option *ngFor="let n of numeradores" [value]="n.id">{{ n.nombre }}</ion-select-option>
+    </ion-select>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+
+  <ion-chip color="medium" class="mock-chip">
+    <ion-icon name="document-text-outline"></ion-icon>
+    <ion-label>Datos de ejemplo — pendiente conectar backend</ion-label>
+  </ion-chip>
+
+  <ion-segment [value]="estado" (ionChange)="onEstadoChange($any($event.detail.value))">
+    <ion-segment-button value="borrador">
+      <ion-label>Borradores</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="contabilizada">
+      <ion-label>Contabilizadas</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="firmada">
+      <ion-label>Firmadas</ion-label>
+    </ion-segment-button>
+  </ion-segment>
+
+  <div class="facturas-list">
+    <ion-card *ngFor="let f of facturas">
+      <ion-card-header>
+        <ion-card-subtitle>{{ numeradorNombre(f) }} · {{ formatFecha(f.fecha) }}</ion-card-subtitle>
+        <ion-card-title>{{ f.numFactura }} — {{ f.cliente }}</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <p class="ion-no-margin">
+          Base: {{ formatEuros(f.totalBase) }} · IVA: {{ formatEuros(f.ivaBase) }}
+          <span *ngIf="f.irpfBase"> · IRPF: {{ formatEuros(f.irpfBase) }}</span>
+        </p>
+        <p class="total-line">Total: <strong>{{ formatEuros(f.totalFactura) }}</strong></p>
+
+        <ion-badge *ngIf="f.estado !== 'borrador'" [color]="estadoAeatColor(f)" class="aeat-badge">
+          Estado AEAT: {{ estadoAeatLabel(f) }}
+        </ion-badge>
+
+        <ion-button
+          *ngIf="f.estado === 'borrador'"
+          expand="block"
+          fill="outline"
+          (click)="confirmarContabilizar(f)"
+        >
+          <ion-icon slot="start" name="checkmark-circle-outline"></ion-icon>
+          Contabilizar
+        </ion-button>
+
+        <ion-button
+          *ngIf="f.estado === 'contabilizada'"
+          expand="block"
+          fill="outline"
+          (click)="confirmarFirmar(f)"
+        >
+          <ion-icon slot="start" name="ribbon-outline"></ion-icon>
+          Firmar
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card *ngIf="facturas.length === 0" class="empty-state">
+      <ion-card-content>
+        <ion-icon name="document-text-outline"></ion-icon>
+        <ion-text color="medium">
+          <p class="ion-no-margin">No hay facturas en estado <strong>{{ estado }}</strong> para este numerador.</p>
+        </ion-text>
+      </ion-card-content>
+    </ion-card>
+  </div>
+
+</ion-content>
