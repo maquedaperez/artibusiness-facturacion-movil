@@ -13,7 +13,8 @@ import { addIcons } from 'ionicons';
 import { arrowBackOutline, addOutline, trashOutline, personCircleOutline, documentTextOutline } from 'ionicons/icons';
 
 import {
-  MockFacturasService, FacturaEmitida, LineaFactura, Destinatario, Numerador, IVA_RATES, IRPF_RATES, EmisorFiscal,
+  MockFacturasService, FacturaEmitida, LineaFactura, Destinatario, Numerador,
+  IVA_RATES, IRPF_RATES, MEDIO_PAGO_OPTIONS, EmisorFiscal,
 } from '../../services/mock-facturas.service';
 import { ClienteSelectorComponent } from '../../modals/cliente-selector/cliente-selector.component';
 
@@ -38,6 +39,7 @@ export class FacturaDetallePage implements OnInit {
   numeradorSeleccionado: number | null = null;
   ivaRates = IVA_RATES;
   irpfRates = IRPF_RATES;
+  medioPagoOptions = MEDIO_PAGO_OPTIONS;
   emisor: EmisorFiscal | null = null;
 
   working: FacturaEmitida | null = null;
@@ -132,6 +134,9 @@ export class FacturaDetallePage implements OnInit {
 
     this.mock.actualizarBorrador(this.facturaId, {
       fecha: this.working.fecha,
+      vencimiento: this.working.vencimiento,
+      concepto: this.working.concepto,
+      medioPago: this.working.medioPago,
       destinatario: this.working.destinatario,
       lineas: this.working.lineas,
       irpfPct: this.working.irpfPct,
@@ -143,6 +148,14 @@ export class FacturaDetallePage implements OnInit {
 
   async confirmarContabilizar() {
     if (!this.working || this.facturaId == null) return;
+
+    // El servidor real rechaza la factura (error AEAT 4102) si el concepto va vacío,
+    // y el medio de pago es obligatorio en el modelo — se valida aquí antes de intentarlo.
+    if (!this.working.concepto?.trim() || !this.working.medioPago?.trim()) {
+      this.errorMsg = 'Concepto y forma de pago son obligatorios para contabilizar.';
+      return;
+    }
+    this.errorMsg = '';
 
     const alert = await this.alertCtrl.create({
       header: 'Contabilizar factura',

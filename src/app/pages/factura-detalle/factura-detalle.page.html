@@ -84,8 +84,23 @@
           </ion-select>
         </ion-item>
 
+        <div class="linea-grid">
+          <ion-item [disabled]="!esEditable">
+            <ion-input label="Fecha" labelPlacement="stacked" type="date" [(ngModel)]="f.fecha"></ion-input>
+          </ion-item>
+          <ion-item [disabled]="!esEditable">
+            <ion-input label="Vencimiento" labelPlacement="stacked" type="date" [(ngModel)]="f.vencimiento"></ion-input>
+          </ion-item>
+        </div>
+
         <ion-item [disabled]="!esEditable">
-          <ion-input label="Fecha" labelPlacement="stacked" type="date" [(ngModel)]="f.fecha"></ion-input>
+          <ion-input label="Concepto / descripción de la operación" labelPlacement="stacked" [(ngModel)]="f.concepto"></ion-input>
+        </ion-item>
+
+        <ion-item [disabled]="!esEditable">
+          <ion-select label="Forma de pago" labelPlacement="stacked" interface="popover" [(ngModel)]="f.medioPago">
+            <ion-select-option *ngFor="let m of medioPagoOptions" [value]="m">{{ m }}</ion-select-option>
+          </ion-select>
         </ion-item>
 
         <ion-item [disabled]="!esEditable">

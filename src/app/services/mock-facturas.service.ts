@@ -70,12 +70,21 @@ export type FacturaEmitida = {
   numFactura: string;
   numeradorId: number;
   fecha: string;
+  vencimiento: string;
+  // Obligatorio para el registro fiscal — el servidor FacturaE rechaza la factura
+  // con error AEAT 4102 si va vacío. Confirmado contra un caso real de producción.
+  concepto: string;
+  // Obligatorio en el modelo real (IdMedioPago, no admite nulo).
+  medioPago: string;
   destinatario: Destinatario;
   lineas: LineaFactura[];
   // % de retención, no importe fijo — se calcula sobre la base imponible igual que el IVA.
   irpfPct: number;
   estado: EstadoFactura;
   estadoAeat?: EstadoAeat;
+  // Campo técnico, no se muestra al usuario: se genera al crear el borrador (no al
+  // contabilizar) porque el servidor real lo exige en la petición y lo rechaza sin él.
+  operacionId: string;
 };
 
 export type DesgloseIva = { pct: number; baseGravada: number; cuota: number };
@@ -123,6 +132,8 @@ const ESTADO_AEAT_LABELS: Record<EstadoAeat, string> = {
 
 export const IVA_RATES = [0, 4, 10, 21];
 export const IRPF_RATES = [0, 1, 7, 15, 19];
+// Placeholder mientras no exista el catálogo real de medios de pago (IdMedioPago).
+export const MEDIO_PAGO_OPTIONS = ['Transferencia', 'Domiciliación', 'Tarjeta', 'Efectivo', 'Cheque'];
 
 let nextEmitidaId = 100;
 let nextLineaId = 1000;
@@ -183,54 +194,60 @@ export class MockFacturasService {
 
   private emitidas: FacturaEmitida[] = [
     {
-      id: 1, numFactura: 'A-2026-014', numeradorId: 1, fecha: '2026-08-05',
+      id: 1, numFactura: 'A-2026-014', numeradorId: 1, fecha: '2026-08-05', vencimiento: '2026-09-04',
+      concepto: 'Revisión anual de instalación', medioPago: 'Transferencia',
       destinatario: this.clientes[0],
       lineas: [
         { id: 1, descripcion: 'Revisión anual instalación', cantidad: 1, precioUnitario: 1200, descuentoPct: 0, ivaPct: 21 },
       ],
-      irpfPct: 0, estado: 'borrador',
+      irpfPct: 0, estado: 'borrador', operacionId: this.nuevoOperacionId(),
     },
     {
-      id: 2, numFactura: 'A-2026-015', numeradorId: 1, fecha: '2026-08-07',
+      id: 2, numFactura: 'A-2026-015', numeradorId: 1, fecha: '2026-08-07', vencimiento: '2026-09-06',
+      concepto: 'Servicio de transporte mensual', medioPago: 'Domiciliación',
       destinatario: this.clientes[1],
       lineas: [
         { id: 2, descripcion: 'Servicio de transporte mensual', cantidad: 1, precioUnitario: 850, descuentoPct: 0, ivaPct: 21 },
       ],
-      irpfPct: 0, estado: 'borrador',
+      irpfPct: 0, estado: 'borrador', operacionId: this.nuevoOperacionId(),
     },
     {
-      id: 3, numFactura: 'A-2026-011', numeradorId: 1, fecha: '2026-07-28',
+      id: 3, numFactura: 'A-2026-011', numeradorId: 1, fecha: '2026-07-28', vencimiento: '2026-08-27',
+      concepto: 'Asesoría fiscal — julio 2026', medioPago: 'Transferencia',
       destinatario: this.clientes[3],
       lineas: [
         { id: 3, descripcion: 'Asesoría fiscal julio', cantidad: 1, precioUnitario: 600, descuentoPct: 0, ivaPct: 21 },
       ],
-      irpfPct: 15, estado: 'contabilizada', estadoAeat: 'PendienteEnvio',
+      irpfPct: 15, estado: 'contabilizada', estadoAeat: 'PendienteEnvio', operacionId: this.nuevoOperacionId(),
     },
     {
-      id: 4, numFactura: 'B-2026-003', numeradorId: 2, fecha: '2026-07-30',
+      id: 4, numFactura: 'B-2026-003', numeradorId: 2, fecha: '2026-07-30', vencimiento: '2026-08-29',
+      concepto: 'Reparación de flota y gestoría asociada', medioPago: 'Transferencia',
       destinatario: this.clientes[1],
       lineas: [
         { id: 4, descripcion: 'Reparación flota', cantidad: 1, precioUnitario: 2100, descuentoPct: 0, ivaPct: 21 },
         { id: 5, descripcion: 'Tasas de gestoría', cantidad: 1, precioUnitario: 35, descuentoPct: 0, ivaPct: 0 },
       ],
-      irpfPct: 0, estado: 'contabilizada', estadoAeat: 'RequiereRevisionManual',
+      irpfPct: 0, estado: 'contabilizada', estadoAeat: 'RequiereRevisionManual', operacionId: this.nuevoOperacionId(),
     },
     {
-      id: 5, numFactura: 'A-2026-009', numeradorId: 1, fecha: '2026-07-15',
+      id: 5, numFactura: 'A-2026-009', numeradorId: 1, fecha: '2026-07-15', vencimiento: '2026-08-14',
+      concepto: 'Suministro de material fungible', medioPago: 'Tarjeta',
       destinatario: this.clientes[0],
       lineas: [
         { id: 6, descripcion: 'Material fungible', cantidad: 1, precioUnitario: 340, descuentoPct: 0, ivaPct: 21 },
       ],
-      irpfPct: 0, estado: 'firmada', estadoAeat: 'Correcto',
+      irpfPct: 0, estado: 'firmada', estadoAeat: 'Correcto', operacionId: this.nuevoOperacionId(),
     },
     {
-      id: 6, numFactura: 'A-2026-008', numeradorId: 2, fecha: '2026-07-10',
+      id: 6, numFactura: 'A-2026-008', numeradorId: 2, fecha: '2026-07-10', vencimiento: '2026-08-09',
+      concepto: 'Consultoría de proceso y mantenimiento', medioPago: 'Transferencia',
       destinatario: this.clientes[3],
       lineas: [
         { id: 7, descripcion: 'Consultoría de proceso A', cantidad: 2, precioUnitario: 50, descuentoPct: 0, ivaPct: 21 },
         { id: 8, descripcion: 'Mantenimiento B', cantidad: 3, precioUnitario: 20, descuentoPct: 8.33, ivaPct: 10 },
       ],
-      irpfPct: 15, estado: 'firmada', estadoAeat: 'AceptadoConErrores',
+      irpfPct: 15, estado: 'firmada', estadoAeat: 'AceptadoConErrores', operacionId: this.nuevoOperacionId(),
     },
   ];
 
@@ -320,6 +337,17 @@ export class MockFacturasService {
     return this.emitidas.find(f => f.id === id);
   }
 
+  // Genera un GUID por factura. El servidor real rechaza la petición si no viaja un
+  // OperacionId — y tiene que existir ya desde el borrador, no generarse al contabilizar.
+  private nuevoOperacionId(): string {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
   crearBorrador(numeradorId: number, destinatario: Destinatario): FacturaEmitida {
     const id = nextEmitidaId++;
     const nueva: FacturaEmitida = {
@@ -327,16 +355,20 @@ export class MockFacturasService {
       numFactura: `${this.numeradorNombre(numeradorId).split(' ')[1] ?? 'X'}-BORRADOR-${id}`,
       numeradorId,
       fecha: new Date().toISOString().slice(0, 10),
+      vencimiento: '',
+      concepto: '',
+      medioPago: '',
       destinatario,
       lineas: [],
       irpfPct: 0,
       estado: 'borrador',
+      operacionId: this.nuevoOperacionId(),
     };
     this.emitidas.unshift(nueva);
     return nueva;
   }
 
-  actualizarBorrador(id: number, cambios: Partial<Pick<FacturaEmitida, 'fecha' | 'destinatario' | 'lineas' | 'irpfPct' | 'numeradorId'>>): void {
+  actualizarBorrador(id: number, cambios: Partial<Pick<FacturaEmitida, 'fecha' | 'vencimiento' | 'concepto' | 'medioPago' | 'destinatario' | 'lineas' | 'irpfPct' | 'numeradorId'>>): void {
     const f = this.emitidas.find(e => e.id === id);
     if (!f || f.estado !== 'borrador') return;
     Object.assign(f, cambios);
