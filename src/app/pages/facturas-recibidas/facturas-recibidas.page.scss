@@ -54,6 +54,15 @@
   flex-shrink: 0;
 }
 
+.concepto {
+  font-size: 13px;
+  color: var(--ion-color-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
 .row-meta {
   display: flex;
   justify-content: space-between;

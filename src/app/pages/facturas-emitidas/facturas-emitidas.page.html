@@ -37,9 +37,11 @@
     <ion-card *ngFor="let f of facturas" button (click)="abrir(f)" class="factura-card">
       <ion-card-content>
         <div class="row-top">
-          <div class="titulo">{{ f.numFactura }} — {{ clienteNombre(f) }}</div>
+          <div class="titulo">{{ clienteNombre(f) }}</div>
           <div class="total">{{ formatEuros(totalFactura(f)) }}</div>
         </div>
+
+        <div class="concepto">{{ conceptoResumen(f) }}</div>
 
         <div class="row-meta">
           <span>{{ numeradorNombre(f) }} · {{ formatFecha(f.fecha) }}</span>

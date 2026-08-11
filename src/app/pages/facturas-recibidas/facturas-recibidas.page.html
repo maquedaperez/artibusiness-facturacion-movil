@@ -33,9 +33,11 @@
     <ion-card *ngFor="let f of facturas" button (click)="abrir(f)" class="factura-card">
       <ion-card-content>
         <div class="row-top">
-          <div class="titulo">{{ f.numFactura }} — {{ f.proveedor }}</div>
+          <div class="titulo">{{ proveedorResumen(f) }}</div>
           <div class="total">{{ formatEuros(f.totalFactura) }}</div>
         </div>
+
+        <div class="concepto">{{ conceptoResumen(f) }}</div>
 
         <div class="row-meta">
           <span>{{ formatFecha(f.fecha) }} <ng-container *ngIf="f.pagada"> · Pagada</ng-container></span>

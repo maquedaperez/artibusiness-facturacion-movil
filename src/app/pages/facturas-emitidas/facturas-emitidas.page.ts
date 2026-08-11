@@ -87,7 +87,11 @@ export class FacturasEmitidasPage implements OnInit {
   }
 
   clienteNombre(f: FacturaEmitida): string {
-    return f.destinatario.nombre;
+    return f.destinatario.nombre?.trim() || 'Cliente no disponible';
+  }
+
+  conceptoResumen(f: FacturaEmitida): string {
+    return f.concepto?.trim() || 'Sin concepto';
   }
 
   totalFactura(f: FacturaEmitida): number {

@@ -58,6 +58,14 @@ export class FacturasRecibidasPage implements OnInit {
     this.router.navigate(['/app/recibidas', f.id]);
   }
 
+  proveedorResumen(f: FacturaRecibida): string {
+    return f.proveedor?.trim() || 'Proveedor no disponible';
+  }
+
+  conceptoResumen(f: FacturaRecibida): string {
+    return f.concepto?.trim() || 'Sin concepto';
+  }
+
   nuevaManual() {
     this.router.navigate(['/app/recibidas', 'nueva']);
   }
