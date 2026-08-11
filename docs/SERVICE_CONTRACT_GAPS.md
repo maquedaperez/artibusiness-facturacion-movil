@@ -229,3 +229,46 @@ trazabilidad, no requieren respuesta.
     Fuentes usadas para modelar la fixture de prueba (alquiler urbano, 19%, no aplicada a
     ninguna factura del MVP en vivo): AEAT (retenciones por arrendamiento de inmuebles) y
     Reglamento IRPF art. 100.
+
+---
+
+## Bloque D — líneas con origen y facturas recibidas con líneas (2026-08-11)
+
+29. **Búsqueda paginada de catálogo (`CatalogRepository.buscar`).** Nuevo selector "línea
+    de catálogo" al añadir una línea a una factura — busca bajo demanda (mínimo 2
+    caracteres, debounce ~350ms), igual que clientes/proveedores. No existe backend
+    real: el mock usa 5 productos/servicios de ejemplo fijos. — **Impacto**: alto,
+    bloquea conectar `HttpCatalogRepository`. — **Pantalla**: selector de línea en
+    Factura Detalle (Emitidas). — **Qué necesito**: (a) confirmación de que existe (o
+    va a existir) un catálogo de productos/servicios propio de la empresa en el
+    backend, distinto del catálogo de impuestos (`IdImpuesto`, gap #10); (b) endpoint
+    de búsqueda paginada por nombre/referencia con los campos que hoy tiene
+    `ProductoCatalogo` (nombre, descripción, precioUnitario, ivaPct, referencia) o el
+    contrato real si difiere.
+
+30. **Búsqueda paginada de suscripciones (`SubscriptionsRepository.buscar`).** Mismo
+    patrón que el gap #29, para servicios recurrentes. En este lote **no** se generan
+    renovaciones ni cobros automáticos — la suscripción solo se usa como origen de una
+    línea puntual (se copia un snapshot, no queda vinculada a un ciclo de facturación).
+    — **Impacto**: alto, bloquea `HttpSubscriptionsRepository`. — **Pantalla**: selector
+    de línea en Factura Detalle. — **Qué necesito**: (a) confirmación de que existe (o
+    va a existir) un catálogo de suscripciones/servicios recurrentes propio de la
+    empresa; (b) endpoint de búsqueda paginada con los campos de `Suscripcion` (nombre,
+    periodicidad, precio, ivaPct, estado) o el contrato real; (c) si en el futuro se
+    quiere generar la renovación/cobro automático desde esta app, es una ampliación de
+    alcance nueva, no algo que este lote haya dejado a medias — no hay lógica de
+    recurrencia en el frontend.
+
+31. **Endpoints completos de líneas y totales de Facturas Recibidas.** Hasta ahora
+    Recibidas solo tenía un importe suelto (base/IVA/IRPF a nivel de cabecera). Ahora
+    tiene líneas (mismo modelo `LineaFactura` que Emitidas, sin catálogo/suscripción
+    como origen — solo manual, porque una recibida transcribe la factura de un
+    proveedor externo) y un `retencionPct` editable a nivel de documento (a diferencia
+    de Emitidas, en Recibidas la retención la declara la propia factura del proveedor,
+    no la decide nuestra configuración fiscal). — **Impacto**: crítico, es la
+    estructura de datos de toda la pantalla. — **Pantalla**: Factura Recibida Detalle.
+    — **Qué necesito**: confirmar si el backend real de Recibidas (gap #13, todavía sin
+    construir) va a modelar líneas igual que Emitidas
+    (`FacturacionFacturasEmitidasLineas`, gap #10) o si Recibidas tiene su propia tabla
+    de líneas con otro nombre/forma; y si el campo de retención declarado por el
+    proveedor tiene alguna validación especial en backend (p. ej. contra su NIF/epígrafe).
