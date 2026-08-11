@@ -182,3 +182,50 @@ trazabilidad, no requieren respuesta.
     Hoy `resendMfaCode()` reutiliza la contraseña guardada porque no hay alternativa. —
     **Impacto**: alto, mismo motivo que el punto anterior. — **Pantalla**: MFA. —
     **Qué necesito**: `POST` que acepte `challengeId` sin pedir credenciales de nuevo.
+
+---
+
+## Reunión de cambios funcionales — bloques A/B/C (2026-08-11)
+
+25. **Endpoint de lectura de datos fiscales + PATCH limitado a contacto.** La app ya no
+    permite editar razón social/NIF/CIF/tipo (autónomo o empresa) desde el formulario —
+    solo dirección, población, código postal, provincia y teléfono (campo nuevo,
+    `EmisorFiscal.telefono`, no confirmado si existe en `Empresa.cs`). — **Impacto**: alto,
+    bloquea conectar `HttpEmisorRepository` real. — **Pantalla**: Perfil → Datos fiscales. —
+    **Qué necesito**: (a) `GET` de datos fiscales completo (para mostrar los campos
+    inmutables), (b) `PATCH`/`PUT` que acepte *solo* `{ direccion, poblacion, cp, provincia,
+    telefono }` — si el endpoint real exige mandar razón social/NIF igualmente, decirlo para
+    que el frontend los reenvíe sin permitir cambiarlos (nunca los deja editar, solo los
+    reenviaría intactos). Relacionado con el gap #6 (toggle autónomo/empresa).
+
+26. **Búsqueda paginada de clientes (`CustomersRepository.buscar`).** El selector de cliente
+    ya no carga el listado completo al abrirse — busca bajo demanda (mínimo 2 caracteres,
+    debounce ~350ms) y espera una respuesta paginada. — **Impacto**: alto, bloquea conectar
+    `HttpCustomersRepository` real. — **Pantalla**: modal "Seleccionar cliente". —
+    **Qué necesito**: confirmar si `findbyname`/`findbynif` (gap #4) soportan paginación
+    (`page`/`pageSize` o `skip`/`take`) y devuelven un total, o si hay que paginar en el
+    cliente sobre una respuesta ya limitada por el propio backend.
+
+27. **Búsqueda paginada de proveedores (`SuppliersRepository.buscar`).** Mismo cambio que el
+    punto anterior, aplicado a proveedores. — **Impacto**: alto, bloquea
+    `HttpSuppliersRepository`. — **Pantalla**: modal "Seleccionar proveedor". —
+    **Qué necesito**: lo mismo que el gap #26, una vez exista el endpoint de Proveedor
+    (gap #5).
+
+28. **Contrato de configuración de retención/withholding (extiende el gap #12).** El IRPF
+    dejó de ser un campo que el usuario elige por factura — ahora se calcula a partir de la
+    configuración fiscal del emisor/actividad y se muestra solo en el bloque de totales,
+    igual que el IVA. La UI mock ya está preparada para consumir exactamente esta forma
+    (`RetencionAplicada` en `mock-facturas.service.ts`), pero el mock usa una configuración
+    fija (`aplicable=false`) — nunca infiere el tipo de retención leyendo el concepto ni deja
+    elegir el % al usuario. — **Impacto**: alto, es una decisión fiscal real (ver la regla de
+    alquiler urbano al 19% y sus excepciones — vivienda de empleados, renta anual ≤ 900€ sin
+    IVA, exoneración por epígrafe IAE, reglas territoriales y de no residentes — que solo
+    el backend puede resolver caso a caso). — **Pantalla**: detalle de factura emitida
+    (bloque Totales). — **Qué necesito**: que `totales()` (o el endpoint que lo sustituya)
+    devuelva, por factura: `withholdingApplicable` (bool), tipo/código de retención,
+    `etiqueta` (el texto exacto a mostrar — "IRPF", "Retención alquiler", etc.),
+    `porcentaje`, `base` sujeta, `importe` calculado, y `motivoNoAplica` cuando no aplique.
+    Fuentes usadas para modelar la fixture de prueba (alquiler urbano, 19%, no aplicada a
+    ninguna factura del MVP en vivo): AEAT (retenciones por arrendamiento de inmuebles) y
+    Reglamento IRPF art. 100.
