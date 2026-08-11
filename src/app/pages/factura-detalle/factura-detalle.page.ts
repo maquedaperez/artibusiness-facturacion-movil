@@ -14,9 +14,9 @@ import { arrowBackOutline, addOutline, trashOutline, personCircleOutline, docume
 
 import {
   FacturaEmitida, LineaFactura, Destinatario, Numerador,
-  IVA_RATES, IRPF_RATES, MEDIO_PAGO_OPTIONS, EmisorFiscal,
+  IVA_RATES, IRPF_RATES, MEDIO_PAGO_OPTIONS,
 } from '../../services/mock-facturas.service';
-import { EmisorRepository, IssuedInvoicesRepository } from '../../core/ports';
+import { IssuedInvoicesRepository } from '../../core/ports';
 import { ClienteSelectorComponent } from '../../modals/cliente-selector/cliente-selector.component';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 
@@ -37,7 +37,6 @@ export class FacturaDetallePage implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private invoicesRepo = inject(IssuedInvoicesRepository);
-  private emisorRepo = inject(EmisorRepository);
   private modalCtrl = inject(ModalController);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
@@ -52,7 +51,6 @@ export class FacturaDetallePage implements OnInit {
   ivaRates = IVA_RATES;
   irpfRates = IRPF_RATES;
   medioPagoOptions = MEDIO_PAGO_OPTIONS;
-  emisor: EmisorFiscal | null = null;
 
   working: FacturaEmitida | null = null;
   errorMsg = '';
@@ -63,7 +61,6 @@ export class FacturaDetallePage implements OnInit {
 
   ngOnInit() {
     this.numeradores = this.invoicesRepo.getNumeradores();
-    this.emisor = this.emisorRepo.getEmisor();
     const param = this.route.snapshot.paramMap.get('id');
 
     if (param === 'nueva') {
