@@ -6,7 +6,7 @@
 
 <ion-content class="ion-padding">
 
-  <ion-card *ngIf="user as u">
+  <ion-card class="compact-card" *ngIf="user as u">
     <ion-card-header>
       <ion-card-title>{{ u.name }}</ion-card-title>
     </ion-card-header>
@@ -35,9 +35,9 @@
     </ion-card-content>
   </ion-card>
 
-  <ion-card button (click)="irADatosEmisor()" *ngIf="emisor as e">
+  <ion-card class="compact-card" button (click)="irADatosEmisor()" *ngIf="emisor as e">
     <ion-card-header>
-      <ion-card-title>Datos fiscales de la empresa</ion-card-title>
+      <ion-card-title>Datos fiscales</ion-card-title>
     </ion-card-header>
     <ion-card-content>
       <p class="ion-no-margin"><strong>{{ e.nombre || 'Sin nombre todavía' }}</strong></p>
