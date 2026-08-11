@@ -4,27 +4,35 @@ Basado en el baseline y la matriz de integración de la Fase 0 (2026-08-11, comm
 `a7972e7`). No incluye tareas de VeriFactu/FacturaE en sí (responsabilidad del servicio
 externo) — solo cómo este frontend debe consumirlo cuando el contrato exista.
 
+## Completado
+
+| Tarea | Commit |
+|---|---|
+| `npm audit fix` (sin `--force`) para las 8 vulnerabilidades altas de `@angular/*` | `e75f019` |
+| Test runner headless (`test:ci` con `ChromeHeadless`) | `446b1f9` |
+| Fijar versión de Node (`.nvmrc` + `engines`) coherente con `netlify.toml` | `43af9e5` |
+| Corregir los 57 errores de lint (`@angular-eslint/prefer-inject`) | `fdfbe38` |
+| Definir puertos tipados (`EmisorRepository`, `CustomersRepository`, `SuppliersRepository`, `IssuedInvoicesRepository`, `ReceivedInvoicesRepository`) y mover `MockFacturasService` detrás de ellos — ninguna página/modal importa `MockFacturasService` directamente | `f7fd371` |
+| Badge "Modo demo — datos simulados" único y consistente (antes cada pantalla tenía su propio texto suelto) | `251eea2` |
+| Avisos de Contabilizar/Firmar corregidos para dejar explícito que son simulados, no un envío real a Verifactu/AEAT | `251eea2` |
+| Bloqueo de doble envío en Guardar borrador / Guardar (factura recibida) | `251eea2` |
+| `crearDesdeOcr` ya no usa `Math.random()` — datos de ejemplo deterministas | `251eea2` |
+| Corregir 7 specs que fallaban por falta de `ActivatedRoute`/`ModalController` en el TestBed | `0feeec5` |
+
 ## P0 — crítico, no bloqueado por contratos externos
 
 | Tarea | Por qué es P0 | Depende de | Criterio de aceptación |
 |---|---|---|---|
-| Retirar `saved_password` de Capacitor Preferences | Contraseña en claro persistida en disco del dispositivo — hallazgo de seguridad real, no hipotético | Nada | Ninguna clave de Preferences/localStorage contiene la contraseña; el reenvío de MFA deja de depender de ella (bloquea gap #2 hasta tener endpoint propio) o se sustituye por un flujo que no la necesite |
-| `npm audit fix` (sin `--force`) para las 8 vulnerabilidades altas de `@angular/*` | Son parches dentro del rango `^20.0.0` ya declarado en `package.json` (`@angular/core` 20.3.16 → 20.3.27 disponible) — no es un major | Nada | `npm audit --omit=dev` sin altas/críticas; build + lint + páginas probadas manualmente sin regresión visible |
-| Test runner headless (`test:ci` con `ChromeHeadless`) | Hoy `ng test` usa `browsers: ['Chrome']` (no headless) — no se puede verificar en CI ni en este entorno; confirmado que se cuelga más de 30s | Nada | `npm run test:ci` termina y reporta resultado en un pipeline sin GUI |
-| Badge "MODO DEMO — DATOS SIMULADOS" visible cuando el provider es mock | Ahora mismo cada pantalla mock tiene su propio `ion-chip` de aviso repetido con texto distinto — funciona, pero no es una garantía estructural, es texto suelto por pantalla | Nada | Un único mecanismo (interceptor/servicio) decide si mostrar el aviso, no cada página por separado |
-| Fijar versión de Node (`.nvmrc` o `engines` en `package.json`) coherente con `netlify.toml` (`NODE_VERSION=20`) | Local corre Node 24; Netlify build usa 20 — riesgo de drift no detectado | Nada | Mismo major de Node declarado en los 3 sitios (dev, CI si existe, Netlify) |
+| Retirar `saved_password` de Capacitor Preferences | Contraseña en claro persistida en disco del dispositivo — hallazgo de seguridad real, no hipotético. Alternativas ya documentadas en `docs/SESSION_SECURITY_ALTERNATIVES.md`, pendiente de decidir cuál aplicar sin romper login/biometría/MFA | Nada | Ninguna clave de Preferences/localStorage contiene la contraseña; el reenvío de MFA deja de depender de ella (bloquea gap #2 hasta tener endpoint propio) o se sustituye por un flujo que no la necesite |
 
 ## P1 — arquitectura e integración real (algunos bloqueados por gaps de contrato)
 
 | Tarea | Por qué es P1 | Depende de | Criterio de aceptación |
 |---|---|---|---|
-| Definir puertos por capacidad (`IssuedInvoicesRepository`, `ReceivedInvoicesRepository`, `CustomersRepository`, `SuppliersRepository`, `TenantRepository`, `FiscalStatusRepository`, `OcrRepository`, `BillingDocumentsRepository`) y mover `MockFacturasService` detrás de ellos | Hoy las páginas inyectan `MockFacturasService` directamente — imposible alternar mock↔HTTP sin tocar cada pantalla | Nada (es refactor interno, no necesita contratos nuevos) | Ninguna página/modal importa `MockFacturasService` directamente; todas pasan por una interfaz de puerto |
-| Selección de provider por configuración de build (mock vs HTTP) + test que falla si producción usa mock | Requisito explícito: producción no debe poder arrancar con mocks | El punto anterior | Existe una prueba automatizada que falla si `environment.production === true` y el provider activo es el mock |
+| Selección de provider por configuración de build (mock vs HTTP) + test que falla si producción usa mock | Requisito explícito: producción no debe poder arrancar con mocks | Que exista al menos un `HttpXxxRepository` real que ofrecer como alternativa | Existe una prueba automatizada que falla si `environment.production === true` y el provider activo es el mock |
 | `ApiClient` con timeout, cancelación, errores tipados, tratamiento global 401/403, correlation ID | `ApiService` actual no tiene ninguna de estas capacidades — hoy solo lo usa `AuthService`, pero cualquier repo HTTP nuevo las necesitará | Nada | Cualquier llamada que exceda el timeout se cancela y produce un error tipado, no una promesa colgada |
-| Corregir los 57 errores de lint (`@angular-eslint/prefer-inject`) | Mecánico y de bajo riesgo (schematic oficial `ng generate @angular/core:inject`), pero repetido en 18 archivos | Nada | `npm run lint` sin errores; build sin cambios de comportamiento |
 | `SessionStore` — retirar token de `localStorage` plano | Confirmado: token y usuario en `localStorage`, sin estrategia documentada de expiración/revocación del lado servidor | **Bloqueado parcialmente** por gaps #1–3 (no se sabe si el backend soporta cookie HttpOnly o si el contrato Bearer es el único disponible) | Estrategia de sesión documentada en un ADR y aplicada; ningún dato de sesión sobrevive a un logout |
-| Implementar `HttpRepository` real por función según se confirmen contratos | Es el objetivo final de todo el plan | Gaps #4, #5, #7, #9, #10, #11, #13, #21 (uno por función) | Cada repo HTTP tiene contract tests contra fixtures del contrato aprobado, no contra suposiciones |
-| Corregir 7 specs que fallan (`FacturasEmitidasPage`, `FacturaRecibidaDetallePage`, `MfaPage` y otros — falta `ActivatedRoute`/`ModalController` en el TestBed) | **Hallazgo nuevo** (2026-08-11): invisible hasta ahora porque `ng test` nunca terminaba (ver P0, `test:ci`). Al arreglar el runner headless, aparecieron 7 de 13 tests en rojo | Nada | `npm run test:ci` en verde, sin relajar ninguna aserción |
+| Implementar `HttpRepository` real por función según se confirmen contratos | Es el objetivo final de todo el plan | Gaps #4, #5, #7, #9, #10, #11, #13, #21 (uno por función) — ver `docs/SERVICE_CONTRACT_GAPS.md` | Cada repo HTTP tiene contract tests contra fixtures del contrato aprobado, no contra suposiciones |
 | Mapeo explícito de estados VeriFactu (externo → UI), con "estado no reconocido" para valores desconocidos | Hoy los 5 estados del mock (`PendienteEnvio`, `Correcto`, etc.) son inventados, razonables pero no confirmados | Gap #17 | Un estado del backend no presente en el mapping se muestra como "no reconocido", nunca como éxito por defecto |
 
 ## P2 — calidad y despliegue (no bloqueante para el MVP actual)
