@@ -12,6 +12,7 @@ import { MockIssuedInvoicesRepository } from '../adapters/mock/issued-invoices.r
 import { MockReceivedInvoicesRepository } from '../adapters/mock/received-invoices.repository.mock';
 import {
   CONFIGURACION_RETENCION_ALQUILER_DEMO, ConfiguracionRetencion, aplicarRetencion,
+  accionesFacturaEmitida, accionesFacturaRecibida, FacturaEmitida, FacturaRecibida,
 } from '../../services/mock-facturas.service';
 
 describe('MOCK_REPOSITORY_PROVIDERS — selección de provider', () => {
@@ -210,5 +211,125 @@ describe('aplicarRetencion — cálculo puro, sin pasar por el singleton del ser
     // el cálculo/formato cuando el backend confirme que sí aplica — nunca se activa sola.
     expect(CONFIGURACION_RETENCION_ALQUILER_DEMO.aplicable).toBeTrue();
     expect(CONFIGURACION_RETENCION_ALQUILER_DEMO.porcentaje).toBe(19);
+  });
+});
+
+describe('Política de acciones permitidas — accionesFacturaEmitida / accionesFacturaRecibida', () => {
+  function emitidaConEstado(estado: FacturaEmitida['estado']): FacturaEmitida {
+    return {
+      id: 1, numFactura: 'A-1', numeradorId: 1, fecha: '2026-08-11', vencimiento: '',
+      concepto: 'x', medioPago: 'Transferencia',
+      destinatario: { nombre: 'Cliente', nif: 'B1', esEmpresa: true },
+      lineas: [], estado, operacionId: 'op-1',
+    };
+  }
+
+  function recibidaConEstado(estado: FacturaRecibida['estado']): FacturaRecibida {
+    return {
+      id: 1, proveedor: 'Proveedor', numFactura: 'F-1', fecha: '2026-08-11',
+      lineas: [], retencionPct: 0, pagada: false, estado, origenOcr: false,
+    };
+  }
+
+  it('borrador: edición, borrado, copia y descarga/compartir todo permitido', () => {
+    const acciones = accionesFacturaEmitida(emitidaConEstado('borrador'));
+    expect(acciones).toEqual({ editar: true, eliminar: true, copiar: true, descargar: true, compartir: true });
+  });
+
+  it('contabilizada/firmada: ni editar ni eliminar, pero sí copiar/descargar/compartir', () => {
+    for (const estado of ['contabilizada', 'firmada'] as const) {
+      const acciones = accionesFacturaEmitida(emitidaConEstado(estado));
+      expect(acciones.editar).toBeFalse();
+      expect(acciones.eliminar).toBeFalse();
+      expect(acciones.copiar).toBeTrue();
+      expect(acciones.descargar).toBeTrue();
+      expect(acciones.compartir).toBeTrue();
+    }
+  });
+
+  it('estado no reconocido: conservador — nada que mute la factura, solo lectura', () => {
+    const acciones = accionesFacturaEmitida(emitidaConEstado('algo-inventado' as any));
+    expect(acciones).toEqual({ editar: false, eliminar: false, copiar: false, descargar: true, compartir: true });
+  });
+
+  it('recibidas sigue la misma política — borrador editable, revisada (contabilizada) bloqueada', () => {
+    expect(accionesFacturaRecibida(recibidaConEstado('borrador')).editar).toBeTrue();
+    expect(accionesFacturaRecibida(recibidaConEstado('contabilizada')).editar).toBeFalse();
+    expect(accionesFacturaRecibida(recibidaConEstado('contabilizada')).copiar).toBeTrue();
+  });
+});
+
+describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', () => {
+  let issuedRepo: IssuedInvoicesRepository;
+  let receivedRepo: ReceivedInvoicesRepository;
+  let customersRepo: CustomersRepository;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [...MOCK_REPOSITORY_PROVIDERS] });
+    issuedRepo = TestBed.inject(IssuedInvoicesRepository);
+    receivedRepo = TestBed.inject(ReceivedInvoicesRepository);
+    customersRepo = TestBed.inject(CustomersRepository);
+  });
+
+  it('duplicar una factura emitida firmada crea un borrador sin estado fiscal ni OperacionId anterior', async () => {
+    const cliente = (await customersRepo.buscar('Sonrisas')).items[0];
+    const borrador = issuedRepo.crearBorrador(issuedRepo.getNumeradores()[0].id, cliente);
+    borrador.lineas.push({ id: issuedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'Servicio', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 });
+    issuedRepo.contabilizar(borrador.id);
+    issuedRepo.firmar(borrador.id);
+
+    const original = issuedRepo.obtenerPorId(borrador.id)!;
+    const copia = issuedRepo.duplicar(original.id)!;
+
+    expect(copia.id).not.toBe(original.id);
+    expect(copia.estado).toBe('borrador');
+    expect(copia.estadoAeat).toBeUndefined();
+    expect(copia.operacionId).not.toBe(original.operacionId);
+    expect(copia.destinatario.nombre).toBe(original.destinatario.nombre);
+    expect(copia.lineas.length).toBe(original.lineas.length);
+    expect(copia.lineas[0].id).not.toBe(original.lineas[0].id); // ids de línea nuevos, no compartidos
+  });
+
+  it('solo se puede eliminar una factura emitida en borrador', () => {
+    const numerador = issuedRepo.getNumeradores()[0];
+    const borrador = issuedRepo.crearBorrador(numerador.id, { nombre: 'X', nif: 'B1', esEmpresa: true });
+
+    issuedRepo.contabilizar(borrador.id);
+    issuedRepo.eliminar(borrador.id); // no debe borrar — ya no es borrador
+    expect(issuedRepo.obtenerPorId(borrador.id)).toBeTruthy();
+  });
+
+  it('duplicar una factura recibida no arrastra el documento adjunto del original', () => {
+    const creada = receivedRepo.crearManual({
+      proveedor: 'Proveedor con adjunto', numFactura: 'F-ADJ', fecha: '2026-08-11', vencimiento: '',
+      lineas: [{ id: receivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'x', cantidad: 1, precioUnitario: 50, descuentoPct: 0, ivaPct: 21 }],
+      retencionPct: 0, pagada: false, estado: 'borrador',
+      documentoUrl: 'data:image/png;base64,xxx', documentoNombre: 'foto.png',
+    });
+
+    const copia = receivedRepo.duplicar(creada.id)!;
+
+    expect(copia.documentoUrl).toBeUndefined();
+    expect(copia.documentoNombre).toBeUndefined();
+    expect(copia.proveedor).toBe('Proveedor con adjunto');
+    expect(copia.estado).toBe('borrador');
+  });
+});
+
+describe('generarDocumento — documento simulado, nunca presentado como fiscal', () => {
+  it('el documento generado indica claramente que es una simulación', async () => {
+    TestBed.configureTestingModule({ providers: [...MOCK_REPOSITORY_PROVIDERS] });
+    const issuedRepo = TestBed.inject(IssuedInvoicesRepository);
+    const customersRepo = TestBed.inject(CustomersRepository);
+
+    const cliente = (await customersRepo.buscar('Sonrisas')).items[0];
+    const borrador = issuedRepo.crearBorrador(issuedRepo.getNumeradores()[0].id, cliente);
+
+    const { blob, nombre } = await issuedRepo.generarDocumento(borrador.id);
+    const contenido = await blob.text();
+
+    expect(nombre).toContain('simulado');
+    expect(contenido).toContain('SIMULACIÓN');
+    expect(contenido.toLowerCase()).toContain('no válido fiscalmente');
   });
 });
