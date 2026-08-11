@@ -5,6 +5,7 @@ import { provideHttpClient } from '@angular/common/http'; // ✅ añadir
 
 import { routes } from './app/app.routes';
 import { AppComponent } from './app/app.component';
+import { MOCK_REPOSITORY_PROVIDERS } from './app/core/providers/mock.providers';
 
 bootstrapApplication(AppComponent, {
   providers: [
@@ -12,5 +13,6 @@ bootstrapApplication(AppComponent, {
     provideIonicAngular(),
     provideRouter(routes, withPreloading(PreloadAllModules)),
     provideHttpClient(), // ✅ añadir
+    ...MOCK_REPOSITORY_PROVIDERS,
   ],
 });

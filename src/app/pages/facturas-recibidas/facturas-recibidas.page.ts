@@ -11,7 +11,8 @@ import {
 import { addIcons } from 'ionicons';
 import { cameraOutline, receiptOutline, documentTextOutline, addOutline } from 'ionicons/icons';
 
-import { MockFacturasService, FacturaRecibida } from '../../services/mock-facturas.service';
+import { FacturaRecibida } from '../../services/mock-facturas.service';
+import { ReceivedInvoicesRepository } from '../../core/ports';
 
 @Component({
   selector: 'app-facturas-recibidas',
@@ -26,7 +27,7 @@ import { MockFacturasService, FacturaRecibida } from '../../services/mock-factur
   ],
 })
 export class FacturasRecibidasPage implements OnInit {
-  private mock = inject(MockFacturasService);
+  private invoicesRepo = inject(ReceivedInvoicesRepository);
   private toastCtrl = inject(ToastController);
   private router = inject(Router);
 
@@ -48,7 +49,7 @@ export class FacturasRecibidasPage implements OnInit {
   }
 
   refresh() {
-    this.facturas = this.mock.getFacturasRecibidas();
+    this.facturas = this.invoicesRepo.listar();
   }
 
   abrir(f: FacturaRecibida) {
@@ -73,7 +74,7 @@ export class FacturasRecibidasPage implements OnInit {
     try {
       // El servicio recibe el File real: la integración real solo cambia la
       // implementación interna por una subida multipart a POST /api/FacturaRecibida/desde-ocr.
-      const nueva = await this.mock.crearDesdeOcr(file);
+      const nueva = await this.invoicesRepo.crearDesdeOcr(file);
       this.refresh();
       await this.showToast(`Borrador creado desde "${file.name}": ${nueva.proveedor}.`, 'success');
     } catch (e: any) {

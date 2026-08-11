@@ -14,7 +14,8 @@ import {
 import { addIcons } from 'ionicons';
 import { documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline } from 'ionicons/icons';
 
-import { MockFacturasService, EstadoFactura, FacturaEmitida, Numerador } from '../../services/mock-facturas.service';
+import { EstadoFactura, FacturaEmitida, Numerador } from '../../services/mock-facturas.service';
+import { IssuedInvoicesRepository } from '../../core/ports';
 
 @Component({
   selector: 'app-facturas-emitidas',
@@ -31,7 +32,7 @@ import { MockFacturasService, EstadoFactura, FacturaEmitida, Numerador } from '.
   ],
 })
 export class FacturasEmitidasPage implements OnInit {
-  private mock = inject(MockFacturasService);
+  private invoicesRepo = inject(IssuedInvoicesRepository);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private alertCtrl = inject(AlertController);
@@ -47,7 +48,7 @@ export class FacturasEmitidasPage implements OnInit {
   }
 
   ngOnInit() {
-    this.numeradores = this.mock.getNumeradores();
+    this.numeradores = this.invoicesRepo.getNumeradores();
 
     const estadoParam = this.route.snapshot.queryParamMap.get('estado');
     if (estadoParam === 'borrador' || estadoParam === 'contabilizada' || estadoParam === 'firmada') {
@@ -72,7 +73,7 @@ export class FacturasEmitidasPage implements OnInit {
   }
 
   refresh() {
-    this.facturas = this.mock.getFacturasEmitidas(this.estado, this.numeradorId);
+    this.facturas = this.invoicesRepo.listar(this.estado, this.numeradorId);
   }
 
   abrir(f: FacturaEmitida) {
@@ -88,15 +89,15 @@ export class FacturasEmitidasPage implements OnInit {
   }
 
   totalFactura(f: FacturaEmitida): number {
-    return this.mock.totalesFactura(f).total;
+    return this.invoicesRepo.totales(f).total;
   }
 
   numeradorNombre(f: FacturaEmitida): string {
-    return this.mock.numeradorNombre(f.numeradorId);
+    return this.invoicesRepo.numeradorNombre(f.numeradorId);
   }
 
   estadoAeatLabel(f: FacturaEmitida): string {
-    return this.mock.estadoAeatLabel(f.estadoAeat);
+    return this.invoicesRepo.estadoAeatLabel(f.estadoAeat);
   }
 
   estadoAeatColor(f: FacturaEmitida): string {
@@ -119,7 +120,7 @@ export class FacturasEmitidasPage implements OnInit {
         {
           text: 'Contabilizar',
           handler: async () => {
-            this.mock.contabilizar(f.id);
+            this.invoicesRepo.contabilizar(f.id);
             this.refresh();
             await this.showToast(`Factura de ${f.destinatario.nombre} contabilizada.`);
           },
@@ -139,7 +140,7 @@ export class FacturasEmitidasPage implements OnInit {
         {
           text: 'Firmar',
           handler: async () => {
-            this.mock.firmar(f.id);
+            this.invoicesRepo.firmar(f.id);
             this.refresh();
             await this.showToast(`Factura de ${f.destinatario.nombre} firmada.`);
           },

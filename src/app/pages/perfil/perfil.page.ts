@@ -4,7 +4,8 @@ import { Router } from '@angular/router';
 
 import { AuthService, User } from '../../services/auth.service';
 import { TenantService } from '../../services/tenant.service';
-import { MockFacturasService, EmisorFiscal } from '../../services/mock-facturas.service';
+import { EmisorFiscal } from '../../services/mock-facturas.service';
+import { EmisorRepository } from '../../core/ports';
 
 import {
   IonContent,
@@ -48,7 +49,7 @@ import { createOutline } from 'ionicons/icons';
 export class PerfilPage {
   private auth = inject(AuthService);
   private tenant = inject(TenantService);
-  private mock = inject(MockFacturasService);
+  private emisorRepo = inject(EmisorRepository);
   private router = inject(Router);
   private alertCtrl = inject(AlertController);
 
@@ -61,7 +62,7 @@ export class PerfilPage {
 
   ionViewWillEnter() {
     this.user = this.auth.getUser();
-    this.emisor = this.mock.getEmisor();
+    this.emisor = this.emisorRepo.getEmisor();
   }
 
   irADatosEmisor() {

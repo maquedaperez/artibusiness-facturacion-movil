@@ -11,7 +11,8 @@ import {
 import { addIcons } from 'ionicons';
 import { arrowBackOutline, documentTextOutline } from 'ionicons/icons';
 
-import { MockFacturasService, EmisorFiscal } from '../../services/mock-facturas.service';
+import { EmisorFiscal } from '../../services/mock-facturas.service';
+import { EmisorRepository } from '../../core/ports';
 
 @Component({
   selector: 'app-datos-emisor',
@@ -25,7 +26,7 @@ import { MockFacturasService, EmisorFiscal } from '../../services/mock-facturas.
   ],
 })
 export class DatosEmisorPage implements OnInit {
-  private mock = inject(MockFacturasService);
+  private emisorRepo = inject(EmisorRepository);
   private router = inject(Router);
   private toastCtrl = inject(ToastController);
 
@@ -40,7 +41,7 @@ export class DatosEmisorPage implements OnInit {
   }
 
   ngOnInit() {
-    this.emisor = this.mock.getEmisor();
+    this.emisor = this.emisorRepo.getEmisor();
   }
 
   async guardar() {
@@ -50,7 +51,7 @@ export class DatosEmisorPage implements OnInit {
       return;
     }
 
-    this.mock.actualizarEmisor(this.emisor);
+    this.emisorRepo.actualizarEmisor(this.emisor);
 
     const toast = await this.toastCtrl.create({
       message: 'Datos fiscales guardados.',

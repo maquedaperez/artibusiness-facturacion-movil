@@ -10,7 +10,8 @@ import {
 import { addIcons } from 'ionicons';
 import { closeOutline, addOutline } from 'ionicons/icons';
 
-import { MockFacturasService, ProveedorMock } from '../../services/mock-facturas.service';
+import { ProveedorMock } from '../../services/mock-facturas.service';
+import { SuppliersRepository } from '../../core/ports';
 
 @Component({
   selector: 'app-proveedor-selector',
@@ -105,7 +106,7 @@ import { MockFacturasService, ProveedorMock } from '../../services/mock-facturas
   `],
 })
 export class ProveedorSelectorComponent implements OnInit {
-  private mock = inject(MockFacturasService);
+  private suppliersRepo = inject(SuppliersRepository);
   private modalCtrl = inject(ModalController);
 
   query = '';
@@ -126,7 +127,7 @@ export class ProveedorSelectorComponent implements OnInit {
   }
 
   buscar() {
-    this.resultados = this.mock.buscarProveedores(this.query);
+    this.resultados = this.suppliersRepo.buscar(this.query);
   }
 
   seleccionar(p: ProveedorMock) {
@@ -139,7 +140,7 @@ export class ProveedorSelectorComponent implements OnInit {
       this.errorMsg = 'Nombre y NIF son obligatorios.';
       return;
     }
-    const creado = this.mock.crearProveedorAdHoc({ ...this.nuevo });
+    const creado = this.suppliersRepo.crearAdHoc({ ...this.nuevo });
     this.modalCtrl.dismiss(creado, 'confirm');
   }
 

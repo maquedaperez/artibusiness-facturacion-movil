@@ -13,9 +13,10 @@ import { addIcons } from 'ionicons';
 import { arrowBackOutline, addOutline, trashOutline, personCircleOutline, documentTextOutline } from 'ionicons/icons';
 
 import {
-  MockFacturasService, FacturaEmitida, LineaFactura, Destinatario, Numerador,
+  FacturaEmitida, LineaFactura, Destinatario, Numerador,
   IVA_RATES, IRPF_RATES, MEDIO_PAGO_OPTIONS, EmisorFiscal,
 } from '../../services/mock-facturas.service';
+import { EmisorRepository, IssuedInvoicesRepository } from '../../core/ports';
 import { ClienteSelectorComponent } from '../../modals/cliente-selector/cliente-selector.component';
 
 @Component({
@@ -33,7 +34,8 @@ import { ClienteSelectorComponent } from '../../modals/cliente-selector/cliente-
 export class FacturaDetallePage implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-  private mock = inject(MockFacturasService);
+  private invoicesRepo = inject(IssuedInvoicesRepository);
+  private emisorRepo = inject(EmisorRepository);
   private modalCtrl = inject(ModalController);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
@@ -57,8 +59,8 @@ export class FacturaDetallePage implements OnInit {
   }
 
   ngOnInit() {
-    this.numeradores = this.mock.getNumeradores();
-    this.emisor = this.mock.getEmisor();
+    this.numeradores = this.invoicesRepo.getNumeradores();
+    this.emisor = this.emisorRepo.getEmisor();
     const param = this.route.snapshot.paramMap.get('id');
 
     if (param === 'nueva') {
@@ -69,7 +71,7 @@ export class FacturaDetallePage implements OnInit {
     }
 
     const id = Number(param);
-    const factura = this.mock.getFacturaById(id);
+    const factura = this.invoicesRepo.obtenerPorId(id);
     if (!factura) {
       this.errorMsg = 'Factura no encontrada.';
       this.cargando = false;
@@ -97,7 +99,7 @@ export class FacturaDetallePage implements OnInit {
     if (this.esNueva) {
       const numeradorId = this.numeradorSeleccionado ?? this.numeradores[0]?.id;
       if (numeradorId == null) return;
-      const creada = this.mock.crearBorrador(numeradorId, destinatario);
+      const creada = this.invoicesRepo.crearBorrador(numeradorId, destinatario);
       this.working = structuredClone(creada);
       this.facturaId = creada.id;
       this.esNueva = false;
@@ -109,7 +111,7 @@ export class FacturaDetallePage implements OnInit {
   agregarLinea() {
     if (!this.working) return;
     const nueva: LineaFactura = {
-      id: this.mock.nuevoIdLinea(),
+      id: this.invoicesRepo.nuevoIdLinea(),
       descripcion: '',
       cantidad: 1,
       precioUnitario: 0,
@@ -126,13 +128,13 @@ export class FacturaDetallePage implements OnInit {
 
   totales() {
     if (!this.working) return { base: 0, desgloseIva: [], ivaTotal: 0, irpfPct: 0, irpfCuota: 0, total: 0 };
-    return this.mock.totalesFactura(this.working);
+    return this.invoicesRepo.totales(this.working);
   }
 
   async guardar() {
     if (!this.working || this.facturaId == null) return;
 
-    this.mock.actualizarBorrador(this.facturaId, {
+    this.invoicesRepo.actualizarBorrador(this.facturaId, {
       fecha: this.working.fecha,
       vencimiento: this.working.vencimiento,
       concepto: this.working.concepto,
@@ -166,7 +168,7 @@ export class FacturaDetallePage implements OnInit {
           text: 'Contabilizar',
           handler: async () => {
             await this.guardar();
-            this.mock.contabilizar(this.facturaId!);
+            this.invoicesRepo.contabilizar(this.facturaId!);
             await this.showToast('Factura contabilizada.');
             this.volver();
           },
@@ -187,7 +189,7 @@ export class FacturaDetallePage implements OnInit {
         {
           text: 'Firmar',
           handler: async () => {
-            this.mock.firmar(this.facturaId!);
+            this.invoicesRepo.firmar(this.facturaId!);
             await this.showToast('Factura firmada.');
             this.volver();
           },
@@ -208,7 +210,7 @@ export class FacturaDetallePage implements OnInit {
   }
 
   estadoAeatLabel(): string {
-    return this.working ? this.mock.estadoAeatLabel(this.working.estadoAeat) : '—';
+    return this.working ? this.invoicesRepo.estadoAeatLabel(this.working.estadoAeat) : '—';
   }
 
   formatEuros(v: number): string {

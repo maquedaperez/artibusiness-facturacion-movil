@@ -15,7 +15,8 @@ import {
   attachOutline, eyeOutline,
 } from 'ionicons/icons';
 
-import { MockFacturasService, FacturaRecibida, ProveedorMock, IVA_RATES, IRPF_RATES } from '../../services/mock-facturas.service';
+import { FacturaRecibida, ProveedorMock, IVA_RATES, IRPF_RATES } from '../../services/mock-facturas.service';
+import { ReceivedInvoicesRepository } from '../../core/ports';
 import { VerDocumentoComponent } from '../../modals/ver-documento/ver-documento.component';
 import { ProveedorSelectorComponent } from '../../modals/proveedor-selector/proveedor-selector.component';
 
@@ -36,7 +37,7 @@ type FacturaRecibidaForm = Omit<FacturaRecibida, 'id' | 'origenOcr'>;
 export class FacturaRecibidaDetallePage implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-  private mock = inject(MockFacturasService);
+  private invoicesRepo = inject(ReceivedInvoicesRepository);
   private modalCtrl = inject(ModalController);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
@@ -67,7 +68,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
     }
 
     const id = Number(param);
-    const factura = this.mock.getFacturaRecibidaById(id);
+    const factura = this.invoicesRepo.obtenerPorId(id);
     if (!factura) {
       this.errorMsg = 'Factura no encontrada.';
       return;
@@ -135,7 +136,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
 
     this.adjuntando = true;
     try {
-      const { documentoUrl, documentoNombre } = await this.mock.adjuntarDocumento(file);
+      const { documentoUrl, documentoNombre } = await this.invoicesRepo.adjuntarDocumento(file);
       this.working.documentoUrl = documentoUrl;
       this.working.documentoNombre = documentoNombre;
     } finally {
@@ -168,11 +169,11 @@ export class FacturaRecibidaDetallePage implements OnInit {
     };
 
     if (this.esNueva) {
-      const creada = this.mock.crearManual(datos);
+      const creada = this.invoicesRepo.crearManual(datos);
       this.facturaId = creada.id;
       this.esNueva = false;
     } else if (this.facturaId != null) {
-      this.mock.actualizarRecibida(this.facturaId, datos);
+      this.invoicesRepo.actualizar(this.facturaId, datos);
     }
 
     await this.showToast('Factura guardada.');
@@ -190,7 +191,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
           text: 'Eliminar',
           role: 'destructive',
           handler: async () => {
-            this.mock.eliminarRecibida(this.facturaId!);
+            this.invoicesRepo.eliminar(this.facturaId!);
             await this.showToast('Factura eliminada.');
             this.volver();
           },

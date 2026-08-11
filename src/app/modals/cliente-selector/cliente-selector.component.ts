@@ -10,7 +10,8 @@ import {
 import { addIcons } from 'ionicons';
 import { closeOutline, personAddOutline } from 'ionicons/icons';
 
-import { MockFacturasService, ClienteMock, Destinatario } from '../../services/mock-facturas.service';
+import { ClienteMock, Destinatario } from '../../services/mock-facturas.service';
+import { CustomersRepository } from '../../core/ports';
 
 @Component({
   selector: 'app-cliente-selector',
@@ -109,7 +110,7 @@ import { MockFacturasService, ClienteMock, Destinatario } from '../../services/m
   `],
 })
 export class ClienteSelectorComponent implements OnInit {
-  private mock = inject(MockFacturasService);
+  private customersRepo = inject(CustomersRepository);
   private modalCtrl = inject(ModalController);
 
   query = '';
@@ -130,7 +131,7 @@ export class ClienteSelectorComponent implements OnInit {
   }
 
   buscar() {
-    this.resultados = this.mock.buscarClientes(this.query);
+    this.resultados = this.customersRepo.buscar(this.query);
   }
 
   seleccionar(c: ClienteMock) {
@@ -143,7 +144,7 @@ export class ClienteSelectorComponent implements OnInit {
       this.errorMsg = 'Nombre y NIF/CIF son obligatorios.';
       return;
     }
-    const creado = this.mock.crearClienteAdHoc({ ...this.nuevo });
+    const creado = this.customersRepo.crearAdHoc({ ...this.nuevo });
     this.modalCtrl.dismiss(creado, 'confirm');
   }
 
