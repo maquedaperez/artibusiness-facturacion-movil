@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
+import { provideIonicAngular } from '@ionic/angular/standalone';
 import { FacturaDetallePage } from './factura-detalle.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 
@@ -10,7 +11,7 @@ describe('FacturaDetallePage', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [FacturaDetallePage, RouterTestingModule],
-      providers: [...MOCK_REPOSITORY_PROVIDERS],
+      providers: [...MOCK_REPOSITORY_PROVIDERS, provideIonicAngular()],
     });
     fixture = TestBed.createComponent(FacturaDetallePage);
     component = fixture.componentInstance;
