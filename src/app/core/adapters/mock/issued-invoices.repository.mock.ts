@@ -30,7 +30,7 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
   actualizarBorrador(
     id: number,
-    cambios: Partial<Pick<FacturaEmitida, 'fecha' | 'vencimiento' | 'concepto' | 'medioPago' | 'destinatario' | 'lineas' | 'irpfPct' | 'numeradorId'>>
+    cambios: Partial<Pick<FacturaEmitida, 'fecha' | 'vencimiento' | 'concepto' | 'medioPago' | 'destinatario' | 'lineas' | 'numeradorId'>>
   ): void {
     this.mock.actualizarBorrador(id, cambios);
   }

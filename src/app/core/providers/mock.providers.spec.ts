@@ -10,6 +10,9 @@ import { MockCustomersRepository } from '../adapters/mock/customers.repository.m
 import { MockSuppliersRepository } from '../adapters/mock/suppliers.repository.mock';
 import { MockIssuedInvoicesRepository } from '../adapters/mock/issued-invoices.repository.mock';
 import { MockReceivedInvoicesRepository } from '../adapters/mock/received-invoices.repository.mock';
+import {
+  CONFIGURACION_RETENCION_ALQUILER_DEMO, ConfiguracionRetencion, aplicarRetencion,
+} from '../../services/mock-facturas.service';
 
 describe('MOCK_REPOSITORY_PROVIDERS — selección de provider', () => {
   beforeEach(() => {
@@ -82,13 +85,14 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     expect(borradores.length).toBeGreaterThan(0);
   });
 
-  it('crea un borrador de factura emitida y calcula sus totales de forma coherente', async () => {
+  it('crea un borrador de factura emitida y calcula sus totales de forma coherente, sin retención por defecto', async () => {
     const numerador = issuedRepo.getNumeradores()[0];
     const cliente = (await customersRepo.buscar('Sonrisas')).items[0];
 
     const borrador = issuedRepo.crearBorrador(numerador.id, cliente);
     expect(borrador.estado).toBe('borrador');
     expect(borrador.lineas.length).toBe(0);
+    expect((borrador as any).irpfPct).toBeUndefined(); // ya no existe como campo de la factura
 
     borrador.lineas.push({
       id: issuedRepo.nuevoIdLinea(),
@@ -98,14 +102,14 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
       descuentoPct: 0,
       ivaPct: 21,
     });
-    borrador.irpfPct = 15;
 
     const totales = issuedRepo.totales(borrador);
-    // base = 2 * 100 = 200; IVA 21% = 42; IRPF 15% sobre base (no sobre el total con IVA) = 30.
+    // base = 2 * 100 = 200; IVA 21% = 42. Configuración mock por defecto: sin retención.
     expect(totales.base).toBe(200);
     expect(totales.ivaTotal).toBe(42);
-    expect(totales.irpfCuota).toBe(30);
-    expect(totales.total).toBe(212);
+    expect(totales.retencion.aplicable).toBeFalse();
+    expect(totales.retencion.importe).toBe(0);
+    expect(totales.total).toBe(242);
   });
 
   it('contabilizar y firmar cambian el estado y el estado AEAT simulado de la factura', async () => {
@@ -141,5 +145,40 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     receivedRepo.eliminar(creada.id);
     expect(receivedRepo.listar().length).toBe(inicial);
     expect(receivedRepo.obtenerPorId(creada.id)).toBeUndefined();
+  });
+});
+
+describe('aplicarRetencion — cálculo puro, sin pasar por el singleton del servicio', () => {
+  it('con la config por defecto del MVP (sin retención), el importe es 0 y no resta del total', () => {
+    const sinRetencion: ConfiguracionRetencion = {
+      aplicable: false, tipoCodigo: 'ninguna', etiqueta: 'Retención', porcentaje: 0,
+    };
+    const resultado = aplicarRetencion(1000, sinRetencion);
+
+    expect(resultado.aplicable).toBeFalse();
+    expect(resultado.importe).toBe(0);
+    expect(resultado.motivoNoAplica).toBeTruthy();
+  });
+
+  it('fixture de alquiler urbano (19%): reproduce el ejemplo base 1000€ / IVA 210€ / retención 190€ / total 1020€', () => {
+    const retencion = aplicarRetencion(1000, CONFIGURACION_RETENCION_ALQUILER_DEMO);
+
+    expect(retencion.aplicable).toBeTrue();
+    expect(retencion.etiqueta).toBe('Retención alquiler');
+    expect(retencion.porcentaje).toBe(19);
+    expect(retencion.importe).toBe(190);
+
+    // La fórmula completa: base + IVA − retención = total a pagar.
+    const ivaTotal = 210; // 21% sobre 1000€, calculado aparte del desglose de IVA existente.
+    const total = 1000 + ivaTotal - retencion.importe;
+    expect(total).toBe(1020);
+  });
+
+  it('la fixture de alquiler no se aplica a las facturas emitidas normales del MVP en vivo', () => {
+    // Configuración por defecto del servicio (verificada en el test de totales de arriba):
+    // withholdingApplicable = false. Esta fixture solo existe para tests y para demostrar
+    // el cálculo/formato cuando el backend confirme que sí aplica — nunca se activa sola.
+    expect(CONFIGURACION_RETENCION_ALQUILER_DEMO.aplicable).toBeTrue();
+    expect(CONFIGURACION_RETENCION_ALQUILER_DEMO.porcentaje).toBe(19);
   });
 });

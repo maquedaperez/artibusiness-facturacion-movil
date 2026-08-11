@@ -14,7 +14,7 @@ import { arrowBackOutline, addOutline, trashOutline, personCircleOutline, docume
 
 import {
   FacturaEmitida, LineaFactura, Destinatario, Numerador,
-  IVA_RATES, IRPF_RATES, MEDIO_PAGO_OPTIONS,
+  IVA_RATES, MEDIO_PAGO_OPTIONS,
 } from '../../services/mock-facturas.service';
 import { IssuedInvoicesRepository } from '../../core/ports';
 import { ClienteSelectorComponent } from '../../modals/cliente-selector/cliente-selector.component';
@@ -49,7 +49,6 @@ export class FacturaDetallePage implements OnInit {
   numeradores: Numerador[] = [];
   numeradorSeleccionado: number | null = null;
   ivaRates = IVA_RATES;
-  irpfRates = IRPF_RATES;
   medioPagoOptions = MEDIO_PAGO_OPTIONS;
 
   working: FacturaEmitida | null = null;
@@ -127,7 +126,13 @@ export class FacturaDetallePage implements OnInit {
   }
 
   totales() {
-    if (!this.working) return { base: 0, desgloseIva: [], ivaTotal: 0, irpfPct: 0, irpfCuota: 0, total: 0 };
+    if (!this.working) {
+      return {
+        base: 0, desgloseIva: [], ivaTotal: 0,
+        retencion: { aplicable: false, etiqueta: 'Retención', porcentaje: 0, base: 0, importe: 0 },
+        total: 0,
+      };
+    }
     return this.invoicesRepo.totales(this.working);
   }
 
@@ -143,7 +148,6 @@ export class FacturaDetallePage implements OnInit {
         medioPago: this.working.medioPago,
         destinatario: this.working.destinatario,
         lineas: this.working.lineas,
-        irpfPct: this.working.irpfPct,
         numeradorId: this.working.numeradorId,
       });
 

@@ -27,7 +27,7 @@ describe('FacturasEmitidasPage', () => {
       id: 1, numFactura: 'A-2026-999', numeradorId: 1, fecha: '2026-08-11', vencimiento: '',
       concepto, medioPago: 'Transferencia',
       destinatario: { nombre: destinatarioNombre, nif: 'B00000000', esEmpresa: true },
-      lineas: [], irpfPct: 0, estado: 'borrador', operacionId: 'x',
+      lineas: [], estado: 'borrador', operacionId: 'x',
     };
   }
 

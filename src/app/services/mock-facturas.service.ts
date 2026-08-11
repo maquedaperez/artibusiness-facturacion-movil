@@ -86,8 +86,6 @@ export type FacturaEmitida = {
   medioPago: string;
   destinatario: Destinatario;
   lineas: LineaFactura[];
-  // % de retención, no importe fijo — se calcula sobre la base imponible igual que el IVA.
-  irpfPct: number;
   estado: EstadoFactura;
   estadoAeat?: EstadoAeat;
   // Campo técnico, no se muestra al usuario: se genera al crear el borrador (no al
@@ -97,14 +95,67 @@ export type FacturaEmitida = {
 
 export type DesgloseIva = { pct: number; baseGravada: number; cuota: number };
 
+// La retención (IRPF, alquiler, etc.) no es un dato de la factura ni de una línea —
+// la decide la configuración fiscal del emisor/actividad y se calcula al vuelo sobre
+// la base imponible ya calculada, nunca la elige el usuario en el formulario.
+export type ConfiguracionRetencion = {
+  aplicable: boolean;
+  // Código interno para identificar la regla (uso interno/futuro, no se muestra).
+  tipoCodigo: string;
+  // Texto que sí ve el usuario — "IRPF", "Retención alquiler", etc., según lo que
+  // devuelva el backend real.
+  etiqueta: string;
+  porcentaje: number;
+  motivoNoAplica?: string;
+};
+
+export type RetencionAplicada = {
+  aplicable: boolean;
+  etiqueta: string;
+  porcentaje: number;
+  // Base sobre la que se calcula — todos los conceptos satisfechos, excluido el IVA.
+  base: number;
+  importe: number;
+  motivoNoAplica?: string;
+};
+
 export type TotalesFactura = {
   base: number;
   desgloseIva: DesgloseIva[];
   ivaTotal: number;
-  irpfPct: number;
-  irpfCuota: number;
+  retencion: RetencionAplicada;
   total: number;
 };
+
+// Regla general de retenciones por alquiler/subarrendamiento de inmuebles urbanos
+// sujeto (AEAT, Reglamento IRPF art. 100): 19% sobre todos los conceptos satisfechos
+// al arrendador, excluido el IVA. Existen excepciones (vivienda de empleados, renta
+// anual ≤ 900€ sin IVA, arrendadores exonerados por epígrafe IAE, reglas territoriales
+// y de no residentes) que solo el backend puede resolver caso a caso — por eso esta
+// configuración NO se aplica a las facturas del MVP en vivo, solo a tests y fixtures
+// aisladas que demuestran que el cálculo/formato son correctos cuando sí aplica.
+export const CONFIGURACION_RETENCION_ALQUILER_DEMO: ConfiguracionRetencion = {
+  aplicable: true,
+  tipoCodigo: 'alquiler_urbano',
+  etiqueta: 'Retención alquiler',
+  porcentaje: 19,
+};
+
+function redondearCentimos(v: number): number {
+  return Math.round(v * 100) / 100;
+}
+
+export function aplicarRetencion(baseImponible: number, cfg: ConfiguracionRetencion): RetencionAplicada {
+  const importe = cfg.aplicable ? redondearCentimos(baseImponible * cfg.porcentaje / 100) : 0;
+  return {
+    aplicable: cfg.aplicable,
+    etiqueta: cfg.etiqueta,
+    porcentaje: cfg.porcentaje,
+    base: baseImponible,
+    importe,
+    motivoNoAplica: cfg.aplicable ? undefined : (cfg.motivoNoAplica ?? 'No aplica retención para este emisor.'),
+  };
+}
 
 export type FacturaRecibida = {
   id: number;
@@ -166,6 +217,15 @@ export class MockFacturasService {
     swift: '',
   };
 
+  // Configuración por defecto del MVP: sin retención. La fixture de alquiler urbano
+  // (CONFIGURACION_RETENCION_ALQUILER_DEMO) es solo para tests, no se aplica aquí.
+  private configuracionRetencion: ConfiguracionRetencion = {
+    aplicable: false,
+    tipoCodigo: 'ninguna',
+    etiqueta: 'Retención',
+    porcentaje: 0,
+  };
+
   private numeradores: Numerador[] = [
     { id: 1, nombre: 'Serie A 2026' },
     { id: 2, nombre: 'Serie B 2026' },
@@ -209,7 +269,7 @@ export class MockFacturasService {
       lineas: [
         { id: 1, descripcion: 'Revisión anual instalación', cantidad: 1, precioUnitario: 1200, descuentoPct: 0, ivaPct: 21 },
       ],
-      irpfPct: 0, estado: 'borrador', operacionId: this.nuevoOperacionId(),
+      estado: 'borrador', operacionId: this.nuevoOperacionId(),
     },
     {
       id: 2, numFactura: 'A-2026-015', numeradorId: 1, fecha: '2026-08-07', vencimiento: '2026-09-06',
@@ -218,7 +278,7 @@ export class MockFacturasService {
       lineas: [
         { id: 2, descripcion: 'Servicio de transporte mensual', cantidad: 1, precioUnitario: 850, descuentoPct: 0, ivaPct: 21 },
       ],
-      irpfPct: 0, estado: 'borrador', operacionId: this.nuevoOperacionId(),
+      estado: 'borrador', operacionId: this.nuevoOperacionId(),
     },
     {
       id: 3, numFactura: 'A-2026-011', numeradorId: 1, fecha: '2026-07-28', vencimiento: '2026-08-27',
@@ -227,7 +287,7 @@ export class MockFacturasService {
       lineas: [
         { id: 3, descripcion: 'Asesoría fiscal julio', cantidad: 1, precioUnitario: 600, descuentoPct: 0, ivaPct: 21 },
       ],
-      irpfPct: 15, estado: 'contabilizada', estadoAeat: 'PendienteEnvio', operacionId: this.nuevoOperacionId(),
+      estado: 'contabilizada', estadoAeat: 'PendienteEnvio', operacionId: this.nuevoOperacionId(),
     },
     {
       id: 4, numFactura: 'B-2026-003', numeradorId: 2, fecha: '2026-07-30', vencimiento: '2026-08-29',
@@ -237,7 +297,7 @@ export class MockFacturasService {
         { id: 4, descripcion: 'Reparación flota', cantidad: 1, precioUnitario: 2100, descuentoPct: 0, ivaPct: 21 },
         { id: 5, descripcion: 'Tasas de gestoría', cantidad: 1, precioUnitario: 35, descuentoPct: 0, ivaPct: 0 },
       ],
-      irpfPct: 0, estado: 'contabilizada', estadoAeat: 'RequiereRevisionManual', operacionId: this.nuevoOperacionId(),
+      estado: 'contabilizada', estadoAeat: 'RequiereRevisionManual', operacionId: this.nuevoOperacionId(),
     },
     {
       id: 5, numFactura: 'A-2026-009', numeradorId: 1, fecha: '2026-07-15', vencimiento: '2026-08-14',
@@ -246,7 +306,7 @@ export class MockFacturasService {
       lineas: [
         { id: 6, descripcion: 'Material fungible', cantidad: 1, precioUnitario: 340, descuentoPct: 0, ivaPct: 21 },
       ],
-      irpfPct: 0, estado: 'firmada', estadoAeat: 'Correcto', operacionId: this.nuevoOperacionId(),
+      estado: 'firmada', estadoAeat: 'Correcto', operacionId: this.nuevoOperacionId(),
     },
     {
       id: 6, numFactura: 'A-2026-008', numeradorId: 2, fecha: '2026-07-10', vencimiento: '2026-08-09',
@@ -256,7 +316,7 @@ export class MockFacturasService {
         { id: 7, descripcion: 'Consultoría de proceso A', cantidad: 2, precioUnitario: 50, descuentoPct: 0, ivaPct: 21 },
         { id: 8, descripcion: 'Mantenimiento B', cantidad: 3, precioUnitario: 20, descuentoPct: 8.33, ivaPct: 10 },
       ],
-      irpfPct: 15, estado: 'firmada', estadoAeat: 'AceptadoConErrores', operacionId: this.nuevoOperacionId(),
+      estado: 'firmada', estadoAeat: 'AceptadoConErrores', operacionId: this.nuevoOperacionId(),
     },
   ];
 
@@ -387,7 +447,6 @@ export class MockFacturasService {
       medioPago: '',
       destinatario,
       lineas: [],
-      irpfPct: 0,
       estado: 'borrador',
       operacionId: this.nuevoOperacionId(),
     };
@@ -395,7 +454,7 @@ export class MockFacturasService {
     return nueva;
   }
 
-  actualizarBorrador(id: number, cambios: Partial<Pick<FacturaEmitida, 'fecha' | 'vencimiento' | 'concepto' | 'medioPago' | 'destinatario' | 'lineas' | 'irpfPct' | 'numeradorId'>>): void {
+  actualizarBorrador(id: number, cambios: Partial<Pick<FacturaEmitida, 'fecha' | 'vencimiento' | 'concepto' | 'medioPago' | 'destinatario' | 'lineas' | 'numeradorId'>>): void {
     const f = this.emitidas.find(e => e.id === id);
     if (!f || f.estado !== 'borrador') return;
     Object.assign(f, cambios);
@@ -447,12 +506,12 @@ export class MockFacturasService {
       .sort((a, b) => b.pct - a.pct);
 
     const ivaTotal = this.redondear(desgloseIva.reduce((s, d) => s + d.cuota, 0));
-    const irpfPct = f.irpfPct || 0;
-    // El IRPF se retiene sobre la misma base imponible que el IVA, nunca sobre el total con IVA incluido.
-    const irpfCuota = this.redondear(base * irpfPct / 100);
-    const total = this.redondear(base + ivaTotal - irpfCuota);
+    // La retención se calcula sobre la misma base imponible que el IVA (nunca sobre el
+    // total con IVA incluido) y la decide la configuración fiscal del emisor, no la factura.
+    const retencion = aplicarRetencion(base, this.configuracionRetencion);
+    const total = this.redondear(base + ivaTotal - retencion.importe);
 
-    return { base, desgloseIva, ivaTotal, irpfPct, irpfCuota, total };
+    return { base, desgloseIva, ivaTotal, retencion, total };
   }
 
   // ---------- Facturas recibidas ----------

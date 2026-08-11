@@ -25,7 +25,7 @@ export abstract class IssuedInvoicesRepository {
   abstract crearBorrador(numeradorId: number, destinatario: Destinatario): FacturaEmitida;
   abstract actualizarBorrador(
     id: number,
-    cambios: Partial<Pick<FacturaEmitida, 'fecha' | 'vencimiento' | 'concepto' | 'medioPago' | 'destinatario' | 'lineas' | 'irpfPct' | 'numeradorId'>>
+    cambios: Partial<Pick<FacturaEmitida, 'fecha' | 'vencimiento' | 'concepto' | 'medioPago' | 'destinatario' | 'lineas' | 'numeradorId'>>
   ): void;
   abstract nuevoIdLinea(): number;
 
