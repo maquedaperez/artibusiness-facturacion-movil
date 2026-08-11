@@ -6,6 +6,11 @@
       </ion-button>
     </ion-buttons>
     <ion-title class="title-bold">{{ esNueva ? 'Nueva factura recibida' : (working.numFactura || 'Factura recibida') }}</ion-title>
+    <ion-buttons slot="end" *ngIf="!esNueva && facturaId !== null">
+      <ion-button (click)="abrirAcciones()">
+        <ion-icon slot="icon-only" name="ellipsis-horizontal-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -30,7 +35,7 @@
       <ng-container *ngIf="working.proveedor; else sinProveedor">
         <p class="ion-no-margin"><strong>{{ working.proveedor }}</strong></p>
         <p class="ion-no-margin" *ngIf="working.proveedorNif">{{ working.proveedorNif }}</p>
-        <ion-button size="small" fill="outline" class="ion-margin-top" (click)="elegirProveedor()">
+        <ion-button *ngIf="esEditable" size="small" fill="outline" class="ion-margin-top" (click)="elegirProveedor()">
           Cambiar proveedor
         </ion-button>
       </ng-container>
@@ -47,35 +52,35 @@
     <ion-card-content>
       <div class="section-title">Datos de la factura</div>
 
-      <ion-item>
+      <ion-item [disabled]="!esEditable">
         <ion-input label="Número" labelPlacement="stacked" [(ngModel)]="working.numFactura"></ion-input>
       </ion-item>
 
       <div class="grid-2">
-        <ion-item>
+        <ion-item [disabled]="!esEditable">
           <ion-input label="Fecha" labelPlacement="stacked" type="date" [(ngModel)]="working.fecha"></ion-input>
         </ion-item>
-        <ion-item>
+        <ion-item [disabled]="!esEditable">
           <ion-input label="Vencimiento" labelPlacement="stacked" type="date" [(ngModel)]="working.vencimiento"></ion-input>
         </ion-item>
       </div>
 
-      <ion-item>
+      <ion-item [disabled]="!esEditable">
         <ion-input label="Concepto" labelPlacement="stacked" [(ngModel)]="working.concepto"></ion-input>
       </ion-item>
 
-      <ion-item>
+      <ion-item [disabled]="!esEditable">
         <ion-input label="Forma de pago" labelPlacement="stacked" [(ngModel)]="working.formaPago"></ion-input>
       </ion-item>
 
-      <ion-item>
+      <ion-item [disabled]="!esEditable">
         <ion-select label="Estado" labelPlacement="stacked" [(ngModel)]="working.estado">
           <ion-select-option value="borrador">Borrador</ion-select-option>
           <ion-select-option value="contabilizada">Revisada</ion-select-option>
         </ion-select>
       </ion-item>
 
-      <ion-item lines="none">
+      <ion-item lines="none" [disabled]="!esEditable">
         <ion-checkbox [(ngModel)]="working.pagada">Pagada</ion-checkbox>
       </ion-item>
     </ion-card-content>
@@ -83,7 +88,7 @@
 
   <app-lineas-editor
     [lineas]="working.lineas"
-    [editable]="true"
+    [editable]="esEditable"
     [permitirCatalogo]="false"
     [permitirSuscripcion]="false"
     [generarId]="generarIdLinea"
@@ -97,7 +102,7 @@
         IVA {{ d.pct }}% sobre {{ formatEuros(d.baseGravada) }}: {{ formatEuros(d.cuota) }}
       </p>
 
-      <ion-item lines="none" class="retencion-select">
+      <ion-item lines="none" class="retencion-select" [disabled]="!esEditable">
         <ion-select
           label="% Retención (según la factura del proveedor)"
           labelPlacement="stacked"
@@ -131,7 +136,7 @@
       </p>
 
       <div class="doc-actions">
-        <ion-button size="small" fill="outline" [disabled]="adjuntando" (click)="triggerAdjuntar()">
+        <ion-button *ngIf="esEditable" size="small" fill="outline" [disabled]="adjuntando" (click)="triggerAdjuntar()">
           <ion-icon slot="start" name="attach-outline"></ion-icon>
           {{ working.documentoNombre ? 'Cambiar documento' : 'Adjuntar documento' }}
         </ion-button>
@@ -148,17 +153,12 @@
 
 </ion-content>
 
-<ion-footer *ngIf="esNueva || facturaId !== null">
+<ion-footer *ngIf="esEditable && (esNueva || facturaId !== null)">
   <div class="footer-actions">
     <ion-button expand="block" [disabled]="guardando" (click)="guardar()">
       <ion-spinner *ngIf="guardando" slot="start" name="dots"></ion-spinner>
       <ion-icon *ngIf="!guardando" slot="start" name="create-outline"></ion-icon>
       {{ guardando ? 'Guardando...' : 'Guardar' }}
-    </ion-button>
-
-    <ion-button expand="block" fill="outline" color="danger" *ngIf="!esNueva" (click)="eliminar()">
-      <ion-icon slot="start" name="trash-outline"></ion-icon>
-      Eliminar factura
     </ion-button>
   </div>
 </ion-footer>

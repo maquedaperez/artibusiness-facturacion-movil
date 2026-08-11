@@ -7,19 +7,20 @@ import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
   IonItem, IonInput, IonSelect, IonSelectOption, IonText, IonBadge,
   IonCard, IonCardContent, IonSpinner,
-  ModalController, AlertController, ToastController,
+  ModalController, AlertController, ToastController, ActionSheetController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline, personCircleOutline, documentTextOutline } from 'ionicons/icons';
+import { arrowBackOutline, personCircleOutline, documentTextOutline, ellipsisHorizontalOutline } from 'ionicons/icons';
 
 import {
-  FacturaEmitida, Destinatario, Numerador,
+  AccionesPermitidas, FacturaEmitida, Destinatario, Numerador,
   IVA_RATES, MEDIO_PAGO_OPTIONS,
 } from '../../services/mock-facturas.service';
 import { IssuedInvoicesRepository } from '../../core/ports';
 import { ClienteSelectorComponent } from '../../modals/cliente-selector/cliente-selector.component';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 import { LineasEditorComponent } from '../../shared/lineas-editor/lineas-editor.component';
+import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 
 @Component({
   selector: 'app-factura-detalle',
@@ -41,6 +42,7 @@ export class FacturaDetallePage implements OnInit {
   private modalCtrl = inject(ModalController);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
+  private actionSheetCtrl = inject(ActionSheetController);
 
   facturaId: number | null = null;
   esNueva = false;
@@ -56,7 +58,7 @@ export class FacturaDetallePage implements OnInit {
   errorMsg = '';
 
   constructor() {
-    addIcons({ arrowBackOutline, personCircleOutline, documentTextOutline });
+    addIcons({ arrowBackOutline, personCircleOutline, documentTextOutline, ellipsisHorizontalOutline });
   }
 
   ngOnInit() {
@@ -193,8 +195,88 @@ export class FacturaDetallePage implements OnInit {
     await alert.present();
   }
 
-  private async showToast(message: string) {
-    const toast = await this.toastCtrl.create({ message, duration: 2500, position: 'bottom', color: 'success' });
+  accionesPermitidas(): AccionesPermitidas {
+    if (!this.working) return { editar: false, eliminar: false, copiar: false, descargar: false, compartir: false };
+    return this.invoicesRepo.accionesPermitidas(this.working);
+  }
+
+  async abrirAcciones() {
+    if (!this.working) return;
+    const f = this.working;
+    const permitidas = this.accionesPermitidas();
+    const buttons: any[] = [];
+
+    if (permitidas.copiar) {
+      buttons.push({ text: 'Copiar / Duplicar', handler: () => this.duplicar() });
+    }
+    if (permitidas.descargar) {
+      buttons.push({ text: 'Descargar documento (simulado)', handler: () => this.descargar() });
+    }
+    if (permitidas.compartir) {
+      buttons.push({ text: 'Compartir documento (simulado)', handler: () => this.compartir() });
+    }
+    if (permitidas.eliminar) {
+      buttons.push({ text: 'Eliminar borrador', role: 'destructive', handler: () => this.confirmarEliminar() });
+    }
+    buttons.push({ text: 'Cancelar', role: 'cancel' });
+
+    const sheet = await this.actionSheetCtrl.create({ header: f.numFactura, buttons });
+    await sheet.present();
+  }
+
+  private async duplicar() {
+    if (!this.working) return;
+    const copia = this.invoicesRepo.duplicar(this.working.id);
+    if (!copia) return;
+    await this.showToast(`Borrador ${copia.numFactura} creado a partir de ${this.working.numFactura}.`);
+    this.router.navigate(['/app/emitidas', copia.id], { replaceUrl: true });
+  }
+
+  private async descargar() {
+    if (!this.working) return;
+    try {
+      const { blob, nombre } = await this.invoicesRepo.generarDocumento(this.working.id);
+      descargarBlob(blob, nombre);
+      await this.showToast('Documento descargado (simulado, no válido fiscalmente).');
+    } catch {
+      await this.showToast('No se pudo generar el documento. Inténtalo de nuevo.', 'danger');
+    }
+  }
+
+  private async compartir() {
+    if (!this.working) return;
+    try {
+      const { blob, nombre } = await this.invoicesRepo.generarDocumento(this.working.id);
+      await compartirBlob(blob, nombre);
+    } catch {
+      await this.showToast('No se pudo compartir el documento. Inténtalo de nuevo.', 'danger');
+    }
+  }
+
+  private async confirmarEliminar() {
+    if (!this.working) return;
+    const f = this.working;
+    const alert = await this.alertCtrl.create({
+      header: 'Eliminar borrador',
+      message: `¿Eliminar el borrador ${f.numFactura} de ${f.destinatario.nombre}? Esta acción no se puede deshacer.`,
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        {
+          text: 'Eliminar',
+          role: 'destructive',
+          handler: async () => {
+            this.invoicesRepo.eliminar(f.id);
+            await this.showToast('Borrador eliminado.');
+            this.volver();
+          },
+        },
+      ],
+    });
+    await alert.present();
+  }
+
+  private async showToast(message: string, color: 'success' | 'danger' = 'success') {
+    const toast = await this.toastCtrl.create({ message, duration: 2500, position: 'bottom', color });
     await toast.present();
   }
 

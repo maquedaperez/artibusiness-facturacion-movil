@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { IssuedInvoicesRepository } from '../../ports/issued-invoices.repository';
 import {
-  Destinatario, EstadoAeat, EstadoFactura, FacturaEmitida, MockFacturasService, Numerador, TotalesFactura,
+  AccionesPermitidas, Destinatario, EstadoAeat, EstadoFactura, FacturaEmitida, MockFacturasService, Numerador, TotalesFactura,
+  accionesFacturaEmitida,
 } from '../../../services/mock-facturas.service';
 
 @Injectable()
@@ -53,5 +54,21 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
   estadoAeatLabel(estado?: EstadoAeat): string {
     return this.mock.estadoAeatLabel(estado);
+  }
+
+  accionesPermitidas(factura: FacturaEmitida): AccionesPermitidas {
+    return accionesFacturaEmitida(factura);
+  }
+
+  eliminar(id: number): void {
+    this.mock.eliminarEmitida(id);
+  }
+
+  duplicar(id: number): FacturaEmitida | undefined {
+    return this.mock.duplicarEmitida(id);
+  }
+
+  generarDocumento(id: number): Promise<{ blob: Blob; nombre: string }> {
+    return this.mock.generarDocumentoEmitida(id);
   }
 }

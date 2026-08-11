@@ -1,5 +1,5 @@
 import {
-  Destinatario, EstadoAeat, EstadoFactura, FacturaEmitida, Numerador, TotalesFactura,
+  AccionesPermitidas, Destinatario, EstadoAeat, EstadoFactura, FacturaEmitida, Numerador, TotalesFactura,
 } from '../../services/mock-facturas.service';
 
 /**
@@ -34,4 +34,11 @@ export abstract class IssuedInvoicesRepository {
   abstract contabilizar(id: number): void;
   abstract firmar(id: number): void;
   abstract estadoAeatLabel(estado?: EstadoAeat): string;
+
+  // Política centralizada — la pantalla nunca decide por su cuenta si puede
+  // editar/eliminar/copiar/descargar/compartir. Ver docs/SERVICE_CONTRACT_GAPS.md.
+  abstract accionesPermitidas(factura: FacturaEmitida): AccionesPermitidas;
+  abstract eliminar(id: number): void;
+  abstract duplicar(id: number): FacturaEmitida | undefined;
+  abstract generarDocumento(id: number): Promise<{ blob: Blob; nombre: string }>;
 }

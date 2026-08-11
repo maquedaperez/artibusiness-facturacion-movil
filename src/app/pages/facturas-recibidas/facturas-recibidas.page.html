@@ -35,6 +35,9 @@
         <div class="row-top">
           <div class="titulo">{{ proveedorResumen(f) }}</div>
           <div class="total">{{ formatEuros(totalFactura(f)) }}</div>
+          <ion-button class="acciones-btn" fill="clear" size="small" (click)="abrirAcciones($event, f)">
+            <ion-icon slot="icon-only" name="ellipsis-horizontal-outline"></ion-icon>
+          </ion-button>
         </div>
 
         <div class="concepto">{{ conceptoResumen(f) }}</div>

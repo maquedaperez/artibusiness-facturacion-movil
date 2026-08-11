@@ -7,23 +7,24 @@ import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
   IonItem, IonInput, IonSelect, IonSelectOption, IonCheckbox, IonText, IonChip, IonLabel,
   IonCard, IonCardContent, IonSpinner,
-  ModalController, AlertController, ToastController,
+  ModalController, AlertController, ToastController, ActionSheetController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
   arrowBackOutline, documentTextOutline, createOutline, trashOutline,
-  attachOutline, eyeOutline,
+  attachOutline, eyeOutline, ellipsisHorizontalOutline,
 } from 'ionicons/icons';
 
 import {
-  FacturaRecibida, ProveedorMock, IRPF_RATES, TotalesFactura,
-  ConfiguracionRetencion, calcularTotalesLineas,
+  AccionesPermitidas, FacturaRecibida, ProveedorMock, IRPF_RATES, TotalesFactura,
+  ConfiguracionRetencion, calcularTotalesLineas, accionesFacturaRecibida,
 } from '../../services/mock-facturas.service';
 import { ReceivedInvoicesRepository } from '../../core/ports';
 import { VerDocumentoComponent } from '../../modals/ver-documento/ver-documento.component';
 import { ProveedorSelectorComponent } from '../../modals/proveedor-selector/proveedor-selector.component';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 import { LineasEditorComponent } from '../../shared/lineas-editor/lineas-editor.component';
+import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 
 type FacturaRecibidaForm = Omit<FacturaRecibida, 'id' | 'origenOcr'>;
 
@@ -47,6 +48,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
   private modalCtrl = inject(ModalController);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
+  private actionSheetCtrl = inject(ActionSheetController);
 
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
 
@@ -64,7 +66,10 @@ export class FacturaRecibidaDetallePage implements OnInit {
   generarIdLinea = () => this.invoicesRepo.nuevoIdLinea();
 
   constructor() {
-    addIcons({ arrowBackOutline, documentTextOutline, createOutline, trashOutline, attachOutline, eyeOutline });
+    addIcons({
+      arrowBackOutline, documentTextOutline, createOutline, trashOutline,
+      attachOutline, eyeOutline, ellipsisHorizontalOutline,
+    });
   }
 
   ngOnInit() {
@@ -97,6 +102,74 @@ export class FacturaRecibidaDetallePage implements OnInit {
       retencionPct: 0,
       pagada: false, estado: 'contabilizada',
     };
+  }
+
+  get esEditable(): boolean {
+    return this.esNueva || this.working.estado === 'borrador';
+  }
+
+  // Igual que en Emitidas: mismo cálculo de política, pero "working" es un formulario
+  // (sin id) mientras no se guarda — el id/origenOcr no influyen en la política, solo
+  // el estado, así que basta con completarlos con un valor cualquiera para reutilizar
+  // la misma función pura que usa el repositorio.
+  accionesPermitidas(): AccionesPermitidas {
+    if (this.esNueva) return { editar: true, eliminar: false, copiar: false, descargar: false, compartir: false };
+    return accionesFacturaRecibida({ ...this.working, id: this.facturaId ?? 0, origenOcr: this.origenOcr });
+  }
+
+  async abrirAcciones() {
+    if (this.esNueva) return;
+    const permitidas = this.accionesPermitidas();
+    const buttons: any[] = [];
+
+    if (permitidas.copiar) {
+      buttons.push({ text: 'Copiar / Duplicar', handler: () => this.duplicar() });
+    }
+    if (permitidas.descargar && this.working.documentoUrl) {
+      buttons.push({ text: 'Descargar documento adjunto', handler: () => this.descargarAdjunto() });
+    }
+    if (permitidas.compartir && this.working.documentoUrl) {
+      buttons.push({ text: 'Compartir documento adjunto', handler: () => this.compartirAdjunto() });
+    }
+    if (permitidas.eliminar) {
+      buttons.push({ text: 'Eliminar borrador', role: 'destructive', handler: () => this.confirmarEliminar() });
+    }
+    buttons.push({ text: 'Cancelar', role: 'cancel' });
+
+    const sheet = await this.actionSheetCtrl.create({ header: this.working.numFactura || this.working.proveedor, buttons });
+    await sheet.present();
+  }
+
+  private async duplicar() {
+    if (this.facturaId == null) return;
+    const copia = this.invoicesRepo.duplicar(this.facturaId);
+    if (!copia) return;
+    await this.showToast(`Borrador creado a partir de la factura de ${this.working.proveedor}.`);
+    this.router.navigate(['/app/recibidas', copia.id], { replaceUrl: true });
+  }
+
+  private async adjuntoABlob(): Promise<Blob> {
+    const respuesta = await fetch(this.working.documentoUrl!);
+    return respuesta.blob();
+  }
+
+  private async descargarAdjunto() {
+    try {
+      const blob = await this.adjuntoABlob();
+      descargarBlob(blob, this.working.documentoNombre || 'documento-adjunto');
+      await this.showToast('Documento descargado.');
+    } catch {
+      await this.showToast('No se pudo descargar el documento.', 'danger');
+    }
+  }
+
+  private async compartirAdjunto() {
+    try {
+      const blob = await this.adjuntoABlob();
+      await compartirBlob(blob, this.working.documentoNombre || 'documento-adjunto');
+    } catch {
+      await this.showToast('No se pudo compartir el documento.', 'danger');
+    }
   }
 
   // Previsualización local con la misma fórmula que usa el mock/backend
@@ -178,7 +251,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
     }
   }
 
-  async eliminar() {
+  private async confirmarEliminar() {
     if (this.facturaId == null) return;
 
     const alert = await this.alertCtrl.create({
@@ -200,8 +273,8 @@ export class FacturaRecibidaDetallePage implements OnInit {
     await alert.present();
   }
 
-  private async showToast(message: string) {
-    const toast = await this.toastCtrl.create({ message, duration: 2000, position: 'bottom', color: 'success' });
+  private async showToast(message: string, color: 'success' | 'danger' = 'success') {
+    const toast = await this.toastCtrl.create({ message, duration: 2000, position: 'bottom', color });
     await toast.present();
   }
 

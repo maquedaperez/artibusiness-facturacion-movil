@@ -6,6 +6,11 @@
       </ion-button>
     </ion-buttons>
     <ion-title class="title-bold">{{ working?.numFactura || 'Nueva factura' }}</ion-title>
+    <ion-buttons slot="end" *ngIf="working">
+      <ion-button (click)="abrirAcciones()">
+        <ion-icon slot="icon-only" name="ellipsis-horizontal-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 

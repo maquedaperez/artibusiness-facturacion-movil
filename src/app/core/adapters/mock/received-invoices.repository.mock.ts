@@ -1,6 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { ReceivedInvoicesRepository } from '../../ports/received-invoices.repository';
-import { FacturaRecibida, MockFacturasService, TotalesFactura } from '../../../services/mock-facturas.service';
+import {
+  AccionesPermitidas, FacturaRecibida, MockFacturasService, TotalesFactura,
+  accionesFacturaRecibida,
+} from '../../../services/mock-facturas.service';
 
 @Injectable()
 export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
@@ -40,5 +43,13 @@ export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
 
   adjuntarDocumento(file: File): Promise<{ documentoUrl: string; documentoNombre: string }> {
     return this.mock.adjuntarDocumento(file);
+  }
+
+  accionesPermitidas(factura: FacturaRecibida): AccionesPermitidas {
+    return accionesFacturaRecibida(factura);
+  }
+
+  duplicar(id: number): FacturaRecibida | undefined {
+    return this.mock.duplicarRecibida(id);
   }
 }

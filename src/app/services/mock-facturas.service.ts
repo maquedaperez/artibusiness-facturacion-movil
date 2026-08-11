@@ -254,6 +254,45 @@ const ESTADO_AEAT_LABELS: Record<EstadoAeat, string> = {
   RequiereRevisionManual: 'Requiere revisión manual',
 };
 
+// Política única y centralizada de acciones — ninguna pantalla decide por su cuenta
+// si se puede editar/eliminar/copiar/descargar. Cuando el backend real ofrezca
+// `allowedActions`, esta función deja de calcular y pasa a mapear directamente esa
+// respuesta (ver docs/SERVICE_CONTRACT_GAPS.md).
+export type AccionesPermitidas = {
+  editar: boolean;
+  eliminar: boolean;
+  copiar: boolean;
+  descargar: boolean;
+  compartir: boolean;
+};
+
+// estadoReconocido en false cubre tanto un estado que no reconocemos como uno que,
+// aun siendo válido, no es ni "borrador" ni el resto de estados de una factura
+// definitiva conocidos — se resuelve siempre del lado conservador (lectura sí, nada
+// que mute la factura, salvo copiar/descargar que no alteran el original).
+function accionesPorEstado(esBorrador: boolean, estadoReconocido: boolean): AccionesPermitidas {
+  if (!estadoReconocido) {
+    return { editar: false, eliminar: false, copiar: false, descargar: true, compartir: true };
+  }
+  if (esBorrador) {
+    return { editar: true, eliminar: true, copiar: true, descargar: true, compartir: true };
+  }
+  // Contabilizada/firmada — definitiva: ya no se edita ni se borra desde aquí (borrar
+  // una factura contabilizada requeriría una operación de anulación autorizada
+  // distinta, que no existe todavía — ver gap correspondiente).
+  return { editar: false, eliminar: false, copiar: true, descargar: true, compartir: true };
+}
+
+export function accionesFacturaEmitida(f: FacturaEmitida): AccionesPermitidas {
+  const reconocido = f.estado === 'borrador' || f.estado === 'contabilizada' || f.estado === 'firmada';
+  return accionesPorEstado(f.estado === 'borrador', reconocido);
+}
+
+export function accionesFacturaRecibida(f: FacturaRecibida): AccionesPermitidas {
+  const reconocido = f.estado === 'borrador' || f.estado === 'contabilizada';
+  return accionesPorEstado(f.estado === 'borrador', reconocido);
+}
+
 export const IVA_RATES = [0, 4, 10, 21];
 export const IRPF_RATES = [0, 1, 7, 15, 19];
 // Placeholder mientras no exista el catálogo real de medios de pago (IdMedioPago).
@@ -563,6 +602,74 @@ export class MockFacturasService {
     f.estadoAeat = 'Correcto';
   }
 
+  // Solo borra borradores — coherente con AccionesPermitidas.eliminar, que nunca es
+  // true para una factura contabilizada/firmada. No simula un borrado fiscal real.
+  eliminarEmitida(id: number): void {
+    const f = this.emitidas.find(e => e.id === id);
+    if (!f || f.estado !== 'borrador') return;
+    this.emitidas = this.emitidas.filter(e => e.id !== id);
+  }
+
+  // Copiar SIEMPRE crea un borrador nuevo y limpio: sin id/serie definitiva, sin
+  // estado fiscal, sin fecha de emisión definitiva ni OperacionId anterior. Conserva
+  // cliente, concepto y líneas (con ids de línea nuevos, no compartidos con el
+  // original) como punto de partida.
+  duplicarEmitida(id: number): FacturaEmitida | undefined {
+    const original = this.emitidas.find(e => e.id === id);
+    if (!original) return undefined;
+
+    const nuevoId = nextEmitidaId++;
+    const copia: FacturaEmitida = {
+      id: nuevoId,
+      numFactura: `${this.numeradorNombre(original.numeradorId).split(' ')[1] ?? 'X'}-BORRADOR-${nuevoId}`,
+      numeradorId: original.numeradorId,
+      fecha: new Date().toISOString().slice(0, 10),
+      vencimiento: '',
+      concepto: original.concepto,
+      medioPago: original.medioPago,
+      destinatario: { ...original.destinatario },
+      lineas: original.lineas.map(l => ({ ...l, id: nextLineaId++ })),
+      estado: 'borrador',
+      operacionId: this.nuevoOperacionId(),
+    };
+    this.emitidas.unshift(copia);
+    return copia;
+  }
+
+  // Documento simulado (no fiscal) para descargar/compartir en modo demo — nunca se
+  // presenta como el PDF/XML real de VeriFactu/FacturaE. En real, esto lo sirve el
+  // backend/servicio de documentos (ver docs/SERVICE_CONTRACT_GAPS.md).
+  async generarDocumentoEmitida(id: number): Promise<{ blob: Blob; nombre: string }> {
+    const f = this.emitidas.find(e => e.id === id);
+    if (!f) throw new Error('Factura no encontrada.');
+
+    const totales = this.totalesFactura(f);
+    const filas = f.lineas.map(l =>
+      `<tr><td>${l.descripcion}</td><td>${l.cantidad}</td><td>${this.redondear(l.precioUnitario)} €</td><td>${l.ivaPct}%</td></tr>`
+    ).join('');
+
+    const html = `<!doctype html><html lang="es"><head><meta charset="utf-8">
+<title>${f.numFactura}</title></head><body>
+<h1 style="color:#b30000">SIMULACIÓN — NO VÁLIDO FISCALMENTE</h1>
+<p>Documento de demostración generado en modo mock. No representa una factura real ni ha sido enviado a Verifactu/AEAT.</p>
+<h2>${f.numFactura}</h2>
+<p>Cliente: ${f.destinatario.nombre} (${f.destinatario.nif})</p>
+<p>Concepto: ${f.concepto || '—'}</p>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><th>Descripción</th><th>Cantidad</th><th>Precio</th><th>IVA</th></tr>
+${filas}
+</table>
+<p>Base imponible: ${totales.base} €</p>
+<p>IVA: ${totales.ivaTotal} €</p>
+<p>Total: ${totales.total} €</p>
+</body></html>`;
+
+    return {
+      blob: new Blob([html], { type: 'text/html' }),
+      nombre: `${f.numFactura}-simulado.html`,
+    };
+  }
+
   private redondear(v: number): number {
     return Math.round(v * 100) / 100;
   }
@@ -644,8 +751,36 @@ export class MockFacturasService {
     Object.assign(f, cambios);
   }
 
+  // Solo borra borradores — coherente con AccionesPermitidas.eliminar.
   eliminarRecibida(id: number): void {
+    const f = this.recibidas.find(r => r.id === id);
+    if (!f || f.estado !== 'borrador') return;
     this.recibidas = this.recibidas.filter(r => r.id !== id);
+  }
+
+  // Copiar crea un borrador nuevo: sin id/documento adjunto/estado "pagada" del
+  // original — el usuario adjunta su propio documento a la copia si corresponde.
+  duplicarRecibida(id: number): FacturaRecibida | undefined {
+    const original = this.recibidas.find(r => r.id === id);
+    if (!original) return undefined;
+
+    const copia: FacturaRecibida = {
+      id: nextRecibidaId++,
+      proveedor: original.proveedor,
+      proveedorNif: original.proveedorNif,
+      numFactura: '',
+      fecha: new Date().toISOString().slice(0, 10),
+      vencimiento: '',
+      concepto: original.concepto,
+      formaPago: original.formaPago,
+      lineas: original.lineas.map(l => ({ ...l, id: nextLineaId++ })),
+      retencionPct: original.retencionPct,
+      pagada: false,
+      estado: 'borrador',
+      origenOcr: false,
+    };
+    this.recibidas.unshift(copia);
+    return copia;
   }
 
   // Misma fórmula que Emitidas (calcularTotalesLineas) — la retención aquí sale del

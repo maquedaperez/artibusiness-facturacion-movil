@@ -6,14 +6,17 @@ import {
   IonHeader, IonToolbar, IonTitle, IonContent,
   IonButton, IonIcon, IonCard, IonCardContent,
   IonText, IonSpinner, IonFab, IonFabButton,
-  ToastController,
+  ToastController, AlertController, ActionSheetController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { cameraOutline, receiptOutline, documentTextOutline, addOutline } from 'ionicons/icons';
+import {
+  cameraOutline, receiptOutline, documentTextOutline, addOutline, ellipsisHorizontalOutline,
+} from 'ionicons/icons';
 
-import { FacturaRecibida } from '../../services/mock-facturas.service';
+import { AccionesPermitidas, FacturaRecibida } from '../../services/mock-facturas.service';
 import { ReceivedInvoicesRepository } from '../../core/ports';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
+import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 
 @Component({
   selector: 'app-facturas-recibidas',
@@ -31,6 +34,8 @@ import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.compon
 export class FacturasRecibidasPage implements OnInit {
   private invoicesRepo = inject(ReceivedInvoicesRepository);
   private toastCtrl = inject(ToastController);
+  private alertCtrl = inject(AlertController);
+  private actionSheetCtrl = inject(ActionSheetController);
   private router = inject(Router);
 
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
@@ -39,7 +44,7 @@ export class FacturasRecibidasPage implements OnInit {
   processing = false;
 
   constructor() {
-    addIcons({ cameraOutline, receiptOutline, documentTextOutline, addOutline });
+    addIcons({ cameraOutline, receiptOutline, documentTextOutline, addOutline, ellipsisHorizontalOutline });
   }
 
   ngOnInit() {
@@ -96,6 +101,84 @@ export class FacturasRecibidasPage implements OnInit {
     } finally {
       this.processing = false;
     }
+  }
+
+  accionesPermitidas(f: FacturaRecibida): AccionesPermitidas {
+    return this.invoicesRepo.accionesPermitidas(f);
+  }
+
+  async abrirAcciones(event: Event, f: FacturaRecibida) {
+    event.stopPropagation();
+    const permitidas = this.accionesPermitidas(f);
+    const buttons: any[] = [];
+
+    if (permitidas.copiar) {
+      buttons.push({ text: 'Copiar / Duplicar', handler: () => this.duplicar(f) });
+    }
+    if (permitidas.descargar && f.documentoUrl) {
+      buttons.push({ text: 'Descargar documento adjunto', handler: () => this.descargarAdjunto(f) });
+    }
+    if (permitidas.compartir && f.documentoUrl) {
+      buttons.push({ text: 'Compartir documento adjunto', handler: () => this.compartirAdjunto(f) });
+    }
+    if (permitidas.eliminar) {
+      buttons.push({ text: 'Eliminar borrador', role: 'destructive', handler: () => this.confirmarEliminar(f) });
+    }
+    buttons.push({ text: 'Cancelar', role: 'cancel' });
+
+    const sheet = await this.actionSheetCtrl.create({ header: f.numFactura || f.proveedor, buttons });
+    await sheet.present();
+  }
+
+  private async duplicar(f: FacturaRecibida) {
+    const copia = this.invoicesRepo.duplicar(f.id);
+    if (!copia) return;
+    this.refresh();
+    await this.showToast(`Borrador creado a partir de la factura de ${f.proveedor}.`);
+  }
+
+  private async adjuntoABlob(f: FacturaRecibida): Promise<Blob> {
+    const respuesta = await fetch(f.documentoUrl!);
+    return respuesta.blob();
+  }
+
+  private async descargarAdjunto(f: FacturaRecibida) {
+    try {
+      const blob = await this.adjuntoABlob(f);
+      descargarBlob(blob, f.documentoNombre || 'documento-adjunto');
+      await this.showToast('Documento descargado.');
+    } catch {
+      await this.showToast('No se pudo descargar el documento.', 'danger');
+    }
+  }
+
+  private async compartirAdjunto(f: FacturaRecibida) {
+    try {
+      const blob = await this.adjuntoABlob(f);
+      await compartirBlob(blob, f.documentoNombre || 'documento-adjunto');
+    } catch {
+      await this.showToast('No se pudo compartir el documento.', 'danger');
+    }
+  }
+
+  private async confirmarEliminar(f: FacturaRecibida) {
+    const alert = await this.alertCtrl.create({
+      header: 'Eliminar borrador',
+      message: `¿Eliminar el borrador de ${f.proveedor}? Esta acción no se puede deshacer.`,
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        {
+          text: 'Eliminar',
+          role: 'destructive',
+          handler: () => {
+            this.invoicesRepo.eliminar(f.id);
+            this.refresh();
+            this.showToast('Borrador eliminado.');
+          },
+        },
+      ],
+    });
+    await alert.present();
   }
 
   private async showToast(message: string, color: 'success' | 'danger' = 'success') {

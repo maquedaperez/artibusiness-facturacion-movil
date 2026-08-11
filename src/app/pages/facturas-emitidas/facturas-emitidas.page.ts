@@ -9,14 +9,17 @@ import {
   IonSelect, IonSelectOption,
   IonCard, IonCardContent,
   IonText, IonIcon, IonButton, IonFab, IonFabButton,
-  AlertController, ToastController,
+  AlertController, ToastController, ActionSheetController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline } from 'ionicons/icons';
+import {
+  documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline, ellipsisHorizontalOutline,
+} from 'ionicons/icons';
 
-import { EstadoFactura, FacturaEmitida, Numerador } from '../../services/mock-facturas.service';
+import { AccionesPermitidas, EstadoFactura, FacturaEmitida, Numerador } from '../../services/mock-facturas.service';
 import { IssuedInvoicesRepository } from '../../core/ports';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
+import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 
 @Component({
   selector: 'app-facturas-emitidas',
@@ -39,6 +42,7 @@ export class FacturasEmitidasPage implements OnInit {
   private route = inject(ActivatedRoute);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
+  private actionSheetCtrl = inject(ActionSheetController);
 
   estado: EstadoFactura = 'borrador';
   numeradorId: number | null = null;
@@ -46,7 +50,7 @@ export class FacturasEmitidasPage implements OnInit {
   facturas: FacturaEmitida[] = [];
 
   constructor() {
-    addIcons({ documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline });
+    addIcons({ documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline, ellipsisHorizontalOutline });
   }
 
   ngOnInit() {
@@ -116,6 +120,79 @@ export class FacturasEmitidasPage implements OnInit {
     }
   }
 
+  accionesPermitidas(f: FacturaEmitida): AccionesPermitidas {
+    return this.invoicesRepo.accionesPermitidas(f);
+  }
+
+  async abrirAcciones(event: Event, f: FacturaEmitida) {
+    event.stopPropagation();
+    const permitidas = this.accionesPermitidas(f);
+    const buttons: any[] = [];
+
+    if (permitidas.copiar) {
+      buttons.push({ text: 'Copiar / Duplicar', handler: () => this.duplicar(f) });
+    }
+    if (permitidas.descargar) {
+      buttons.push({ text: 'Descargar documento (simulado)', handler: () => this.descargar(f) });
+    }
+    if (permitidas.compartir) {
+      buttons.push({ text: 'Compartir documento (simulado)', handler: () => this.compartir(f) });
+    }
+    if (permitidas.eliminar) {
+      buttons.push({ text: 'Eliminar borrador', role: 'destructive', handler: () => this.confirmarEliminar(f) });
+    }
+    buttons.push({ text: 'Cancelar', role: 'cancel' });
+
+    const sheet = await this.actionSheetCtrl.create({ header: f.numFactura, buttons });
+    await sheet.present();
+  }
+
+  private async duplicar(f: FacturaEmitida) {
+    const copia = this.invoicesRepo.duplicar(f.id);
+    if (!copia) return;
+    this.refresh();
+    await this.showToast(`Borrador ${copia.numFactura} creado a partir de ${f.numFactura}.`);
+  }
+
+  private async descargar(f: FacturaEmitida) {
+    try {
+      const { blob, nombre } = await this.invoicesRepo.generarDocumento(f.id);
+      descargarBlob(blob, nombre);
+      await this.showToast('Documento descargado (simulado, no válido fiscalmente).');
+    } catch {
+      await this.showToast('No se pudo generar el documento. Inténtalo de nuevo.', 'danger');
+    }
+  }
+
+  private async compartir(f: FacturaEmitida) {
+    try {
+      const { blob, nombre } = await this.invoicesRepo.generarDocumento(f.id);
+      await compartirBlob(blob, nombre);
+    } catch {
+      await this.showToast('No se pudo compartir el documento. Inténtalo de nuevo.', 'danger');
+    }
+  }
+
+  private async confirmarEliminar(f: FacturaEmitida) {
+    const alert = await this.alertCtrl.create({
+      header: 'Eliminar borrador',
+      message: `¿Eliminar el borrador ${f.numFactura} de ${f.destinatario.nombre}? Esta acción no se puede deshacer.`,
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        {
+          text: 'Eliminar',
+          role: 'destructive',
+          handler: () => {
+            this.invoicesRepo.eliminar(f.id);
+            this.refresh();
+            this.showToast('Borrador eliminado.');
+          },
+        },
+      ],
+    });
+    await alert.present();
+  }
+
   async confirmarContabilizar(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
     const alert = await this.alertCtrl.create({
@@ -156,8 +233,8 @@ export class FacturasEmitidasPage implements OnInit {
     await alert.present();
   }
 
-  private async showToast(message: string) {
-    const toast = await this.toastCtrl.create({ message, duration: 2500, position: 'bottom', color: 'success' });
+  private async showToast(message: string, color: 'success' | 'danger' = 'success') {
+    const toast = await this.toastCtrl.create({ message, duration: 2500, position: 'bottom', color });
     await toast.present();
   }
 

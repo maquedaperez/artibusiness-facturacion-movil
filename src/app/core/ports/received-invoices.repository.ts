@@ -1,4 +1,4 @@
-import { FacturaRecibida, TotalesFactura } from '../../services/mock-facturas.service';
+import { AccionesPermitidas, FacturaRecibida, TotalesFactura } from '../../services/mock-facturas.service';
 
 /**
  * Puerto tipado para Facturas Recibidas, incluido OCR y documento adjunto — hoy solo se
@@ -22,4 +22,7 @@ export abstract class ReceivedInvoicesRepository {
 
   abstract crearDesdeOcr(file: File): Promise<FacturaRecibida>;
   abstract adjuntarDocumento(file: File): Promise<{ documentoUrl: string; documentoNombre: string }>;
+
+  abstract accionesPermitidas(factura: FacturaRecibida): AccionesPermitidas;
+  abstract duplicar(id: number): FacturaRecibida | undefined;
 }
