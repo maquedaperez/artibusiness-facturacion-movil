@@ -48,11 +48,18 @@ export type EmisorFiscal = {
   poblacion: string;
   cp: string;
   provincia: string;
+  telefono: string;
   registroMercantil: string;
   cnae: string;
   iban: string;
   swift: string;
 };
+
+// Únicos campos que el usuario puede actualizar desde la app — nombre, NIF/CIF y
+// esEmpresa son identidad fiscal y llegan de alta/backend, no de este formulario.
+// registroMercantil/cnae/iban/swift tampoco están en el contrato de actualización
+// aprobado; se muestran de solo lectura hasta que exista un endpoint específico.
+export type EmisorContactoEditable = Pick<EmisorFiscal, 'direccion' | 'poblacion' | 'cp' | 'provincia' | 'telefono'>;
 
 // Forma alineada con FacturacionFacturasEmitidasLineas del backend real.
 // ivaPct sustituye a IdImpuesto (catálogo de impuestos) mientras no exista el endpoint.
@@ -151,6 +158,7 @@ export class MockFacturasService {
     poblacion: 'Madrid',
     cp: '28001',
     provincia: 'Madrid',
+    telefono: '',
     registroMercantil: '',
     cnae: '',
     iban: '',
@@ -274,8 +282,17 @@ export class MockFacturasService {
     return { ...this.emisor };
   }
 
-  actualizarEmisor(data: EmisorFiscal): void {
-    this.emisor = { ...data };
+  // Solo admite los campos de contacto — nombre, NIF/CIF y esEmpresa son identidad
+  // fiscal y no se pueden reescribir desde aquí, ni aunque el payload los incluyera.
+  actualizarEmisor(data: EmisorContactoEditable): void {
+    this.emisor = {
+      ...this.emisor,
+      direccion: data.direccion,
+      poblacion: data.poblacion,
+      cp: data.cp,
+      provincia: data.provincia,
+      telefono: data.telefono,
+    };
   }
 
   // ---------- Numeradores ----------
