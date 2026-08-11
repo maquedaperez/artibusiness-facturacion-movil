@@ -22,9 +22,14 @@
     </p>
   </ion-text>
 
-  <ion-item>
-    <ion-checkbox [(ngModel)]="emisor.esEmpresa">¿Empresa? (si no, autónomo)</ion-checkbox>
-  </ion-item>
+  <ion-radio-group [(ngModel)]="emisor.esEmpresa">
+    <ion-item>
+      <ion-radio [value]="false" justify="start" labelPlacement="end">Autónomo</ion-radio>
+    </ion-item>
+    <ion-item>
+      <ion-radio [value]="true" justify="start" labelPlacement="end">Empresa</ion-radio>
+    </ion-item>
+  </ion-radio-group>
 
   <ion-item>
     <ion-input

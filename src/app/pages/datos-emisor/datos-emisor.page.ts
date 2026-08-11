@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent,
-  IonItem, IonInput, IonCheckbox, IonText, IonChip, IonLabel,
+  IonItem, IonInput, IonRadioGroup, IonRadio, IonText, IonChip, IonLabel,
   ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -21,7 +21,7 @@ import { MockFacturasService, EmisorFiscal } from '../../services/mock-facturas.
   imports: [
     CommonModule, FormsModule,
     IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent,
-    IonItem, IonInput, IonCheckbox, IonText, IonChip, IonLabel,
+    IonItem, IonInput, IonRadioGroup, IonRadio, IonText, IonChip, IonLabel,
   ],
 })
 export class DatosEmisorPage implements OnInit {
