@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 
 import { AuthService, User } from '../../services/auth.service';
 import { TenantService } from '../../services/tenant.service';
+import { MockFacturasService, EmisorFiscal } from '../../services/mock-facturas.service';
 
 import {
   IonContent,
@@ -42,16 +43,19 @@ import {
 })
 export class PerfilPage {
   user: User | null = null;
+  emisor: EmisorFiscal | null = null;
 
   constructor(
     private auth: AuthService,
     private tenant: TenantService,
+    private mock: MockFacturasService,
     private router: Router,
     private alertCtrl: AlertController
   ) {}
 
   ionViewWillEnter() {
     this.user = this.auth.getUser();
+    this.emisor = this.mock.getEmisor();
   }
 
   irADatosEmisor() {
