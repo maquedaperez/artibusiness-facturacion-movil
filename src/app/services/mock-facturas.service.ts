@@ -72,7 +72,8 @@ export type FacturaEmitida = {
   fecha: string;
   destinatario: Destinatario;
   lineas: LineaFactura[];
-  irpfBase: number;
+  // % de retención, no importe fijo — se calcula sobre la base imponible igual que el IVA.
+  irpfPct: number;
   estado: EstadoFactura;
   estadoAeat?: EstadoAeat;
 };
@@ -83,6 +84,8 @@ export type TotalesFactura = {
   base: number;
   desgloseIva: DesgloseIva[];
   ivaTotal: number;
+  irpfPct: number;
+  irpfCuota: number;
   total: number;
 };
 
@@ -96,7 +99,11 @@ export type FacturaRecibida = {
   concepto?: string;
   formaPago?: string;
   baseImponible: number;
+  // % aplicados sobre baseImponible — iva/irpf son el importe ya calculado (para mostrar
+  // en el listado y alinear con las columnas reales del backend), no se escriben a mano.
+  ivaPct: number;
   iva: number;
+  irpfPct: number;
   irpf: number;
   totalFactura: number;
   pagada: boolean;
@@ -115,6 +122,7 @@ const ESTADO_AEAT_LABELS: Record<EstadoAeat, string> = {
 };
 
 export const IVA_RATES = [0, 4, 10, 21];
+export const IRPF_RATES = [0, 1, 7, 15, 19];
 
 let nextEmitidaId = 100;
 let nextLineaId = 1000;
@@ -180,7 +188,7 @@ export class MockFacturasService {
       lineas: [
         { id: 1, descripcion: 'Revisión anual instalación', cantidad: 1, precioUnitario: 1200, descuentoPct: 0, ivaPct: 21 },
       ],
-      irpfBase: 0, estado: 'borrador',
+      irpfPct: 0, estado: 'borrador',
     },
     {
       id: 2, numFactura: 'A-2026-015', numeradorId: 1, fecha: '2026-08-07',
@@ -188,7 +196,7 @@ export class MockFacturasService {
       lineas: [
         { id: 2, descripcion: 'Servicio de transporte mensual', cantidad: 1, precioUnitario: 850, descuentoPct: 0, ivaPct: 21 },
       ],
-      irpfBase: 0, estado: 'borrador',
+      irpfPct: 0, estado: 'borrador',
     },
     {
       id: 3, numFactura: 'A-2026-011', numeradorId: 1, fecha: '2026-07-28',
@@ -196,7 +204,7 @@ export class MockFacturasService {
       lineas: [
         { id: 3, descripcion: 'Asesoría fiscal julio', cantidad: 1, precioUnitario: 600, descuentoPct: 0, ivaPct: 21 },
       ],
-      irpfBase: 90, estado: 'contabilizada', estadoAeat: 'PendienteEnvio',
+      irpfPct: 15, estado: 'contabilizada', estadoAeat: 'PendienteEnvio',
     },
     {
       id: 4, numFactura: 'B-2026-003', numeradorId: 2, fecha: '2026-07-30',
@@ -205,7 +213,7 @@ export class MockFacturasService {
         { id: 4, descripcion: 'Reparación flota', cantidad: 1, precioUnitario: 2100, descuentoPct: 0, ivaPct: 21 },
         { id: 5, descripcion: 'Tasas de gestoría', cantidad: 1, precioUnitario: 35, descuentoPct: 0, ivaPct: 0 },
       ],
-      irpfBase: 0, estado: 'contabilizada', estadoAeat: 'RequiereRevisionManual',
+      irpfPct: 0, estado: 'contabilizada', estadoAeat: 'RequiereRevisionManual',
     },
     {
       id: 5, numFactura: 'A-2026-009', numeradorId: 1, fecha: '2026-07-15',
@@ -213,7 +221,7 @@ export class MockFacturasService {
       lineas: [
         { id: 6, descripcion: 'Material fungible', cantidad: 1, precioUnitario: 340, descuentoPct: 0, ivaPct: 21 },
       ],
-      irpfBase: 0, estado: 'firmada', estadoAeat: 'Correcto',
+      irpfPct: 0, estado: 'firmada', estadoAeat: 'Correcto',
     },
     {
       id: 6, numFactura: 'A-2026-008', numeradorId: 2, fecha: '2026-07-10',
@@ -222,7 +230,7 @@ export class MockFacturasService {
         { id: 7, descripcion: 'Consultoría de proceso A', cantidad: 2, precioUnitario: 50, descuentoPct: 0, ivaPct: 21 },
         { id: 8, descripcion: 'Mantenimiento B', cantidad: 3, precioUnitario: 20, descuentoPct: 8.33, ivaPct: 10 },
       ],
-      irpfBase: 147, estado: 'firmada', estadoAeat: 'AceptadoConErrores',
+      irpfPct: 15, estado: 'firmada', estadoAeat: 'AceptadoConErrores',
     },
   ];
 
@@ -231,14 +239,14 @@ export class MockFacturasService {
       id: 1, proveedor: 'Suministros Oficina Norte SL', proveedorNif: 'B11223344',
       numFactura: 'F-4521', fecha: '2026-08-04', vencimiento: '2026-08-18',
       concepto: 'Material de oficina', formaPago: 'Domiciliación',
-      baseImponible: 154.81, iva: 32.51, irpf: 0, totalFactura: 187.32,
+      baseImponible: 154.81, ivaPct: 21, iva: 32.51, irpfPct: 0, irpf: 0, totalFactura: 187.32,
       pagada: true, estado: 'contabilizada', origenOcr: false,
     },
     {
       id: 2, proveedor: 'Electricidad Vidal e Hijos', proveedorNif: '44556677Q',
       numFactura: 'FV-2026-0912', fecha: '2026-08-06', vencimiento: '2026-08-20',
       concepto: 'Suministro eléctrico', formaPago: 'Domiciliación',
-      baseImponible: 448.02, iva: 94.08, irpf: 0, totalFactura: 542.10,
+      baseImponible: 448.02, ivaPct: 21, iva: 94.08, irpfPct: 0, irpf: 0, totalFactura: 542.10,
       pagada: false, estado: 'borrador', origenOcr: true,
     },
   ];
@@ -320,14 +328,14 @@ export class MockFacturasService {
       fecha: new Date().toISOString().slice(0, 10),
       destinatario,
       lineas: [],
-      irpfBase: 0,
+      irpfPct: 0,
       estado: 'borrador',
     };
     this.emitidas.unshift(nueva);
     return nueva;
   }
 
-  actualizarBorrador(id: number, cambios: Partial<Pick<FacturaEmitida, 'fecha' | 'destinatario' | 'lineas' | 'irpfBase' | 'numeradorId'>>): void {
+  actualizarBorrador(id: number, cambios: Partial<Pick<FacturaEmitida, 'fecha' | 'destinatario' | 'lineas' | 'irpfPct' | 'numeradorId'>>): void {
     const f = this.emitidas.find(e => e.id === id);
     if (!f || f.estado !== 'borrador') return;
     Object.assign(f, cambios);
@@ -351,6 +359,10 @@ export class MockFacturasService {
     f.estadoAeat = 'Correcto';
   }
 
+  private redondear(v: number): number {
+    return Math.round(v * 100) / 100;
+  }
+
   totalesFactura(f: FacturaEmitida): TotalesFactura {
     let base = 0;
     const grupos = new Map<number, number>();
@@ -360,15 +372,23 @@ export class MockFacturasService {
       base += importe;
       grupos.set(l.ivaPct, (grupos.get(l.ivaPct) ?? 0) + importe);
     }
+    base = this.redondear(base);
 
     const desgloseIva: DesgloseIva[] = Array.from(grupos.entries())
-      .map(([pct, baseGravada]) => ({ pct, baseGravada, cuota: baseGravada * pct / 100 }))
+      .map(([pct, baseGravada]) => ({
+        pct,
+        baseGravada: this.redondear(baseGravada),
+        cuota: this.redondear(baseGravada * pct / 100),
+      }))
       .sort((a, b) => b.pct - a.pct);
 
-    const ivaTotal = desgloseIva.reduce((s, d) => s + d.cuota, 0);
-    const total = base + ivaTotal - (f.irpfBase || 0);
+    const ivaTotal = this.redondear(desgloseIva.reduce((s, d) => s + d.cuota, 0));
+    const irpfPct = f.irpfPct || 0;
+    // El IRPF se retiene sobre la misma base imponible que el IVA, nunca sobre el total con IVA incluido.
+    const irpfCuota = this.redondear(base * irpfPct / 100);
+    const total = this.redondear(base + ivaTotal - irpfCuota);
 
-    return { base, desgloseIva, ivaTotal, total };
+    return { base, desgloseIva, ivaTotal, irpfPct, irpfCuota, total };
   }
 
   // ---------- Facturas recibidas ----------
@@ -398,8 +418,9 @@ export class MockFacturasService {
       this.leerComoDataUrl(file),
     ]);
 
-    const base = Math.round((Math.random() * 400 + 50) * 100) / 100;
-    const iva = Math.round(base * 0.21 * 100) / 100;
+    const base = this.redondear(Math.random() * 400 + 50);
+    const ivaPct = 21;
+    const iva = this.redondear(base * ivaPct / 100);
 
     const nueva: FacturaRecibida = {
       id: nextRecibidaId++,
@@ -408,9 +429,11 @@ export class MockFacturasService {
       fecha: new Date().toISOString().slice(0, 10),
       concepto: 'Pendiente de revisar',
       baseImponible: base,
+      ivaPct,
       iva,
+      irpfPct: 0,
       irpf: 0,
-      totalFactura: Math.round((base + iva) * 100) / 100,
+      totalFactura: this.redondear(base + iva),
       pagada: false,
       estado: 'borrador',
       origenOcr: true,

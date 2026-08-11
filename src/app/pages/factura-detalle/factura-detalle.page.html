@@ -89,12 +89,14 @@
         </ion-item>
 
         <ion-item [disabled]="!esEditable">
-          <ion-input
-            label="IRPF (€) — pendiente confirmar regla fiscal"
+          <ion-select
+            label="% IRPF — pendiente confirmar regla fiscal"
             labelPlacement="stacked"
-            type="number"
-            [(ngModel)]="f.irpfBase"
-          ></ion-input>
+            interface="popover"
+            [(ngModel)]="f.irpfPct"
+          >
+            <ion-select-option *ngFor="let r of irpfRates" [value]="r">{{ r }}%</ion-select-option>
+          </ion-select>
         </ion-item>
       </ion-card-content>
     </ion-card>
@@ -163,8 +165,8 @@
         <p class="ion-no-margin" *ngFor="let d of totales().desgloseIva">
           IVA {{ d.pct }}% sobre {{ formatEuros(d.baseGravada) }}: {{ formatEuros(d.cuota) }}
         </p>
-        <p class="ion-no-margin" *ngIf="f.irpfBase">
-          IRPF: −{{ formatEuros(f.irpfBase) }}
+        <p class="ion-no-margin" *ngIf="totales().irpfCuota">
+          IRPF ({{ f.irpfPct }}%): −{{ formatEuros(totales().irpfCuota) }}
         </p>
         <p class="total-line">Total: <strong>{{ formatEuros(totales().total) }}</strong></p>
       </ion-card-content>

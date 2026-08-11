@@ -15,7 +15,7 @@ import {
   attachOutline, eyeOutline,
 } from 'ionicons/icons';
 
-import { MockFacturasService, FacturaRecibida, ProveedorMock } from '../../services/mock-facturas.service';
+import { MockFacturasService, FacturaRecibida, ProveedorMock, IVA_RATES, IRPF_RATES } from '../../services/mock-facturas.service';
 import { VerDocumentoComponent } from '../../modals/ver-documento/ver-documento.component';
 import { ProveedorSelectorComponent } from '../../modals/proveedor-selector/proveedor-selector.component';
 
@@ -41,6 +41,9 @@ export class FacturaRecibidaDetallePage implements OnInit {
   errorMsg = '';
   adjuntando = false;
   origenOcr = false;
+
+  ivaRates = IVA_RATES;
+  irpfRates = IRPF_RATES;
 
   working: FacturaRecibidaForm = this.formularioVacio();
 
@@ -81,13 +84,25 @@ export class FacturaRecibidaDetallePage implements OnInit {
       proveedor: '', proveedorNif: '', numFactura: '',
       fecha: new Date().toISOString().slice(0, 10), vencimiento: '',
       concepto: '', formaPago: '',
-      baseImponible: 0, iva: 0, irpf: 0, totalFactura: 0,
+      baseImponible: 0, ivaPct: 21, iva: 0, irpfPct: 0, irpf: 0, totalFactura: 0,
       pagada: false, estado: 'contabilizada',
     };
   }
 
+  private redondear(v: number): number {
+    return Math.round(v * 100) / 100;
+  }
+
+  get ivaCuota(): number {
+    return this.redondear((this.working.baseImponible || 0) * (this.working.ivaPct || 0) / 100);
+  }
+
+  get irpfCuota(): number {
+    return this.redondear((this.working.baseImponible || 0) * (this.working.irpfPct || 0) / 100);
+  }
+
   get total(): number {
-    return Math.round(((this.working.baseImponible || 0) + (this.working.iva || 0) - (this.working.irpf || 0)) * 100) / 100;
+    return this.redondear((this.working.baseImponible || 0) + this.ivaCuota - this.irpfCuota);
   }
 
   async elegirProveedor() {
@@ -138,7 +153,12 @@ export class FacturaRecibidaDetallePage implements OnInit {
       return;
     }
 
-    const datos: FacturaRecibidaForm = { ...this.working, totalFactura: this.total };
+    const datos: FacturaRecibidaForm = {
+      ...this.working,
+      iva: this.ivaCuota,
+      irpf: this.irpfCuota,
+      totalFactura: this.total,
+    };
 
     if (this.esNueva) {
       const creada = this.mock.crearManual(datos);

@@ -88,19 +88,25 @@
     <ion-card-content>
       <div class="section-title">Importes</div>
 
+      <ion-item>
+        <ion-input label="Base imponible" labelPlacement="stacked" type="number" [(ngModel)]="working.baseImponible"></ion-input>
+      </ion-item>
+
       <div class="grid-2">
         <ion-item>
-          <ion-input label="Base imponible" labelPlacement="stacked" type="number" [(ngModel)]="working.baseImponible"></ion-input>
+          <ion-select label="% IVA" labelPlacement="stacked" interface="popover" [(ngModel)]="working.ivaPct">
+            <ion-select-option *ngFor="let r of ivaRates" [value]="r">{{ r }}%</ion-select-option>
+          </ion-select>
         </ion-item>
         <ion-item>
-          <ion-input label="IVA" labelPlacement="stacked" type="number" [(ngModel)]="working.iva"></ion-input>
+          <ion-select label="% IRPF" labelPlacement="stacked" interface="popover" [(ngModel)]="working.irpfPct">
+            <ion-select-option *ngFor="let r of irpfRates" [value]="r">{{ r }}%</ion-select-option>
+          </ion-select>
         </ion-item>
       </div>
 
-      <ion-item>
-        <ion-input label="IRPF" labelPlacement="stacked" type="number" [(ngModel)]="working.irpf"></ion-input>
-      </ion-item>
-
+      <p class="ion-no-margin">IVA ({{ working.ivaPct }}%): {{ formatEuros(ivaCuota) }}</p>
+      <p class="ion-no-margin" *ngIf="irpfCuota">IRPF ({{ working.irpfPct }}%): −{{ formatEuros(irpfCuota) }}</p>
       <p class="total-line">Total: <strong>{{ formatEuros(total) }}</strong></p>
     </ion-card-content>
   </ion-card>

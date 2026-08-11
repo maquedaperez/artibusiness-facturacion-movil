@@ -13,7 +13,7 @@ import { addIcons } from 'ionicons';
 import { arrowBackOutline, addOutline, trashOutline, personCircleOutline, documentTextOutline } from 'ionicons/icons';
 
 import {
-  MockFacturasService, FacturaEmitida, LineaFactura, Destinatario, Numerador, IVA_RATES, EmisorFiscal,
+  MockFacturasService, FacturaEmitida, LineaFactura, Destinatario, Numerador, IVA_RATES, IRPF_RATES, EmisorFiscal,
 } from '../../services/mock-facturas.service';
 import { ClienteSelectorComponent } from '../../modals/cliente-selector/cliente-selector.component';
 
@@ -37,6 +37,7 @@ export class FacturaDetallePage implements OnInit {
   numeradores: Numerador[] = [];
   numeradorSeleccionado: number | null = null;
   ivaRates = IVA_RATES;
+  irpfRates = IRPF_RATES;
   emisor: EmisorFiscal | null = null;
 
   working: FacturaEmitida | null = null;
@@ -122,7 +123,7 @@ export class FacturaDetallePage implements OnInit {
   }
 
   totales() {
-    if (!this.working) return { base: 0, desgloseIva: [], ivaTotal: 0, total: 0 };
+    if (!this.working) return { base: 0, desgloseIva: [], ivaTotal: 0, irpfPct: 0, irpfCuota: 0, total: 0 };
     return this.mock.totalesFactura(this.working);
   }
 
@@ -133,7 +134,7 @@ export class FacturaDetallePage implements OnInit {
       fecha: this.working.fecha,
       destinatario: this.working.destinatario,
       lineas: this.working.lineas,
-      irpfBase: this.working.irpfBase,
+      irpfPct: this.working.irpfPct,
       numeradorId: this.working.numeradorId,
     });
 
