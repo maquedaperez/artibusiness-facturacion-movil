@@ -2,12 +2,15 @@ import { Provider } from '@angular/core';
 
 import {
   EmisorRepository, CustomersRepository, SuppliersRepository,
+  CatalogRepository, SubscriptionsRepository,
   IssuedInvoicesRepository, ReceivedInvoicesRepository,
 } from '../ports';
 
 import { MockEmisorRepository } from '../adapters/mock/emisor.repository.mock';
 import { MockCustomersRepository } from '../adapters/mock/customers.repository.mock';
 import { MockSuppliersRepository } from '../adapters/mock/suppliers.repository.mock';
+import { MockCatalogRepository } from '../adapters/mock/catalog.repository.mock';
+import { MockSubscriptionsRepository } from '../adapters/mock/subscriptions.repository.mock';
 import { MockIssuedInvoicesRepository } from '../adapters/mock/issued-invoices.repository.mock';
 import { MockReceivedInvoicesRepository } from '../adapters/mock/received-invoices.repository.mock';
 
@@ -25,6 +28,8 @@ export const MOCK_REPOSITORY_PROVIDERS: Provider[] = [
   { provide: EmisorRepository, useClass: MockEmisorRepository },
   { provide: CustomersRepository, useClass: MockCustomersRepository },
   { provide: SuppliersRepository, useClass: MockSuppliersRepository },
+  { provide: CatalogRepository, useClass: MockCatalogRepository },
+  { provide: SubscriptionsRepository, useClass: MockSubscriptionsRepository },
   { provide: IssuedInvoicesRepository, useClass: MockIssuedInvoicesRepository },
   { provide: ReceivedInvoicesRepository, useClass: MockReceivedInvoicesRepository },
 ];

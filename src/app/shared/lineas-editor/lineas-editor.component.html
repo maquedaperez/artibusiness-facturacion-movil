@@ -1,0 +1,58 @@
+<div class="section-title lineas-title">Líneas</div>
+
+<ion-card *ngFor="let l of lineas">
+  <ion-card-content>
+    <ion-chip class="origen-chip" [ngClass]="'origen-' + l.origen">
+      <ion-label>{{ origenLabel(l) }}</ion-label>
+    </ion-chip>
+
+    <ng-container *ngIf="editable; else lineaReadonly">
+      <ion-item>
+        <ion-input label="Descripción" labelPlacement="stacked" [(ngModel)]="l.descripcion"></ion-input>
+      </ion-item>
+
+      <div class="linea-grid">
+        <ion-item>
+          <ion-input label="Cantidad" labelPlacement="stacked" type="number" [(ngModel)]="l.cantidad"></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-input label="Precio unitario" labelPlacement="stacked" type="number" [(ngModel)]="l.precioUnitario"></ion-input>
+        </ion-item>
+      </div>
+
+      <div class="linea-grid">
+        <ion-item>
+          <ion-input label="% Dto" labelPlacement="stacked" type="number" [(ngModel)]="l.descuentoPct"></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-select label="% IVA" labelPlacement="stacked" [(ngModel)]="l.ivaPct">
+            <ion-select-option *ngFor="let r of ivaRates" [value]="r">{{ r }}%</ion-select-option>
+          </ion-select>
+        </ion-item>
+      </div>
+
+      <ion-button expand="block" fill="clear" color="danger" size="small" (click)="eliminarLinea(l)">
+        <ion-icon slot="start" name="trash-outline"></ion-icon>
+        Eliminar línea
+      </ion-button>
+    </ng-container>
+
+    <ng-template #lineaReadonly>
+      <p class="ion-no-margin"><strong>{{ l.descripcion || '—' }}</strong></p>
+      <p class="ion-no-margin">
+        {{ l.cantidad }} × {{ formatEuros(l.precioUnitario) }}
+        <span *ngIf="l.descuentoPct"> · Dto {{ l.descuentoPct }}%</span>
+        <span> · IVA {{ l.ivaPct }}%</span>
+      </p>
+    </ng-template>
+  </ion-card-content>
+</ion-card>
+
+<ion-button *ngIf="editable" expand="block" fill="outline" (click)="elegirOrigen()">
+  <ion-icon slot="start" name="add-outline"></ion-icon>
+  Añadir línea
+</ion-button>
+
+<ion-text color="medium" *ngIf="lineas.length === 0">
+  <p class="ion-padding-top">Todavía no hay líneas.</p>
+</ion-text>

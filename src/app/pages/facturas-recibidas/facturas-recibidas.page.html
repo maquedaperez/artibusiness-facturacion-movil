@@ -34,7 +34,7 @@
       <ion-card-content>
         <div class="row-top">
           <div class="titulo">{{ proveedorResumen(f) }}</div>
-          <div class="total">{{ formatEuros(f.totalFactura) }}</div>
+          <div class="total">{{ formatEuros(totalFactura(f)) }}</div>
         </div>
 
         <div class="concepto">{{ conceptoResumen(f) }}</div>

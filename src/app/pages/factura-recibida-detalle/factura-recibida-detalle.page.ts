@@ -15,11 +15,15 @@ import {
   attachOutline, eyeOutline,
 } from 'ionicons/icons';
 
-import { FacturaRecibida, ProveedorMock, IVA_RATES, IRPF_RATES } from '../../services/mock-facturas.service';
+import {
+  FacturaRecibida, ProveedorMock, IRPF_RATES, TotalesFactura,
+  ConfiguracionRetencion, calcularTotalesLineas,
+} from '../../services/mock-facturas.service';
 import { ReceivedInvoicesRepository } from '../../core/ports';
 import { VerDocumentoComponent } from '../../modals/ver-documento/ver-documento.component';
 import { ProveedorSelectorComponent } from '../../modals/proveedor-selector/proveedor-selector.component';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
+import { LineasEditorComponent } from '../../shared/lineas-editor/lineas-editor.component';
 
 type FacturaRecibidaForm = Omit<FacturaRecibida, 'id' | 'origenOcr'>;
 
@@ -33,7 +37,7 @@ type FacturaRecibidaForm = Omit<FacturaRecibida, 'id' | 'origenOcr'>;
     IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
     IonItem, IonInput, IonSelect, IonSelectOption, IonCheckbox, IonText, IonChip, IonLabel,
     IonCard, IonCardContent, IonSpinner,
-    DemoBannerComponent,
+    DemoBannerComponent, LineasEditorComponent,
   ],
 })
 export class FacturaRecibidaDetallePage implements OnInit {
@@ -53,10 +57,11 @@ export class FacturaRecibidaDetallePage implements OnInit {
   guardando = false;
   origenOcr = false;
 
-  ivaRates = IVA_RATES;
   irpfRates = IRPF_RATES;
 
   working: FacturaRecibidaForm = this.formularioVacio();
+
+  generarIdLinea = () => this.invoicesRepo.nuevoIdLinea();
 
   constructor() {
     addIcons({ arrowBackOutline, documentTextOutline, createOutline, trashOutline, attachOutline, eyeOutline });
@@ -88,31 +93,23 @@ export class FacturaRecibidaDetallePage implements OnInit {
       proveedor: '', proveedorNif: '', numFactura: '',
       fecha: new Date().toISOString().slice(0, 10), vencimiento: '',
       concepto: '', formaPago: '',
-      baseImponible: 0, ivaPct: 21, iva: 0, irpfPct: 0, irpf: 0, totalFactura: 0,
+      lineas: [],
+      retencionPct: 0,
       pagada: false, estado: 'contabilizada',
     };
   }
 
-  private redondear(v: number): number {
-    return Math.round(v * 100) / 100;
-  }
-
-  // Number(...) por seguridad: ion-input puede entregar baseImponible como texto,
-  // lo que rompería el "+" del total (concatenaría en vez de sumar).
-  private get baseNum(): number {
-    return Number(this.working.baseImponible) || 0;
-  }
-
-  get ivaCuota(): number {
-    return this.redondear(this.baseNum * (Number(this.working.ivaPct) || 0) / 100);
-  }
-
-  get irpfCuota(): number {
-    return this.redondear(this.baseNum * (Number(this.working.irpfPct) || 0) / 100);
-  }
-
-  get total(): number {
-    return this.redondear(this.baseNum + this.ivaCuota - this.irpfCuota);
+  // Previsualización local con la misma fórmula que usa el mock/backend
+  // (calcularTotalesLineas) — el guardado no envía este cálculo, solo las líneas y
+  // el % de retención; el total definitivo lo sigue calculando el repositorio/backend.
+  totales(): TotalesFactura {
+    const cfg: ConfiguracionRetencion = {
+      aplicable: this.working.retencionPct > 0,
+      tipoCodigo: 'recibida',
+      etiqueta: 'Retención',
+      porcentaje: this.working.retencionPct,
+    };
+    return calcularTotalesLineas(this.working.lineas, cfg);
   }
 
   async elegirProveedor() {
@@ -167,20 +164,12 @@ export class FacturaRecibidaDetallePage implements OnInit {
 
     this.guardando = true;
     try {
-      const datos: FacturaRecibidaForm = {
-        ...this.working,
-        baseImponible: this.baseNum,
-        iva: this.ivaCuota,
-        irpf: this.irpfCuota,
-        totalFactura: this.total,
-      };
-
       if (this.esNueva) {
-        const creada = this.invoicesRepo.crearManual(datos);
+        const creada = this.invoicesRepo.crearManual(this.working);
         this.facturaId = creada.id;
         this.esNueva = false;
       } else if (this.facturaId != null) {
-        this.invoicesRepo.actualizar(this.facturaId, datos);
+        this.invoicesRepo.actualizar(this.facturaId, this.working);
       }
 
       await this.showToast('Factura guardada.');

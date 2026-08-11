@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { ReceivedInvoicesRepository } from '../../ports/received-invoices.repository';
-import { FacturaRecibida, MockFacturasService } from '../../../services/mock-facturas.service';
+import { FacturaRecibida, MockFacturasService, TotalesFactura } from '../../../services/mock-facturas.service';
 
 @Injectable()
 export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
@@ -24,6 +24,14 @@ export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
 
   eliminar(id: number): void {
     this.mock.eliminarRecibida(id);
+  }
+
+  nuevoIdLinea(): number {
+    return this.mock.nuevoIdLineaRecibida();
+  }
+
+  totales(factura: FacturaRecibida): TotalesFactura {
+    return this.mock.totalesFacturaRecibida(factura);
   }
 
   crearDesdeOcr(file: File): Promise<FacturaRecibida> {

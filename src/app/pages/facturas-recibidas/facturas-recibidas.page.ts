@@ -58,6 +58,10 @@ export class FacturasRecibidasPage implements OnInit {
     this.router.navigate(['/app/recibidas', f.id]);
   }
 
+  totalFactura(f: FacturaRecibida): number {
+    return this.invoicesRepo.totales(f).total;
+  }
+
   proveedorResumen(f: FacturaRecibida): string {
     return f.proveedor?.trim() || 'Proveedor no disponible';
   }

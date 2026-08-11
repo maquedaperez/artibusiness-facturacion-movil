@@ -10,15 +10,16 @@ import {
   ModalController, AlertController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline, addOutline, trashOutline, personCircleOutline, documentTextOutline } from 'ionicons/icons';
+import { arrowBackOutline, personCircleOutline, documentTextOutline } from 'ionicons/icons';
 
 import {
-  FacturaEmitida, LineaFactura, Destinatario, Numerador,
+  FacturaEmitida, Destinatario, Numerador,
   IVA_RATES, MEDIO_PAGO_OPTIONS,
 } from '../../services/mock-facturas.service';
 import { IssuedInvoicesRepository } from '../../core/ports';
 import { ClienteSelectorComponent } from '../../modals/cliente-selector/cliente-selector.component';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
+import { LineasEditorComponent } from '../../shared/lineas-editor/lineas-editor.component';
 
 @Component({
   selector: 'app-factura-detalle',
@@ -30,7 +31,7 @@ import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.compon
     IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
     IonItem, IonInput, IonSelect, IonSelectOption, IonText, IonBadge,
     IonCard, IonCardContent, IonSpinner,
-    DemoBannerComponent,
+    DemoBannerComponent, LineasEditorComponent,
   ],
 })
 export class FacturaDetallePage implements OnInit {
@@ -55,7 +56,7 @@ export class FacturaDetallePage implements OnInit {
   errorMsg = '';
 
   constructor() {
-    addIcons({ arrowBackOutline, addOutline, trashOutline, personCircleOutline, documentTextOutline });
+    addIcons({ arrowBackOutline, personCircleOutline, documentTextOutline });
   }
 
   ngOnInit() {
@@ -107,23 +108,7 @@ export class FacturaDetallePage implements OnInit {
     }
   }
 
-  agregarLinea() {
-    if (!this.working) return;
-    const nueva: LineaFactura = {
-      id: this.invoicesRepo.nuevoIdLinea(),
-      descripcion: '',
-      cantidad: 1,
-      precioUnitario: 0,
-      descuentoPct: 0,
-      ivaPct: 21,
-    };
-    this.working.lineas.push(nueva);
-  }
-
-  eliminarLinea(linea: LineaFactura) {
-    if (!this.working) return;
-    this.working.lineas = this.working.lineas.filter(l => l.id !== linea.id);
-  }
+  generarIdLinea = () => this.invoicesRepo.nuevoIdLinea();
 
   totales() {
     if (!this.working) {

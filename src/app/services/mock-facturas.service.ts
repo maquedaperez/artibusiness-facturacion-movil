@@ -62,15 +62,48 @@ export type EmisorFiscal = {
 // aprobado; se muestran de solo lectura hasta que exista un endpoint específico.
 export type EmisorContactoEditable = Pick<EmisorFiscal, 'direccion' | 'poblacion' | 'cp' | 'provincia' | 'telefono'>;
 
+export type OrigenLinea = 'catalogo' | 'suscripcion' | 'manual';
+
+// Referencia al producto/suscripción de origen — solo para trazabilidad (saber de
+// dónde salió la línea). Los datos de la línea en sí (descripcion/precio/iva) son
+// una copia congelada en el momento de añadirla: si el producto cambia de precio
+// después, las facturas ya guardadas no se enteran.
+export type OrigenLineaRef = { tipo: 'catalogo' | 'suscripcion'; id: number };
+
 // Forma alineada con FacturacionFacturasEmitidasLineas del backend real.
 // ivaPct sustituye a IdImpuesto (catálogo de impuestos) mientras no exista el endpoint.
 export type LineaFactura = {
   id: number;
+  origen: OrigenLinea;
+  origenRef?: OrigenLineaRef;
   descripcion: string;
   cantidad: number;
   precioUnitario: number;
   descuentoPct: number;
   ivaPct: number;
+};
+
+// Producto/servicio del catálogo de la empresa — buscado bajo demanda, nunca
+// cargado entero (ver CatalogRepository).
+export type ProductoCatalogo = {
+  id: number;
+  nombre: string;
+  descripcion?: string;
+  precioUnitario: number;
+  ivaPct: number;
+  referencia?: string;
+};
+
+// Servicio recurrente/suscripción definido por la empresa — igual que el catálogo,
+// pero para líneas de facturación periódica. En este lote solo se usa como origen
+// de una línea puntual; no se generan renovaciones ni cobros automáticos.
+export type Suscripcion = {
+  id: number;
+  nombre: string;
+  periodicidad: string;
+  precio: number;
+  ivaPct: number;
+  estado: 'activa' | 'pausada' | 'cancelada';
 };
 
 export type FacturaEmitida = {
@@ -157,6 +190,40 @@ export function aplicarRetencion(baseImponible: number, cfg: ConfiguracionRetenc
   };
 }
 
+// Cálculo puro compartido por Emitidas y Recibidas — misma fórmula, mismo redondeo,
+// para no mantener dos versiones del mismo cálculo en dos sitios distintos.
+export function calcularTotalesLineas(lineas: LineaFactura[], cfgRetencion: ConfiguracionRetencion): TotalesFactura {
+  let base = 0;
+  const grupos = new Map<number, number>();
+
+  for (const l of lineas) {
+    // Number(...) por seguridad: ion-input puede entregar el valor como texto.
+    const cantidad = Number(l.cantidad) || 0;
+    const precioUnitario = Number(l.precioUnitario) || 0;
+    const descuentoPct = Number(l.descuentoPct) || 0;
+    const importe = cantidad * precioUnitario * (1 - descuentoPct / 100);
+    base += importe;
+    grupos.set(l.ivaPct, (grupos.get(l.ivaPct) ?? 0) + importe);
+  }
+  base = redondearCentimos(base);
+
+  const desgloseIva: DesgloseIva[] = Array.from(grupos.entries())
+    .map(([pct, baseGravada]) => ({
+      pct,
+      baseGravada: redondearCentimos(baseGravada),
+      cuota: redondearCentimos(baseGravada * pct / 100),
+    }))
+    .sort((a, b) => b.pct - a.pct);
+
+  const ivaTotal = redondearCentimos(desgloseIva.reduce((s, d) => s + d.cuota, 0));
+  // La retención se calcula sobre la misma base imponible que el IVA, nunca sobre el
+  // total con IVA incluido.
+  const retencion = aplicarRetencion(base, cfgRetencion);
+  const total = redondearCentimos(base + ivaTotal - retencion.importe);
+
+  return { base, desgloseIva, ivaTotal, retencion, total };
+}
+
 export type FacturaRecibida = {
   id: number;
   proveedor: string;
@@ -166,14 +233,12 @@ export type FacturaRecibida = {
   vencimiento?: string;
   concepto?: string;
   formaPago?: string;
-  baseImponible: number;
-  // % aplicados sobre baseImponible — iva/irpf son el importe ya calculado (para mostrar
-  // en el listado y alinear con las columnas reales del backend), no se escriben a mano.
-  ivaPct: number;
-  iva: number;
-  irpfPct: number;
-  irpf: number;
-  totalFactura: number;
+  lineas: LineaFactura[];
+  // % de retención que declara la propia factura del proveedor — a diferencia del
+  // IRPF de las emitidas (que sale de la configuración fiscal de nuestra empresa),
+  // este es un dato del documento recibido: lo indica el proveedor, no lo decidimos
+  // nosotros. Se muestra igualmente solo en el bloque de totales, nunca por línea.
+  retencionPct: number;
   pagada: boolean;
   estado: 'borrador' | 'contabilizada';
   origenOcr: boolean;
@@ -261,13 +326,27 @@ export class MockFacturasService {
     },
   ];
 
+  private catalogo: ProductoCatalogo[] = [
+    { id: 1, nombre: 'Revisión anual de instalación', precioUnitario: 1200, ivaPct: 21, referencia: 'SRV-001' },
+    { id: 2, nombre: 'Servicio de transporte (trayecto)', precioUnitario: 85, ivaPct: 21, referencia: 'SRV-002' },
+    { id: 3, nombre: 'Asesoría fiscal (hora)', precioUnitario: 60, ivaPct: 21, referencia: 'SRV-003' },
+    { id: 4, nombre: 'Material fungible (lote)', precioUnitario: 340, ivaPct: 21, referencia: 'PRD-001' },
+    { id: 5, nombre: 'Consultoría de proceso (hora)', precioUnitario: 50, ivaPct: 21, referencia: 'SRV-004' },
+  ];
+
+  private suscripciones: Suscripcion[] = [
+    { id: 1, nombre: 'Mantenimiento mensual básico', periodicidad: 'Mensual', precio: 90, ivaPct: 21, estado: 'activa' },
+    { id: 2, nombre: 'Soporte premium', periodicidad: 'Mensual', precio: 150, ivaPct: 21, estado: 'activa' },
+    { id: 3, nombre: 'Licencia anual de gestoría', periodicidad: 'Anual', precio: 600, ivaPct: 21, estado: 'pausada' },
+  ];
+
   private emitidas: FacturaEmitida[] = [
     {
       id: 1, numFactura: 'A-2026-014', numeradorId: 1, fecha: '2026-08-05', vencimiento: '2026-09-04',
       concepto: 'Revisión anual de instalación', medioPago: 'Transferencia',
       destinatario: this.clientes[0],
       lineas: [
-        { id: 1, descripcion: 'Revisión anual instalación', cantidad: 1, precioUnitario: 1200, descuentoPct: 0, ivaPct: 21 },
+        { id: 1, origen: 'manual', descripcion: 'Revisión anual instalación', cantidad: 1, precioUnitario: 1200, descuentoPct: 0, ivaPct: 21 },
       ],
       estado: 'borrador', operacionId: this.nuevoOperacionId(),
     },
@@ -276,7 +355,7 @@ export class MockFacturasService {
       concepto: 'Servicio de transporte mensual', medioPago: 'Domiciliación',
       destinatario: this.clientes[1],
       lineas: [
-        { id: 2, descripcion: 'Servicio de transporte mensual', cantidad: 1, precioUnitario: 850, descuentoPct: 0, ivaPct: 21 },
+        { id: 2, origen: 'manual', descripcion: 'Servicio de transporte mensual', cantidad: 1, precioUnitario: 850, descuentoPct: 0, ivaPct: 21 },
       ],
       estado: 'borrador', operacionId: this.nuevoOperacionId(),
     },
@@ -285,7 +364,7 @@ export class MockFacturasService {
       concepto: 'Asesoría fiscal — julio 2026', medioPago: 'Transferencia',
       destinatario: this.clientes[3],
       lineas: [
-        { id: 3, descripcion: 'Asesoría fiscal julio', cantidad: 1, precioUnitario: 600, descuentoPct: 0, ivaPct: 21 },
+        { id: 3, origen: 'manual', descripcion: 'Asesoría fiscal julio', cantidad: 1, precioUnitario: 600, descuentoPct: 0, ivaPct: 21 },
       ],
       estado: 'contabilizada', estadoAeat: 'PendienteEnvio', operacionId: this.nuevoOperacionId(),
     },
@@ -294,8 +373,8 @@ export class MockFacturasService {
       concepto: 'Reparación de flota y gestoría asociada', medioPago: 'Transferencia',
       destinatario: this.clientes[1],
       lineas: [
-        { id: 4, descripcion: 'Reparación flota', cantidad: 1, precioUnitario: 2100, descuentoPct: 0, ivaPct: 21 },
-        { id: 5, descripcion: 'Tasas de gestoría', cantidad: 1, precioUnitario: 35, descuentoPct: 0, ivaPct: 0 },
+        { id: 4, origen: 'manual', descripcion: 'Reparación flota', cantidad: 1, precioUnitario: 2100, descuentoPct: 0, ivaPct: 21 },
+        { id: 5, origen: 'manual', descripcion: 'Tasas de gestoría', cantidad: 1, precioUnitario: 35, descuentoPct: 0, ivaPct: 0 },
       ],
       estado: 'contabilizada', estadoAeat: 'RequiereRevisionManual', operacionId: this.nuevoOperacionId(),
     },
@@ -304,7 +383,7 @@ export class MockFacturasService {
       concepto: 'Suministro de material fungible', medioPago: 'Tarjeta',
       destinatario: this.clientes[0],
       lineas: [
-        { id: 6, descripcion: 'Material fungible', cantidad: 1, precioUnitario: 340, descuentoPct: 0, ivaPct: 21 },
+        { id: 6, origen: 'manual', descripcion: 'Material fungible', cantidad: 1, precioUnitario: 340, descuentoPct: 0, ivaPct: 21 },
       ],
       estado: 'firmada', estadoAeat: 'Correcto', operacionId: this.nuevoOperacionId(),
     },
@@ -313,8 +392,8 @@ export class MockFacturasService {
       concepto: 'Consultoría de proceso y mantenimiento', medioPago: 'Transferencia',
       destinatario: this.clientes[3],
       lineas: [
-        { id: 7, descripcion: 'Consultoría de proceso A', cantidad: 2, precioUnitario: 50, descuentoPct: 0, ivaPct: 21 },
-        { id: 8, descripcion: 'Mantenimiento B', cantidad: 3, precioUnitario: 20, descuentoPct: 8.33, ivaPct: 10 },
+        { id: 7, origen: 'manual', descripcion: 'Consultoría de proceso A', cantidad: 2, precioUnitario: 50, descuentoPct: 0, ivaPct: 21 },
+        { id: 8, origen: 'manual', descripcion: 'Mantenimiento B', cantidad: 3, precioUnitario: 20, descuentoPct: 8.33, ivaPct: 10 },
       ],
       estado: 'firmada', estadoAeat: 'AceptadoConErrores', operacionId: this.nuevoOperacionId(),
     },
@@ -325,14 +404,20 @@ export class MockFacturasService {
       id: 1, proveedor: 'Suministros Oficina Norte SL', proveedorNif: 'B11223344',
       numFactura: 'F-4521', fecha: '2026-08-04', vencimiento: '2026-08-18',
       concepto: 'Material de oficina', formaPago: 'Domiciliación',
-      baseImponible: 154.81, ivaPct: 21, iva: 32.51, irpfPct: 0, irpf: 0, totalFactura: 187.32,
+      lineas: [
+        { id: 901, origen: 'manual', descripcion: 'Material de oficina', cantidad: 1, precioUnitario: 154.81, descuentoPct: 0, ivaPct: 21 },
+      ],
+      retencionPct: 0,
       pagada: true, estado: 'contabilizada', origenOcr: false,
     },
     {
       id: 2, proveedor: 'Electricidad Vidal e Hijos', proveedorNif: '44556677Q',
       numFactura: 'FV-2026-0912', fecha: '2026-08-06', vencimiento: '2026-08-20',
       concepto: 'Suministro eléctrico', formaPago: 'Domiciliación',
-      baseImponible: 448.02, ivaPct: 21, iva: 94.08, irpfPct: 0, irpf: 0, totalFactura: 542.10,
+      lineas: [
+        { id: 902, origen: 'manual', descripcion: 'Suministro eléctrico', cantidad: 1, precioUnitario: 448.02, descuentoPct: 0, ivaPct: 21 },
+      ],
+      retencionPct: 0,
       pagada: false, estado: 'borrador', origenOcr: true,
     },
   ];
@@ -483,35 +568,7 @@ export class MockFacturasService {
   }
 
   totalesFactura(f: FacturaEmitida): TotalesFactura {
-    let base = 0;
-    const grupos = new Map<number, number>();
-
-    for (const l of f.lineas) {
-      // Number(...) por seguridad: ion-input puede entregar el valor como texto.
-      const cantidad = Number(l.cantidad) || 0;
-      const precioUnitario = Number(l.precioUnitario) || 0;
-      const descuentoPct = Number(l.descuentoPct) || 0;
-      const importe = cantidad * precioUnitario * (1 - descuentoPct / 100);
-      base += importe;
-      grupos.set(l.ivaPct, (grupos.get(l.ivaPct) ?? 0) + importe);
-    }
-    base = this.redondear(base);
-
-    const desgloseIva: DesgloseIva[] = Array.from(grupos.entries())
-      .map(([pct, baseGravada]) => ({
-        pct,
-        baseGravada: this.redondear(baseGravada),
-        cuota: this.redondear(baseGravada * pct / 100),
-      }))
-      .sort((a, b) => b.pct - a.pct);
-
-    const ivaTotal = this.redondear(desgloseIva.reduce((s, d) => s + d.cuota, 0));
-    // La retención se calcula sobre la misma base imponible que el IVA (nunca sobre el
-    // total con IVA incluido) y la decide la configuración fiscal del emisor, no la factura.
-    const retencion = aplicarRetencion(base, this.configuracionRetencion);
-    const total = this.redondear(base + ivaTotal - retencion.importe);
-
-    return { base, desgloseIva, ivaTotal, retencion, total };
+    return calcularTotalesLineas(f.lineas, this.configuracionRetencion);
   }
 
   // ---------- Facturas recibidas ----------
@@ -548,8 +605,6 @@ export class MockFacturasService {
     const id = nextRecibidaId++;
     const basesEjemplo = [128.5, 276.4, 92.15, 340.0, 187.65, 214.9];
     const base = basesEjemplo[id % basesEjemplo.length];
-    const ivaPct = 21;
-    const iva = this.redondear(base * ivaPct / 100);
 
     const nueva: FacturaRecibida = {
       id,
@@ -557,12 +612,10 @@ export class MockFacturasService {
       numFactura: `OCR-${1000 + id}`,
       fecha: new Date().toISOString().slice(0, 10),
       concepto: 'Pendiente de revisar',
-      baseImponible: base,
-      ivaPct,
-      iva,
-      irpfPct: 0,
-      irpf: 0,
-      totalFactura: this.redondear(base + iva),
+      lineas: [
+        { id: nextLineaId++, origen: 'manual', descripcion: 'Pendiente de revisar', cantidad: 1, precioUnitario: base, descuentoPct: 0, ivaPct: 21 },
+      ],
+      retencionPct: 0,
       pagada: false,
       estado: 'borrador',
       origenOcr: true,
@@ -593,5 +646,44 @@ export class MockFacturasService {
 
   eliminarRecibida(id: number): void {
     this.recibidas = this.recibidas.filter(r => r.id !== id);
+  }
+
+  // Misma fórmula que Emitidas (calcularTotalesLineas) — la retención aquí sale del
+  // propio documento recibido (retencionPct), nunca de la config fiscal de nuestra
+  // empresa, que es la que gobierna las facturas que emitimos.
+  totalesFacturaRecibida(f: FacturaRecibida): TotalesFactura {
+    const cfg: ConfiguracionRetencion = {
+      aplicable: f.retencionPct > 0,
+      tipoCodigo: 'recibida',
+      etiqueta: 'Retención',
+      porcentaje: f.retencionPct,
+    };
+    return calcularTotalesLineas(f.lineas, cfg);
+  }
+
+  nuevoIdLineaRecibida(): number {
+    return nextLineaId++;
+  }
+
+  // ---------- Catálogo ----------
+
+  async buscarCatalogoPaginado(query: string, page = 1, pageSize = 20): Promise<PaginaResultado<ProductoCatalogo>> {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return { items: [], total: 0, page, pageSize };
+
+    const todos = this.catalogo.filter(p => p.nombre.toLowerCase().includes(q) || p.referencia?.toLowerCase().includes(q));
+    const inicio = (page - 1) * pageSize;
+    return { items: todos.slice(inicio, inicio + pageSize), total: todos.length, page, pageSize };
+  }
+
+  // ---------- Suscripciones ----------
+
+  async buscarSuscripcionesPaginado(query: string, page = 1, pageSize = 20): Promise<PaginaResultado<Suscripcion>> {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return { items: [], total: 0, page, pageSize };
+
+    const todos = this.suscripciones.filter(s => s.nombre.toLowerCase().includes(q));
+    const inicio = (page - 1) * pageSize;
+    return { items: todos.slice(inicio, inicio + pageSize), total: todos.length, page, pageSize };
   }
 }

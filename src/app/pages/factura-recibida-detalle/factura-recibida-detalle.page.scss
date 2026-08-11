@@ -27,6 +27,15 @@
   font-size: 17px;
 }
 
+.retencion-no-aplica {
+  color: var(--ion-color-medium);
+}
+
+.retencion-select {
+  margin-top: 8px;
+  --padding-start: 0;
+}
+
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
