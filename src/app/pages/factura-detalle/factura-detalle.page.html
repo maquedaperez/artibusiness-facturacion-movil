@@ -104,17 +104,30 @@
     <ion-card class="totales-card">
       <ion-card-content>
         <div class="section-title">Totales</div>
-        <p class="ion-no-margin">Base imponible: {{ formatEuros(totales().base) }}</p>
-        <p class="ion-no-margin" *ngFor="let d of totales().desgloseIva">
-          IVA {{ d.pct }}% sobre {{ formatEuros(d.baseGravada) }}: {{ formatEuros(d.cuota) }}
-        </p>
-        <p class="ion-no-margin" *ngIf="totales().retencion.aplicable">
-          {{ totales().retencion.etiqueta }} ({{ totales().retencion.porcentaje }}%): −{{ formatEuros(totales().retencion.importe) }}
-        </p>
-        <p class="ion-no-margin retencion-no-aplica" *ngIf="!totales().retencion.aplicable">
-          Retención: No aplica
-        </p>
-        <p class="total-line">Total: <strong>{{ formatEuros(totales().total) }}</strong></p>
+
+        <div class="totales-tabla">
+          <div class="fila">
+            <span class="etiqueta">Base imponible</span>
+            <span class="importe">{{ formatEuros(totales().base) }}</span>
+          </div>
+          <div class="fila" *ngFor="let d of totales().desgloseIva">
+            <span class="etiqueta">IVA {{ d.pct }}% · Base {{ formatEuros(d.baseGravada) }}</span>
+            <span class="importe importe-positivo">+{{ formatEuros(d.cuota) }}</span>
+          </div>
+          <div class="fila" *ngIf="totales().retencion.aplicable">
+            <span class="etiqueta">{{ totales().retencion.etiqueta }} {{ totales().retencion.porcentaje }}%</span>
+            <span class="importe importe-negativo">−{{ formatEuros(totales().retencion.importe) }}</span>
+          </div>
+          <div class="fila" *ngIf="!totales().retencion.aplicable">
+            <span class="etiqueta">Retención</span>
+            <span class="importe importe-neutro">No aplica</span>
+          </div>
+        </div>
+
+        <div class="fila-total">
+          <span class="etiqueta-total">Total a pagar</span>
+          <span class="importe-total">{{ formatEuros(totales().total) }}</span>
+        </div>
       </ion-card-content>
     </ion-card>
 

@@ -22,13 +22,57 @@
   margin-bottom: 24px;
 }
 
-.total-line {
-  margin-top: 8px;
-  font-size: 17px;
+.totales-tabla {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 6px;
 }
 
-.retencion-no-aplica {
-  color: var(--ion-color-medium);
+.fila {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.etiqueta {
+  color: var(--texto-secundario);
+}
+
+.importe {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.importe-positivo { color: var(--ion-color-success); }
+.importe-negativo { color: var(--ion-color-danger); }
+.importe-neutro { color: var(--texto-secundario); font-weight: 400; }
+
+.fila-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+}
+
+.etiqueta-total {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.importe-total {
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--ion-color-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .retencion-select {
