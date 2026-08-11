@@ -18,8 +18,11 @@ import {
   IonCardTitle,
   IonCardContent,
   IonText,
+  IonIcon,
   AlertController,
 } from '@ionic/angular/standalone';
+import { addIcons } from 'ionicons';
+import { createOutline } from 'ionicons/icons';
 
 @Component({
   selector: 'app-perfil',
@@ -37,6 +40,7 @@ import {
     IonCardTitle,
     IonCardContent,
     IonText,
+    IonIcon,
   ],
   templateUrl: './perfil.page.html',
   styleUrls: ['./perfil.page.scss'],
@@ -51,7 +55,9 @@ export class PerfilPage {
     private mock: MockFacturasService,
     private router: Router,
     private alertCtrl: AlertController
-  ) {}
+  ) {
+    addIcons({ createOutline });
+  }
 
   ionViewWillEnter() {
     this.user = this.auth.getUser();

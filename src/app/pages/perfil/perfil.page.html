@@ -45,9 +45,10 @@
       <p class="ion-no-margin" *ngIf="e.direccion">
         {{ e.direccion }}, {{ e.cp }} {{ e.poblacion }} ({{ e.provincia }})
       </p>
-      <ion-text color="medium">
-        <p class="ion-no-margin ion-padding-top"><small>Toca para editar</small></p>
-      </ion-text>
+      <div class="editar-datos">
+        <ion-icon name="create-outline"></ion-icon>
+        Editar datos
+      </div>
     </ion-card-content>
   </ion-card>
 
