@@ -45,8 +45,8 @@
 
         <div class="row-meta">
           <span>{{ numeradorNombre(f) }} · {{ formatFecha(f.fecha) }}</span>
-          <span *ngIf="f.estado !== 'borrador'" class="aeat" [ngClass]="'aeat-' + estadoAeatColor(f)">
-            {{ estadoAeatLabel(f) }}
+          <span class="aeat" [ngClass]="'aeat-' + estadoAeatColor(f)">
+            {{ estadoLabel(f) }}
           </span>
         </div>
 

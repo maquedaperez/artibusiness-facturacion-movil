@@ -39,8 +39,8 @@
 
   <ng-container *ngIf="working as f">
 
-    <ion-badge *ngIf="f.estado !== 'borrador'" color="medium" class="estado-badge">
-      {{ f.estado === 'contabilizada' ? 'Contabilizada' : 'Firmada' }}
+    <ion-badge color="medium" class="estado-badge">
+      {{ f.estado === 'borrador' ? 'Borrador' : (f.estado === 'contabilizada' ? 'Contabilizada' : 'Firmada') }}
       <span *ngIf="f.estadoAeat"> · Estado AEAT: {{ estadoAeatLabel() }}</span>
     </ion-badge>
 

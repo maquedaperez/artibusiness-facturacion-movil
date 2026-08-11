@@ -113,6 +113,14 @@ export class FacturasEmitidasPage implements OnInit {
     return this.invoicesRepo.estadoAeatLabel(f.estadoAeat);
   }
 
+  // Etiqueta visible en la tarjeta para las 3 pestañas: en Borradores no hay estado
+  // AEAT todavía, así que se muestra el propio estado interno ("Borrador") en vez de
+  // dejar la tarjeta sin ninguna indicación — igual que ya hace Recibidas.
+  estadoLabel(f: FacturaEmitida): string {
+    if (f.estado === 'borrador') return 'Borrador';
+    return this.estadoAeatLabel(f);
+  }
+
   estadoAeatColor(f: FacturaEmitida): string {
     switch (f.estadoAeat) {
       case 'Correcto': return 'success';
