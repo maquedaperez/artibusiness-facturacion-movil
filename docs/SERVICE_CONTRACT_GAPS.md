@@ -166,3 +166,19 @@ trazabilidad, no requieren respuesta.
     **Pantalla**: detalle de factura recibida. — **Qué necesito**: endpoint de subida +
     política de retención/cifrado (responsabilidad del servicio, no de esta app, pero hace
     falta saber el contrato de subida/descarga).
+
+---
+
+## Autenticación (añadido tras documentar `docs/SESSION_SECURITY_ALTERNATIVES.md`)
+
+23. **¿Puede el backend emitir un refresh token independiente del token de sesión?** Hoy
+    `saved_password` (contraseña en Preferences, sin cifrar) es lo único que permite el login
+    biométrico — un refresh token revocable en Keychain/Keystore lo sustituiría sin guardar
+    la contraseña. — **Impacto**: alto, es un hallazgo de seguridad real pendiente. —
+    **Pantalla**: Login. — **Qué necesito**: sí/no, y si es sí, contrato del refresh token
+    (expiración, revocación, rotación).
+
+24. **¿Existe o se puede construir un endpoint de reenvío de MFA basado en `challengeId`?**
+    Hoy `resendMfaCode()` reutiliza la contraseña guardada porque no hay alternativa. —
+    **Impacto**: alto, mismo motivo que el punto anterior. — **Pantalla**: MFA. —
+    **Qué necesito**: `POST` que acepte `challengeId` sin pedir credenciales de nuevo.
