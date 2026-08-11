@@ -38,6 +38,14 @@ module.exports = function (config) {
     logLevel: config.LOG_INFO,
     autoWatch: true,
     browsers: ['Chrome'],
+    // Lanzador headless para CI/entornos sin GUI. No cambia el comportamiento de
+    // `npm test` (que sigue usando 'Chrome' interactivo) — solo lo usa `test:ci`.
+    customLaunchers: {
+      ChromeHeadlessCI: {
+        base: 'ChromeHeadless',
+        flags: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
+      }
+    },
     singleRun: false,
     restartOnFileChange: true
   });
