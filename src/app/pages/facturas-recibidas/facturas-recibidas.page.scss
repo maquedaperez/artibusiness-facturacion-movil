@@ -56,7 +56,7 @@
 
 .concepto {
   font-size: 13px;
-  color: var(--ion-color-medium);
+  color: var(--texto-secundario);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -70,7 +70,7 @@
   gap: 8px;
   margin-top: 3px;
   font-size: 12px;
-  color: var(--ion-color-medium);
+  color: var(--texto-secundario);
 }
 
 .estado {
@@ -93,18 +93,18 @@
 .acciones-secundarias {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
 
   ion-button {
     margin: 0;
-    height: 30px;
-    width: 30px;
+    height: 44px;
+    width: 44px;
     --padding-start: 4px;
     --padding-end: 4px;
   }
 
   ion-icon {
-    font-size: 17px;
+    font-size: 18px;
   }
 }
 

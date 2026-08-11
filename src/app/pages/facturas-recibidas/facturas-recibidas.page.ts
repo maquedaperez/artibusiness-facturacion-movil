@@ -18,6 +18,7 @@ import { AccionesPermitidas, FacturaRecibida } from '../../services/mock-factura
 import { ReceivedInvoicesRepository } from '../../core/ports';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
+import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
 
 @Component({
   selector: 'app-facturas-recibidas',
@@ -171,7 +172,7 @@ export class FacturasRecibidasPage implements OnInit {
   }
 
   formatEuros(v: number): string {
-    return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(v);
+    return formatEurosUtil(v);
   }
 
   formatFecha(f: string): string {

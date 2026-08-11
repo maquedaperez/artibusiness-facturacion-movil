@@ -1,6 +1,7 @@
 import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { formatEuros as formatEurosUtil } from '../utils/format-euros';
 
 import {
   IonCard, IonCardContent, IonItem, IonInput, IonSelect, IonSelectOption,
@@ -134,6 +135,6 @@ export class LineasEditorComponent {
   }
 
   formatEuros(v: number): string {
-    return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(v);
+    return formatEurosUtil(v);
   }
 }

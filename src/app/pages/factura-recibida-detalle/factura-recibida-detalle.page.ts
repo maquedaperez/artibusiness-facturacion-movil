@@ -1,6 +1,7 @@
 import { Component, OnInit, ViewChild, ElementRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import {
@@ -262,6 +263,6 @@ export class FacturaRecibidaDetallePage implements OnInit {
   }
 
   formatEuros(v: number): string {
-    return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(v);
+    return formatEurosUtil(v);
   }
 }

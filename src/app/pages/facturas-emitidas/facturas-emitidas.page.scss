@@ -8,8 +8,34 @@
   font-size: 12px;
 }
 
+.filtro-serie-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ion-color-primary);
+  cursor: pointer;
+
+  ion-icon {
+    font-size: 15px;
+  }
+}
+
+.filtro-serie {
+  margin-top: 4px;
+  --padding-start: 0;
+  --inner-padding-end: 0;
+  --min-height: 40px;
+}
+
 .facturas-list {
-  margin-top: 16px;
+  margin-top: 12px;
   margin-bottom: 64px;
   display: flex;
   flex-direction: column;
@@ -49,7 +75,7 @@
 
 .concepto {
   font-size: 13px;
-  color: var(--ion-color-medium);
+  color: var(--texto-secundario);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -63,7 +89,7 @@
   gap: 8px;
   margin-top: 3px;
   font-size: 12px;
-  color: var(--ion-color-medium);
+  color: var(--texto-secundario);
 }
 
 .aeat {
@@ -97,19 +123,22 @@
 .acciones-secundarias {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   margin-left: auto;
 
+  // Área táctil mínima de 44×44px (WCAG 2.5.5 / recomendación iOS-Android) aunque
+  // el icono en sí sea más pequeño — el botón la cubre entera aunque parezca más
+  // compacto visualmente, el "gap" pequeño compensa que cada botón ya es ancho.
   ion-button {
     margin: 0;
-    height: 30px;
-    width: 30px;
+    height: 44px;
+    width: 44px;
     --padding-start: 4px;
     --padding-end: 4px;
   }
 
   ion-icon {
-    font-size: 17px;
+    font-size: 18px;
   }
 }
 

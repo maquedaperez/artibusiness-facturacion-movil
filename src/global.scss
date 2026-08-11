@@ -14,6 +14,18 @@
 /*Fuente Monserrat*/
 :root {
   --ion-font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+
+  /* Texto secundario (concepto, fecha, metadatos de tarjeta) con contraste AA
+     (~6:1 sobre blanco) — --ion-color-medium por defecto ronda 3:1, insuficiente
+     para texto normal según WCAG. No se toca --ion-color-medium en sí porque lo
+     usan muchos otros elementos (iconos, bordes...) fuera de este ajuste. */
+  --texto-secundario: #5f6368;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --texto-secundario: #aeb0b6;
+  }
 }
 
 /*Logos ampliados*/

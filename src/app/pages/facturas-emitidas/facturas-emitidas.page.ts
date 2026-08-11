@@ -1,19 +1,20 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonContent,
   IonSegment, IonSegmentButton, IonLabel,
-  IonSelect, IonSelectOption,
+  IonSelect, IonSelectOption, IonSearchbar, IonItem,
   IonCard, IonCardContent,
   IonText, IonIcon, IonButton, IonFab, IonFabButton,
   AlertController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
-  documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline,
+  documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline, filterOutline,
   copyOutline, downloadOutline, shareSocialOutline, trashOutline,
 } from 'ionicons/icons';
 
@@ -31,7 +32,7 @@ import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-docum
     CommonModule, FormsModule,
     IonHeader, IonToolbar, IonTitle, IonContent,
     IonSegment, IonSegmentButton, IonLabel,
-    IonSelect, IonSelectOption,
+    IonSelect, IonSelectOption, IonSearchbar, IonItem,
     IonCard, IonCardContent,
     IonText, IonIcon, IonButton, IonFab, IonFabButton,
     DemoBannerComponent,
@@ -48,10 +49,12 @@ export class FacturasEmitidasPage implements OnInit {
   numeradorId: number | null = null;
   numeradores: Numerador[] = [];
   facturas: FacturaEmitida[] = [];
+  searchQuery = '';
+  mostrarFiltroSerie = false;
 
   constructor() {
     addIcons({
-      documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline,
+      documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline, filterOutline,
       copyOutline, downloadOutline, shareSocialOutline, trashOutline,
     });
   }
@@ -85,6 +88,23 @@ export class FacturasEmitidasPage implements OnInit {
     this.facturas = this.invoicesRepo.listar(this.estado, this.numeradorId);
   }
 
+  // Filtro rápido dentro de la lista ya cargada (no es una búsqueda contra el
+  // repositorio, ni aplica el mínimo de 2 caracteres de los selectores de
+  // cliente/proveedor/catálogo — aquí ya tenemos toda la página delante, esto solo
+  // reduce lo que se ve).
+  get facturasFiltradas(): FacturaEmitida[] {
+    const q = this.searchQuery.trim().toLowerCase();
+    if (!q) return this.facturas;
+    return this.facturas.filter(f =>
+      this.clienteNombre(f).toLowerCase().includes(q) ||
+      this.conceptoResumen(f).toLowerCase().includes(q)
+    );
+  }
+
+  toggleFiltroSerie() {
+    this.mostrarFiltroSerie = !this.mostrarFiltroSerie;
+  }
+
   abrir(f: FacturaEmitida) {
     this.router.navigate(['/app/emitidas', f.id]);
   }
@@ -105,8 +125,10 @@ export class FacturasEmitidasPage implements OnInit {
     return this.invoicesRepo.totales(f).total;
   }
 
-  numeradorNombre(f: FacturaEmitida): string {
-    return this.invoicesRepo.numeradorNombre(f.numeradorId);
+  // Para la etiqueta del filtro secundario de serie — ya no se muestra la serie en
+  // la propia tarjeta (se retiró del resumen), solo aquí cuando el filtro está activo.
+  numeradorSeleccionadoNombre(): string {
+    return this.numeradorId != null ? this.invoicesRepo.numeradorNombre(this.numeradorId) : '';
   }
 
   estadoAeatLabel(f: FacturaEmitida): string {
@@ -231,7 +253,7 @@ export class FacturasEmitidasPage implements OnInit {
   }
 
   formatEuros(v: number): string {
-    return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(v);
+    return formatEurosUtil(v);
   }
 
   formatFecha(f: string): string {

@@ -4,16 +4,11 @@
   </ion-toolbar>
 
   <ion-toolbar>
-    <ion-select
-      label="Numerador / Serie"
-      placeholder="Todos"
-      interface="popover"
-      [value]="numeradorId"
-      (ionChange)="onNumeradorChange($event.detail.value)"
-    >
-      <ion-select-option [value]="null">Todos</ion-select-option>
-      <ion-select-option *ngFor="let n of numeradores" [value]="n.id">{{ n.nombre }}</ion-select-option>
-    </ion-select>
+    <ion-searchbar
+      placeholder="Buscar por cliente o concepto"
+      [(ngModel)]="searchQuery"
+      [debounce]="150"
+    ></ion-searchbar>
   </ion-toolbar>
 </ion-header>
 
@@ -33,8 +28,27 @@
     </ion-segment-button>
   </ion-segment>
 
+  <button class="filtro-serie-toggle" (click)="toggleFiltroSerie()">
+    <ion-icon name="filter-outline"></ion-icon>
+    {{ numeradorId ? ('Serie: ' + numeradorSeleccionadoNombre()) : 'Filtrar por serie' }}
+  </button>
+
+  <ion-item *ngIf="mostrarFiltroSerie" class="filtro-serie" lines="none">
+    <ion-select
+      label="Serie"
+      label-placement="start"
+      placeholder="Todas"
+      interface="popover"
+      [value]="numeradorId"
+      (ionChange)="onNumeradorChange($event.detail.value)"
+    >
+      <ion-select-option [value]="null">Todas</ion-select-option>
+      <ion-select-option *ngFor="let n of numeradores" [value]="n.id">{{ n.nombre }}</ion-select-option>
+    </ion-select>
+  </ion-item>
+
   <div class="facturas-list">
-    <ion-card *ngFor="let f of facturas" button (click)="abrir(f)" class="factura-card">
+    <ion-card *ngFor="let f of facturasFiltradas" button (click)="abrir(f)" class="factura-card">
       <ion-card-content>
         <div class="row-top">
           <div class="titulo">{{ clienteNombre(f) }}</div>
@@ -44,7 +58,7 @@
         <div class="concepto">{{ conceptoResumen(f) }}</div>
 
         <div class="row-meta">
-          <span>{{ numeradorNombre(f) }} · {{ formatFecha(f.fecha) }}</span>
+          <span>{{ formatFecha(f.fecha) }}</span>
           <span class="aeat" [ngClass]="'aeat-' + estadoAeatColor(f)">
             {{ estadoLabel(f) }}
           </span>
@@ -105,11 +119,16 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-card *ngIf="facturas.length === 0" class="empty-state">
+    <ion-card *ngIf="facturasFiltradas.length === 0" class="empty-state">
       <ion-card-content>
         <ion-icon name="document-text-outline"></ion-icon>
         <ion-text color="medium">
-          <p class="ion-no-margin">No hay facturas en estado <strong>{{ estado }}</strong> para este numerador.</p>
+          <p class="ion-no-margin" *ngIf="!searchQuery.trim()">
+            No hay facturas en estado <strong>{{ estado }}</strong>{{ numeradorId ? ' para esta serie' : '' }}.
+          </p>
+          <p class="ion-no-margin" *ngIf="searchQuery.trim()">
+            Sin resultados para "{{ searchQuery }}".
+          </p>
         </ion-text>
       </ion-card-content>
     </ion-card>

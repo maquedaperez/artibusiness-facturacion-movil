@@ -1,6 +1,7 @@
 import { Component, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
 import { Subject, Subscription, from, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
@@ -147,6 +148,6 @@ export class CatalogoSelectorComponent implements OnDestroy {
   }
 
   formatEuros(v: number): string {
-    return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(v);
+    return formatEurosUtil(v);
   }
 }
