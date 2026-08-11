@@ -71,6 +71,8 @@
 
 .row-actions {
   margin-top: 8px;
+  display: flex;
+  justify-content: center;
 
   ion-button {
     margin: 0;

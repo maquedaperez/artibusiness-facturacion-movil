@@ -55,7 +55,6 @@
           <ion-button
             *ngIf="f.estado === 'borrador'"
             size="small"
-            fill="outline"
             (click)="confirmarContabilizar($event, f)"
           >
             <ion-icon slot="start" name="checkmark-circle-outline"></ion-icon>
@@ -65,7 +64,6 @@
           <ion-button
             *ngIf="f.estado === 'contabilizada'"
             size="small"
-            fill="outline"
             (click)="confirmarFirmar($event, f)"
           >
             <ion-icon slot="start" name="ribbon-outline"></ion-icon>
