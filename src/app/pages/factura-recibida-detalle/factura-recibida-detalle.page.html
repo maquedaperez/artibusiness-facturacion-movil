@@ -6,11 +6,6 @@
       </ion-button>
     </ion-buttons>
     <ion-title class="title-bold">{{ esNueva ? 'Nueva factura recibida' : (working.numFactura || 'Factura recibida') }}</ion-title>
-    <ion-buttons slot="end" *ngIf="!esNueva && facturaId !== null">
-      <ion-button (click)="abrirAcciones()">
-        <ion-icon slot="icon-only" name="ellipsis-horizontal-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -153,9 +148,24 @@
 
 </ion-content>
 
-<ion-footer *ngIf="esEditable && (esNueva || facturaId !== null)">
+<ion-footer *ngIf="esNueva || facturaId !== null">
   <div class="footer-actions">
-    <ion-button expand="block" [disabled]="guardando" (click)="guardar()">
+    <div class="acciones-secundarias" *ngIf="!esNueva">
+      <ion-button *ngIf="accionesPermitidas().copiar" fill="clear" size="small" aria-label="Copiar / Duplicar" (click)="duplicar()">
+        <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
+      </ion-button>
+      <ion-button *ngIf="accionesPermitidas().descargar && working.documentoUrl" fill="clear" size="small" aria-label="Descargar documento adjunto" (click)="descargarAdjunto()">
+        <ion-icon slot="icon-only" name="download-outline"></ion-icon>
+      </ion-button>
+      <ion-button *ngIf="accionesPermitidas().compartir && working.documentoUrl" fill="clear" size="small" aria-label="Compartir documento adjunto" (click)="compartirAdjunto()">
+        <ion-icon slot="icon-only" name="share-social-outline"></ion-icon>
+      </ion-button>
+      <ion-button *ngIf="accionesPermitidas().eliminar" fill="clear" size="small" color="danger" aria-label="Eliminar factura" (click)="confirmarEliminar()">
+        <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+      </ion-button>
+    </div>
+
+    <ion-button *ngIf="esEditable" expand="block" [disabled]="guardando" (click)="guardar()">
       <ion-spinner *ngIf="guardando" slot="start" name="dots"></ion-spinner>
       <ion-icon *ngIf="!guardando" slot="start" name="create-outline"></ion-icon>
       {{ guardando ? 'Guardando...' : 'Guardar' }}

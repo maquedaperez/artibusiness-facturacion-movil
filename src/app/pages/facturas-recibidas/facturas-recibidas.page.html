@@ -35,9 +35,6 @@
         <div class="row-top">
           <div class="titulo">{{ proveedorResumen(f) }}</div>
           <div class="total">{{ formatEuros(totalFactura(f)) }}</div>
-          <ion-button class="acciones-btn" fill="clear" size="small" (click)="abrirAcciones($event, f)">
-            <ion-icon slot="icon-only" name="ellipsis-horizontal-outline"></ion-icon>
-          </ion-button>
         </div>
 
         <div class="concepto">{{ conceptoResumen(f) }}</div>
@@ -47,6 +44,39 @@
           <span class="estado" [class.ok]="f.estado === 'revisada'">
             {{ f.estado === 'revisada' ? 'Revisada' : 'Borrador' }}
             <ng-container *ngIf="f.origenOcr"> · OCR</ng-container>
+          </span>
+        </div>
+
+        <div class="row-actions">
+          <span class="acciones-secundarias">
+            <ion-button
+              *ngIf="accionesPermitidas(f).copiar"
+              fill="clear" size="small" aria-label="Copiar / Duplicar"
+              (click)="duplicar($event, f)"
+            >
+              <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
+            </ion-button>
+            <ion-button
+              *ngIf="accionesPermitidas(f).descargar && f.documentoUrl"
+              fill="clear" size="small" aria-label="Descargar documento adjunto"
+              (click)="descargarAdjunto($event, f)"
+            >
+              <ion-icon slot="icon-only" name="download-outline"></ion-icon>
+            </ion-button>
+            <ion-button
+              *ngIf="accionesPermitidas(f).compartir && f.documentoUrl"
+              fill="clear" size="small" aria-label="Compartir documento adjunto"
+              (click)="compartirAdjunto($event, f)"
+            >
+              <ion-icon slot="icon-only" name="share-social-outline"></ion-icon>
+            </ion-button>
+            <ion-button
+              *ngIf="accionesPermitidas(f).eliminar"
+              fill="clear" size="small" color="danger" aria-label="Eliminar factura"
+              (click)="confirmarEliminar($event, f)"
+            >
+              <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+            </ion-button>
           </span>
         </div>
       </ion-card-content>

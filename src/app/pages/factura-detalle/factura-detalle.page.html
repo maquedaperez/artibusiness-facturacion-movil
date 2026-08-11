@@ -6,11 +6,6 @@
       </ion-button>
     </ion-buttons>
     <ion-title class="title-bold">{{ working?.numFactura || 'Nueva factura' }}</ion-title>
-    <ion-buttons slot="end" *ngIf="working">
-      <ion-button (click)="abrirAcciones()">
-        <ion-icon slot="icon-only" name="ellipsis-horizontal-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -129,6 +124,21 @@
 
 <ion-footer *ngIf="working as f">
   <div class="footer-actions">
+    <div class="acciones-secundarias">
+      <ion-button *ngIf="accionesPermitidas().copiar" fill="clear" size="small" aria-label="Copiar / Duplicar" (click)="duplicar()">
+        <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
+      </ion-button>
+      <ion-button *ngIf="accionesPermitidas().descargar" fill="clear" size="small" aria-label="Descargar documento" (click)="descargar()">
+        <ion-icon slot="icon-only" name="download-outline"></ion-icon>
+      </ion-button>
+      <ion-button *ngIf="accionesPermitidas().compartir" fill="clear" size="small" aria-label="Compartir documento" (click)="compartir()">
+        <ion-icon slot="icon-only" name="share-social-outline"></ion-icon>
+      </ion-button>
+      <ion-button *ngIf="accionesPermitidas().eliminar" fill="clear" size="small" color="danger" aria-label="Eliminar borrador" (click)="confirmarEliminar()">
+        <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+      </ion-button>
+    </div>
+
     <ion-button *ngIf="esEditable" expand="block" fill="outline" [disabled]="guardando" (click)="guardar()">
       <ion-spinner *ngIf="guardando" slot="start" name="dots"></ion-spinner>
       {{ guardando ? 'Guardando...' : 'Guardar borrador' }}

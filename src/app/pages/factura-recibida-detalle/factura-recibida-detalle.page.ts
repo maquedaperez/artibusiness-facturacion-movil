@@ -7,12 +7,12 @@ import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
   IonItem, IonInput, IonSelect, IonSelectOption, IonCheckbox, IonText, IonChip, IonLabel,
   IonCard, IonCardContent, IonSpinner,
-  ModalController, AlertController, ToastController, ActionSheetController,
+  ModalController, AlertController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
   arrowBackOutline, documentTextOutline, createOutline, trashOutline,
-  attachOutline, eyeOutline, ellipsisHorizontalOutline,
+  attachOutline, eyeOutline, copyOutline, downloadOutline, shareSocialOutline,
 } from 'ionicons/icons';
 
 import {
@@ -48,7 +48,6 @@ export class FacturaRecibidaDetallePage implements OnInit {
   private modalCtrl = inject(ModalController);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
-  private actionSheetCtrl = inject(ActionSheetController);
 
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
 
@@ -68,7 +67,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
   constructor() {
     addIcons({
       arrowBackOutline, documentTextOutline, createOutline, trashOutline,
-      attachOutline, eyeOutline, ellipsisHorizontalOutline,
+      attachOutline, eyeOutline, copyOutline, downloadOutline, shareSocialOutline,
     });
   }
 
@@ -120,30 +119,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
     return accionesFacturaRecibida({ ...this.working, id: this.facturaId ?? 0, origenOcr: this.origenOcr });
   }
 
-  async abrirAcciones() {
-    if (this.esNueva) return;
-    const permitidas = this.accionesPermitidas();
-    const buttons: any[] = [];
-
-    if (permitidas.copiar) {
-      buttons.push({ text: 'Copiar / Duplicar', handler: () => this.duplicar() });
-    }
-    if (permitidas.descargar && this.working.documentoUrl) {
-      buttons.push({ text: 'Descargar documento adjunto', handler: () => this.descargarAdjunto() });
-    }
-    if (permitidas.compartir && this.working.documentoUrl) {
-      buttons.push({ text: 'Compartir documento adjunto', handler: () => this.compartirAdjunto() });
-    }
-    if (permitidas.eliminar) {
-      buttons.push({ text: 'Eliminar borrador', role: 'destructive', handler: () => this.confirmarEliminar() });
-    }
-    buttons.push({ text: 'Cancelar', role: 'cancel' });
-
-    const sheet = await this.actionSheetCtrl.create({ header: this.working.numFactura || this.working.proveedor, buttons });
-    await sheet.present();
-  }
-
-  private async duplicar() {
+  async duplicar() {
     if (this.facturaId == null) return;
     const copia = this.invoicesRepo.duplicar(this.facturaId);
     if (!copia) return;
@@ -156,7 +132,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
     return respuesta.blob();
   }
 
-  private async descargarAdjunto() {
+  async descargarAdjunto() {
     try {
       const blob = await this.adjuntoABlob();
       descargarBlob(blob, this.working.documentoNombre || 'documento-adjunto');
@@ -166,7 +142,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
     }
   }
 
-  private async compartirAdjunto() {
+  async compartirAdjunto() {
     try {
       const blob = await this.adjuntoABlob();
       await compartirBlob(blob, this.working.documentoNombre || 'documento-adjunto');
@@ -254,7 +230,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
     }
   }
 
-  private async confirmarEliminar() {
+  async confirmarEliminar() {
     if (this.facturaId == null) return;
 
     const alert = await this.alertCtrl.create({

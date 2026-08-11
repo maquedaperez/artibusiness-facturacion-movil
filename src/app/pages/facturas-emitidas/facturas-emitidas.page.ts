@@ -9,11 +9,12 @@ import {
   IonSelect, IonSelectOption,
   IonCard, IonCardContent,
   IonText, IonIcon, IonButton, IonFab, IonFabButton,
-  AlertController, ToastController, ActionSheetController,
+  AlertController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
-  documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline, ellipsisHorizontalOutline,
+  documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline,
+  copyOutline, downloadOutline, shareSocialOutline, trashOutline,
 } from 'ionicons/icons';
 
 import { AccionesPermitidas, EstadoFactura, FacturaEmitida, Numerador } from '../../services/mock-facturas.service';
@@ -42,7 +43,6 @@ export class FacturasEmitidasPage implements OnInit {
   private route = inject(ActivatedRoute);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
-  private actionSheetCtrl = inject(ActionSheetController);
 
   estado: EstadoFactura = 'borrador';
   numeradorId: number | null = null;
@@ -50,7 +50,10 @@ export class FacturasEmitidasPage implements OnInit {
   facturas: FacturaEmitida[] = [];
 
   constructor() {
-    addIcons({ documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline, ellipsisHorizontalOutline });
+    addIcons({
+      documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline,
+      copyOutline, downloadOutline, shareSocialOutline, trashOutline,
+    });
   }
 
   ngOnInit() {
@@ -124,37 +127,16 @@ export class FacturasEmitidasPage implements OnInit {
     return this.invoicesRepo.accionesPermitidas(f);
   }
 
-  async abrirAcciones(event: Event, f: FacturaEmitida) {
+  async duplicar(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
-    const permitidas = this.accionesPermitidas(f);
-    const buttons: any[] = [];
-
-    if (permitidas.copiar) {
-      buttons.push({ text: 'Copiar / Duplicar', handler: () => this.duplicar(f) });
-    }
-    if (permitidas.descargar) {
-      buttons.push({ text: 'Descargar documento (simulado)', handler: () => this.descargar(f) });
-    }
-    if (permitidas.compartir) {
-      buttons.push({ text: 'Compartir documento (simulado)', handler: () => this.compartir(f) });
-    }
-    if (permitidas.eliminar) {
-      buttons.push({ text: 'Eliminar borrador', role: 'destructive', handler: () => this.confirmarEliminar(f) });
-    }
-    buttons.push({ text: 'Cancelar', role: 'cancel' });
-
-    const sheet = await this.actionSheetCtrl.create({ header: f.numFactura, buttons });
-    await sheet.present();
-  }
-
-  private async duplicar(f: FacturaEmitida) {
     const copia = this.invoicesRepo.duplicar(f.id);
     if (!copia) return;
     this.refresh();
     await this.showToast(`Borrador ${copia.numFactura} creado a partir de ${f.numFactura}.`);
   }
 
-  private async descargar(f: FacturaEmitida) {
+  async descargar(event: Event, f: FacturaEmitida) {
+    event.stopPropagation();
     try {
       const { blob, nombre } = await this.invoicesRepo.generarDocumento(f.id);
       descargarBlob(blob, nombre);
@@ -164,7 +146,8 @@ export class FacturasEmitidasPage implements OnInit {
     }
   }
 
-  private async compartir(f: FacturaEmitida) {
+  async compartir(event: Event, f: FacturaEmitida) {
+    event.stopPropagation();
     try {
       const { blob, nombre } = await this.invoicesRepo.generarDocumento(f.id);
       await compartirBlob(blob, nombre);
@@ -173,7 +156,8 @@ export class FacturasEmitidasPage implements OnInit {
     }
   }
 
-  private async confirmarEliminar(f: FacturaEmitida) {
+  async confirmarEliminar(event: Event, f: FacturaEmitida) {
+    event.stopPropagation();
     const alert = await this.alertCtrl.create({
       header: 'Eliminar borrador',
       message: `¿Eliminar el borrador ${f.numFactura} de ${f.destinatario.nombre}? Esta acción no se puede deshacer.`,

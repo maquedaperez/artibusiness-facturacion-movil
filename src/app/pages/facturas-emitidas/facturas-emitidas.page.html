@@ -39,9 +39,6 @@
         <div class="row-top">
           <div class="titulo">{{ clienteNombre(f) }}</div>
           <div class="total">{{ formatEuros(totalFactura(f)) }}</div>
-          <ion-button class="acciones-btn" fill="clear" size="small" (click)="abrirAcciones($event, f)">
-            <ion-icon slot="icon-only" name="ellipsis-horizontal-outline"></ion-icon>
-          </ion-button>
         </div>
 
         <div class="concepto">{{ conceptoResumen(f) }}</div>
@@ -53,10 +50,11 @@
           </span>
         </div>
 
-        <div class="row-actions" *ngIf="f.estado !== 'firmada'">
+        <div class="row-actions">
           <ion-button
             *ngIf="f.estado === 'borrador'"
             size="small"
+            class="accion-principal"
             (click)="confirmarContabilizar($event, f)"
           >
             <ion-icon slot="start" name="checkmark-circle-outline"></ion-icon>
@@ -66,11 +64,43 @@
           <ion-button
             *ngIf="f.estado === 'contabilizada'"
             size="small"
+            class="accion-principal"
             (click)="confirmarFirmar($event, f)"
           >
             <ion-icon slot="start" name="ribbon-outline"></ion-icon>
             Firmar
           </ion-button>
+
+          <span class="acciones-secundarias">
+            <ion-button
+              *ngIf="accionesPermitidas(f).copiar"
+              fill="clear" size="small" aria-label="Copiar / Duplicar"
+              (click)="duplicar($event, f)"
+            >
+              <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
+            </ion-button>
+            <ion-button
+              *ngIf="accionesPermitidas(f).descargar"
+              fill="clear" size="small" aria-label="Descargar documento"
+              (click)="descargar($event, f)"
+            >
+              <ion-icon slot="icon-only" name="download-outline"></ion-icon>
+            </ion-button>
+            <ion-button
+              *ngIf="accionesPermitidas(f).compartir"
+              fill="clear" size="small" aria-label="Compartir documento"
+              (click)="compartir($event, f)"
+            >
+              <ion-icon slot="icon-only" name="share-social-outline"></ion-icon>
+            </ion-button>
+            <ion-button
+              *ngIf="accionesPermitidas(f).eliminar"
+              fill="clear" size="small" color="danger" aria-label="Eliminar borrador"
+              (click)="confirmarEliminar($event, f)"
+            >
+              <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+            </ion-button>
+          </span>
         </div>
       </ion-card-content>
     </ion-card>

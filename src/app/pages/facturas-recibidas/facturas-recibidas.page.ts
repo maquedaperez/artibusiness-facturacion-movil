@@ -6,11 +6,12 @@ import {
   IonHeader, IonToolbar, IonTitle, IonContent,
   IonButton, IonIcon, IonCard, IonCardContent,
   IonText, IonSpinner, IonFab, IonFabButton,
-  ToastController, AlertController, ActionSheetController,
+  ToastController, AlertController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
-  cameraOutline, receiptOutline, documentTextOutline, addOutline, ellipsisHorizontalOutline,
+  cameraOutline, receiptOutline, documentTextOutline, addOutline,
+  copyOutline, downloadOutline, shareSocialOutline, trashOutline,
 } from 'ionicons/icons';
 
 import { AccionesPermitidas, FacturaRecibida } from '../../services/mock-facturas.service';
@@ -35,7 +36,6 @@ export class FacturasRecibidasPage implements OnInit {
   private invoicesRepo = inject(ReceivedInvoicesRepository);
   private toastCtrl = inject(ToastController);
   private alertCtrl = inject(AlertController);
-  private actionSheetCtrl = inject(ActionSheetController);
   private router = inject(Router);
 
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
@@ -44,7 +44,10 @@ export class FacturasRecibidasPage implements OnInit {
   processing = false;
 
   constructor() {
-    addIcons({ cameraOutline, receiptOutline, documentTextOutline, addOutline, ellipsisHorizontalOutline });
+    addIcons({
+      cameraOutline, receiptOutline, documentTextOutline, addOutline,
+      copyOutline, downloadOutline, shareSocialOutline, trashOutline,
+    });
   }
 
   ngOnInit() {
@@ -107,30 +110,8 @@ export class FacturasRecibidasPage implements OnInit {
     return this.invoicesRepo.accionesPermitidas(f);
   }
 
-  async abrirAcciones(event: Event, f: FacturaRecibida) {
+  async duplicar(event: Event, f: FacturaRecibida) {
     event.stopPropagation();
-    const permitidas = this.accionesPermitidas(f);
-    const buttons: any[] = [];
-
-    if (permitidas.copiar) {
-      buttons.push({ text: 'Copiar / Duplicar', handler: () => this.duplicar(f) });
-    }
-    if (permitidas.descargar && f.documentoUrl) {
-      buttons.push({ text: 'Descargar documento adjunto', handler: () => this.descargarAdjunto(f) });
-    }
-    if (permitidas.compartir && f.documentoUrl) {
-      buttons.push({ text: 'Compartir documento adjunto', handler: () => this.compartirAdjunto(f) });
-    }
-    if (permitidas.eliminar) {
-      buttons.push({ text: 'Eliminar borrador', role: 'destructive', handler: () => this.confirmarEliminar(f) });
-    }
-    buttons.push({ text: 'Cancelar', role: 'cancel' });
-
-    const sheet = await this.actionSheetCtrl.create({ header: f.numFactura || f.proveedor, buttons });
-    await sheet.present();
-  }
-
-  private async duplicar(f: FacturaRecibida) {
     const copia = this.invoicesRepo.duplicar(f.id);
     if (!copia) return;
     this.refresh();
@@ -142,7 +123,8 @@ export class FacturasRecibidasPage implements OnInit {
     return respuesta.blob();
   }
 
-  private async descargarAdjunto(f: FacturaRecibida) {
+  async descargarAdjunto(event: Event, f: FacturaRecibida) {
+    event.stopPropagation();
     try {
       const blob = await this.adjuntoABlob(f);
       descargarBlob(blob, f.documentoNombre || 'documento-adjunto');
@@ -152,7 +134,8 @@ export class FacturasRecibidasPage implements OnInit {
     }
   }
 
-  private async compartirAdjunto(f: FacturaRecibida) {
+  async compartirAdjunto(event: Event, f: FacturaRecibida) {
+    event.stopPropagation();
     try {
       const blob = await this.adjuntoABlob(f);
       await compartirBlob(blob, f.documentoNombre || 'documento-adjunto');
@@ -161,10 +144,11 @@ export class FacturasRecibidasPage implements OnInit {
     }
   }
 
-  private async confirmarEliminar(f: FacturaRecibida) {
+  async confirmarEliminar(event: Event, f: FacturaRecibida) {
+    event.stopPropagation();
     const alert = await this.alertCtrl.create({
-      header: 'Eliminar borrador',
-      message: `¿Eliminar el borrador de ${f.proveedor}? Esta acción no se puede deshacer.`,
+      header: 'Eliminar factura',
+      message: `¿Eliminar la factura de ${f.proveedor}? Esta acción no se puede deshacer.`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         {
@@ -173,7 +157,7 @@ export class FacturasRecibidasPage implements OnInit {
           handler: () => {
             this.invoicesRepo.eliminar(f.id);
             this.refresh();
-            this.showToast('Borrador eliminado.');
+            this.showToast('Factura eliminada.');
           },
         },
       ],

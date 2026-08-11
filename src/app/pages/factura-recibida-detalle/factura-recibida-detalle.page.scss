@@ -57,3 +57,22 @@
   background: var(--ion-background-color);
   border-top: 1px solid var(--ion-border-color);
 }
+
+.acciones-secundarias {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+
+  ion-button {
+    margin: 0;
+    height: 34px;
+    width: 34px;
+    --padding-start: 4px;
+    --padding-end: 4px;
+  }
+
+  ion-icon {
+    font-size: 19px;
+  }
+}
