@@ -22,6 +22,20 @@ export type ClienteMock = {
 
 export type Destinatario = Omit<ClienteMock, 'id'>;
 
+// Selector ligero de proveedor (buscar + alta rápida), igual que ClienteMock pero
+// para el lado de Facturas Recibidas. No es una ficha de proveedor completa
+// (eso incluiría mucho más en la web real) — solo lo mínimo para no escribir a
+// mano el proveedor y su NIF en cada factura recibida.
+export type ProveedorMock = {
+  id: number;
+  nif: string;
+  nombre: string;
+  direccion?: string;
+  poblacion?: string;
+  cp?: string;
+  provincia?: string;
+};
+
 // Datos fiscales del emisor (nuestra empresa/tenant). Alineado con el modelo real
 // Empresa.cs (CifEmpresa, IdDireccion, RegistroMercantil/Hoja/Folio/Tomo, Cnae, Iban, Swift),
 // más el toggle autónomo/empresa que pidió el jefe — pendiente de confirmar si el backend
@@ -78,12 +92,18 @@ export type FacturaRecibida = {
   proveedorNif?: string;
   numFactura: string;
   fecha: string;
+  vencimiento?: string;
+  concepto?: string;
+  formaPago?: string;
   baseImponible: number;
   iva: number;
   irpf: number;
   totalFactura: number;
+  pagada: boolean;
   estado: 'borrador' | 'contabilizada';
   origenOcr: boolean;
+  documentoUrl?: string;
+  documentoNombre?: string;
 };
 
 const ESTADO_AEAT_LABELS: Record<EstadoAeat, string> = {
@@ -100,6 +120,7 @@ let nextEmitidaId = 100;
 let nextLineaId = 1000;
 let nextClienteId = 100;
 let nextRecibidaId = 100;
+let nextProveedorId = 100;
 
 @Injectable({ providedIn: 'root' })
 export class MockFacturasService {
@@ -138,6 +159,17 @@ export class MockFacturasService {
     {
       id: 4, nif: 'B99887766', nombre: 'Asesoría Martín & Ruiz SL', esEmpresa: true,
       direccion: 'Calle Alcalá 200', poblacion: 'Madrid', cp: '28028', provincia: 'Madrid',
+    },
+  ];
+
+  private proveedores: ProveedorMock[] = [
+    {
+      id: 1, nif: 'B11223344', nombre: 'Suministros Oficina Norte SL',
+      direccion: 'Calle del Almacén 8', poblacion: 'Madrid', cp: '28022', provincia: 'Madrid',
+    },
+    {
+      id: 2, nif: '44556677Q', nombre: 'Electricidad Vidal e Hijos',
+      direccion: 'Polígono Industrial Sur, Nave 12', poblacion: 'Alcobendas', cp: '28108', provincia: 'Madrid',
     },
   ];
 
@@ -197,15 +229,17 @@ export class MockFacturasService {
   private recibidas: FacturaRecibida[] = [
     {
       id: 1, proveedor: 'Suministros Oficina Norte SL', proveedorNif: 'B11223344',
-      numFactura: 'F-4521', fecha: '2026-08-04',
+      numFactura: 'F-4521', fecha: '2026-08-04', vencimiento: '2026-08-18',
+      concepto: 'Material de oficina', formaPago: 'Domiciliación',
       baseImponible: 154.81, iva: 32.51, irpf: 0, totalFactura: 187.32,
-      estado: 'contabilizada', origenOcr: false,
+      pagada: true, estado: 'contabilizada', origenOcr: false,
     },
     {
       id: 2, proveedor: 'Electricidad Vidal e Hijos', proveedorNif: '44556677Q',
-      numFactura: 'FV-2026-0912', fecha: '2026-08-06',
+      numFactura: 'FV-2026-0912', fecha: '2026-08-06', vencimiento: '2026-08-20',
+      concepto: 'Suministro eléctrico', formaPago: 'Domiciliación',
       baseImponible: 448.02, iva: 94.08, irpf: 0, totalFactura: 542.10,
-      estado: 'borrador', origenOcr: true,
+      pagada: false, estado: 'borrador', origenOcr: true,
     },
   ];
 
@@ -242,6 +276,22 @@ export class MockFacturasService {
   crearClienteAdHoc(data: Destinatario): ClienteMock {
     const nuevo: ClienteMock = { id: nextClienteId++, ...data };
     this.clientes.push(nuevo);
+    return nuevo;
+  }
+
+  // ---------- Proveedores ----------
+
+  buscarProveedores(query: string): ProveedorMock[] {
+    const q = query.trim().toLowerCase();
+    if (!q) return [...this.proveedores];
+    return this.proveedores.filter(p =>
+      p.nombre.toLowerCase().includes(q) || p.nif.toLowerCase().includes(q)
+    );
+  }
+
+  crearProveedorAdHoc(data: Omit<ProveedorMock, 'id'>): ProveedorMock {
+    const nuevo: ProveedorMock = { id: nextProveedorId++, ...data };
+    this.proveedores.push(nuevo);
     return nuevo;
   }
 
@@ -331,10 +381,22 @@ export class MockFacturasService {
     return this.recibidas.find(f => f.id === id);
   }
 
+  private leerComoDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   // Recibe el File real (no solo el nombre) para que la integración real solo tenga que
   // cambiar el cuerpo de este método por una subida multipart a POST /api/FacturaRecibida/desde-ocr.
   async crearDesdeOcr(file: File): Promise<FacturaRecibida> {
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    const [, documentoUrl] = await Promise.all([
+      new Promise(resolve => setTimeout(resolve, 1200)),
+      this.leerComoDataUrl(file),
+    ]);
 
     const base = Math.round((Math.random() * 400 + 50) * 100) / 100;
     const iva = Math.round(base * 0.21 * 100) / 100;
@@ -344,15 +406,40 @@ export class MockFacturasService {
       proveedor: `Proveedor detectado (${file.name})`,
       numFactura: `OCR-${Math.floor(Math.random() * 9000 + 1000)}`,
       fecha: new Date().toISOString().slice(0, 10),
+      concepto: 'Pendiente de revisar',
       baseImponible: base,
       iva,
       irpf: 0,
       totalFactura: Math.round((base + iva) * 100) / 100,
+      pagada: false,
       estado: 'borrador',
       origenOcr: true,
+      documentoUrl: documentoUrl as string,
+      documentoNombre: file.name,
     };
 
     this.recibidas.unshift(nueva);
     return nueva;
+  }
+
+  async adjuntarDocumento(file: File): Promise<{ documentoUrl: string; documentoNombre: string }> {
+    const documentoUrl = await this.leerComoDataUrl(file);
+    return { documentoUrl, documentoNombre: file.name };
+  }
+
+  crearManual(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): FacturaRecibida {
+    const nueva: FacturaRecibida = { id: nextRecibidaId++, origenOcr: false, ...data };
+    this.recibidas.unshift(nueva);
+    return nueva;
+  }
+
+  actualizarRecibida(id: number, cambios: Partial<Omit<FacturaRecibida, 'id' | 'origenOcr'>>): void {
+    const f = this.recibidas.find(r => r.id === id);
+    if (!f) return;
+    Object.assign(f, cambios);
+  }
+
+  eliminarRecibida(id: number): void {
+    this.recibidas = this.recibidas.filter(r => r.id !== id);
   }
 }

@@ -5,7 +5,7 @@
         <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
-    <ion-title class="title-bold">{{ factura?.numFactura || 'Factura recibida' }}</ion-title>
+    <ion-title class="title-bold">{{ esNueva ? 'Nueva factura recibida' : (working.numFactura || 'Factura recibida') }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -16,43 +16,134 @@
     <ion-label>Datos de ejemplo — pendiente conectar backend</ion-label>
   </ion-chip>
 
+  <ion-chip *ngIf="origenOcr" color="tertiary" class="mock-chip">
+    <ion-label>Creada desde OCR</ion-label>
+  </ion-chip>
+
   <ion-text color="danger" *ngIf="errorMsg">
     <p>{{ errorMsg }}</p>
   </ion-text>
 
-  <ng-container *ngIf="factura as f">
+  <ng-container *ngIf="esNueva || facturaId !== null">
 
-    <ion-card>
-      <ion-card-content>
-        <div class="section-title">Proveedor</div>
-        <p class="ion-no-margin"><strong>{{ f.proveedor }}</strong></p>
-        <p class="ion-no-margin" *ngIf="f.proveedorNif">{{ f.proveedorNif }}</p>
-      </ion-card-content>
-    </ion-card>
+  <ion-card>
+    <ion-card-content>
+      <div class="section-title">Proveedor</div>
 
-    <ion-card>
-      <ion-card-content>
-        <div class="section-title">Datos de la factura</div>
-        <p class="ion-no-margin">Número: {{ f.numFactura }}</p>
-        <p class="ion-no-margin">Fecha: {{ formatFecha(f.fecha) }}</p>
+      <ng-container *ngIf="working.proveedor; else sinProveedor">
+        <p class="ion-no-margin"><strong>{{ working.proveedor }}</strong></p>
+        <p class="ion-no-margin" *ngIf="working.proveedorNif">{{ working.proveedorNif }}</p>
+        <ion-button size="small" fill="outline" class="ion-margin-top" (click)="elegirProveedor()">
+          Cambiar proveedor
+        </ion-button>
+      </ng-container>
 
-        <ion-badge [color]="f.estado === 'contabilizada' ? 'success' : 'medium'" class="estado-badge">
-          {{ f.estado === 'contabilizada' ? 'Contabilizada' : 'Borrador' }}
-        </ion-badge>
-        <ion-badge *ngIf="f.origenOcr" color="tertiary" class="estado-badge">Desde OCR</ion-badge>
-      </ion-card-content>
-    </ion-card>
+      <ng-template #sinProveedor>
+        <ion-button expand="block" fill="outline" (click)="elegirProveedor()">
+          Seleccionar proveedor
+        </ion-button>
+      </ng-template>
+    </ion-card-content>
+  </ion-card>
 
-    <ion-card class="totales-card">
-      <ion-card-content>
-        <div class="section-title">Importes</div>
-        <p class="ion-no-margin">Base imponible: {{ formatEuros(f.baseImponible) }}</p>
-        <p class="ion-no-margin">IVA: {{ formatEuros(f.iva) }}</p>
-        <p class="ion-no-margin" *ngIf="f.irpf">IRPF: −{{ formatEuros(f.irpf) }}</p>
-        <p class="total-line">Total: <strong>{{ formatEuros(f.totalFactura) }}</strong></p>
-      </ion-card-content>
-    </ion-card>
+  <ion-card>
+    <ion-card-content>
+      <div class="section-title">Datos de la factura</div>
+
+      <ion-item>
+        <ion-input label="Número" labelPlacement="stacked" [(ngModel)]="working.numFactura"></ion-input>
+      </ion-item>
+
+      <div class="grid-2">
+        <ion-item>
+          <ion-input label="Fecha" labelPlacement="stacked" type="date" [(ngModel)]="working.fecha"></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-input label="Vencimiento" labelPlacement="stacked" type="date" [(ngModel)]="working.vencimiento"></ion-input>
+        </ion-item>
+      </div>
+
+      <ion-item>
+        <ion-input label="Concepto" labelPlacement="stacked" [(ngModel)]="working.concepto"></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-input label="Forma de pago" labelPlacement="stacked" [(ngModel)]="working.formaPago"></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-select label="Estado" labelPlacement="stacked" [(ngModel)]="working.estado">
+          <ion-select-option value="borrador">Borrador</ion-select-option>
+          <ion-select-option value="contabilizada">Contabilizada</ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <ion-item lines="none">
+        <ion-checkbox [(ngModel)]="working.pagada">Pagada</ion-checkbox>
+      </ion-item>
+    </ion-card-content>
+  </ion-card>
+
+  <ion-card>
+    <ion-card-content>
+      <div class="section-title">Importes</div>
+
+      <div class="grid-2">
+        <ion-item>
+          <ion-input label="Base imponible" labelPlacement="stacked" type="number" [(ngModel)]="working.baseImponible"></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-input label="IVA" labelPlacement="stacked" type="number" [(ngModel)]="working.iva"></ion-input>
+        </ion-item>
+      </div>
+
+      <ion-item>
+        <ion-input label="IRPF" labelPlacement="stacked" type="number" [(ngModel)]="working.irpf"></ion-input>
+      </ion-item>
+
+      <p class="total-line">Total: <strong>{{ formatEuros(total) }}</strong></p>
+    </ion-card-content>
+  </ion-card>
+
+  <ion-card>
+    <ion-card-content>
+      <div class="section-title">Documento adjunto</div>
+
+      <input #fileInput type="file" accept="image/*" hidden (change)="onFileSelected($event)" />
+
+      <p class="ion-no-margin" *ngIf="working.documentoNombre">{{ working.documentoNombre }}</p>
+      <p class="ion-no-margin" *ngIf="!working.documentoNombre">
+        <ion-text color="medium">Sin documento adjunto.</ion-text>
+      </p>
+
+      <div class="doc-actions">
+        <ion-button size="small" fill="outline" [disabled]="adjuntando" (click)="triggerAdjuntar()">
+          <ion-icon slot="start" name="attach-outline"></ion-icon>
+          {{ working.documentoNombre ? 'Cambiar documento' : 'Adjuntar documento' }}
+        </ion-button>
+
+        <ion-button size="small" fill="outline" *ngIf="working.documentoUrl" (click)="verDocumento()">
+          <ion-icon slot="start" name="eye-outline"></ion-icon>
+          Ver documento
+        </ion-button>
+      </div>
+    </ion-card-content>
+  </ion-card>
 
   </ng-container>
 
 </ion-content>
+
+<ion-footer *ngIf="esNueva || facturaId !== null">
+  <div class="footer-actions">
+    <ion-button expand="block" (click)="guardar()">
+      <ion-icon slot="start" name="create-outline"></ion-icon>
+      Guardar
+    </ion-button>
+
+    <ion-button expand="block" fill="outline" color="danger" *ngIf="!esNueva" (click)="eliminar()">
+      <ion-icon slot="start" name="trash-outline"></ion-icon>
+      Eliminar factura
+    </ion-button>
+  </div>
+</ion-footer>

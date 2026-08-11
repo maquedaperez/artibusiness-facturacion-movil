@@ -5,11 +5,11 @@ import { Router } from '@angular/router';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent,
   IonButton, IonIcon, IonCard, IonCardContent,
-  IonText, IonChip, IonLabel, IonSpinner,
+  IonText, IonChip, IonLabel, IonSpinner, IonFab, IonFabButton,
   ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { cameraOutline, receiptOutline, documentTextOutline } from 'ionicons/icons';
+import { cameraOutline, receiptOutline, documentTextOutline, addOutline } from 'ionicons/icons';
 
 import { MockFacturasService, FacturaRecibida } from '../../services/mock-facturas.service';
 
@@ -22,7 +22,7 @@ import { MockFacturasService, FacturaRecibida } from '../../services/mock-factur
     CommonModule,
     IonHeader, IonToolbar, IonTitle, IonContent,
     IonButton, IonIcon, IonCard, IonCardContent,
-    IonText, IonChip, IonLabel, IonSpinner,
+    IonText, IonChip, IonLabel, IonSpinner, IonFab, IonFabButton,
   ],
 })
 export class FacturasRecibidasPage implements OnInit {
@@ -36,10 +36,14 @@ export class FacturasRecibidasPage implements OnInit {
     private toastCtrl: ToastController,
     private router: Router,
   ) {
-    addIcons({ cameraOutline, receiptOutline, documentTextOutline });
+    addIcons({ cameraOutline, receiptOutline, documentTextOutline, addOutline });
   }
 
   ngOnInit() {
+    this.refresh();
+  }
+
+  ionViewWillEnter() {
     this.refresh();
   }
 
@@ -49,6 +53,10 @@ export class FacturasRecibidasPage implements OnInit {
 
   abrir(f: FacturaRecibida) {
     this.router.navigate(['/app/recibidas', f.id]);
+  }
+
+  nuevaManual() {
+    this.router.navigate(['/app/recibidas', 'nueva']);
   }
 
   triggerUpload() {
