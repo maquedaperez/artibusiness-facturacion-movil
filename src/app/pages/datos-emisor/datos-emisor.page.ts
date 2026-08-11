@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent,
-  IonItem, IonInput, IonRadioGroup, IonRadio, IonText, IonChip, IonLabel,
+  IonItem, IonInput, IonRadioGroup, IonRadio, IonText,
   ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -13,6 +13,7 @@ import { arrowBackOutline, documentTextOutline } from 'ionicons/icons';
 
 import { EmisorFiscal } from '../../services/mock-facturas.service';
 import { EmisorRepository } from '../../core/ports';
+import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 
 @Component({
   selector: 'app-datos-emisor',
@@ -22,7 +23,8 @@ import { EmisorRepository } from '../../core/ports';
   imports: [
     CommonModule, FormsModule,
     IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent,
-    IonItem, IonInput, IonRadioGroup, IonRadio, IonText, IonChip, IonLabel,
+    IonItem, IonInput, IonRadioGroup, IonRadio, IonText,
+    DemoBannerComponent,
   ],
 })
 export class DatosEmisorPage implements OnInit {

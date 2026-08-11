@@ -449,20 +449,26 @@ export class MockFacturasService {
 
   // Recibe el File real (no solo el nombre) para que la integración real solo tenga que
   // cambiar el cuerpo de este método por una subida multipart a POST /api/FacturaRecibida/desde-ocr.
+  //
+  // Sin Math.random(): los importes simulados salen de una lista fija recorrida por el
+  // contador de id, para que la demo sea reproducible (mismo id → mismo importe) en vez
+  // de generar cifras distintas en cada recarga.
   async crearDesdeOcr(file: File): Promise<FacturaRecibida> {
     const [, documentoUrl] = await Promise.all([
       new Promise(resolve => setTimeout(resolve, 1200)),
       this.leerComoDataUrl(file),
     ]);
 
-    const base = this.redondear(Math.random() * 400 + 50);
+    const id = nextRecibidaId++;
+    const basesEjemplo = [128.5, 276.4, 92.15, 340.0, 187.65, 214.9];
+    const base = basesEjemplo[id % basesEjemplo.length];
     const ivaPct = 21;
     const iva = this.redondear(base * ivaPct / 100);
 
     const nueva: FacturaRecibida = {
-      id: nextRecibidaId++,
+      id,
       proveedor: `Proveedor detectado (${file.name})`,
-      numFactura: `OCR-${Math.floor(Math.random() * 9000 + 1000)}`,
+      numFactura: `OCR-${1000 + id}`,
       fecha: new Date().toISOString().slice(0, 10),
       concepto: 'Pendiente de revisar',
       baseImponible: base,

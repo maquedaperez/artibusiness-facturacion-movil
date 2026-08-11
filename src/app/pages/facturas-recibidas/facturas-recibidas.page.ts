@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent,
   IonButton, IonIcon, IonCard, IonCardContent,
-  IonText, IonChip, IonLabel, IonSpinner, IonFab, IonFabButton,
+  IonText, IonSpinner, IonFab, IonFabButton,
   ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -13,6 +13,7 @@ import { cameraOutline, receiptOutline, documentTextOutline, addOutline } from '
 
 import { FacturaRecibida } from '../../services/mock-facturas.service';
 import { ReceivedInvoicesRepository } from '../../core/ports';
+import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 
 @Component({
   selector: 'app-facturas-recibidas',
@@ -23,7 +24,8 @@ import { ReceivedInvoicesRepository } from '../../core/ports';
     CommonModule,
     IonHeader, IonToolbar, IonTitle, IonContent,
     IonButton, IonIcon, IonCard, IonCardContent,
-    IonText, IonChip, IonLabel, IonSpinner, IonFab, IonFabButton,
+    IonText, IonSpinner, IonFab, IonFabButton,
+    DemoBannerComponent,
   ],
 })
 export class FacturasRecibidasPage implements OnInit {

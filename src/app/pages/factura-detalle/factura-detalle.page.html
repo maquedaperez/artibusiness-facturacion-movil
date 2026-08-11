@@ -11,10 +11,7 @@
 
 <ion-content class="ion-padding">
 
-  <ion-chip color="medium" class="mock-chip">
-    <ion-icon name="document-text-outline"></ion-icon>
-    <ion-label>Datos de ejemplo — pendiente conectar backend</ion-label>
-  </ion-chip>
+  <app-demo-banner detalle="contabilizar/firmar son simulados, no envían nada a AEAT"></app-demo-banner>
 
   <ion-text color="danger" *ngIf="errorMsg">
     <p>{{ errorMsg }}</p>
@@ -193,8 +190,9 @@
 
 <ion-footer *ngIf="working as f">
   <div class="footer-actions">
-    <ion-button *ngIf="esEditable" expand="block" fill="outline" (click)="guardar()">
-      Guardar borrador
+    <ion-button *ngIf="esEditable" expand="block" fill="outline" [disabled]="guardando" (click)="guardar()">
+      <ion-spinner *ngIf="guardando" slot="start" name="dots"></ion-spinner>
+      {{ guardando ? 'Guardando...' : 'Guardar borrador' }}
     </ion-button>
 
     <ion-button *ngIf="f.estado === 'borrador'" expand="block" (click)="confirmarContabilizar()">

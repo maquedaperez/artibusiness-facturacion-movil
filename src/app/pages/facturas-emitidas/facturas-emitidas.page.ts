@@ -8,7 +8,7 @@ import {
   IonSegment, IonSegmentButton, IonLabel,
   IonSelect, IonSelectOption,
   IonCard, IonCardContent,
-  IonText, IonIcon, IonButton, IonChip, IonFab, IonFabButton,
+  IonText, IonIcon, IonButton, IonFab, IonFabButton,
   AlertController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -16,6 +16,7 @@ import { documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline 
 
 import { EstadoFactura, FacturaEmitida, Numerador } from '../../services/mock-facturas.service';
 import { IssuedInvoicesRepository } from '../../core/ports';
+import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 
 @Component({
   selector: 'app-facturas-emitidas',
@@ -28,7 +29,8 @@ import { IssuedInvoicesRepository } from '../../core/ports';
     IonSegment, IonSegmentButton, IonLabel,
     IonSelect, IonSelectOption,
     IonCard, IonCardContent,
-    IonText, IonIcon, IonButton, IonChip, IonFab, IonFabButton,
+    IonText, IonIcon, IonButton, IonFab, IonFabButton,
+    DemoBannerComponent,
   ],
 })
 export class FacturasEmitidasPage implements OnInit {
@@ -113,8 +115,8 @@ export class FacturasEmitidasPage implements OnInit {
   async confirmarContabilizar(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
     const alert = await this.alertCtrl.create({
-      header: 'Contabilizar factura',
-      message: `¿Contabilizar la factura de ${f.destinatario.nombre} por ${this.formatEuros(this.totalFactura(f))}? Esta acción envía la factura a Verifactu/AEAT.`,
+      header: 'Contabilizar factura (simulado)',
+      message: `¿Contabilizar la factura de ${f.destinatario.nombre} por ${this.formatEuros(this.totalFactura(f))}? En este entorno de demostración esto simula el envío a Verifactu/AEAT — no se realiza ninguna comunicación real con la Agencia Tributaria.`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         {
@@ -122,7 +124,7 @@ export class FacturasEmitidasPage implements OnInit {
           handler: async () => {
             this.invoicesRepo.contabilizar(f.id);
             this.refresh();
-            await this.showToast(`Factura de ${f.destinatario.nombre} contabilizada.`);
+            await this.showToast(`Factura de ${f.destinatario.nombre} contabilizada (simulado).`);
           },
         },
       ],
@@ -133,8 +135,8 @@ export class FacturasEmitidasPage implements OnInit {
   async confirmarFirmar(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
     const alert = await this.alertCtrl.create({
-      header: 'Firmar factura',
-      message: `¿Firmar la factura de ${f.destinatario.nombre}? Esta acción inicia el proceso de autofirma.`,
+      header: 'Firmar factura (simulado)',
+      message: `¿Firmar la factura de ${f.destinatario.nombre}? En este entorno de demostración esto simula el proceso de autofirma — no se genera ninguna firma electrónica real.`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         {
@@ -142,7 +144,7 @@ export class FacturasEmitidasPage implements OnInit {
           handler: async () => {
             this.invoicesRepo.firmar(f.id);
             this.refresh();
-            await this.showToast(`Factura de ${f.destinatario.nombre} firmada.`);
+            await this.showToast(`Factura de ${f.destinatario.nombre} firmada (simulado).`);
           },
         },
       ],

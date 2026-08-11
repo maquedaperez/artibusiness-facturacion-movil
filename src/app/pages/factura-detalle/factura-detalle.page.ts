@@ -5,8 +5,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
-  IonItem, IonInput, IonSelect, IonSelectOption, IonText, IonBadge, IonChip, IonLabel,
-  IonCard, IonCardContent,
+  IonItem, IonInput, IonSelect, IonSelectOption, IonText, IonBadge,
+  IonCard, IonCardContent, IonSpinner,
   ModalController, AlertController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -18,6 +18,7 @@ import {
 } from '../../services/mock-facturas.service';
 import { EmisorRepository, IssuedInvoicesRepository } from '../../core/ports';
 import { ClienteSelectorComponent } from '../../modals/cliente-selector/cliente-selector.component';
+import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 
 @Component({
   selector: 'app-factura-detalle',
@@ -27,8 +28,9 @@ import { ClienteSelectorComponent } from '../../modals/cliente-selector/cliente-
   imports: [
     CommonModule, FormsModule,
     IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
-    IonItem, IonInput, IonSelect, IonSelectOption, IonText, IonBadge, IonChip, IonLabel,
-    IonCard, IonCardContent,
+    IonItem, IonInput, IonSelect, IonSelectOption, IonText, IonBadge,
+    IonCard, IonCardContent, IonSpinner,
+    DemoBannerComponent,
   ],
 })
 export class FacturaDetallePage implements OnInit {
@@ -43,6 +45,7 @@ export class FacturaDetallePage implements OnInit {
   facturaId: number | null = null;
   esNueva = false;
   cargando = true;
+  guardando = false;
 
   numeradores: Numerador[] = [];
   numeradorSeleccionado: number | null = null;
@@ -132,20 +135,25 @@ export class FacturaDetallePage implements OnInit {
   }
 
   async guardar() {
-    if (!this.working || this.facturaId == null) return;
+    if (!this.working || this.facturaId == null || this.guardando) return;
 
-    this.invoicesRepo.actualizarBorrador(this.facturaId, {
-      fecha: this.working.fecha,
-      vencimiento: this.working.vencimiento,
-      concepto: this.working.concepto,
-      medioPago: this.working.medioPago,
-      destinatario: this.working.destinatario,
-      lineas: this.working.lineas,
-      irpfPct: this.working.irpfPct,
-      numeradorId: this.working.numeradorId,
-    });
+    this.guardando = true;
+    try {
+      this.invoicesRepo.actualizarBorrador(this.facturaId, {
+        fecha: this.working.fecha,
+        vencimiento: this.working.vencimiento,
+        concepto: this.working.concepto,
+        medioPago: this.working.medioPago,
+        destinatario: this.working.destinatario,
+        lineas: this.working.lineas,
+        irpfPct: this.working.irpfPct,
+        numeradorId: this.working.numeradorId,
+      });
 
-    await this.showToast('Borrador guardado.');
+      await this.showToast('Borrador guardado.');
+    } finally {
+      this.guardando = false;
+    }
   }
 
   async confirmarContabilizar() {
@@ -160,8 +168,8 @@ export class FacturaDetallePage implements OnInit {
     this.errorMsg = '';
 
     const alert = await this.alertCtrl.create({
-      header: 'Contabilizar factura',
-      message: `¿Contabilizar la factura de ${this.working.destinatario.nombre} por ${this.formatEuros(this.totales().total)}? Esta acción envía la factura a Verifactu/AEAT. Se guardarán los cambios pendientes.`,
+      header: 'Contabilizar factura (simulado)',
+      message: `¿Contabilizar la factura de ${this.working.destinatario.nombre} por ${this.formatEuros(this.totales().total)}? En este entorno de demostración esto simula el envío a Verifactu/AEAT — no se realiza ninguna comunicación real con la Agencia Tributaria. Se guardarán los cambios pendientes.`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         {
@@ -169,7 +177,7 @@ export class FacturaDetallePage implements OnInit {
           handler: async () => {
             await this.guardar();
             this.invoicesRepo.contabilizar(this.facturaId!);
-            await this.showToast('Factura contabilizada.');
+            await this.showToast('Factura contabilizada (simulado).');
             this.volver();
           },
         },
@@ -182,15 +190,15 @@ export class FacturaDetallePage implements OnInit {
     if (!this.working || this.facturaId == null) return;
 
     const alert = await this.alertCtrl.create({
-      header: 'Firmar factura',
-      message: `¿Firmar esta factura? Esta acción inicia el proceso de autofirma.`,
+      header: 'Firmar factura (simulado)',
+      message: `¿Firmar esta factura? En este entorno de demostración esto simula el proceso de autofirma — no se genera ninguna firma electrónica real.`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         {
           text: 'Firmar',
           handler: async () => {
             this.invoicesRepo.firmar(this.facturaId!);
-            await this.showToast('Factura firmada.');
+            await this.showToast('Factura firmada (simulado).');
             this.volver();
           },
         },

@@ -6,7 +6,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
   IonItem, IonInput, IonSelect, IonSelectOption, IonCheckbox, IonText, IonChip, IonLabel,
-  IonCard, IonCardContent,
+  IonCard, IonCardContent, IonSpinner,
   ModalController, AlertController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -19,6 +19,7 @@ import { FacturaRecibida, ProveedorMock, IVA_RATES, IRPF_RATES } from '../../ser
 import { ReceivedInvoicesRepository } from '../../core/ports';
 import { VerDocumentoComponent } from '../../modals/ver-documento/ver-documento.component';
 import { ProveedorSelectorComponent } from '../../modals/proveedor-selector/proveedor-selector.component';
+import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 
 type FacturaRecibidaForm = Omit<FacturaRecibida, 'id' | 'origenOcr'>;
 
@@ -31,7 +32,8 @@ type FacturaRecibidaForm = Omit<FacturaRecibida, 'id' | 'origenOcr'>;
     CommonModule, FormsModule,
     IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
     IonItem, IonInput, IonSelect, IonSelectOption, IonCheckbox, IonText, IonChip, IonLabel,
-    IonCard, IonCardContent,
+    IonCard, IonCardContent, IonSpinner,
+    DemoBannerComponent,
   ],
 })
 export class FacturaRecibidaDetallePage implements OnInit {
@@ -48,6 +50,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
   esNueva = false;
   errorMsg = '';
   adjuntando = false;
+  guardando = false;
   origenOcr = false;
 
   ivaRates = IVA_RATES;
@@ -154,29 +157,36 @@ export class FacturaRecibidaDetallePage implements OnInit {
   }
 
   async guardar() {
+    if (this.guardando) return;
+
     this.errorMsg = '';
     if (!this.working.proveedor.trim() || !this.working.numFactura.trim()) {
       this.errorMsg = 'Proveedor y número de factura son obligatorios.';
       return;
     }
 
-    const datos: FacturaRecibidaForm = {
-      ...this.working,
-      baseImponible: this.baseNum,
-      iva: this.ivaCuota,
-      irpf: this.irpfCuota,
-      totalFactura: this.total,
-    };
+    this.guardando = true;
+    try {
+      const datos: FacturaRecibidaForm = {
+        ...this.working,
+        baseImponible: this.baseNum,
+        iva: this.ivaCuota,
+        irpf: this.irpfCuota,
+        totalFactura: this.total,
+      };
 
-    if (this.esNueva) {
-      const creada = this.invoicesRepo.crearManual(datos);
-      this.facturaId = creada.id;
-      this.esNueva = false;
-    } else if (this.facturaId != null) {
-      this.invoicesRepo.actualizar(this.facturaId, datos);
+      if (this.esNueva) {
+        const creada = this.invoicesRepo.crearManual(datos);
+        this.facturaId = creada.id;
+        this.esNueva = false;
+      } else if (this.facturaId != null) {
+        this.invoicesRepo.actualizar(this.facturaId, datos);
+      }
+
+      await this.showToast('Factura guardada.');
+    } finally {
+      this.guardando = false;
     }
-
-    await this.showToast('Factura guardada.');
   }
 
   async eliminar() {

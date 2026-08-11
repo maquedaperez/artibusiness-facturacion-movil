@@ -11,10 +11,7 @@
 
 <ion-content class="ion-padding">
 
-  <ion-chip color="medium" class="mock-chip">
-    <ion-icon name="document-text-outline"></ion-icon>
-    <ion-label>Datos de ejemplo — pendiente conectar backend</ion-label>
-  </ion-chip>
+  <app-demo-banner></app-demo-banner>
 
   <ion-chip *ngIf="origenOcr" color="tertiary" class="mock-chip">
     <ion-label>Creada desde OCR</ion-label>
@@ -142,9 +139,10 @@
 
 <ion-footer *ngIf="esNueva || facturaId !== null">
   <div class="footer-actions">
-    <ion-button expand="block" (click)="guardar()">
-      <ion-icon slot="start" name="create-outline"></ion-icon>
-      Guardar
+    <ion-button expand="block" [disabled]="guardando" (click)="guardar()">
+      <ion-spinner *ngIf="guardando" slot="start" name="dots"></ion-spinner>
+      <ion-icon *ngIf="!guardando" slot="start" name="create-outline"></ion-icon>
+      {{ guardando ? 'Guardando...' : 'Guardar' }}
     </ion-button>
 
     <ion-button expand="block" fill="outline" color="danger" *ngIf="!esNueva" (click)="eliminar()">
