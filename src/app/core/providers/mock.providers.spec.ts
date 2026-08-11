@@ -224,19 +224,20 @@ describe('Política de acciones permitidas — accionesFacturaEmitida / acciones
     };
   }
 
-  function recibidaConEstado(estado: FacturaRecibida['estado']): FacturaRecibida {
+  function recibidaConEstado(estado: FacturaRecibida['estado'], accountingLocked = false): FacturaRecibida {
     return {
       id: 1, proveedor: 'Proveedor', numFactura: 'F-1', fecha: '2026-08-11',
       lineas: [], retencionPct: 0, pagada: false, estado, origenOcr: false,
+      accountingLocked,
     };
   }
 
-  it('borrador: edición, borrado, copia y descarga/compartir todo permitido', () => {
+  it('emitida borrador: edición, borrado, copia y descarga/compartir todo permitido', () => {
     const acciones = accionesFacturaEmitida(emitidaConEstado('borrador'));
     expect(acciones).toEqual({ editar: true, eliminar: true, copiar: true, descargar: true, compartir: true });
   });
 
-  it('contabilizada/firmada: ni editar ni eliminar, pero sí copiar/descargar/compartir', () => {
+  it('emitida contabilizada/firmada: ni editar ni eliminar, pero sí copiar/descargar/compartir', () => {
     for (const estado of ['contabilizada', 'firmada'] as const) {
       const acciones = accionesFacturaEmitida(emitidaConEstado(estado));
       expect(acciones.editar).toBeFalse();
@@ -247,15 +248,43 @@ describe('Política de acciones permitidas — accionesFacturaEmitida / acciones
     }
   });
 
-  it('estado no reconocido: conservador — nada que mute la factura, solo lectura', () => {
+  it('emitida contabilizada se mantiene NO editable (no cambia con este ajuste — solo afecta a Recibidas)', () => {
+    expect(accionesFacturaEmitida(emitidaConEstado('contabilizada')).editar).toBeFalse();
+  });
+
+  it('emitida con estado no reconocido: conservador — nada que mute la factura, solo lectura', () => {
     const acciones = accionesFacturaEmitida(emitidaConEstado('algo-inventado' as any));
     expect(acciones).toEqual({ editar: false, eliminar: false, copiar: false, descargar: true, compartir: true });
   });
 
-  it('recibidas sigue la misma política — borrador editable, revisada (contabilizada) bloqueada', () => {
-    expect(accionesFacturaRecibida(recibidaConEstado('borrador')).editar).toBeTrue();
-    expect(accionesFacturaRecibida(recibidaConEstado('contabilizada')).editar).toBeFalse();
-    expect(accionesFacturaRecibida(recibidaConEstado('contabilizada')).copiar).toBeTrue();
+  // Recibidas nunca pasa por Verifactu/AEAT desde esta app — "revisada" es solo un
+  // repaso interno, no debe bloquear nada por sí solo (a diferencia de "contabilizada"
+  // en Emitidas, que sí es un estado fiscal real).
+  it('recibida "revisada" sigue totalmente editable — el estado de repaso interno no bloquea nada', () => {
+    const acciones = accionesFacturaRecibida(recibidaConEstado('revisada'));
+    expect(acciones).toEqual({ editar: true, eliminar: true, copiar: true, descargar: true, compartir: true });
+  });
+
+  it('recibida "revisada" y pagada sigue editable — "pagada" tampoco bloquea nada por sí sola', () => {
+    const f = recibidaConEstado('revisada');
+    f.pagada = true;
+    expect(accionesFacturaRecibida(f).editar).toBeTrue();
+  });
+
+  it('recibida bloqueada SOLO cuando accountingLocked es true (bloqueo contable simulado)', () => {
+    const bloqueada = recibidaConEstado('revisada', true);
+    const acciones = accionesFacturaRecibida(bloqueada);
+    expect(acciones.editar).toBeFalse();
+    expect(acciones.eliminar).toBeFalse();
+    // Copiar/descargar/compartir siguen disponibles incluso bloqueada contablemente.
+    expect(acciones.copiar).toBeTrue();
+    expect(acciones.descargar).toBeTrue();
+    expect(acciones.compartir).toBeTrue();
+  });
+
+  it('recibida en borrador, sin accountingLocked: todo permitido, igual que revisada', () => {
+    const acciones = accionesFacturaRecibida(recibidaConEstado('borrador'));
+    expect(acciones).toEqual({ editar: true, eliminar: true, copiar: true, descargar: true, compartir: true });
   });
 });
 
@@ -331,5 +360,91 @@ describe('generarDocumento — documento simulado, nunca presentado como fiscal'
     expect(nombre).toContain('simulado');
     expect(contenido).toContain('SIMULACIÓN');
     expect(contenido.toLowerCase()).toContain('no válido fiscalmente');
+  });
+});
+
+describe('Recibidas revisadas — siguen editables, bloqueo real solo con accountingLocked', () => {
+  let receivedRepo: ReceivedInvoicesRepository;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [...MOCK_REPOSITORY_PROVIDERS] });
+    receivedRepo = TestBed.inject(ReceivedInvoicesRepository);
+  });
+
+  function crearRecibidaRevisada() {
+    return receivedRepo.crearManual({
+      proveedor: 'Proveedor revisado', proveedorNif: 'B00000000',
+      numFactura: 'REV-1', fecha: '2026-08-11', vencimiento: '',
+      concepto: 'Prueba', formaPago: 'Transferencia',
+      lineas: [
+        { id: receivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'Línea original', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 },
+      ],
+      retencionPct: 0, pagada: false, estado: 'revisada',
+    });
+  }
+
+  it('se pueden cambiar las líneas de una recibida ya revisada (sin bloqueo contable)', () => {
+    const creada = crearRecibidaRevisada();
+    const nuevasLineas = [
+      ...creada.lineas,
+      { id: receivedRepo.nuevoIdLinea(), origen: 'manual' as const, descripcion: 'Línea añadida tras revisar', cantidad: 2, precioUnitario: 30, descuentoPct: 0, ivaPct: 10 },
+    ];
+
+    receivedRepo.actualizar(creada.id, { lineas: nuevasLineas });
+
+    const actualizada = receivedRepo.obtenerPorId(creada.id);
+    expect(actualizada?.lineas.length).toBe(2);
+    expect(actualizada?.lineas[1].descripcion).toBe('Línea añadida tras revisar');
+  });
+
+  it('se puede marcar/desmarcar "pagada" después de revisar', () => {
+    const creada = crearRecibidaRevisada();
+    expect(creada.pagada).toBeFalse();
+
+    receivedRepo.actualizar(creada.id, { pagada: true });
+    expect(receivedRepo.obtenerPorId(creada.id)?.pagada).toBeTrue();
+
+    receivedRepo.actualizar(creada.id, { pagada: false });
+    expect(receivedRepo.obtenerPorId(creada.id)?.pagada).toBeFalse();
+  });
+
+  it('proveedor, concepto, fechas y documento adjunto también se pueden editar tras revisar', () => {
+    const creada = crearRecibidaRevisada();
+
+    receivedRepo.actualizar(creada.id, {
+      proveedor: 'Proveedor corregido',
+      concepto: 'Concepto corregido',
+      vencimiento: '2026-09-30',
+      documentoUrl: 'data:image/png;base64,yyy',
+      documentoNombre: 'nuevo.png',
+    });
+
+    const actualizada = receivedRepo.obtenerPorId(creada.id);
+    expect(actualizada?.proveedor).toBe('Proveedor corregido');
+    expect(actualizada?.concepto).toBe('Concepto corregido');
+    expect(actualizada?.documentoNombre).toBe('nuevo.png');
+  });
+
+  it('copiar/descargar siguen disponibles en una recibida revisada', () => {
+    const creada = crearRecibidaRevisada();
+    const acciones = receivedRepo.accionesPermitidas(creada);
+    expect(acciones.copiar).toBeTrue();
+    expect(acciones.descargar).toBeTrue();
+    expect(acciones.compartir).toBeTrue();
+  });
+
+  it('con accountingLocked simulado, el repositorio rechaza actualizar y eliminar (no solo la UI)', () => {
+    const creada = crearRecibidaRevisada();
+    receivedRepo.actualizar(creada.id, { accountingLocked: true, accountingLockReason: 'Periodo contable cerrado (simulado)' });
+
+    receivedRepo.actualizar(creada.id, { concepto: 'Intento de cambio tras bloqueo' });
+    expect(receivedRepo.obtenerPorId(creada.id)?.concepto).toBe('Prueba'); // no cambió
+
+    receivedRepo.eliminar(creada.id);
+    expect(receivedRepo.obtenerPorId(creada.id)).toBeTruthy(); // sigue existiendo, no se borró
+
+    const acciones = receivedRepo.accionesPermitidas(receivedRepo.obtenerPorId(creada.id)!);
+    expect(acciones.editar).toBeFalse();
+    expect(acciones.eliminar).toBeFalse();
   });
 });

@@ -100,18 +100,21 @@ export class FacturaRecibidaDetallePage implements OnInit {
       concepto: '', formaPago: '',
       lineas: [],
       retencionPct: 0,
-      pagada: false, estado: 'contabilizada',
+      pagada: false, estado: 'revisada',
     };
   }
 
+  // A diferencia de Emitidas, aquí NO se mira 'estado' — una recibida "revisada" es
+  // solo un repaso interno, no un cierre contable. El único motivo real para bloquear
+  // la edición es accountingLocked, que hoy no marca nadie en el mock.
   get esEditable(): boolean {
-    return this.esNueva || this.working.estado === 'borrador';
+    return this.esNueva || !this.working.accountingLocked;
   }
 
-  // Igual que en Emitidas: mismo cálculo de política, pero "working" es un formulario
-  // (sin id) mientras no se guarda — el id/origenOcr no influyen en la política, solo
-  // el estado, así que basta con completarlos con un valor cualquiera para reutilizar
-  // la misma función pura que usa el repositorio.
+  // Igual patrón que en Emitidas: "working" es un formulario (sin id) mientras no se
+  // guarda, pero aquí la política depende de accountingLocked, no de id/origenOcr —
+  // basta con completarlos con un valor cualquiera para reutilizar la misma función
+  // pura que usa el repositorio.
   accionesPermitidas(): AccionesPermitidas {
     if (this.esNueva) return { editar: true, eliminar: false, copiar: false, descargar: false, compartir: false };
     return accionesFacturaRecibida({ ...this.working, id: this.facturaId ?? 0, origenOcr: this.origenOcr });

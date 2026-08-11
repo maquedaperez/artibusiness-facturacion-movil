@@ -240,10 +240,21 @@ export type FacturaRecibida = {
   // nosotros. Se muestra igualmente solo en el bloque de totales, nunca por línea.
   retencionPct: number;
   pagada: boolean;
-  estado: 'borrador' | 'contabilizada';
+  // 'revisada' es un estado de repaso INTERNO de esta app — a diferencia de Emitidas,
+  // las facturas recibidas nunca se remiten a Verifactu/AEAT desde aquí, así que este
+  // estado NO implica contabilización fiscal ni bloqueo contable. No usar como sinónimo
+  // de "contabilizada" en código, comentarios, tests ni documentación.
+  estado: 'borrador' | 'revisada';
   origenOcr: boolean;
   documentoUrl?: string;
   documentoNombre?: string;
+  // Bloqueo contable real — SOLO lo marca el backend (allowedActions o este campo
+  // equivalente) cuando confirme un cierre contable de verdad. Nunca se infiere a
+  // partir de 'estado' ni de 'pagada'. Mientras nadie lo marque (todo el MVP mock
+  // actual), la factura sigue siendo editable — ver docs/SERVICE_CONTRACT_GAPS.md.
+  accountingLocked?: boolean;
+  accountingLockReason?: string;
+  accountingPeriodClosed?: boolean;
 };
 
 const ESTADO_AEAT_LABELS: Record<EstadoAeat, string> = {
@@ -266,11 +277,13 @@ export type AccionesPermitidas = {
   compartir: boolean;
 };
 
+// Política de EMITIDAS únicamente — depende del estado fiscal real (borrador vs.
+// contabilizada/firmada), porque estas facturas sí se remiten a Verifactu/AEAT.
 // estadoReconocido en false cubre tanto un estado que no reconocemos como uno que,
 // aun siendo válido, no es ni "borrador" ni el resto de estados de una factura
 // definitiva conocidos — se resuelve siempre del lado conservador (lectura sí, nada
 // que mute la factura, salvo copiar/descargar que no alteran el original).
-function accionesPorEstado(esBorrador: boolean, estadoReconocido: boolean): AccionesPermitidas {
+function accionesEmitidaPorEstado(esBorrador: boolean, estadoReconocido: boolean): AccionesPermitidas {
   if (!estadoReconocido) {
     return { editar: false, eliminar: false, copiar: false, descargar: true, compartir: true };
   }
@@ -285,12 +298,20 @@ function accionesPorEstado(esBorrador: boolean, estadoReconocido: boolean): Acci
 
 export function accionesFacturaEmitida(f: FacturaEmitida): AccionesPermitidas {
   const reconocido = f.estado === 'borrador' || f.estado === 'contabilizada' || f.estado === 'firmada';
-  return accionesPorEstado(f.estado === 'borrador', reconocido);
+  return accionesEmitidaPorEstado(f.estado === 'borrador', reconocido);
 }
 
+// Política de RECIBIDAS — deliberadamente independiente de la de Emitidas. Esta app
+// nunca remite las recibidas a Verifactu/AEAT, así que 'estado' ('borrador'/'revisada')
+// es solo un repaso interno, no una contabilización fiscal, y NO debe bloquear nada
+// por sí solo — tampoco 'pagada'. El único bloqueo real es accountingLocked, que hoy
+// no pone nadie en el mock (por eso todo sigue editable/eliminable/copiable) y que en
+// producción debe llegar del backend cuando exista un cierre contable de verdad.
 export function accionesFacturaRecibida(f: FacturaRecibida): AccionesPermitidas {
-  const reconocido = f.estado === 'borrador' || f.estado === 'contabilizada';
-  return accionesPorEstado(f.estado === 'borrador', reconocido);
+  if (f.accountingLocked) {
+    return { editar: false, eliminar: false, copiar: true, descargar: true, compartir: true };
+  }
+  return { editar: true, eliminar: true, copiar: true, descargar: true, compartir: true };
 }
 
 export const IVA_RATES = [0, 4, 10, 21];
@@ -447,7 +468,7 @@ export class MockFacturasService {
         { id: 901, origen: 'manual', descripcion: 'Material de oficina', cantidad: 1, precioUnitario: 154.81, descuentoPct: 0, ivaPct: 21 },
       ],
       retencionPct: 0,
-      pagada: true, estado: 'contabilizada', origenOcr: false,
+      pagada: true, estado: 'revisada', origenOcr: false,
     },
     {
       id: 2, proveedor: 'Electricidad Vidal e Hijos', proveedorNif: '44556677Q',
@@ -745,16 +766,20 @@ ${filas}
     return nueva;
   }
 
+  // Bloqueado solo por accountingLocked — nunca por 'estado'/'pagada'. Mismo criterio
+  // que eliminarRecibida/accionesFacturaRecibida.
   actualizarRecibida(id: number, cambios: Partial<Omit<FacturaRecibida, 'id' | 'origenOcr'>>): void {
     const f = this.recibidas.find(r => r.id === id);
-    if (!f) return;
+    if (!f || f.accountingLocked) return;
     Object.assign(f, cambios);
   }
 
-  // Solo borra borradores — coherente con AccionesPermitidas.eliminar.
+  // Bloqueado solo por accountingLocked (nunca por 'estado'/'pagada') — coherente con
+  // accionesFacturaRecibida. Mientras nadie marque el bloqueo contable en el mock, se
+  // puede eliminar en cualquier estado de repaso interno.
   eliminarRecibida(id: number): void {
     const f = this.recibidas.find(r => r.id === id);
-    if (!f || f.estado !== 'borrador') return;
+    if (!f || f.accountingLocked) return;
     this.recibidas = this.recibidas.filter(r => r.id !== id);
   }
 

@@ -279,17 +279,25 @@ trazabilidad, no requieren respuesta.
 
 32. **`allowedActions` por factura, en vez de calcularlo en el frontend.** Hoy
     `accionesFacturaEmitida`/`accionesFacturaRecibida` (mock-facturas.service.ts)
-    calculan editar/eliminar/copiar/descargar/compartir solo a partir del `estado` de
-    la factura (borrador vs. definitiva vs. desconocido → conservador). Es una regla
-    razonable pero **inventada por este frontend**, no confirmada contra el backend —
-    en particular, no contempla permisos por rol de usuario ni excepciones de negocio
-    (p. ej. un supervisor que sí pueda anular una factura contabilizada). — **Impacto**:
-    alto, es la política que decide qué botones se ven en todas las facturas. —
-    **Pantallas**: listado y detalle de Emitidas y Recibidas. — **Qué necesito**: si el
-    backend real puede devolver `allowedActions` explícito por factura (recomendado,
-    ver la nota del propio prompt de la reunión), este frontend pasa a **mapear** esa
-    respuesta en vez de calcularla — cambio acotado a `accionesFacturaEmitida`/
-    `accionesFacturaRecibida`, sin tocar ninguna pantalla.
+    calculan editar/eliminar/copiar/descargar/compartir en el cliente — son **dos
+    políticas deliberadamente distintas**, no una compartida:
+    - **Emitidas**: depende del `estado` fiscal real (borrador vs. contabilizada/
+      firmada), porque estas facturas sí se remiten a Verifactu/AEAT desde el backend.
+    - **Recibidas**: esta app **nunca** remite las recibidas a Verifactu/AEAT, así que
+      su `estado` (`borrador`/`revisada`) es solo un repaso interno sin peso fiscal y
+      **no** decide nada por sí solo — tampoco `pagada`. El único bloqueo real es
+      `accountingLocked` (ver gap #36), que hoy no marca nadie en el mock, por lo que
+      una recibida "revisada" sigue siendo totalmente editable/eliminable/copiable.
+
+    Ninguna de las dos está confirmada contra el backend real — en particular, no
+    contemplan permisos por rol de usuario ni excepciones de negocio (p. ej. un
+    supervisor que sí pueda anular una factura contabilizada). — **Impacto**: alto, es
+    la política que decide qué botones se ven en todas las facturas. — **Pantallas**:
+    listado y detalle de Emitidas y Recibidas. — **Qué necesito**: si el backend real
+    puede devolver `allowedActions` explícito por factura (recomendado, ver la nota del
+    propio prompt de la reunión), este frontend pasa a **mapear** esa respuesta en vez
+    de calcularla — cambio acotado a `accionesFacturaEmitida`/`accionesFacturaRecibida`,
+    sin tocar ninguna pantalla.
 
 33. **Operación de anulación/baja autorizada para una factura contabilizada.** Hoy
     "Eliminar" solo está permitido en estado borrador — una factura contabilizada nunca
@@ -320,3 +328,23 @@ trazabilidad, no requieren respuesta.
     detalle de Emitidas y Recibidas. — **Qué necesito**: confirmar si "copiar" debe ser
     una llamada a un endpoint específico (`POST .../duplicar`) en vez de que el cliente
     arme el nuevo borrador con los datos que ya tiene descargados.
+
+36. **Bloqueo contable real de una factura recibida (`accountingLocked`).** Corrección
+    del 2026-08-11: la primera versión de este bloque hacía que una recibida "revisada"
+    se bloqueara igual que una emitida contabilizada — **incorrecto**, porque esta app
+    no remite las recibidas a Verifactu/AEAT, así que "revisada" es solo un repaso
+    interno sin ningún peso fiscal ni contable. Se corrigió para que `estado`
+    (`borrador`/`revisada`) y `pagada` **nunca** decidan si se puede editar/eliminar/
+    cambiar el pago — el mock ahora solo respeta un campo `accountingLocked` explícito
+    (hoy nadie lo marca, por eso todo sigue editable). — **Impacto**: alto, es la única
+    fuente de verdad de bloqueo para Recibidas de aquí en adelante. — **Pantallas**:
+    listado y detalle de Facturas Recibidas. — **Qué necesito exactamente**, en orden de
+    preferencia: (a) `allowedActions` explícito por factura recibida (igual que el gap
+    #32, ideal); si no es viable a corto plazo, entonces al menos (b) un indicador
+    booleano explícito equivalente a `accountingLocked`; (c) el motivo del bloqueo
+    (`accountingLockReason`) para poder mostrarlo al usuario en vez de solo deshabilitar
+    botones sin explicación; (d) si existe el concepto de periodo contable cerrado
+    (`accountingPeriodClosed`) como causa distinta a un bloqueo manual factura por
+    factura. El frontend ya tiene los tres campos modelados en `FacturaRecibida`
+    (`accountingLocked`, `accountingLockReason`, `accountingPeriodClosed`) listos para
+    recibir estos valores del backend real sin cambios adicionales de tipo.

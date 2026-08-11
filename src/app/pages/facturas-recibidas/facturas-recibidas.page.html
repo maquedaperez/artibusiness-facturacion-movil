@@ -44,8 +44,8 @@
 
         <div class="row-meta">
           <span>{{ formatFecha(f.fecha) }} <ng-container *ngIf="f.pagada"> · Pagada</ng-container></span>
-          <span class="estado" [class.ok]="f.estado === 'contabilizada'">
-            {{ f.estado === 'contabilizada' ? 'Revisada' : 'Borrador' }}
+          <span class="estado" [class.ok]="f.estado === 'revisada'">
+            {{ f.estado === 'revisada' ? 'Revisada' : 'Borrador' }}
             <ng-container *ngIf="f.origenOcr"> · OCR</ng-container>
           </span>
         </div>
