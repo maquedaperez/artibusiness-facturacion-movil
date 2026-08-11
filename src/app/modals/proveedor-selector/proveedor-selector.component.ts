@@ -1,10 +1,12 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject, Subscription, from, of } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
-  IonSearchbar, IonList, IonItem, IonLabel, IonInput, IonText,
+  IonSearchbar, IonList, IonItem, IonLabel, IonInput, IonText, IonSpinner,
   ModalController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -13,13 +15,18 @@ import { closeOutline, addOutline } from 'ionicons/icons';
 import { ProveedorMock } from '../../services/mock-facturas.service';
 import { SuppliersRepository } from '../../core/ports';
 
+const MIN_CARACTERES_BUSQUEDA = 2;
+const DEBOUNCE_MS = 350;
+
+type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error';
+
 @Component({
   selector: 'app-proveedor-selector',
   standalone: true,
   imports: [
     CommonModule, FormsModule,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
-    IonSearchbar, IonList, IonItem, IonLabel, IonInput, IonText,
+    IonSearchbar, IonList, IonItem, IonLabel, IonInput, IonText, IonSpinner,
   ],
   template: `
     <ion-header>
@@ -36,12 +43,29 @@ import { SuppliersRepository } from '../../core/ports';
     <ion-content class="ion-padding">
       <ng-container *ngIf="!modoNuevo">
         <ion-searchbar
-          placeholder="Buscar por nombre o NIF"
+          placeholder="Buscar por nombre o NIF (mínimo 2 caracteres)"
           [(ngModel)]="query"
-          (ionInput)="buscar()"
+          (ionInput)="onQueryChange()"
         ></ion-searchbar>
 
-        <ion-list>
+        <ion-text color="medium" *ngIf="estado === 'inicial'">
+          <p class="ion-padding-top">Escribe al menos 2 caracteres para buscar.</p>
+        </ion-text>
+
+        <div class="estado-buscando" *ngIf="estado === 'buscando'">
+          <ion-spinner name="dots"></ion-spinner>
+          <ion-text color="medium"><p class="ion-no-margin">Buscando...</p></ion-text>
+        </div>
+
+        <ion-text color="medium" *ngIf="estado === 'sin-resultados'">
+          <p class="ion-padding-top">Sin resultados para "{{ query }}".</p>
+        </ion-text>
+
+        <ion-text color="danger" *ngIf="estado === 'error'">
+          <p class="ion-padding-top">No se pudo completar la búsqueda. Inténtalo de nuevo.</p>
+        </ion-text>
+
+        <ion-list *ngIf="estado === 'ok'">
           <ion-item *ngFor="let p of resultados" button (click)="seleccionar(p)">
             <ion-label>
               <h2>{{ p.nombre }}</h2>
@@ -49,10 +73,6 @@ import { SuppliersRepository } from '../../core/ports';
             </ion-label>
           </ion-item>
         </ion-list>
-
-        <ion-text color="medium" *ngIf="resultados.length === 0">
-          <p class="ion-padding-top">Sin resultados para "{{ query }}".</p>
-        </ion-text>
 
         <ion-button expand="block" fill="outline" class="ion-margin-top" (click)="modoNuevo = true">
           <ion-icon slot="start" name="add-outline"></ion-icon>
@@ -103,14 +123,25 @@ import { SuppliersRepository } from '../../core/ports';
       gap: 8px;
       margin-top: 16px;
     }
+
+    .estado-buscando {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-top: 12px;
+    }
   `],
 })
-export class ProveedorSelectorComponent implements OnInit {
+export class ProveedorSelectorComponent implements OnDestroy {
   private suppliersRepo = inject(SuppliersRepository);
   private modalCtrl = inject(ModalController);
 
+  private querySubject = new Subject<string>();
+  private busquedaSub: Subscription;
+
   query = '';
   resultados: ProveedorMock[] = [];
+  estado: EstadoBusqueda = 'inicial';
   modoNuevo = false;
   errorMsg = '';
 
@@ -120,14 +151,43 @@ export class ProveedorSelectorComponent implements OnInit {
 
   constructor() {
     addIcons({ closeOutline, addOutline });
+
+    this.busquedaSub = this.querySubject.pipe(
+      debounceTime(DEBOUNCE_MS),
+      distinctUntilChanged(),
+      switchMap(q => {
+        if (q.trim().length < MIN_CARACTERES_BUSQUEDA) return of('corta' as const);
+        this.estado = 'buscando';
+        return from(this.suppliersRepo.buscar(q)).pipe(
+          catchError(() => of('error' as const))
+        );
+      })
+    ).subscribe(resultado => {
+      if (resultado === 'corta') {
+        this.resultados = [];
+        this.estado = 'inicial';
+        return;
+      }
+      if (resultado === 'error') {
+        this.resultados = [];
+        this.estado = 'error';
+        return;
+      }
+      this.resultados = resultado.items;
+      this.estado = resultado.items.length === 0 ? 'sin-resultados' : 'ok';
+    });
   }
 
-  ngOnInit() {
-    this.buscar();
+  ngOnDestroy() {
+    this.busquedaSub.unsubscribe();
   }
 
-  buscar() {
-    this.resultados = this.suppliersRepo.buscar(this.query);
+  onQueryChange() {
+    if (!this.query.trim()) {
+      this.resultados = [];
+      this.estado = 'inicial';
+    }
+    this.querySubject.next(this.query);
   }
 
   seleccionar(p: ProveedorMock) {

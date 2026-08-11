@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { PaginaResultado } from '../shared/types/pagination';
 
 export type EstadoFactura = 'borrador' | 'contabilizada' | 'firmada';
 export type EstadoAeat = 'PendienteEnvio' | 'Correcto' | 'AceptadoConErrores' | 'RechazadoAeat' | 'RequiereRevisionManual';
@@ -307,12 +308,18 @@ export class MockFacturasService {
 
   // ---------- Clientes ----------
 
-  buscarClientes(query: string): ClienteMock[] {
+  // Búsqueda bajo demanda: con menos de 2 caracteres no devuelve nada (nunca "todos
+  // los clientes") — el mismo mínimo que exige el selector en el componente, pero
+  // reforzado aquí para que la regla no dependa solo de la UI.
+  async buscarClientesPaginado(query: string, page = 1, pageSize = 20): Promise<PaginaResultado<ClienteMock>> {
     const q = query.trim().toLowerCase();
-    if (!q) return [...this.clientes];
-    return this.clientes.filter(c =>
+    if (q.length < 2) return { items: [], total: 0, page, pageSize };
+
+    const todos = this.clientes.filter(c =>
       c.nombre.toLowerCase().includes(q) || c.nif.toLowerCase().includes(q)
     );
+    const inicio = (page - 1) * pageSize;
+    return { items: todos.slice(inicio, inicio + pageSize), total: todos.length, page, pageSize };
   }
 
   crearClienteAdHoc(data: Destinatario): ClienteMock {
@@ -323,12 +330,15 @@ export class MockFacturasService {
 
   // ---------- Proveedores ----------
 
-  buscarProveedores(query: string): ProveedorMock[] {
+  async buscarProveedoresPaginado(query: string, page = 1, pageSize = 20): Promise<PaginaResultado<ProveedorMock>> {
     const q = query.trim().toLowerCase();
-    if (!q) return [...this.proveedores];
-    return this.proveedores.filter(p =>
+    if (q.length < 2) return { items: [], total: 0, page, pageSize };
+
+    const todos = this.proveedores.filter(p =>
       p.nombre.toLowerCase().includes(q) || p.nif.toLowerCase().includes(q)
     );
+    const inicio = (page - 1) * pageSize;
+    return { items: todos.slice(inicio, inicio + pageSize), total: todos.length, page, pageSize };
   }
 
   crearProveedorAdHoc(data: Omit<ProveedorMock, 'id'>): ProveedorMock {

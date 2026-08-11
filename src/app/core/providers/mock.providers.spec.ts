@@ -57,15 +57,23 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     expect(emisor.nif).toBeTruthy();
   });
 
-  it('busca clientes de ejemplo por nombre y por NIF', () => {
-    expect(customersRepo.buscar('').length).toBeGreaterThan(0);
-    expect(customersRepo.buscar('Sonrisas').length).toBe(1);
-    expect(customersRepo.buscar('B12345678').length).toBe(1);
+  it('busca clientes de ejemplo por nombre y por NIF, sin devolver nada con menos de 2 caracteres', async () => {
+    const corta = await customersRepo.buscar('S');
+    expect(corta.items.length).toBe(0);
+
+    const porNombre = await customersRepo.buscar('Sonrisas');
+    expect(porNombre.items.length).toBe(1);
+
+    const porNif = await customersRepo.buscar('B12345678');
+    expect(porNif.items.length).toBe(1);
   });
 
-  it('busca proveedores de ejemplo por nombre y por NIF', () => {
-    expect(suppliersRepo.buscar('').length).toBeGreaterThan(0);
-    expect(suppliersRepo.buscar('Vidal').length).toBe(1);
+  it('busca proveedores de ejemplo por nombre y por NIF, sin devolver nada con menos de 2 caracteres', async () => {
+    const corta = await suppliersRepo.buscar('V');
+    expect(corta.items.length).toBe(0);
+
+    const porNombre = await suppliersRepo.buscar('Vidal');
+    expect(porNombre.items.length).toBe(1);
   });
 
   it('lista facturas emitidas filtradas por estado', () => {
@@ -74,9 +82,9 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     expect(borradores.length).toBeGreaterThan(0);
   });
 
-  it('crea un borrador de factura emitida y calcula sus totales de forma coherente', () => {
+  it('crea un borrador de factura emitida y calcula sus totales de forma coherente', async () => {
     const numerador = issuedRepo.getNumeradores()[0];
-    const cliente = customersRepo.buscar('')[0];
+    const cliente = (await customersRepo.buscar('Sonrisas')).items[0];
 
     const borrador = issuedRepo.crearBorrador(numerador.id, cliente);
     expect(borrador.estado).toBe('borrador');
@@ -100,9 +108,9 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     expect(totales.total).toBe(212);
   });
 
-  it('contabilizar y firmar cambian el estado y el estado AEAT simulado de la factura', () => {
+  it('contabilizar y firmar cambian el estado y el estado AEAT simulado de la factura', async () => {
     const numerador = issuedRepo.getNumeradores()[0];
-    const cliente = customersRepo.buscar('')[0];
+    const cliente = (await customersRepo.buscar('Sonrisas')).items[0];
     const borrador = issuedRepo.crearBorrador(numerador.id, cliente);
 
     issuedRepo.contabilizar(borrador.id);
