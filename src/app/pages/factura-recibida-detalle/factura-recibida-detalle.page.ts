@@ -93,16 +93,22 @@ export class FacturaRecibidaDetallePage implements OnInit {
     return Math.round(v * 100) / 100;
   }
 
+  // Number(...) por seguridad: ion-input puede entregar baseImponible como texto,
+  // lo que rompería el "+" del total (concatenaría en vez de sumar).
+  private get baseNum(): number {
+    return Number(this.working.baseImponible) || 0;
+  }
+
   get ivaCuota(): number {
-    return this.redondear((this.working.baseImponible || 0) * (this.working.ivaPct || 0) / 100);
+    return this.redondear(this.baseNum * (Number(this.working.ivaPct) || 0) / 100);
   }
 
   get irpfCuota(): number {
-    return this.redondear((this.working.baseImponible || 0) * (this.working.irpfPct || 0) / 100);
+    return this.redondear(this.baseNum * (Number(this.working.irpfPct) || 0) / 100);
   }
 
   get total(): number {
-    return this.redondear((this.working.baseImponible || 0) + this.ivaCuota - this.irpfCuota);
+    return this.redondear(this.baseNum + this.ivaCuota - this.irpfCuota);
   }
 
   async elegirProveedor() {
@@ -155,6 +161,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
 
     const datos: FacturaRecibidaForm = {
       ...this.working,
+      baseImponible: this.baseNum,
       iva: this.ivaCuota,
       irpf: this.irpfCuota,
       totalFactura: this.total,

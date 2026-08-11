@@ -321,9 +321,10 @@ export class MockFacturasService {
   }
 
   crearBorrador(numeradorId: number, destinatario: Destinatario): FacturaEmitida {
+    const id = nextEmitidaId++;
     const nueva: FacturaEmitida = {
-      id: nextEmitidaId++,
-      numFactura: `${this.numeradorNombre(numeradorId).split(' ')[1] ?? 'X'}-BORRADOR-${nextEmitidaId}`,
+      id,
+      numFactura: `${this.numeradorNombre(numeradorId).split(' ')[1] ?? 'X'}-BORRADOR-${id}`,
       numeradorId,
       fecha: new Date().toISOString().slice(0, 10),
       destinatario,
@@ -368,7 +369,11 @@ export class MockFacturasService {
     const grupos = new Map<number, number>();
 
     for (const l of f.lineas) {
-      const importe = l.cantidad * l.precioUnitario * (1 - l.descuentoPct / 100);
+      // Number(...) por seguridad: ion-input puede entregar el valor como texto.
+      const cantidad = Number(l.cantidad) || 0;
+      const precioUnitario = Number(l.precioUnitario) || 0;
+      const descuentoPct = Number(l.descuentoPct) || 0;
+      const importe = cantidad * precioUnitario * (1 - descuentoPct / 100);
       base += importe;
       grupos.set(l.ivaPct, (grupos.get(l.ivaPct) ?? 0) + importe);
     }
