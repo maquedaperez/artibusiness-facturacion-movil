@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -25,17 +25,17 @@ import { MockFacturasService, EmisorFiscal } from '../../services/mock-facturas.
   ],
 })
 export class DatosEmisorPage implements OnInit {
+  private mock = inject(MockFacturasService);
+  private router = inject(Router);
+  private toastCtrl = inject(ToastController);
+
   emisor: EmisorFiscal = {
     esEmpresa: true, nombre: '', nif: '', direccion: '', poblacion: '', cp: '', provincia: '',
     registroMercantil: '', cnae: '', iban: '', swift: '',
   };
   errorMsg = '';
 
-  constructor(
-    private mock: MockFacturasService,
-    private router: Router,
-    private toastCtrl: ToastController,
-  ) {
+  constructor() {
     addIcons({ arrowBackOutline, documentTextOutline });
   }
 

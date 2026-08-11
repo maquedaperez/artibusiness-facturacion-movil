@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -31,18 +31,18 @@ import { MockFacturasService, EstadoFactura, FacturaEmitida, Numerador } from '.
   ],
 })
 export class FacturasEmitidasPage implements OnInit {
+  private mock = inject(MockFacturasService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private alertCtrl = inject(AlertController);
+  private toastCtrl = inject(ToastController);
+
   estado: EstadoFactura = 'borrador';
   numeradorId: number | null = null;
   numeradores: Numerador[] = [];
   facturas: FacturaEmitida[] = [];
 
-  constructor(
-    private mock: MockFacturasService,
-    private router: Router,
-    private route: ActivatedRoute,
-    private alertCtrl: AlertController,
-    private toastCtrl: ToastController,
-  ) {
+  constructor() {
     addIcons({ documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline });
   }
 

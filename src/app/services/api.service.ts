@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
 import { CapacitorHttp, HttpOptions } from '@capacitor/core';
 import { environment } from 'src/environments/environment';
@@ -6,9 +6,9 @@ import { TenantService } from './tenant.service';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private readonly TOKEN_KEY = 'arti_access_token';
+  private tenant = inject(TenantService);
 
-  constructor(private tenant: TenantService) {}
+  private readonly TOKEN_KEY = 'arti_access_token';
 
   private async resolveBaseUrl(): Promise<string> {
     if (!Capacitor.isNativePlatform()) return '';

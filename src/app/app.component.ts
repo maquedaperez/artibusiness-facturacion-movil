@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { IonApp, IonRouterOutlet } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 import { App, AppState } from '@capacitor/app';
@@ -11,9 +11,10 @@ import { AuthService } from './services/auth.service';
   imports: [IonApp, IonRouterOutlet],
 })
 export class AppComponent implements OnInit, OnDestroy {
-  private appStateListener?: PluginListenerHandle;
+  private auth = inject(AuthService);
+  private router = inject(Router);
 
-  constructor(private auth: AuthService, private router: Router) {}
+  private appStateListener?: PluginListenerHandle;
 
   async ngOnInit() {
     this.appStateListener = await App.addListener('appStateChange', (state: AppState) => {

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { ApiService } from './api.service';
 import { TenantService } from './tenant.service';
 import { Preferences } from '@capacitor/preferences';
@@ -57,13 +57,14 @@ export type LoginResult =
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private api = inject(ApiService);
+  private tenant = inject(TenantService);
+
   private readonly TOKEN_KEY = 'arti_access_token';
   private readonly USER_KEY = 'arti_user';
   private readonly EMPLOYEE_ID_KEY = 'arti_employee_id';
   private readonly SESSION_EXPIRY_KEY = 'arti_session_expiry';
-  private readonly SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 horas
-
-  constructor(private api: ApiService, private tenant: TenantService) {}
+  private readonly SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
   getAccessToken(): string | null {
     return localStorage.getItem(this.TOKEN_KEY);

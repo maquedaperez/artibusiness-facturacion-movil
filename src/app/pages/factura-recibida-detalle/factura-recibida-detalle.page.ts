@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -34,6 +34,13 @@ type FacturaRecibidaForm = Omit<FacturaRecibida, 'id' | 'origenOcr'>;
   ],
 })
 export class FacturaRecibidaDetallePage implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private mock = inject(MockFacturasService);
+  private modalCtrl = inject(ModalController);
+  private alertCtrl = inject(AlertController);
+  private toastCtrl = inject(ToastController);
+
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
 
   facturaId: number | null = null;
@@ -47,14 +54,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
 
   working: FacturaRecibidaForm = this.formularioVacio();
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private mock: MockFacturasService,
-    private modalCtrl: ModalController,
-    private alertCtrl: AlertController,
-    private toastCtrl: ToastController,
-  ) {
+  constructor() {
     addIcons({ arrowBackOutline, documentTextOutline, createOutline, trashOutline, attachOutline, eyeOutline });
   }
 

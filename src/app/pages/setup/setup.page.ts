@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -23,6 +23,10 @@ import { TenantService } from '../../services/tenant.service';
   styleUrls: ['./setup.page.scss'],
 })
 export class SetupPage {
+  private fb = inject(FormBuilder);
+  private tenant = inject(TenantService);
+  private router = inject(Router);
+
   submitted = false;
   invalidTenant = false;
   loading = false;      
@@ -31,12 +35,6 @@ export class SetupPage {
   form = this.fb.group({
     tenantKey: ['', [Validators.required, Validators.minLength(3)]],
   });
-
-  constructor(
-    private fb: FormBuilder,
-    private tenant: TenantService,
-    private router: Router
-  ) {}
 
 openLink() {
   window.open('https://www.artisoftware.com/artibusiness/artibusiness-rrhh/alta-en-el-servicio/', '_system');

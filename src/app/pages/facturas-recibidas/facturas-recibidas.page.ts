@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 
@@ -26,16 +26,16 @@ import { MockFacturasService, FacturaRecibida } from '../../services/mock-factur
   ],
 })
 export class FacturasRecibidasPage implements OnInit {
+  private mock = inject(MockFacturasService);
+  private toastCtrl = inject(ToastController);
+  private router = inject(Router);
+
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
 
   facturas: FacturaRecibida[] = [];
   processing = false;
 
-  constructor(
-    private mock: MockFacturasService,
-    private toastCtrl: ToastController,
-    private router: Router,
-  ) {
+  constructor() {
     addIcons({ cameraOutline, receiptOutline, documentTextOutline, addOutline });
   }
 

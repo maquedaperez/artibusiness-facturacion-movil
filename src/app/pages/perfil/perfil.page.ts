@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 
@@ -46,16 +46,16 @@ import { createOutline } from 'ionicons/icons';
   styleUrls: ['./perfil.page.scss'],
 })
 export class PerfilPage {
+  private auth = inject(AuthService);
+  private tenant = inject(TenantService);
+  private mock = inject(MockFacturasService);
+  private router = inject(Router);
+  private alertCtrl = inject(AlertController);
+
   user: User | null = null;
   emisor: EmisorFiscal | null = null;
 
-  constructor(
-    private auth: AuthService,
-    private tenant: TenantService,
-    private mock: MockFacturasService,
-    private router: Router,
-    private alertCtrl: AlertController
-  ) {
+  constructor() {
     addIcons({ createOutline });
   }
 

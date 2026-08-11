@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -105,6 +105,9 @@ import { MockFacturasService, ProveedorMock } from '../../services/mock-facturas
   `],
 })
 export class ProveedorSelectorComponent implements OnInit {
+  private mock = inject(MockFacturasService);
+  private modalCtrl = inject(ModalController);
+
   query = '';
   resultados: ProveedorMock[] = [];
   modoNuevo = false;
@@ -114,10 +117,7 @@ export class ProveedorSelectorComponent implements OnInit {
     nombre: '', nif: '', direccion: '', poblacion: '', cp: '', provincia: '',
   };
 
-  constructor(
-    private mock: MockFacturasService,
-    private modalCtrl: ModalController,
-  ) {
+  constructor() {
     addIcons({ closeOutline, addOutline });
   }
 

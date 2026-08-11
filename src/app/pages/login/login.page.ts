@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -30,6 +30,11 @@ const SAVED_PASSWORD_KEY = 'saved_password';
   styleUrls: ['./login.page.scss'],
 })
 export class LoginPage implements OnInit {
+  private fb = inject(FormBuilder);
+  private auth = inject(AuthService);
+  private tenant = inject(TenantService);
+  private router = inject(Router);
+
   submitted = false;
   tenantKeyLabel = '';
   errorMsg = '';
@@ -39,13 +44,6 @@ export class LoginPage implements OnInit {
     username: ['', Validators.required],
     password: ['', [Validators.required, Validators.minLength(4)]],
   });
-
-  constructor(
-    private fb: FormBuilder,
-    private auth: AuthService,
-    private tenant: TenantService,
-    private router: Router
-  ) {}
 
 async ngOnInit() {
   const cfg = await this.tenant.getTenantConfig();

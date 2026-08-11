@@ -1,4 +1,4 @@
-import { Component, OnDestroy, NgZone } from '@angular/core';
+import { Component, OnDestroy, NgZone, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -15,6 +15,12 @@ import { IonContent, IonItem, IonInput, IonButton, IonText } from '@ionic/angula
   styleUrls: ['./mfa.page.scss'],
 })
 export class MfaPage implements OnDestroy {
+  private fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private auth = inject(AuthService);
+  private router = inject(Router);
+  private zone = inject(NgZone);
+
   submitted = false;
   errorMsg = '';
   successMsg = '';
@@ -31,13 +37,7 @@ export class MfaPage implements OnDestroy {
     code: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]],
   });
 
-  constructor(
-    private fb: FormBuilder,
-    private route: ActivatedRoute,
-    private auth: AuthService,
-    private router: Router,
-    private zone: NgZone
-  ) {
+  constructor() {
     this.challengeId = this.route.snapshot.queryParamMap.get('c') ?? '';
     this.maskedEmail = this.route.snapshot.queryParamMap.get('e') ?? '';
     this.username = this.route.snapshot.queryParamMap.get('u') ?? '';

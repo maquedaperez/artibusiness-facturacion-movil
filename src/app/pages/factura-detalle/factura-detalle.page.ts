@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -31,6 +31,13 @@ import { ClienteSelectorComponent } from '../../modals/cliente-selector/cliente-
   ],
 })
 export class FacturaDetallePage implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private mock = inject(MockFacturasService);
+  private modalCtrl = inject(ModalController);
+  private alertCtrl = inject(AlertController);
+  private toastCtrl = inject(ToastController);
+
   facturaId: number | null = null;
   esNueva = false;
   cargando = true;
@@ -45,14 +52,7 @@ export class FacturaDetallePage implements OnInit {
   working: FacturaEmitida | null = null;
   errorMsg = '';
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private mock: MockFacturasService,
-    private modalCtrl: ModalController,
-    private alertCtrl: AlertController,
-    private toastCtrl: ToastController,
-  ) {
+  constructor() {
     addIcons({ arrowBackOutline, addOutline, trashOutline, personCircleOutline, documentTextOutline });
   }
 

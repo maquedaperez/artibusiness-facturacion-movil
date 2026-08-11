@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonContent, IonSpinner } from '@ionic/angular/standalone';
@@ -14,11 +14,10 @@ import { AuthService } from '../../services/auth.service';
   imports: [IonSpinner, IonContent, CommonModule, FormsModule],
 })
 export class SplashPage implements OnInit {
-  constructor(
-    private tenant: TenantService,
-    private auth: AuthService,
-    private router: Router
-  ) {}
+  private tenant = inject(TenantService);
+  private auth = inject(AuthService);
+  private router = inject(Router);
+
 
   ngOnInit() {
     setTimeout(async () => {

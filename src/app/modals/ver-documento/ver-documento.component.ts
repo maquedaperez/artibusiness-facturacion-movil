@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import {
@@ -38,10 +38,12 @@ import { closeOutline } from 'ionicons/icons';
   `],
 })
 export class VerDocumentoComponent {
+  private modalCtrl = inject(ModalController);
+
   @Input() url = '';
   @Input() nombre = '';
 
-  constructor(private modalCtrl: ModalController) {
+  constructor() {
     addIcons({ closeOutline });
   }
 

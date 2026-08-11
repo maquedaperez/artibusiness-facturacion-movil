@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -32,18 +32,16 @@ import {
   styleUrls: ['./forgot-password.page.scss'],
 })
 export class ForgotPasswordPage {
+  private fb = inject(FormBuilder);
+  private auth = inject(AuthService);
+  private tenant = inject(TenantService);
+  private router = inject(Router);
+
   submitted = false;
 
   form = this.fb.group({
     identifier: ['', Validators.required],
   });
-
-  constructor(
-    private fb: FormBuilder,
-    private auth: AuthService,
-    private tenant: TenantService,
-    private router: Router
-  ) {}
 
   async submit() {
     this.submitted = true;
