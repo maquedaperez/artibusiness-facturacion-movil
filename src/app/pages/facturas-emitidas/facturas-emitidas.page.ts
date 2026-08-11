@@ -7,8 +7,8 @@ import {
   IonHeader, IonToolbar, IonTitle, IonContent,
   IonSegment, IonSegmentButton, IonLabel,
   IonSelect, IonSelectOption,
-  IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonCardSubtitle,
-  IonText, IonIcon, IonButton, IonBadge, IonChip, IonFab, IonFabButton,
+  IonCard, IonCardContent,
+  IonText, IonIcon, IonButton, IonChip, IonFab, IonFabButton,
   AlertController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -26,8 +26,8 @@ import { MockFacturasService, EstadoFactura, FacturaEmitida, Numerador } from '.
     IonHeader, IonToolbar, IonTitle, IonContent,
     IonSegment, IonSegmentButton, IonLabel,
     IonSelect, IonSelectOption,
-    IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonCardSubtitle,
-    IonText, IonIcon, IonButton, IonBadge, IonChip, IonFab, IonFabButton,
+    IonCard, IonCardContent,
+    IonText, IonIcon, IonButton, IonChip, IonFab, IonFabButton,
   ],
 })
 export class FacturasEmitidasPage implements OnInit {

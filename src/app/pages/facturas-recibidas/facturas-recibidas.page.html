@@ -33,18 +33,20 @@
   </ion-button>
 
   <div class="facturas-list">
-    <ion-card *ngFor="let f of facturas" button (click)="abrir(f)">
-      <ion-card-header>
-        <ion-card-subtitle>{{ formatFecha(f.fecha) }}</ion-card-subtitle>
-        <ion-card-title>{{ f.numFactura }} — {{ f.proveedor }}</ion-card-title>
-      </ion-card-header>
-
+    <ion-card *ngFor="let f of facturas" button (click)="abrir(f)" class="factura-card">
       <ion-card-content>
-        <p class="total-line">Total: <strong>{{ formatEuros(f.totalFactura) }}</strong></p>
-        <ion-badge [color]="f.estado === 'contabilizada' ? 'success' : 'medium'">
-          {{ f.estado === 'contabilizada' ? 'Contabilizada' : 'Borrador' }}
-        </ion-badge>
-        <ion-badge *ngIf="f.origenOcr" color="tertiary" class="ocr-badge">Desde OCR</ion-badge>
+        <div class="row-top">
+          <div class="titulo">{{ f.numFactura }} — {{ f.proveedor }}</div>
+          <div class="total">{{ formatEuros(f.totalFactura) }}</div>
+        </div>
+
+        <div class="row-meta">
+          <span>{{ formatFecha(f.fecha) }}</span>
+          <span class="estado" [class.ok]="f.estado === 'contabilizada'">
+            {{ f.estado === 'contabilizada' ? 'Contabilizada' : 'Borrador' }}
+            <ng-container *ngIf="f.origenOcr"> · OCR</ng-container>
+          </span>
+        </div>
       </ion-card-content>
     </ion-card>
 

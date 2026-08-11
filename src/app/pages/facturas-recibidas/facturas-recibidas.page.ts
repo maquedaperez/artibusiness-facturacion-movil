@@ -4,8 +4,8 @@ import { Router } from '@angular/router';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonContent,
-  IonButton, IonIcon, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonCardSubtitle,
-  IonText, IonBadge, IonChip, IonLabel, IonSpinner,
+  IonButton, IonIcon, IonCard, IonCardContent,
+  IonText, IonChip, IonLabel, IonSpinner,
   ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -21,8 +21,8 @@ import { MockFacturasService, FacturaRecibida } from '../../services/mock-factur
   imports: [
     CommonModule,
     IonHeader, IonToolbar, IonTitle, IonContent,
-    IonButton, IonIcon, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonCardSubtitle,
-    IonText, IonBadge, IonChip, IonLabel, IonSpinner,
+    IonButton, IonIcon, IonCard, IonCardContent,
+    IonText, IonChip, IonLabel, IonSpinner,
   ],
 })
 export class FacturasRecibidasPage implements OnInit {

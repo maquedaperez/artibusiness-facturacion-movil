@@ -37,41 +37,41 @@
   </ion-segment>
 
   <div class="facturas-list">
-    <ion-card *ngFor="let f of facturas" button (click)="abrir(f)">
-      <ion-card-header>
-        <ion-card-subtitle>{{ numeradorNombre(f) }} · {{ formatFecha(f.fecha) }}</ion-card-subtitle>
-        <ion-card-title>{{ f.numFactura }} — {{ clienteNombre(f) }}</ion-card-title>
-      </ion-card-header>
-
+    <ion-card *ngFor="let f of facturas" button (click)="abrir(f)" class="factura-card">
       <ion-card-content>
-        <p class="total-line">Total: <strong>{{ formatEuros(totalFactura(f)) }}</strong></p>
-        <p class="ion-no-margin" *ngIf="f.lineas.length === 0" style="color: var(--ion-color-medium);">
-          Sin líneas todavía
-        </p>
+        <div class="row-top">
+          <div class="titulo">{{ f.numFactura }} — {{ clienteNombre(f) }}</div>
+          <div class="total">{{ formatEuros(totalFactura(f)) }}</div>
+        </div>
 
-        <ion-badge *ngIf="f.estado !== 'borrador'" [color]="estadoAeatColor(f)" class="aeat-badge">
-          Estado AEAT: {{ estadoAeatLabel(f) }}
-        </ion-badge>
+        <div class="row-meta">
+          <span>{{ numeradorNombre(f) }} · {{ formatFecha(f.fecha) }}</span>
+          <span *ngIf="f.estado !== 'borrador'" class="aeat" [ngClass]="'aeat-' + estadoAeatColor(f)">
+            {{ estadoAeatLabel(f) }}
+          </span>
+        </div>
 
-        <ion-button
-          *ngIf="f.estado === 'borrador'"
-          expand="block"
-          fill="outline"
-          (click)="confirmarContabilizar($event, f)"
-        >
-          <ion-icon slot="start" name="checkmark-circle-outline"></ion-icon>
-          Contabilizar
-        </ion-button>
+        <div class="row-actions" *ngIf="f.estado !== 'firmada'">
+          <ion-button
+            *ngIf="f.estado === 'borrador'"
+            size="small"
+            fill="outline"
+            (click)="confirmarContabilizar($event, f)"
+          >
+            <ion-icon slot="start" name="checkmark-circle-outline"></ion-icon>
+            Contabilizar
+          </ion-button>
 
-        <ion-button
-          *ngIf="f.estado === 'contabilizada'"
-          expand="block"
-          fill="outline"
-          (click)="confirmarFirmar($event, f)"
-        >
-          <ion-icon slot="start" name="ribbon-outline"></ion-icon>
-          Firmar
-        </ion-button>
+          <ion-button
+            *ngIf="f.estado === 'contabilizada'"
+            size="small"
+            fill="outline"
+            (click)="confirmarFirmar($event, f)"
+          >
+            <ion-icon slot="start" name="ribbon-outline"></ion-icon>
+            Firmar
+          </ion-button>
+        </div>
       </ion-card-content>
     </ion-card>
 
