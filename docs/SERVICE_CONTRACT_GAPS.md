@@ -272,3 +272,51 @@ trazabilidad, no requieren respuesta.
     (`FacturacionFacturasEmitidasLineas`, gap #10) o si Recibidas tiene su propia tabla
     de líneas con otro nombre/forma; y si el campo de retención declarado por el
     proveedor tiene alguna validación especial en backend (p. ej. contra su NIF/epígrafe).
+
+---
+
+## Bloque E — acciones mínimas y permisos por estado (2026-08-11)
+
+32. **`allowedActions` por factura, en vez de calcularlo en el frontend.** Hoy
+    `accionesFacturaEmitida`/`accionesFacturaRecibida` (mock-facturas.service.ts)
+    calculan editar/eliminar/copiar/descargar/compartir solo a partir del `estado` de
+    la factura (borrador vs. definitiva vs. desconocido → conservador). Es una regla
+    razonable pero **inventada por este frontend**, no confirmada contra el backend —
+    en particular, no contempla permisos por rol de usuario ni excepciones de negocio
+    (p. ej. un supervisor que sí pueda anular una factura contabilizada). — **Impacto**:
+    alto, es la política que decide qué botones se ven en todas las facturas. —
+    **Pantallas**: listado y detalle de Emitidas y Recibidas. — **Qué necesito**: si el
+    backend real puede devolver `allowedActions` explícito por factura (recomendado,
+    ver la nota del propio prompt de la reunión), este frontend pasa a **mapear** esa
+    respuesta en vez de calcularla — cambio acotado a `accionesFacturaEmitida`/
+    `accionesFacturaRecibida`, sin tocar ninguna pantalla.
+
+33. **Operación de anulación/baja autorizada para una factura contabilizada.** Hoy
+    "Eliminar" solo está permitido en estado borrador — una factura contabilizada nunca
+    se borra desde esta app. El propio prompt de la reunión prevé que pueda existir "una
+    operación autorizada distinta" para ese caso (anulación/rectificativa), que no
+    existe todavía. — **Impacto**: medio, hoy simplemente no se ofrece la acción. —
+    **Pantallas**: listado y detalle de Emitidas y Recibidas. — **Qué necesito**: si
+    existe (o se va a construir) un endpoint de anulación/baja para facturas ya
+    contabilizadas, y sus reglas (quién puede, con qué justificación, efecto sobre
+    Verifactu/AEAT si ya se envió).
+
+34. **Documento/PDF real de una factura emitida.** `generarDocumento()` genera hoy un
+    HTML de demostración marcado "SIMULACIÓN — NO VÁLIDO FISCALMENTE" con los datos de
+    la factura — no hay PDF real ni backend que lo sirva. — **Impacto**: alto para que
+    "Descargar/Compartir documento" en Emitidas deje de ser una simulación. —
+    **Pantallas**: listado y detalle de Facturas Emitidas. — **Qué necesito**: el
+    endpoint o servicio de documentos real (¿lo sirve `WebAPIARTIBusiness`? ¿el propio
+    servicio de FacturaE que genera el XML/PDF firmado, gap #19?), formato de
+    respuesta (URL temporal vs. binario autenticado) y si aplica igual a un borrador
+    (sin firmar) que a una factura ya firmada.
+
+35. **Endpoint de duplicar/copiar factura.** `duplicar()` construye hoy el borrador
+    limpio enteramente en el cliente (mock) — copia cliente/proveedor, concepto y
+    líneas, y descarta id/serie/estado fiscal/OperacionId/documento adjunto anteriores.
+    — **Impacto**: medio, es una operación de escritura que probablemente deba
+    resolverse en backend para mantener consistencia (numeración, OperacionId nuevo
+    generado server-side, etc.), no solo en el cliente. — **Pantallas**: listado y
+    detalle de Emitidas y Recibidas. — **Qué necesito**: confirmar si "copiar" debe ser
+    una llamada a un endpoint específico (`POST .../duplicar`) en vez de que el cliente
+    arme el nuevo borrador con los datos que ya tiene descargados.
