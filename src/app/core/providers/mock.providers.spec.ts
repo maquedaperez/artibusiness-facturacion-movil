@@ -96,6 +96,7 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
 
     borrador.lineas.push({
       id: issuedRepo.nuevoIdLinea(),
+      origen: 'manual',
       descripcion: 'Servicio de ejemplo',
       cantidad: 2,
       precioUnitario: 100,
@@ -135,7 +136,10 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
       proveedor: 'Proveedor de prueba', proveedorNif: '00000000T',
       numFactura: 'TEST-1', fecha: '2026-08-11', vencimiento: '',
       concepto: 'Prueba', formaPago: 'Transferencia',
-      baseImponible: 100, ivaPct: 21, iva: 21, irpfPct: 0, irpf: 0, totalFactura: 121,
+      lineas: [
+        { id: receivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'Prueba', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 },
+      ],
+      retencionPct: 0,
       pagada: false, estado: 'borrador',
     });
 
@@ -145,6 +149,32 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     receivedRepo.eliminar(creada.id);
     expect(receivedRepo.listar().length).toBe(inicial);
     expect(receivedRepo.obtenerPorId(creada.id)).toBeUndefined();
+  });
+
+  it('una factura recibida con varias líneas manuales calcula bien el desglose de IVA y el total', () => {
+    const creada = receivedRepo.crearManual({
+      proveedor: 'Proveedor multi-línea', proveedorNif: '00000000T',
+      numFactura: 'TEST-2', fecha: '2026-08-11', vencimiento: '',
+      concepto: 'Varias líneas', formaPago: 'Transferencia',
+      lineas: [
+        { id: receivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'Línea A', cantidad: 2, precioUnitario: 50, descuentoPct: 0, ivaPct: 21 },
+        { id: receivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'Línea B', cantidad: 1, precioUnitario: 40, descuentoPct: 0, ivaPct: 10 },
+      ],
+      retencionPct: 15,
+      pagada: false, estado: 'borrador',
+    });
+
+    const totales = receivedRepo.totales(creada);
+    // base = (2*50) + (1*40) = 140; IVA: 21% de 100 = 21, 10% de 40 = 4 → ivaTotal 25;
+    // retención 15% sobre 140 = 21 → total = 140 + 25 - 21 = 144.
+    expect(totales.base).toBe(140);
+    expect(totales.desgloseIva.length).toBe(2);
+    expect(totales.ivaTotal).toBe(25);
+    expect(totales.retencion.aplicable).toBeTrue();
+    expect(totales.retencion.importe).toBe(21);
+    expect(totales.total).toBe(144);
+
+    receivedRepo.eliminar(creada.id);
   });
 });
 

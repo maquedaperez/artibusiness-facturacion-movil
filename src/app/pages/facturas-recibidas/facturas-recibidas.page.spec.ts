@@ -23,7 +23,9 @@ describe('FacturasRecibidasPage', () => {
   function facturaDe(proveedor: string, concepto: string): FacturaRecibida {
     return {
       id: 1, proveedor, proveedorNif: 'B00000000', numFactura: 'F-999', fecha: '2026-08-11',
-      concepto, baseImponible: 100, ivaPct: 21, iva: 21, irpfPct: 0, irpf: 0, totalFactura: 121,
+      concepto,
+      lineas: [{ id: 1, origen: 'manual', descripcion: concepto, cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 }],
+      retencionPct: 0,
       pagada: false, estado: 'borrador', origenOcr: false,
     };
   }
