@@ -93,11 +93,15 @@ trazabilidad, no requieren respuesta.
     **Pantalla**: detalle de factura emitida. — **Qué necesito**: respuesta del
     jefe/asesoría.
 
-13. **Endpoints completos de Facturas Recibidas.** `POST /api/FacturaRecibida/desde-ocr`
-    sugerido en `CONTEXTO_FACTURACION.md`, sin construir. Tampoco existen
-    listar/crear-manual/editar/eliminar. — **Impacto**: crítico. — **Pantallas**: Facturas
-    Recibidas (lista + detalle). — **Qué necesito**: contrato completo, análogo al de
-    Emitidas.
+13. 🟡 **PROPUESTO, pendiente de implementación en backend** — `POST
+    /api/FacturaRecibida/desde-ocr` sugerido en `CONTEXTO_FACTURACION.md`, sin construir
+    todavía. El contrato exacto (multipart, formato de respuesta) ya está propuesto en
+    `docs/OCR_BACKEND_INTEGRATION.md` tras recibir el paquete `ARTI-Invoice-Reader-Handoff/`
+    — el jefe tiene acceso al backend y va a implementarlo. El resto de endpoints de
+    Recibidas (listar/crear-manual/editar/eliminar) siguen sin existir. — **Impacto**:
+    crítico. — **Pantallas**: Facturas Recibidas (lista + detalle). — **Qué necesito**:
+    confirmación de la URL final del endpoint y de si el backend reenvía el bloque
+    `document` de la API de OCR tal cual o lo transforma antes (ver doc).
 
 14. **¿Columnas E (Enviada) y C (Cobrada) hacen falta en el móvil?** Confirmado que existen
     en el modelo real de Emitidas; se decidió (recomendación propia, no del jefe) dejarlas
@@ -148,13 +152,18 @@ trazabilidad, no requieren respuesta.
 
 ## OCR
 
-21. **Contrato exacto de `POST /api/FacturaRecibida/desde-ocr`.** Sugerido en
-    `CONTEXTO_FACTURACION.md`, nunca confirmado. El servicio OCR en sí (Gemini+Flask) lo
-    tiene otro equipo — no se sabe si este endpoint ya envuelve esa llamada o si la app
-    debe hablar directamente con el servicio OCR. — **Impacto**: crítico para Recibidas. —
-    **Pantalla**: Facturas Recibidas (botón Escanear/subir). — **Qué necesito**: contrato
-    completo (multipart, tamaño máximo, formatos soportados, tiempo de respuesta esperado,
-    forma de la respuesta con los campos extraídos).
+21. 🟡 **PROPUESTO, pendiente de implementación en backend** — Recibido el paquete de
+    integración `ARTI-Invoice-Reader-Handoff/` (API "Generic Invoice Reader", servicio
+    externo en Railway). Confirmado por el propio paquete: **la app NO debe hablar
+    directamente con el servicio OCR** — el token es de pago por llamada y no puede vivir en
+    ningún cliente (web ni nativo, un APK se descompila igual de fácil). Debe ser
+    `WebAPIARTIBusiness` quien llame a la API de OCR guardando el token en el servidor, y
+    exponga `POST /api/FacturaRecibida/desde-ocr` para la app. Contrato completo (multipart,
+    tamaño máximo 10MB, formatos PDF/JPEG/PNG/WEBP, códigos de error, forma de la
+    respuesta) propuesto en `docs/OCR_BACKEND_INTEGRATION.md`. — **Impacto**: crítico para
+    Recibidas. — **Pantalla**: Facturas Recibidas (botón Escanear/subir). — **Qué
+    necesito**: que el backend construya el endpoint y confirme si reenvía el bloque
+    `document` de la respuesta de OCR tal cual (recomendado) o transformado.
 
 ---
 
