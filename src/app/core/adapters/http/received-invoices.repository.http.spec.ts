@@ -82,6 +82,109 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
     expect(factura.formaPago).toBeUndefined();
   });
 
+  it('sin unit_price, usa taxable_base como importe de la línea (1 unidad) — caso real Movistar', async () => {
+    // Caso real: factura de Movistar donde el OCR no da quantity/unit_price (es un abono,
+    // no "cantidad × precio unitario"), pero sí taxable_base y line_total por línea.
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: {
+          invoice_number: 'FMDVAGJ0044689',
+          issue_date: '2026-07-13',
+          issuer: { legal_name: 'Telefónica de España, S.A.U.', tax_id: 'A-82018474' },
+          lines: [
+            {
+              description: 'Fusión Total Plus (28 May a 27 Jun)',
+              quantity: null, unit_price: null, discount_percent: null, tax_rate: '21.0',
+              taxable_base: '180.1653', line_total: '180.1653',
+            },
+            {
+              description: '687119577 - Contenidos',
+              quantity: null, unit_price: null, discount_percent: null, tax_rate: '21.0',
+              taxable_base: '0.7417', line_total: '0.7417',
+            },
+          ],
+        },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+
+    expect(factura.lineas[0].cantidad).toBe(1);
+    expect(factura.lineas[0].precioUnitario).toBe(180.1653);
+    expect(factura.lineas[1].precioUnitario).toBe(0.7417);
+    // Antes del arreglo esto daba 0 — es justo el bug real que reportó el usuario.
+    expect(factura.lineas[0].precioUnitario).not.toBe(0);
+  });
+
+  it('sin taxable_base, cae a line_total como último recurso', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: { lines: [{ description: 'x', quantity: null, unit_price: null, taxable_base: null, line_total: '42.50', tax_rate: '21' }] },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    expect(factura.lineas[0].cantidad).toBe(1);
+    expect(factura.lineas[0].precioUnitario).toBe(42.5);
+  });
+
+  it('con unit_price presente, sigue respetando cantidad × precio como antes (no rompe el caso normal)', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: { lines: [{ description: 'x', quantity: '3', unit_price: '10.00', taxable_base: '999', tax_rate: '21' }] },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    expect(factura.lineas[0].cantidad).toBe(3);
+    expect(factura.lineas[0].precioUnitario).toBe(10);
+  });
+
+  it('toma la retención de withholding_rate de línea si viene, redondeada a la tarifa IRPF más cercana', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: { lines: [{ description: 'x', unit_price: '100', withholding_rate: '15.2' }] },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    expect(factura.retencionPct).toBe(15); // 15.2 -> tarifa válida más cercana (IRPF_RATES)
+  });
+
+  it('sin withholding_rate por línea, calcula la retención a partir de los totales', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: {
+          lines: [{ description: 'x', unit_price: '100' }],
+          totals: { taxable_base: '100', withholding: '19' },
+        },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    expect(factura.retencionPct).toBe(19); // 19/100 = 19% exacto
+  });
+
+  it('sin ningún dato de retención, queda en 0 (como antes) — caso real Movistar', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: {
+          lines: [{ description: 'x', unit_price: '100' }],
+          totals: { taxable_base: '100', withholding: null },
+        },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    expect(factura.retencionPct).toBe(0);
+  });
+
   it('rellena con valores por defecto razonables cuando la extracción viene incompleta', async () => {
     apiSpy.postMultipart.and.resolveTo({
       success: true,
