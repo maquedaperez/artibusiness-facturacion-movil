@@ -4,10 +4,10 @@ import { Router } from '@angular/router';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent,
-  IonItem, IonInput, IonRadioGroup, IonRadio, IonText,
+  IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonText,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { arrowBackOutline, documentTextOutline } from 'ionicons/icons';
+import { arrowBackOutline } from 'ionicons/icons';
 
 import { EmisorFiscal } from '../../services/mock-facturas.service';
 import { EmisorRepository } from '../../core/ports';
@@ -21,7 +21,7 @@ import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.compon
   imports: [
     CommonModule,
     IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent,
-    IonItem, IonInput, IonRadioGroup, IonRadio, IonText,
+    IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonText,
     DemoBannerComponent,
   ],
 })
@@ -35,7 +35,7 @@ export class DatosEmisorPage implements OnInit {
   };
 
   constructor() {
-    addIcons({ arrowBackOutline, documentTextOutline });
+    addIcons({ arrowBackOutline });
   }
 
   ngOnInit() {

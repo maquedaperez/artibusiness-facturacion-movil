@@ -8,16 +8,28 @@
   font-size: 12px;
 }
 
-.section-title {
-  font-weight: 700;
-  margin: 20px 0 8px 4px;
-}
+// Mismo estilo que la card de datos de usuario en Perfil — etiqueta en negrita +
+// valor en texto normal, nada de aspecto de formulario ahora que todo es de
+// solo lectura.
+.compact-card {
+  ion-card-header {
+    padding: 14px 16px 4px;
+  }
 
-.solo-lectura-tag {
-  font-weight: 500;
-  font-size: 11.5px;
-  color: var(--ion-color-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  margin-left: 6px;
+  ion-card-title {
+    font-size: 15px;
+  }
+
+  ion-card-content {
+    padding: 8px 16px 14px;
+    font-size: 14px;
+
+    p {
+      margin: 0 0 8px;
+    }
+
+    p:last-child {
+      margin-bottom: 0;
+    }
+  }
 }
