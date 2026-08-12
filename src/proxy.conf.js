@@ -1,7 +1,8 @@
 // proxy.conf.js (renombra el archivo)
+// ⚠️ TEMPORAL: target apuntando a Development, ver aviso en environment.prod.ts.
 module.exports = {
   '/api': {
-    target: 'https://webapiartibusiness-dvh6d7b8a7c9dsfr.westeurope-01.azurewebsites.net',
+    target: 'https://webapiartibusinessdevelopment-e8htgkdhhhfpbeem.westeurope-01.azurewebsites.net',
     secure: true,
     changeOrigin: true,
     logLevel: 'debug',

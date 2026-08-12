@@ -7,9 +7,15 @@
 
 # Proxies server-a-servidor para evitar CORS en el build web (Netlify).
 # La build nativa (Capacitor/CapacitorHttp) no pasa por aquí y no le afecta.
+#
+# ⚠️ TEMPORAL: apuntando a Development porque DocumentoController (OCR) todavía no está
+# publicado en Producción — ver docs/OCR_BACKEND_INTEGRATION.md. Revertir a
+# https://webapiartibusiness-dvh6d7b8a7c9dsfr.westeurope-01.azurewebsites.net en cuanto el
+# jefe publique ahí. Mientras tanto, el login en Netlify solo funciona con usuarios que
+# existan en la base de datos de Development.
 [[redirects]]
   from = "/api/*"
-  to = "https://webapiartibusiness-dvh6d7b8a7c9dsfr.westeurope-01.azurewebsites.net/api/:splat"
+  to = "https://webapiartibusinessdevelopment-e8htgkdhhhfpbeem.westeurope-01.azurewebsites.net/api/:splat"
   status = 200
   force = true
 
