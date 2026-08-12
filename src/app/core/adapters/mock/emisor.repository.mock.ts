@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { EmisorRepository } from '../../ports/emisor.repository';
-import { EmisorContactoEditable, EmisorFiscal, MockFacturasService } from '../../../services/mock-facturas.service';
+import { EmisorFiscal, MockFacturasService } from '../../../services/mock-facturas.service';
 
 @Injectable()
 export class MockEmisorRepository extends EmisorRepository {
@@ -8,9 +8,5 @@ export class MockEmisorRepository extends EmisorRepository {
 
   getEmisor(): EmisorFiscal {
     return this.mock.getEmisor();
-  }
-
-  actualizarEmisor(data: EmisorContactoEditable): void {
-    this.mock.actualizarEmisor(data);
   }
 }

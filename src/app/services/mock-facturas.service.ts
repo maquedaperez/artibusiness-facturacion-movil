@@ -41,6 +41,10 @@ export type ProveedorMock = {
 // Empresa.cs (CifEmpresa, IdDireccion, RegistroMercantil/Hoja/Folio/Tomo, Cnae, Iban, Swift),
 // más el toggle autónomo/empresa que pidió el jefe — pendiente de confirmar si el backend
 // real lo soporta (Empresa.cs de ARTI Software no lo tenía, pero puede variar por cliente).
+// Solo lectura en su totalidad: identidad fiscal, dirección y datos adicionales
+// llegan de alta/backend (Empresa + Direccion en ARTIBusiness — ver
+// docs/AUDITORIA_INTEGRACION_BACKEND.md sección E). Ningún campo se edita desde la
+// app móvil — decisión explícita, no una limitación temporal del MVP.
 export type EmisorFiscal = {
   esEmpresa: boolean;
   nombre: string;
@@ -55,12 +59,6 @@ export type EmisorFiscal = {
   iban: string;
   swift: string;
 };
-
-// Únicos campos que el usuario puede actualizar desde la app — nombre, NIF/CIF y
-// esEmpresa son identidad fiscal y llegan de alta/backend, no de este formulario.
-// registroMercantil/cnae/iban/swift tampoco están en el contrato de actualización
-// aprobado; se muestran de solo lectura hasta que exista un endpoint específico.
-export type EmisorContactoEditable = Pick<EmisorFiscal, 'direccion' | 'poblacion' | 'cp' | 'provincia' | 'telefono'>;
 
 export type OrigenLinea = 'catalogo' | 'suscripcion' | 'manual';
 
@@ -502,19 +500,6 @@ export class MockFacturasService {
 
   getEmisor(): EmisorFiscal {
     return { ...this.emisor };
-  }
-
-  // Solo admite los campos de contacto — nombre, NIF/CIF y esEmpresa son identidad
-  // fiscal y no se pueden reescribir desde aquí, ni aunque el payload los incluyera.
-  actualizarEmisor(data: EmisorContactoEditable): void {
-    this.emisor = {
-      ...this.emisor,
-      direccion: data.direccion,
-      poblacion: data.poblacion,
-      cp: data.cp,
-      provincia: data.provincia,
-      telefono: data.telefono,
-    };
   }
 
   // ---------- Numeradores ----------

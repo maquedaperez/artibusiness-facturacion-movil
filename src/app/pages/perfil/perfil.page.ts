@@ -23,7 +23,7 @@ import {
   AlertController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { createOutline } from 'ionicons/icons';
+import { chevronForwardOutline } from 'ionicons/icons';
 
 @Component({
   selector: 'app-perfil',
@@ -57,7 +57,7 @@ export class PerfilPage {
   emisor: EmisorFiscal | null = null;
 
   constructor() {
-    addIcons({ createOutline });
+    addIcons({ chevronForwardOutline });
   }
 
   ionViewWillEnter() {

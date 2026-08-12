@@ -15,17 +15,12 @@
 
   <ion-text color="medium">
     <p class="ion-no-margin ion-padding-bottom">
-      Estos son los datos que aparecerán como emisor en tus facturas.
+      Estos son los datos que aparecen como emisor en tus facturas. Ninguno se
+      puede editar desde la app — proceden del alta de tu empresa.
     </p>
   </ion-text>
 
   <div class="section-title">Identidad fiscal <span class="solo-lectura-tag">No editable</span></div>
-
-  <ion-text color="medium">
-    <p class="ion-no-margin ion-padding-bottom nota-inmutable">
-      Estos datos proceden del alta de tu empresa y no se pueden modificar desde aquí.
-    </p>
-  </ion-text>
 
   <ion-radio-group [value]="emisor.esEmpresa">
     <ion-item [disabled]="true">
@@ -54,30 +49,30 @@
     ></ion-input>
   </ion-item>
 
-  <div class="section-title">Dirección y contacto</div>
+  <div class="section-title">Dirección y contacto <span class="solo-lectura-tag">No editable</span></div>
 
-  <ion-item>
-    <ion-input label="Dirección" labelPlacement="stacked" [(ngModel)]="emisor.direccion"></ion-input>
+  <ion-item [disabled]="true">
+    <ion-input label="Dirección" labelPlacement="stacked" [value]="emisor.direccion" [readonly]="true"></ion-input>
   </ion-item>
 
-  <ion-item>
-    <ion-input label="Población" labelPlacement="stacked" [(ngModel)]="emisor.poblacion"></ion-input>
+  <ion-item [disabled]="true">
+    <ion-input label="Población" labelPlacement="stacked" [value]="emisor.poblacion" [readonly]="true"></ion-input>
   </ion-item>
 
-  <ion-item>
-    <ion-input label="Código postal" labelPlacement="stacked" [(ngModel)]="emisor.cp"></ion-input>
+  <ion-item [disabled]="true">
+    <ion-input label="Código postal" labelPlacement="stacked" [value]="emisor.cp" [readonly]="true"></ion-input>
   </ion-item>
 
-  <ion-item>
-    <ion-input label="Provincia" labelPlacement="stacked" [(ngModel)]="emisor.provincia"></ion-input>
+  <ion-item [disabled]="true">
+    <ion-input label="Provincia" labelPlacement="stacked" [value]="emisor.provincia" [readonly]="true"></ion-input>
   </ion-item>
 
-  <ion-item>
-    <ion-input label="Teléfono" labelPlacement="stacked" type="tel" [(ngModel)]="emisor.telefono"></ion-input>
+  <ion-item [disabled]="true">
+    <ion-input label="Teléfono" labelPlacement="stacked" type="tel" [value]="emisor.telefono" [readonly]="true"></ion-input>
   </ion-item>
 
   <ng-container *ngIf="emisor.esEmpresa">
-    <div class="section-title">Datos adicionales <span class="solo-lectura-tag">No editable en esta versión</span></div>
+    <div class="section-title">Datos adicionales <span class="solo-lectura-tag">No editable</span></div>
 
     <ion-item [disabled]="true">
       <ion-input label="Registro mercantil (Tomo/Folio/Hoja)" labelPlacement="stacked" [value]="emisor.registroMercantil" [readonly]="true"></ion-input>
@@ -95,13 +90,5 @@
       <ion-input label="SWIFT" labelPlacement="stacked" [value]="emisor.swift" [readonly]="true"></ion-input>
     </ion-item>
   </ng-container>
-
-  <ion-text color="danger" *ngIf="errorMsg">
-    <p class="ion-padding-top">{{ errorMsg }}</p>
-  </ion-text>
-
-  <ion-button expand="block" class="ion-margin-top" (click)="guardar()">
-    Guardar
-  </ion-button>
 
 </ion-content>
