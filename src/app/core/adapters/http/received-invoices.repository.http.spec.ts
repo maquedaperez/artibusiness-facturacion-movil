@@ -59,7 +59,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
     expect(factura.documentoNombre).toBe('factura.pdf');
     expect(factura.documentoUrl).toContain('data:');
 
-    expect(apiSpy.postMultipart).toHaveBeenCalledWith('/api/FacturaRecibida/desde-ocr', jasmine.any(File), 'file');
+    expect(apiSpy.postMultipart).toHaveBeenCalledWith('/api/Documento/analizar', jasmine.any(File), 'file');
   });
 
   it('rellena con valores por defecto razonables cuando la extracción viene incompleta', async () => {

@@ -8,11 +8,39 @@ que el token de esa API es de pago por llamada y no puede vivir en ningún
 cliente (web, Android o iOS son igual de inseguros para guardar un secreto:
 un APK se descompila en segundos con herramientas gratuitas).
 
+## ✅ Estado actual — verificado contra el código real
+
+`WebAPIARTIBusiness/Controllers/DocumentoController.cs` +
+`Services/DocumentoService.cs` ya implementan exactamente lo propuesto en
+este documento:
+
+- Endpoint real: **`POST /api/Documento/analizar`** (no
+  `/api/FacturaRecibida/desde-ocr` como se proponía al principio — el
+  nombre cambió, el contrato no).
+- Protegido con `[Authorize]`, mismo esquema JWT que ya usa
+  `/api/Employees/authenticate` — no hace falta ningún cambio de
+  autenticación en la app.
+- Reenvía el body de la API de OCR **sin transformar**
+  (`Content = resultado.Json`, el string tal cual que devolvió Railway) —
+  coincide exactamente con el mapeo ya construido en el frontend.
+- Token guardado en configuración (`InvoiceReaderApi:Token` /
+  `InvoiceReaderApi:BaseUrl`), vacío en el `appsettings.json` versionado —
+  correcto, no hay ningún secreto en el repositorio.
+- Límite de 10 MB (`[RequestSizeLimit]`) igual que el de la propia API de
+  OCR.
+
+Lo único que falta confirmar es si esto ya está **desplegado** en
+`https://webapiartibusiness-dvh6d7b8a7c9dsfr.westeurope-01.azurewebsites.net`
+— tanto `ng serve` en local (`src/proxy.conf.js`) como Netlify
+(`netlify.toml`) enrutan `/api/*` a esa misma URL de Azure, así que no hace
+falta ningún cambio de configuración en el frontend para que ambos entornos
+lo alcancen en cuanto el backend lo publique ahí con el token real puesto.
+
 ## Resumen del flujo
 
 ```
 App móvil (Angular/Capacitor)
-    → POST /api/FacturaRecibida/desde-ocr   (con el token de sesión normal de la app)
+    → POST /api/Documento/analizar   (con el token de sesión normal de la app)
     → WebAPIARTIBusiness
         → POST https://generic-invoice-reader-production.up.railway.app/api/v1/documents/analyze
           (con el token de la API de OCR, guardado solo en el servidor)
@@ -44,7 +72,7 @@ También conviene guardar la URL base como configuración, no hardcodeada:
 https://generic-invoice-reader-production.up.railway.app
 ```
 
-## Paso 2 — Crear el endpoint `POST /api/FacturaRecibida/desde-ocr`
+## Paso 2 — Crear el endpoint (✅ hecho como `POST /api/Documento/analizar`)
 
 - **Protegido igual que el resto de endpoints autenticados** de la API (el
   mismo esquema que ya usa el login/sesión de la app) — así solo usuarios
@@ -117,6 +145,13 @@ Importante: **el código de negocio se saca de `error.code`, nunca de
 Un único reintento acotado es suficiente — cada llamada a esa API es
 facturable, así que no hay que montar una librería de reintentos
 sofisticada ni reintentar varias veces "por si acaso".
+
+**Nota sobre la implementación actual**: `DocumentoService.AnalizarAsync` de
+momento es un proxy puro — reenvía el `StatusCode` y el body de la API de
+OCR tal cual, sin traducir códigos ni reintentar 429/503/504. Funciona
+igual (el frontend ya trata cualquier `success: false` como error), pero si
+en algún momento os interesa el reintento automático descrito arriba, es un
+añadido pequeño en `DocumentoService`, no rehacer nada.
 
 ## Paso 5 — Qué devolver a la app
 
@@ -204,25 +239,29 @@ implementado, no hace falta nada extra en el backend para forzarlo.
 
 ## Cuando el endpoint esté listo
 
-**El lado de Angular ya está construido**, a la espera de activarse:
+**El lado de Angular ya está construido y actualizado con la ruta real**,
+a la espera de activarse:
 
 - `ApiService.postMultipart()` — sube el fichero real (multipart/form-data)
   con el token de sesión de la app, tanto en web como en nativo.
 - `HttpReceivedInvoicesRepository` (`src/app/core/adapters/http/received-invoices.repository.http.ts`)
-  — llama al endpoint propuesto arriba y mapea la respuesta a
+  — llama a `POST /api/Documento/analizar` y mapea la respuesta a
   `FacturaRecibida`, con sus tests (`.spec.ts` junto al fichero).
 - Todavía **no está enchufado**: `mock.providers.ts` sigue apuntando al
   mock por completo, así que la app no cambia de comportamiento hasta que
   se confirme.
 
-Cuando el jefe tenga el endpoint funcionando, solo necesito que confirme:
+Solo falta confirmar con el jefe:
 
-1. La URL final (o que es `/api/FacturaRecibida/desde-ocr` sobre el mismo
-   dominio que ya usa el resto de la app).
-2. Si reenvía el bloque `document` tal cual (como está mapeado ahora) o con
-   otro formato — si cambia, solo hay que ajustar el mapeo de
-   `received-invoices.repository.http.ts`, nada más.
+1. **¿Ya está publicado en Azure** (el sitio
+   `webapiartibusiness-dvh6d7b8a7c9dsfr...`), o de momento solo existe en
+   su copia local? Mientras no esté publicado ahí, ni `ng serve` en local
+   ni Netlify pueden alcanzarlo (ambos apuntan a esa misma URL).
+2. **¿Ya ha puesto el token real** de `InvoiceReaderApi:Token` en la
+   configuración de ese App Service (o en `user-secrets` si prueba en
+   local)? Sin él, `DocumentoService` lanza una excepción al primer intento
+   de análisis.
 
-Con eso, activar la integración real es cambiar una línea en
+Con eso confirmado, activar la integración real es cambiar una línea en
 `mock.providers.ts` (`useClass: MockReceivedInvoicesRepository` →
 `useClass: HttpReceivedInvoicesRepository`) — ninguna pantalla se toca.

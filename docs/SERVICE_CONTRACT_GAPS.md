@@ -93,15 +93,18 @@ trazabilidad, no requieren respuesta.
     **Pantalla**: detalle de factura emitida. — **Qué necesito**: respuesta del
     jefe/asesoría.
 
-13. 🟡 **PROPUESTO, pendiente de implementación en backend** — `POST
-    /api/FacturaRecibida/desde-ocr` sugerido en `CONTEXTO_FACTURACION.md`, sin construir
-    todavía. El contrato exacto (multipart, formato de respuesta) ya está propuesto en
-    `docs/OCR_BACKEND_INTEGRATION.md` tras recibir el paquete `ARTI-Invoice-Reader-Handoff/`
-    — el jefe tiene acceso al backend y va a implementarlo. El resto de endpoints de
-    Recibidas (listar/crear-manual/editar/eliminar) siguen sin existir. — **Impacto**:
-    crítico. — **Pantallas**: Facturas Recibidas (lista + detalle). — **Qué necesito**:
-    confirmación de la URL final del endpoint y de si el backend reenvía el bloque
-    `document` de la API de OCR tal cual o lo transforma antes (ver doc).
+13. 🟡 **OCR construido y verificado, resto de Recibidas sigue sin existir** —
+    `POST /api/Documento/analizar` ya está implementado en
+    `WebAPIARTIBusiness/Controllers/DocumentoController.cs` (verificado leyendo el código:
+    `[Authorize]` con el mismo JWT del login, reenvía la respuesta de la API de OCR sin
+    transformar, token en configuración sin secretos en el repo). El adaptador Angular
+    correspondiente ya está construido en
+    `src/app/core/adapters/http/received-invoices.repository.http.ts`, pendiente solo de
+    que se confirme el despliegue a Azure — ver `docs/OCR_BACKEND_INTEGRATION.md`. El resto
+    de endpoints de Recibidas (listar/crear-manual/editar/eliminar) siguen sin existir. —
+    **Impacto**: crítico. — **Pantallas**: Facturas Recibidas (lista + detalle). — **Qué
+    necesito**: confirmación de que `DocumentoController` está publicado en el App Service
+    de Azure con el token real de `InvoiceReaderApi:Token` puesto.
 
 14. **¿Columnas E (Enviada) y C (Cobrada) hacen falta en el móvil?** Confirmado que existen
     en el modelo real de Emitidas; se decidió (recomendación propia, no del jefe) dejarlas
@@ -152,18 +155,16 @@ trazabilidad, no requieren respuesta.
 
 ## OCR
 
-21. 🟡 **PROPUESTO, pendiente de implementación en backend** — Recibido el paquete de
-    integración `ARTI-Invoice-Reader-Handoff/` (API "Generic Invoice Reader", servicio
-    externo en Railway). Confirmado por el propio paquete: **la app NO debe hablar
-    directamente con el servicio OCR** — el token es de pago por llamada y no puede vivir en
-    ningún cliente (web ni nativo, un APK se descompila igual de fácil). Debe ser
-    `WebAPIARTIBusiness` quien llame a la API de OCR guardando el token en el servidor, y
-    exponga `POST /api/FacturaRecibida/desde-ocr` para la app. Contrato completo (multipart,
-    tamaño máximo 10MB, formatos PDF/JPEG/PNG/WEBP, códigos de error, forma de la
-    respuesta) propuesto en `docs/OCR_BACKEND_INTEGRATION.md`. — **Impacto**: crítico para
-    Recibidas. — **Pantalla**: Facturas Recibidas (botón Escanear/subir). — **Qué
-    necesito**: que el backend construya el endpoint y confirme si reenvía el bloque
-    `document` de la respuesta de OCR tal cual (recomendado) o transformado.
+21. ✅ **RESUELTO** — Recibido el paquete de integración
+    `ARTI-Invoice-Reader-Handoff/` (API "Generic Invoice Reader", servicio externo en
+    Railway) y verificado el código real de `WebAPIARTIBusiness`: la app **no** habla
+    directamente con el servicio OCR — es `DocumentoController.Analizar`
+    (`POST /api/Documento/analizar`, `[Authorize]`) quien llama a la API de OCR guardando
+    el token en configuración del servidor (`InvoiceReaderApi:Token`, vacío en el
+    `appsettings.json` versionado) y reenvía la respuesta sin transformar. Contrato y
+    verificación completos en `docs/OCR_BACKEND_INTEGRATION.md`. — **Pantalla**: Facturas
+    Recibidas (botón Escanear/subir). — Pendiente únicamente confirmar el despliegue a
+    Azure, ver gap #13.
 
 ---
 

@@ -4,10 +4,11 @@ import { MockReceivedInvoicesRepository } from '../mock/received-invoices.reposi
 import { ApiService } from '../../../services/api.service';
 import { AccionesPermitidas, FacturaRecibida, LineaFactura, TotalesFactura } from '../../../services/mock-facturas.service';
 
-// Contrato propuesto en docs/OCR_BACKEND_INTEGRATION.md — pendiente de que el backend
-// confirme la URL final y si reenvía el bloque `document` tal cual (lo asumido aquí) o
-// transformado. Ajustar esta constante y el mapeo de abajo en cuanto se confirme.
-const OCR_ENDPOINT_PATH = '/api/FacturaRecibida/desde-ocr';
+// Confirmado contra el código real de WebAPIARTIBusiness (Controllers/DocumentoController.cs
+// + Services/DocumentoService.cs): [Authorize] con el mismo esquema JWT que ya usa el login,
+// y reenvía el body de la API de OCR sin transformar (`Content = resultado.Json`, el string
+// tal cual que devolvió Railway) — coincide exactamente con lo asumido en el mapeo de abajo.
+const OCR_ENDPOINT_PATH = '/api/Documento/analizar';
 
 // Subconjunto de AnalyzeDocumentResponse (openapi.json de ARTI-Invoice-Reader-Handoff)
 // que realmente se usa aquí — todos los campos son opcionales/nulos según el propio
