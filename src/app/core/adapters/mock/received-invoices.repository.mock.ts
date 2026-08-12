@@ -21,6 +21,14 @@ export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return this.mock.crearManual(data);
   }
 
+  // No forma parte del puerto ReceivedInvoicesRepository — la usa directamente el
+  // adaptador HTTP real de OCR (received-invoices.repository.ocr-http.ts) para
+  // persistir una extracción real en el mismo almacén en memoria que sigue sirviendo
+  // al resto de Recibidas mientras esos endpoints no existan (gap #13).
+  registrarRecibidaExtraida(data: Omit<FacturaRecibida, 'id'>): FacturaRecibida {
+    return this.mock.registrarRecibidaExtraida(data);
+  }
+
   actualizar(id: number, cambios: Partial<Omit<FacturaRecibida, 'id' | 'origenOcr'>>): void {
     this.mock.actualizarRecibida(id, cambios);
   }

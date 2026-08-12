@@ -204,8 +204,25 @@ implementado, no hace falta nada extra en el backend para forzarlo.
 
 ## Cuando el endpoint esté listo
 
-Avísame de la URL final del endpoint (o confirma que es
-`/api/FacturaRecibida/desde-ocr` sobre el mismo dominio que ya usa el resto
-de la app) y de si reenviáis `document` tal cual o con otro formato — y
-construyo el adaptador del lado de Angular que sustituye al mock
-(`crearDesdeOcr`) por la llamada real, sin tocar ninguna pantalla.
+**El lado de Angular ya está construido**, a la espera de activarse:
+
+- `ApiService.postMultipart()` — sube el fichero real (multipart/form-data)
+  con el token de sesión de la app, tanto en web como en nativo.
+- `HttpReceivedInvoicesRepository` (`src/app/core/adapters/http/received-invoices.repository.http.ts`)
+  — llama al endpoint propuesto arriba y mapea la respuesta a
+  `FacturaRecibida`, con sus tests (`.spec.ts` junto al fichero).
+- Todavía **no está enchufado**: `mock.providers.ts` sigue apuntando al
+  mock por completo, así que la app no cambia de comportamiento hasta que
+  se confirme.
+
+Cuando el jefe tenga el endpoint funcionando, solo necesito que confirme:
+
+1. La URL final (o que es `/api/FacturaRecibida/desde-ocr` sobre el mismo
+   dominio que ya usa el resto de la app).
+2. Si reenvía el bloque `document` tal cual (como está mapeado ahora) o con
+   otro formato — si cambia, solo hay que ajustar el mapeo de
+   `received-invoices.repository.http.ts`, nada más.
+
+Con eso, activar la integración real es cambiar una línea en
+`mock.providers.ts` (`useClass: MockReceivedInvoicesRepository` →
+`useClass: HttpReceivedInvoicesRepository`) — ninguna pantalla se toca.

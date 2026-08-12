@@ -766,6 +766,17 @@ ${filas}
     return nueva;
   }
 
+  // Como crearManual, pero deja fijar origenOcr explícito. Lo usa el adaptador HTTP real
+  // de OCR (docs/OCR_BACKEND_INTEGRATION.md) para guardar en este mismo almacén en
+  // memoria una factura ya extraída por el backend real — el resto de endpoints de
+  // Recibidas (listar/editar/eliminar) sigue sin existir (gap #13), así que de momento
+  // siguen apoyándose en este mismo mock aunque la extracción ya sea real.
+  registrarRecibidaExtraida(data: Omit<FacturaRecibida, 'id'>): FacturaRecibida {
+    const nueva: FacturaRecibida = { id: nextRecibidaId++, ...data };
+    this.recibidas.unshift(nueva);
+    return nueva;
+  }
+
   // Bloqueado solo por accountingLocked — nunca por 'estado'/'pagada'. Mismo criterio
   // que eliminarRecibida/accionesFacturaRecibida.
   actualizarRecibida(id: number, cambios: Partial<Omit<FacturaRecibida, 'id' | 'origenOcr'>>): void {
