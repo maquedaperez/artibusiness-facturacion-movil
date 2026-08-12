@@ -36,6 +36,22 @@ Lo único que falta confirmar es si esto ya está **desplegado** en
 falta ningún cambio de configuración en el frontend para que ambos entornos
 lo alcancen en cuanto el backend lo publique ahí con el token real puesto.
 
+### 🔴 Bloqueador actual (2026-08-12): falta el token real de la API de OCR
+
+Probado de punta a punta contra `DocumentoController` desplegado en
+Development: la app llega, pasa el `[Authorize]` de `WebAPIARTIBusiness`,
+`DocumentoService` reenvía el fichero a Railway — y Railway responde
+`401 UNAUTHORIZED` con su propio formato de error
+(`{"success":false,"error":{"code":"UNAUTHORIZED",...}}`), reenviado tal
+cual hasta el toast de la app. Descartado que sea un fallo de sesión o de
+despliegue: es exactamente el comportamiento esperado cuando
+`InvoiceReaderApi:Token` está puesto pero **no es el token real** — como ya
+avisaba `README-ARTI.md`, el token "will be provided through a separate
+secure channel — it is not included anywhere in this package". Falta
+pedirlo a quien entregó `ARTI-Invoice-Reader-Handoff/` y ponerlo en la
+configuración del App Service. Ningún cambio de código pendiente por este
+motivo.
+
 ## Resumen del flujo
 
 ```
