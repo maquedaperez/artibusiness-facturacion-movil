@@ -193,7 +193,7 @@ export function aplicarRetencion(baseImponible: number, cfg: ConfiguracionRetenc
 // Cálculo puro compartido por Emitidas y Recibidas — misma fórmula, mismo redondeo,
 // para no mantener dos versiones del mismo cálculo en dos sitios distintos.
 export function calcularTotalesLineas(lineas: LineaFactura[], cfgRetencion: ConfiguracionRetencion): TotalesFactura {
-  let base = 0;
+  let baseSinRedondear = 0;
   const grupos = new Map<number, number>();
 
   for (const l of lineas) {
@@ -202,10 +202,10 @@ export function calcularTotalesLineas(lineas: LineaFactura[], cfgRetencion: Conf
     const precioUnitario = Number(l.precioUnitario) || 0;
     const descuentoPct = Number(l.descuentoPct) || 0;
     const importe = cantidad * precioUnitario * (1 - descuentoPct / 100);
-    base += importe;
+    baseSinRedondear += importe;
     grupos.set(l.ivaPct, (grupos.get(l.ivaPct) ?? 0) + importe);
   }
-  base = redondearCentimos(base);
+  const base = redondearCentimos(baseSinRedondear);
 
   const desgloseIva: DesgloseIva[] = Array.from(grupos.entries())
     .map(([pct, baseGravada]) => ({
@@ -216,10 +216,20 @@ export function calcularTotalesLineas(lineas: LineaFactura[], cfgRetencion: Conf
     .sort((a, b) => b.pct - a.pct);
 
   const ivaTotal = redondearCentimos(desgloseIva.reduce((s, d) => s + d.cuota, 0));
+  // Suma sin redondear de la cuota de cada tipo de IVA — solo para el total final (ver
+  // más abajo). ivaTotal (arriba) sigue siendo la suma de las cuotas YA redondeadas, es
+  // el valor que se muestra en pantalla desglosado por tipo, no cambia.
+  const ivaTotalSinRedondear = Array.from(grupos.entries())
+    .reduce((s, [pct, baseGravada]) => s + (baseGravada * pct) / 100, 0);
+
   // La retención se calcula sobre la misma base imponible que el IVA, nunca sobre el
   // total con IVA incluido.
-  const retencion = aplicarRetencion(base, cfgRetencion);
-  const total = redondearCentimos(base + ivaTotal - retencion.importe);
+  const retencion = aplicarRetencion(baseSinRedondear, cfgRetencion);
+  // El total se calcula sobre base e IVA SIN redondear, redondeando solo el resultado
+  // final — igual que hace la factura original (confirmado contra una factura real de
+  // Movistar con líneas a 4 decimales). Sumar base e ivaTotal ya redondeados por
+  // separado puede desviar el total en 1 céntimo respecto al de la factura de origen.
+  const total = redondearCentimos(baseSinRedondear + ivaTotalSinRedondear - retencion.importe);
 
   return { base, desgloseIva, ivaTotal, retencion, total };
 }

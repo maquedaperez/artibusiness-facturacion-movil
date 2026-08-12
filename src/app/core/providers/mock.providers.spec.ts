@@ -181,6 +181,32 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
 
     receivedRepo.eliminar(creada.id);
   });
+
+  it('el total cuadra con la factura de origen cuando las líneas tienen decimales de más de 2 cifras (caso real Movistar)', () => {
+    // Factura real de Movistar (FMDVAGJ0044689): líneas con 4 decimales por venir de un
+    // OCR (importes prorrateados). Sumar base e IVA ya redondeados por separado daba
+    // 253,89 € — la factura real dice 253,90 €. El total ahora se calcula sin redondear
+    // los pasos intermedios, redondeando solo el resultado final.
+    const creada = receivedRepo.crearManual({
+      proveedor: 'Telefónica de España, S.A.U.', proveedorNif: 'A-82018474',
+      numFactura: 'FMDVAGJ0044689', fecha: '2026-07-13', vencimiento: '',
+      concepto: 'Pendiente de revisar', formaPago: 'Recibo bancario',
+      lineas: [
+        { id: receivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'Fusión Total Plus', cantidad: 1, precioUnitario: 180.1653, descuentoPct: 0, ivaPct: 21 },
+        { id: receivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'APPLE MacBook Pro', cantidad: 1, precioUnitario: 28.9256, descuentoPct: 0, ivaPct: 21 },
+        { id: receivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'Consumos', cantidad: 1, precioUnitario: 0.7417, descuentoPct: 0, ivaPct: 21 },
+      ],
+      retencionPct: 0,
+      pagada: false, estado: 'borrador',
+    });
+
+    const totales = receivedRepo.totales(creada);
+    expect(totales.base).toBe(209.83);
+    expect(totales.ivaTotal).toBe(44.06);
+    expect(totales.total).toBe(253.90); // no 253.89
+
+    receivedRepo.eliminar(creada.id);
+  });
 });
 
 describe('aplicarRetencion — cálculo puro, sin pasar por el singleton del servicio', () => {
