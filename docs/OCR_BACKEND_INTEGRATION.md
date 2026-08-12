@@ -163,6 +163,23 @@ datos con vuestro propio modelo), decidme y ajusto el mapeo del lado del
 frontend — es un cambio pequeño, solo hay que acordar el contrato exacto
 antes de que yo construya el adaptador definitivo.
 
+### El documento original no vuelve en la respuesta
+
+**La API de OCR no devuelve el fichero ni en base64 ni de ninguna otra
+forma** — confirmado contra el `openapi.json` completo, `AnalyzeDocumentResponse`
+solo trae datos extraídos (texto/números), nunca el documento en sí. Esto
+importa para la funcionalidad de "documento adjunto" de Recibidas:
+
+- Hoy, en el mock, la app ya guarda el fichero **localmente** en el propio
+  dispositivo (como Data URL) al mismo tiempo que llama al OCR — no depende
+  de la respuesta de la API, así que ese comportamiento no cambia.
+- Pero eso es solo local: si el usuario cambia de móvil o borra la app,
+  pierde la imagen adjunta. Si queréis que el documento quede accesible de
+  forma persistente entre dispositivos, es el backend quien tiene que
+  guardar una copia del fichero que recibe **antes** de reenviarlo a la API
+  de OCR — es una decisión de almacenamiento aparte, no algo que resuelva
+  esta integración por sí sola (ver gap #22 de `SERVICE_CONTRACT_GAPS.md`).
+
 ## Paso 6 — Aviso importante para el usuario final
 
 Los datos extraídos **no son de fiar a ciegas**, y así lo dice también el
