@@ -137,7 +137,7 @@
     <ion-card-content>
       <div class="section-title">Documento adjunto</div>
 
-      <input #fileInput type="file" accept="image/*" hidden (change)="onFileSelected($event)" />
+      <input #fileInput type="file" accept="image/jpeg,image/png,image/webp,application/pdf" hidden (change)="onFileSelected($event)" />
 
       <p class="ion-no-margin" *ngIf="working.documentoNombre">{{ working.documentoNombre }}</p>
       <p class="ion-no-margin" *ngIf="!working.documentoNombre">

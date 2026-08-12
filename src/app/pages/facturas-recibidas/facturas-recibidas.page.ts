@@ -39,7 +39,8 @@ export class FacturasRecibidasPage implements OnInit {
   private alertCtrl = inject(AlertController);
   private router = inject(Router);
 
-  @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('fileInputCamera') fileInputCamera?: ElementRef<HTMLInputElement>;
+  @ViewChild('fileInputUpload') fileInputUpload?: ElementRef<HTMLInputElement>;
 
   facturas: FacturaRecibida[] = [];
   processing = false;
@@ -83,8 +84,12 @@ export class FacturasRecibidasPage implements OnInit {
     this.router.navigate(['/app/recibidas', 'nueva']);
   }
 
+  triggerCamera() {
+    this.fileInputCamera?.nativeElement.click();
+  }
+
   triggerUpload() {
-    this.fileInput?.nativeElement.click();
+    this.fileInputUpload?.nativeElement.click();
   }
 
   async onFileSelected(event: Event) {
@@ -101,7 +106,7 @@ export class FacturasRecibidasPage implements OnInit {
       this.refresh();
       await this.showToast(`Borrador creado desde "${file.name}": ${nueva.proveedor}.`, 'success');
     } catch (e: any) {
-      await this.showToast(e?.message ?? 'No se pudo procesar la imagen. Inténtalo de nuevo.', 'danger');
+      await this.showToast(e?.message ?? 'No se pudo procesar el archivo. Inténtalo de nuevo.', 'danger');
     } finally {
       this.processing = false;
     }
