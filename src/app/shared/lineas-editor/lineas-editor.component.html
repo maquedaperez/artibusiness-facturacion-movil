@@ -31,6 +31,8 @@
         </ion-item>
       </div>
 
+      <p class="linea-total">Total línea: <strong>{{ formatEuros(lineaTotal(l)) }}</strong></p>
+
       <ion-button expand="block" fill="clear" color="danger" size="small" (click)="eliminarLinea(l)">
         <ion-icon slot="start" name="trash-outline"></ion-icon>
         Eliminar línea
@@ -44,6 +46,7 @@
         <span *ngIf="l.descuentoPct"> · Dto {{ l.descuentoPct }}%</span>
         <span> · IVA {{ l.ivaPct }}%</span>
       </p>
+      <p class="linea-total">Total línea: <strong>{{ formatEuros(lineaTotal(l)) }}</strong></p>
     </ng-template>
   </ion-card-content>
 </ion-card>

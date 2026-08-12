@@ -135,6 +135,14 @@ describe('LineasEditorComponent', () => {
     expect(modalCtrlSpy.create).not.toHaveBeenCalled();
   });
 
+  it('calcula el total de línea (cantidad × precio − descuento), sin IVA, igual que la Base imponible', () => {
+    const l: LineaFactura = {
+      id: 1, origen: 'manual', descripcion: 'x', cantidad: 3, precioUnitario: 20, descuentoPct: 10, ivaPct: 21,
+    };
+    // 3 * 20 = 60; menos 10% de descuento = 54.
+    expect(component.lineaTotal(l)).toBe(54);
+  });
+
   it('soporta múltiples líneas simultáneas de distinto origen (como exige Recibidas)', async () => {
     modalCtrlSpy.create.and.returnValue(Promise.resolve(crearModalSpy(producto, 'confirm')) as any);
     await component.agregarDesdeCatalogo();

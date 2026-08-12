@@ -137,4 +137,15 @@ export class LineasEditorComponent {
   formatEuros(v: number): string {
     return formatEurosUtil(v);
   }
+
+  // Base de la línea (cantidad × precio − descuento), sin IVA — misma fórmula exacta que
+  // usa calcularTotalesLineas() para "Base imponible", así que el importe que se ve aquí
+  // siempre cuadra con el desglose de Totales.
+  lineaTotal(l: LineaFactura): number {
+    const cantidad = Number(l.cantidad) || 0;
+    const precioUnitario = Number(l.precioUnitario) || 0;
+    const descuentoPct = Number(l.descuentoPct) || 0;
+    const importe = cantidad * precioUnitario * (1 - descuentoPct / 100);
+    return Math.round(importe * 100) / 100;
+  }
 }
