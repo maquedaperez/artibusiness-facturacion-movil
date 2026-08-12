@@ -10,6 +10,7 @@ import { MockCustomersRepository } from '../adapters/mock/customers.repository.m
 import { MockSuppliersRepository } from '../adapters/mock/suppliers.repository.mock';
 import { MockIssuedInvoicesRepository } from '../adapters/mock/issued-invoices.repository.mock';
 import { MockReceivedInvoicesRepository } from '../adapters/mock/received-invoices.repository.mock';
+import { HttpReceivedInvoicesRepository } from '../adapters/http/received-invoices.repository.http';
 import {
   CONFIGURACION_RETENCION_ALQUILER_DEMO, ConfiguracionRetencion, aplicarRetencion,
   accionesFacturaEmitida, accionesFacturaRecibida, FacturaEmitida, FacturaRecibida,
@@ -22,12 +23,15 @@ describe('MOCK_REPOSITORY_PROVIDERS — selección de provider', () => {
     });
   });
 
-  it('resuelve cada puerto a su implementación mock, no a un tipo concreto de HTTP', () => {
+  it('resuelve cada puerto a su implementación registrada', () => {
     expect(TestBed.inject(EmisorRepository)).toBeInstanceOf(MockEmisorRepository);
     expect(TestBed.inject(CustomersRepository)).toBeInstanceOf(MockCustomersRepository);
     expect(TestBed.inject(SuppliersRepository)).toBeInstanceOf(MockSuppliersRepository);
     expect(TestBed.inject(IssuedInvoicesRepository)).toBeInstanceOf(MockIssuedInvoicesRepository);
-    expect(TestBed.inject(ReceivedInvoicesRepository)).toBeInstanceOf(MockReceivedInvoicesRepository);
+    // ReceivedInvoicesRepository ya usa el adaptador HTTP real para crearDesdeOcr (botón
+    // "Escanear factura") — el resto de operaciones sigue delegando en el mismo mock por
+    // debajo, ver received-invoices.repository.http.ts.
+    expect(TestBed.inject(ReceivedInvoicesRepository)).toBeInstanceOf(HttpReceivedInvoicesRepository);
   });
 
   it('las páginas solo dependen del token del puerto, nunca de la clase mock concreta', () => {
