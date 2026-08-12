@@ -8,6 +8,32 @@
   font-size: 12px;
 }
 
+.avisos-ocr {
+  margin: 0 0 12px 0;
+
+  ion-card-content {
+    padding: 10px 14px;
+  }
+}
+
+.aviso-linea {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+
+  & + .aviso-linea {
+    margin-top: 8px;
+  }
+
+  ion-icon {
+    flex-shrink: 0;
+    font-size: 16px;
+    margin-top: 1px;
+  }
+}
+
 .section-title {
   font-weight: 700;
   margin-bottom: 8px;

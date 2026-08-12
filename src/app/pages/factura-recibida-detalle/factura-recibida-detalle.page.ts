@@ -14,6 +14,7 @@ import { addIcons } from 'ionicons';
 import {
   arrowBackOutline, documentTextOutline, createOutline, trashOutline,
   attachOutline, eyeOutline, copyOutline, downloadOutline, shareSocialOutline,
+  warningOutline,
 } from 'ionicons/icons';
 
 import {
@@ -69,6 +70,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
     addIcons({
       arrowBackOutline, documentTextOutline, createOutline, trashOutline,
       attachOutline, eyeOutline, copyOutline, downloadOutline, shareSocialOutline,
+      warningOutline,
     });
   }
 

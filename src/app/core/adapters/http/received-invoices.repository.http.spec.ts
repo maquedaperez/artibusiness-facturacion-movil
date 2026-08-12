@@ -343,6 +343,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
     apiSpy.postMultipart.and.resolveTo({
       success: true,
       document: {
+        warnings: ['Significant discrepancy between the reconciled total (72.89) and the stated total (36.49); diff=36.40'],
         invoice: {
           invoice_number: '21260721010279545',
           issue_date: '2026-07-21',
@@ -370,6 +371,58 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
 
     expect(totales.base).toBe(23.84); // no 23.83
     expect(totales.total).toBe(36.49); // no 36.48
+
+    // El aviso propio del OCR se conserva aunque nuestro cálculo ya cuadre — es
+    // información sobre la consistencia interna del documento, no de nuestro cálculo.
+    expect(factura.avisosOcr?.length).toBe(1);
+    expect(factura.avisosOcr?.[0]).toContain('Significant discrepancy');
+  });
+
+  it('sin avisos del OCR y con el total cuadrado, avisosOcr queda sin definir (no un array vacío)', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: {
+          lines: [{ description: 'x', taxable_base: '100', tax_rate: '21' }],
+          totals: { total: '121' }, // 100 + 21% = 121, cuadra exacto
+        },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    expect(factura.avisosOcr).toBeUndefined();
+  });
+
+  it('si nuestro total calculado no coincide con el declarado, añade un aviso propio explicando el desajuste', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: {
+          lines: [{ description: 'x', taxable_base: '100', tax_rate: '21' }],
+          totals: { total: '999' }, // deliberadamente distinto de 121 (100 + 21%)
+        },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    expect(factura.avisosOcr?.length).toBe(1);
+    expect(factura.avisosOcr?.[0]).toContain('no coincide');
+    expect(factura.avisosOcr?.[0]).toContain('999');
+  });
+
+  it('una diferencia de solo 1 céntimo (redondeo normal) NO genera aviso — el margen es intencional', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: {
+          lines: [{ description: 'x', taxable_base: '100', tax_rate: '21' }],
+          totals: { total: '121.01' }, // 1 céntimo de diferencia, dentro del margen
+        },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    expect(factura.avisosOcr).toBeUndefined();
   });
 });
 

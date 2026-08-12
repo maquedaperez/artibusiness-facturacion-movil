@@ -2,7 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { ReceivedInvoicesRepository } from '../../ports/received-invoices.repository';
 import { MockReceivedInvoicesRepository } from '../mock/received-invoices.repository.mock';
 import { ApiService } from '../../../services/api.service';
-import { AccionesPermitidas, FacturaRecibida, IRPF_RATES, LineaFactura, TotalesFactura } from '../../../services/mock-facturas.service';
+import {
+  AccionesPermitidas, FacturaRecibida, IRPF_RATES, LineaFactura, TotalesFactura,
+  calcularTotalesLineas,
+} from '../../../services/mock-facturas.service';
+import { formatEuros } from '../../../shared/utils/format-euros';
 
 // Confirmado contra el código real de WebAPIARTIBusiness (Controllers/DocumentoController.cs
 // + Services/DocumentoService.cs): [Authorize] con el mismo esquema JWT que ya usa el login,
@@ -45,6 +49,7 @@ type OcrPayment = {
 type OcrTotals = {
   taxable_base?: string | null;
   withholding?: string | null;
+  total?: string | null;
 };
 
 type OcrInvoice = {
@@ -61,6 +66,9 @@ type OcrAnalyzeResponse = {
   success: boolean;
   document?: {
     invoice?: OcrInvoice | null;
+    // Avisos que la propia API de OCR genera sobre su extracción (ej. "no me cuadran
+    // los importes internamente") — información real, no algo que debamos descartar.
+    warnings?: string[] | null;
   } | null;
   error?: { code: string; message: string };
 };
@@ -217,6 +225,35 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       });
     }
 
+    const retencionPct = this.retencionDesdeOcr(inv);
+
+    // Blindaje: comparamos nuestro total calculado contra el que declara el propio
+    // documento (totals.total del OCR) ANTES de dar la factura por buena. Detectado con 3
+    // facturas reales distintas que descuadraban por motivos diferentes cada vez (orden de
+    // redondeo, IVA por defecto en líneas exentas, recálculo impreciso de cantidad×precio)
+    // — en vez de intentar anticipar el próximo caso raro de los ~100 modelos de factura
+    // que existen, dejamos que cualquier futuro descuadre se detecte solo y avise al
+    // usuario, en lugar de mostrar un número posiblemente incorrecto sin más.
+    const avisosOcr: string[] = [...(respuesta.document.warnings ?? [])
+      .filter((w): w is string => !!w?.trim())
+      .map(w => `Aviso del motor de extracción: ${w}`)];
+
+    const totalDeclarado = numeroOpcional(inv.totals?.total);
+    if (totalDeclarado != null) {
+      const cfgRetencion = { aplicable: retencionPct > 0, tipoCodigo: 'recibida', etiqueta: 'Retención', porcentaje: retencionPct };
+      const totalCalculado = calcularTotalesLineas(lineas, cfgRetencion).total;
+      // Comparación en céntimos enteros, no en el float directamente — 121.01 - 121 da
+      // 0.010000000000005116 en JS, no 0.01 exacto, y una comparación ">" ingenua contra
+      // 0.01 dispararía el aviso en un caso de redondeo normal que no es un error real.
+      const diferenciaEnCentimos = Math.round((totalCalculado - totalDeclarado) * 100);
+      if (Math.abs(diferenciaEnCentimos) > 1) {
+        avisosOcr.push(
+          `El total calculado a partir de las líneas (${formatEuros(totalCalculado)}) no coincide con el ` +
+          `total declarado en el documento original (${formatEuros(totalDeclarado)}). Revisa las líneas antes de guardar.`
+        );
+      }
+    }
+
     return this.mockAdapter.registrarRecibidaExtraida({
       proveedor: inv.issuer?.legal_name?.trim() || `Proveedor detectado (${file.name})`,
       proveedorNif: inv.issuer?.tax_id?.trim() || undefined,
@@ -228,12 +265,13 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       formaPago: inv.payment?.payment_method?.trim() || undefined,
       concepto: 'Pendiente de revisar',
       lineas,
-      retencionPct: this.retencionDesdeOcr(inv),
+      retencionPct,
       pagada: false,
       estado: 'borrador',
       origenOcr: true,
       documentoUrl: documento.documentoUrl,
       documentoNombre: documento.documentoNombre,
+      avisosOcr: avisosOcr.length > 0 ? avisosOcr : undefined,
     });
   }
 

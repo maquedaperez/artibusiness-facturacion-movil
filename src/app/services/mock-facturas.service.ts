@@ -265,6 +265,12 @@ export type FacturaRecibida = {
   accountingLocked?: boolean;
   accountingLockReason?: string;
   accountingPeriodClosed?: boolean;
+  // Avisos capturados al escanear (origenOcr=true): tanto los "warnings" que la propia
+  // API de OCR devuelve sobre su extracción, como los que generamos nosotros al detectar
+  // que nuestro total calculado no coincide con el declarado en el documento original.
+  // Se calculan UNA vez al crear el borrador, no se recalculan al editar — sirven como
+  // registro de "esto merecía revisión cuando se escaneó", no como validación en vivo.
+  avisosOcr?: string[];
 };
 
 const ESTADO_AEAT_LABELS: Record<EstadoAeat, string> = {

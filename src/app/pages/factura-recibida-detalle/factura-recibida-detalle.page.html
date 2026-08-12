@@ -17,6 +17,15 @@
     <ion-label>Creada desde OCR</ion-label>
   </ion-chip>
 
+  <ion-card *ngIf="working.avisosOcr?.length" class="avisos-ocr" color="warning">
+    <ion-card-content>
+      <p class="ion-no-margin" *ngFor="let aviso of working.avisosOcr" class="aviso-linea">
+        <ion-icon name="warning-outline"></ion-icon>
+        <span>{{ aviso }}</span>
+      </p>
+    </ion-card-content>
+  </ion-card>
+
   <ion-text color="danger" *ngIf="errorMsg">
     <p>{{ errorMsg }}</p>
   </ion-text>

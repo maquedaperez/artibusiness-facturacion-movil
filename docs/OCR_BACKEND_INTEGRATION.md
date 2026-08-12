@@ -241,6 +241,37 @@ editable** (`estado: 'borrador'`, campo `origenOcr: true`) precisamente
 para que el usuario revise y corrija antes de guardar — eso ya está
 implementado, no hace falta nada extra en el backend para forzarlo.
 
+### Blindaje: control cruzado del total contra `totals.total`
+
+Probando con 3 facturas reales distintas (Movistar, Aguas de Alicante,
+Iberdrola) aparecieron 3 formas distintas de que nuestro total calculado a
+partir de las líneas no cuadrase exactamente con el total real del
+documento (orden de redondeo, IVA por defecto en líneas exentas, e
+imprecisión al recalcular cantidad×precio en vez de usar el importe ya
+calculado por el emisor). Con ~100 modelos de factura distintos posibles,
+no es realista intentar anticipar cada caso raro de antemano.
+
+En vez de eso, `HttpReceivedInvoicesRepository.crearDesdeOcr` ahora hace un
+control cruzado automático al crear el borrador:
+
+1. Calcula el total a partir de las líneas ya mapeadas (el mismo motor que
+   usa el resto de la app).
+2. Lo compara contra `document.invoice.totals.total` (el total que declara
+   el propio documento, según el OCR) — con un margen de 1 céntimo para
+   redondeos normales.
+3. Si no coincide, añade un aviso a `FacturaRecibida.avisosOcr` explicando
+   el desajuste con ambas cifras.
+4. Los `warnings` que la propia API de OCR devuelve sobre su extracción
+   (ej. *"Significant discrepancy between the reconciled total..."*, visto
+   en la factura de Iberdrola) se añaden igual, siempre — sea cual sea el
+   resultado de la comprobación anterior.
+
+`avisosOcr` se calcula una única vez al crear el borrador (no se recalcula
+al editar) y se muestra en el detalle de la factura recibida como una
+tarjeta de aviso bien visible. Así, cualquier futuro modelo de factura que
+revele un caso no contemplado se detecta solo y se lo pide al usuario que
+revise, en vez de mostrar en silencio un número que podría estar mal.
+
 ---
 
 ## Lo que NO hace falta hacer
