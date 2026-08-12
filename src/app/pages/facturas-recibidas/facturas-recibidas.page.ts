@@ -1,16 +1,18 @@
 import { Component, OnInit, ViewChild, ElementRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonContent,
   IonButton, IonIcon, IonCard, IonCardContent,
   IonText, IonSpinner, IonFab, IonFabButton,
+  IonSearchbar, IonItem, IonSelect, IonSelectOption, IonInput,
   ToastController, AlertController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
-  cameraOutline, receiptOutline, documentTextOutline, addOutline,
+  cameraOutline, receiptOutline, documentTextOutline, addOutline, filterOutline,
   copyOutline, downloadOutline, shareSocialOutline, trashOutline,
 } from 'ionicons/icons';
 
@@ -26,10 +28,11 @@ import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros'
   styleUrls: ['./facturas-recibidas.page.scss'],
   standalone: true,
   imports: [
-    CommonModule,
+    CommonModule, FormsModule,
     IonHeader, IonToolbar, IonTitle, IonContent,
     IonButton, IonIcon, IonCard, IonCardContent,
     IonText, IonSpinner, IonFab, IonFabButton,
+    IonSearchbar, IonItem, IonSelect, IonSelectOption, IonInput,
     DemoBannerComponent,
   ],
 })
@@ -45,9 +48,16 @@ export class FacturasRecibidasPage implements OnInit {
   facturas: FacturaRecibida[] = [];
   processing = false;
 
+  searchQuery = '';
+  mostrarFiltros = false;
+  estadoFiltro: 'todos' | 'borrador' | 'revisada' = 'todos';
+  pagadaFiltro: 'todos' | 'si' | 'no' = 'todos';
+  fechaDesde = '';
+  fechaHasta = '';
+
   constructor() {
     addIcons({
-      cameraOutline, receiptOutline, documentTextOutline, addOutline,
+      cameraOutline, receiptOutline, documentTextOutline, addOutline, filterOutline,
       copyOutline, downloadOutline, shareSocialOutline, trashOutline,
     });
   }
@@ -62,6 +72,38 @@ export class FacturasRecibidasPage implements OnInit {
 
   refresh() {
     this.facturas = this.invoicesRepo.listar();
+  }
+
+  // Igual que en Emitidas: filtro rápido sobre la lista ya cargada, no una búsqueda
+  // contra el repositorio. fecha es un string ISO yyyy-mm-dd tanto en la factura
+  // como en los inputs type="date", así que comparar como texto ya ordena bien.
+  get facturasFiltradas(): FacturaRecibida[] {
+    const q = this.searchQuery.trim().toLowerCase();
+    return this.facturas.filter(f => {
+      if (q && !this.proveedorResumen(f).toLowerCase().includes(q) && !this.conceptoResumen(f).toLowerCase().includes(q)) return false;
+      if (this.estadoFiltro !== 'todos' && f.estado !== this.estadoFiltro) return false;
+      if (this.pagadaFiltro === 'si' && !f.pagada) return false;
+      if (this.pagadaFiltro === 'no' && f.pagada) return false;
+      if (this.fechaDesde && f.fecha < this.fechaDesde) return false;
+      if (this.fechaHasta && f.fecha > this.fechaHasta) return false;
+      return true;
+    });
+  }
+
+  toggleFiltros() {
+    this.mostrarFiltros = !this.mostrarFiltros;
+  }
+
+  hayFiltrosActivos(): boolean {
+    return this.estadoFiltro !== 'todos' || this.pagadaFiltro !== 'todos' || !!this.fechaDesde || !!this.fechaHasta;
+  }
+
+  filtrosLabel(): string {
+    const partes: string[] = [];
+    if (this.estadoFiltro !== 'todos') partes.push(this.estadoFiltro === 'borrador' ? 'Borrador' : 'Revisada');
+    if (this.pagadaFiltro !== 'todos') partes.push(this.pagadaFiltro === 'si' ? 'Pagada' : 'Pendiente');
+    if (this.fechaDesde || this.fechaHasta) partes.push('Fechas');
+    return partes.length > 0 ? partes.join(' · ') : 'Filtros';
   }
 
   abrir(f: FacturaRecibida) {

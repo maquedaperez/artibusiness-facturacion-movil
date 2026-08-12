@@ -29,9 +29,19 @@
 
 .filtro-serie {
   margin-top: 4px;
-  --padding-start: 0;
-  --inner-padding-end: 0;
-  --min-height: 40px;
+
+  ion-item {
+    --padding-start: 0;
+    --inner-padding-end: 0;
+    --min-height: 40px;
+  }
+}
+
+.filtro-fechas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .facturas-list {
@@ -126,9 +136,7 @@
   gap: 2px;
   margin-left: auto;
 
-  // Área táctil mínima de 44×44px (WCAG 2.5.5 / recomendación iOS-Android) aunque
-  // el icono en sí sea más pequeño — el botón la cubre entera aunque parezca más
-  // compacto visualmente, el "gap" pequeño compensa que cada botón ya es ancho.
+  // Área táctil 44×44px (WCAG 2.5.5) aunque el icono sea más pequeño.
   ion-button {
     margin: 0;
     height: 44px;

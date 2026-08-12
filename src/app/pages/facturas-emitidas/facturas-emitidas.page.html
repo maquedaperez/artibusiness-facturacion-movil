@@ -30,22 +30,33 @@
 
   <button class="filtro-serie-toggle" (click)="toggleFiltroSerie()">
     <ion-icon name="filter-outline"></ion-icon>
-    {{ numeradorId ? ('Serie: ' + numeradorSeleccionadoNombre()) : 'Filtrar por serie' }}
+    {{ filtrosLabel() }}
   </button>
 
-  <ion-item *ngIf="mostrarFiltroSerie" class="filtro-serie" lines="none">
-    <ion-select
-      label="Serie"
-      label-placement="start"
-      placeholder="Todas"
-      interface="popover"
-      [value]="numeradorId"
-      (ionChange)="onNumeradorChange($event.detail.value)"
-    >
-      <ion-select-option [value]="null">Todas</ion-select-option>
-      <ion-select-option *ngFor="let n of numeradores" [value]="n.id">{{ n.nombre }}</ion-select-option>
-    </ion-select>
-  </ion-item>
+  <div *ngIf="mostrarFiltroSerie" class="filtro-serie">
+    <ion-item lines="none">
+      <ion-select
+        label="Serie"
+        label-placement="start"
+        placeholder="Todas"
+        interface="popover"
+        [value]="numeradorId"
+        (ionChange)="onNumeradorChange($event.detail.value)"
+      >
+        <ion-select-option [value]="null">Todas</ion-select-option>
+        <ion-select-option *ngFor="let n of numeradores" [value]="n.id">{{ n.nombre }}</ion-select-option>
+      </ion-select>
+    </ion-item>
+
+    <div class="filtro-fechas">
+      <ion-item lines="none">
+        <ion-input label="Desde" labelPlacement="stacked" type="date" [(ngModel)]="fechaDesde"></ion-input>
+      </ion-item>
+      <ion-item lines="none">
+        <ion-input label="Hasta" labelPlacement="stacked" type="date" [(ngModel)]="fechaHasta"></ion-input>
+      </ion-item>
+    </div>
+  </div>
 
   <div class="facturas-list">
     <ion-card *ngFor="let f of facturasFiltradas" button (click)="abrir(f)" class="factura-card">
@@ -123,11 +134,14 @@
       <ion-card-content>
         <ion-icon name="document-text-outline"></ion-icon>
         <ion-text color="medium">
-          <p class="ion-no-margin" *ngIf="!searchQuery.trim()">
-            No hay facturas en estado <strong>{{ estado }}</strong>{{ numeradorId ? ' para esta serie' : '' }}.
+          <p class="ion-no-margin" *ngIf="!searchQuery.trim() && !hayFiltrosActivos()">
+            No hay facturas en estado <strong>{{ estado }}</strong>.
           </p>
-          <p class="ion-no-margin" *ngIf="searchQuery.trim()">
+          <p class="ion-no-margin" *ngIf="searchQuery.trim() && !hayFiltrosActivos()">
             Sin resultados para "{{ searchQuery }}".
+          </p>
+          <p class="ion-no-margin" *ngIf="hayFiltrosActivos()">
+            Sin resultados con los filtros aplicados.
           </p>
         </ion-text>
       </ion-card-content>

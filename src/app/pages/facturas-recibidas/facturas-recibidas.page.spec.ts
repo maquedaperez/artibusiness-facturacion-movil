@@ -44,4 +44,48 @@ describe('FacturasRecibidasPage', () => {
     expect(component.proveedorResumen(sinDatos)).toBe('Proveedor no disponible');
     expect(component.conceptoResumen(sinDatos)).toBe('Sin concepto');
   });
+
+  it('el filtro de proveedor/concepto no distingue mayúsculas y busca en ambos campos', () => {
+    component.facturas = [facturaDe('Suministros Oficina Norte SL', 'Material'), facturaDe('Otro Proveedor', 'papel y tóner')];
+
+    component.searchQuery = 'oficina';
+    expect(component.facturasFiltradas.length).toBe(1);
+
+    component.searchQuery = 'TÓNER';
+    expect(component.facturasFiltradas.length).toBe(1);
+    expect(component.facturasFiltradas[0].proveedor).toBe('Otro Proveedor');
+  });
+
+  it('el filtro de estado y de pago se combinan (AND, no OR)', () => {
+    const revisadaYPagada = { ...facturaDe('A', 'x'), estado: 'revisada' as const, pagada: true };
+    const revisadaSinPagar = { ...facturaDe('B', 'x'), estado: 'revisada' as const, pagada: false };
+    const borradorPagada = { ...facturaDe('C', 'x'), estado: 'borrador' as const, pagada: true };
+    component.facturas = [revisadaYPagada, revisadaSinPagar, borradorPagada];
+
+    component.estadoFiltro = 'revisada';
+    component.pagadaFiltro = 'si';
+
+    expect(component.facturasFiltradas.length).toBe(1);
+    expect(component.facturasFiltradas[0].proveedor).toBe('A');
+  });
+
+  it('el filtro de fechas incluye solo las facturas dentro del rango desde/hasta', () => {
+    component.facturas = [
+      { ...facturaDe('A', 'x'), fecha: '2026-01-10' },
+      { ...facturaDe('B', 'x'), fecha: '2026-03-15' },
+      { ...facturaDe('C', 'x'), fecha: '2026-06-01' },
+    ];
+
+    component.fechaDesde = '2026-02-01';
+    component.fechaHasta = '2026-05-01';
+
+    expect(component.facturasFiltradas.length).toBe(1);
+    expect(component.facturasFiltradas[0].proveedor).toBe('B');
+  });
+
+  it('hayFiltrosActivos detecta estado, pago o fechas activos', () => {
+    expect(component.hayFiltrosActivos()).toBeFalse();
+    component.pagadaFiltro = 'no';
+    expect(component.hayFiltrosActivos()).toBeTrue();
+  });
 });

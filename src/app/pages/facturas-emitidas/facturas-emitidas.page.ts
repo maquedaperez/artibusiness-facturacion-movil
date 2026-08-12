@@ -7,7 +7,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent,
   IonSegment, IonSegmentButton, IonLabel,
-  IonSelect, IonSelectOption, IonSearchbar, IonItem,
+  IonSelect, IonSelectOption, IonSearchbar, IonItem, IonInput,
   IonCard, IonCardContent,
   IonText, IonIcon, IonButton, IonFab, IonFabButton,
   AlertController, ToastController,
@@ -32,7 +32,7 @@ import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-docum
     CommonModule, FormsModule,
     IonHeader, IonToolbar, IonTitle, IonContent,
     IonSegment, IonSegmentButton, IonLabel,
-    IonSelect, IonSelectOption, IonSearchbar, IonItem,
+    IonSelect, IonSelectOption, IonSearchbar, IonItem, IonInput,
     IonCard, IonCardContent,
     IonText, IonIcon, IonButton, IonFab, IonFabButton,
     DemoBannerComponent,
@@ -51,6 +51,8 @@ export class FacturasEmitidasPage implements OnInit {
   facturas: FacturaEmitida[] = [];
   searchQuery = '';
   mostrarFiltroSerie = false;
+  fechaDesde = '';
+  fechaHasta = '';
 
   constructor() {
     addIcons({
@@ -91,18 +93,31 @@ export class FacturasEmitidasPage implements OnInit {
   // Filtro rápido dentro de la lista ya cargada (no es una búsqueda contra el
   // repositorio, ni aplica el mínimo de 2 caracteres de los selectores de
   // cliente/proveedor/catálogo — aquí ya tenemos toda la página delante, esto solo
-  // reduce lo que se ve).
+  // reduce lo que se ve). fecha es un string ISO yyyy-mm-dd tanto en la factura como
+  // en los inputs type="date", así que la comparación como texto ya ordena bien.
   get facturasFiltradas(): FacturaEmitida[] {
     const q = this.searchQuery.trim().toLowerCase();
-    if (!q) return this.facturas;
-    return this.facturas.filter(f =>
-      this.clienteNombre(f).toLowerCase().includes(q) ||
-      this.conceptoResumen(f).toLowerCase().includes(q)
-    );
+    return this.facturas.filter(f => {
+      if (q && !this.clienteNombre(f).toLowerCase().includes(q) && !this.conceptoResumen(f).toLowerCase().includes(q)) return false;
+      if (this.fechaDesde && f.fecha < this.fechaDesde) return false;
+      if (this.fechaHasta && f.fecha > this.fechaHasta) return false;
+      return true;
+    });
   }
 
   toggleFiltroSerie() {
     this.mostrarFiltroSerie = !this.mostrarFiltroSerie;
+  }
+
+  hayFiltrosActivos(): boolean {
+    return this.numeradorId != null || !!this.fechaDesde || !!this.fechaHasta;
+  }
+
+  filtrosLabel(): string {
+    const partes: string[] = [];
+    if (this.numeradorId != null) partes.push('Serie: ' + this.numeradorSeleccionadoNombre());
+    if (this.fechaDesde || this.fechaHasta) partes.push('Fechas');
+    return partes.length > 0 ? partes.join(' · ') : 'Filtrar por serie o fecha';
   }
 
   abrir(f: FacturaEmitida) {

@@ -45,4 +45,30 @@ describe('FacturasEmitidasPage', () => {
     expect(component.clienteNombre(sinDatos)).toBe('Cliente no disponible');
     expect(component.conceptoResumen(sinDatos)).toBe('Sin concepto');
   });
+
+  function facturaConFecha(fecha: string): FacturaEmitida {
+    return { ...facturaDe('Cliente', 'x'), fecha };
+  }
+
+  it('el filtro de fechas incluye solo las facturas dentro del rango desde/hasta', () => {
+    component.facturas = [facturaConFecha('2026-01-10'), facturaConFecha('2026-03-15'), facturaConFecha('2026-06-01')];
+
+    component.fechaDesde = '2026-02-01';
+    component.fechaHasta = '2026-05-01';
+
+    expect(component.facturasFiltradas.length).toBe(1);
+    expect(component.facturasFiltradas[0].fecha).toBe('2026-03-15');
+  });
+
+  it('sin fechas, el filtro no excluye nada por fecha', () => {
+    component.facturas = [facturaConFecha('2026-01-10'), facturaConFecha('2026-06-01')];
+    expect(component.facturasFiltradas.length).toBe(2);
+    expect(component.hayFiltrosActivos()).toBeFalse();
+  });
+
+  it('hayFiltrosActivos detecta serie o fechas activas', () => {
+    expect(component.hayFiltrosActivos()).toBeFalse();
+    component.fechaDesde = '2026-01-01';
+    expect(component.hayFiltrosActivos()).toBeTrue();
+  });
 });

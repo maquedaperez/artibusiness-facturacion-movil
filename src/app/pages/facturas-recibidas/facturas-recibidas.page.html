@@ -2,6 +2,14 @@
   <ion-toolbar>
     <ion-title class="title-bold">Facturas recibidas</ion-title>
   </ion-toolbar>
+
+  <ion-toolbar>
+    <ion-searchbar
+      placeholder="Buscar por proveedor o concepto"
+      [(ngModel)]="searchQuery"
+      [debounce]="150"
+    ></ion-searchbar>
+  </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
@@ -50,8 +58,40 @@
     </ion-button>
   </div>
 
+  <button class="filtros-toggle" (click)="toggleFiltros()">
+    <ion-icon name="filter-outline"></ion-icon>
+    {{ filtrosLabel() }}
+  </button>
+
+  <div *ngIf="mostrarFiltros" class="panel-filtros">
+    <ion-item lines="none">
+      <ion-select label="Estado" label-placement="start" interface="popover" [(ngModel)]="estadoFiltro">
+        <ion-select-option value="todos">Todos</ion-select-option>
+        <ion-select-option value="borrador">Borrador</ion-select-option>
+        <ion-select-option value="revisada">Revisada</ion-select-option>
+      </ion-select>
+    </ion-item>
+
+    <ion-item lines="none">
+      <ion-select label="Pago" label-placement="start" interface="popover" [(ngModel)]="pagadaFiltro">
+        <ion-select-option value="todos">Todos</ion-select-option>
+        <ion-select-option value="si">Pagada</ion-select-option>
+        <ion-select-option value="no">Pendiente</ion-select-option>
+      </ion-select>
+    </ion-item>
+
+    <div class="filtro-fechas">
+      <ion-item lines="none">
+        <ion-input label="Desde" labelPlacement="stacked" type="date" [(ngModel)]="fechaDesde"></ion-input>
+      </ion-item>
+      <ion-item lines="none">
+        <ion-input label="Hasta" labelPlacement="stacked" type="date" [(ngModel)]="fechaHasta"></ion-input>
+      </ion-item>
+    </div>
+  </div>
+
   <div class="facturas-list">
-    <ion-card *ngFor="let f of facturas" button (click)="abrir(f)" class="factura-card">
+    <ion-card *ngFor="let f of facturasFiltradas" button (click)="abrir(f)" class="factura-card">
       <ion-card-content>
         <div class="row-top">
           <div class="titulo">{{ proveedorResumen(f) }}</div>
@@ -103,11 +143,16 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-card *ngIf="facturas.length === 0" class="empty-state">
+    <ion-card *ngIf="facturasFiltradas.length === 0" class="empty-state">
       <ion-card-content>
         <ion-icon name="receipt-outline"></ion-icon>
         <ion-text color="medium">
-          <p class="ion-no-margin">Todavía no hay facturas recibidas.</p>
+          <p class="ion-no-margin" *ngIf="facturas.length === 0">
+            Todavía no hay facturas recibidas.
+          </p>
+          <p class="ion-no-margin" *ngIf="facturas.length > 0">
+            Sin resultados con la búsqueda o los filtros aplicados.
+          </p>
         </ion-text>
       </ion-card-content>
     </ion-card>
