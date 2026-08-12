@@ -130,11 +130,24 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
     expect(factura.lineas[0].precioUnitario).toBe(42.5);
   });
 
-  it('con unit_price presente, sigue respetando cantidad × precio como antes (no rompe el caso normal)', async () => {
+  it('con taxable_base y unit_price presentes a la vez, taxable_base gana siempre (más fiable que recalcular)', async () => {
     apiSpy.postMultipart.and.resolveTo({
       success: true,
       document: {
-        invoice: { lines: [{ description: 'x', quantity: '3', unit_price: '10.00', taxable_base: '999', tax_rate: '21' }] },
+        invoice: { lines: [{ description: 'x', quantity: '3', unit_price: '10.00', taxable_base: '29.97', tax_rate: '21' }] },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    expect(factura.lineas[0].cantidad).toBe(1);
+    expect(factura.lineas[0].precioUnitario).toBe(29.97);
+  });
+
+  it('sin taxable_base ni line_total, cae a cantidad × unit_price como último recurso', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: { lines: [{ description: 'x', quantity: '3', unit_price: '10.00', taxable_base: null, line_total: null, tax_rate: '21' }] },
       },
     });
 
@@ -320,6 +333,43 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
 
     expect(totales.base).toBe(53); // suma de las 9 líneas, sin cambios
     expect(totales.total).toBe(56.81); // no 60.37
+  });
+
+  it('reproduce la factura real de Iberdrola: usa taxable_base aunque unit_price esté presente, incluye la línea negativa exenta', async () => {
+    // Antes del arreglo, con unit_price presente se recalculaba cantidad × precio (menos
+    // preciso que el taxable_base ya calculado por el emisor) y el total salía en 36,48 €
+    // — la factura real dice 36,49 €. La línea de devolución de depósito (-36,40 €) es
+    // "exempt": entra en la Base pero con 0% de IVA, no se excluye de la factura.
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: {
+          invoice_number: '21260721010279545',
+          issue_date: '2026-07-21',
+          due_date: '2026-07-29',
+          issuer: { legal_name: 'IBERDROLA CLIENTES, S.A.U.', tax_id: 'A-95758389' },
+          payment: { payment_method: 'DOMICILIACION BANCARIA', due_date: '2026-07-29' },
+          lines: [
+            { description: 'Potencia facturada Punta', quantity: '123.2', unit_price: '0.120743', taxable_base: '14.88', tax_rate: '21', tax_treatment: 'taxable' },
+            { description: 'Potencia facturada Valle', quantity: '123.2', unit_price: '0.044026', taxable_base: '5.42', tax_rate: '21', tax_treatment: 'taxable' },
+            { description: 'Energía consumida', quantity: '171', unit_price: '0.165741', taxable_base: '28.34', tax_rate: '21', tax_treatment: 'taxable' },
+            { description: 'Financiación bono social fijo (1)', quantity: '14', unit_price: '0.019121', taxable_base: '0.27', tax_rate: '21', tax_treatment: 'taxable' },
+            { description: 'Financiación bono social fijo (2)', quantity: '14', unit_price: '0.024688', taxable_base: '0.35', tax_rate: '21', tax_treatment: 'taxable' },
+            { description: 'Impuesto sobre electricidad', taxable_base: '2.52', tax_rate: '21', tax_treatment: 'taxable' },
+            { description: 'Alquiler equipos medida', quantity: '28', unit_price: '0.02663014', taxable_base: '0.75', tax_rate: '21', tax_treatment: 'taxable' },
+            { description: 'Urgencias Electricas Negocios', quantity: '0.92', unit_price: '8.38', taxable_base: '7.71', tax_rate: '21', tax_treatment: 'taxable' },
+            { description: 'Devolución depósito de garantía', taxable_base: '-36.4', tax_rate: null, tax_treatment: 'exempt' },
+          ],
+          totals: { taxable_base: '60.24', tax: '12.65', total: '36.49' },
+        },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const totales = repo.totales(factura);
+
+    expect(totales.base).toBe(23.84); // no 23.83
+    expect(totales.total).toBe(36.49); // no 36.48
   });
 });
 

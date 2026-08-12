@@ -173,14 +173,26 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     const inv = respuesta.document.invoice;
 
     const lineas: LineaFactura[] = (inv.lines ?? []).map(l => {
-      const unitPrice = numeroOpcional(l.unit_price);
-      // Con unit_price presente, respetamos cantidad × precio tal cual venga. Sin él
-      // (habitual en facturas de servicios/abonos sin desglose por unidad), tratamos la
-      // línea como 1 unidad cuyo "precio" es el importe que el OCR ya calculó para toda
-      // la línea — si además tomáramos una quantity suelta aquí, multiplicaríamos el
-      // importe por error.
-      const cantidad = unitPrice != null ? numeroDesde(l.quantity, 1) : 1;
-      const precioUnitario = unitPrice ?? numeroDesde(l.taxable_base ?? l.line_total, 0);
+      // Preferimos SIEMPRE taxable_base/line_total (el importe de la línea que ya calculó
+      // el OCR) sobre reconstruirlo nosotros multiplicando cantidad × unit_price. Motivo,
+      // detectado con una factura real de Iberdrola: unit_price suele venir redondeado a
+      // menos decimales de los que usó el emisor internamente (ej. una tarifa
+      // "0,120743 €/kW día"), así que cantidad × unit_price puede no coincidir con el
+      // importe real de la línea — y sumado a lo largo de 8-9 líneas, ese pequeño desvío
+      // se acumula y descuadra el total final. taxable_base/line_total, en cambio, es el
+      // importe que el propio documento ya declara para esa línea, sin recalcular nada.
+      const importeCalculado = numeroOpcional(l.taxable_base) ?? numeroOpcional(l.line_total);
+      let cantidad: number;
+      let precioUnitario: number;
+      if (importeCalculado != null) {
+        cantidad = 1;
+        precioUnitario = importeCalculado;
+      } else {
+        // Último recurso: ni taxable_base ni line_total — solo entonces reconstruimos con
+        // cantidad × precio, asumiendo el riesgo de imprecisión de arriba.
+        cantidad = numeroDesde(l.quantity, 1);
+        precioUnitario = numeroDesde(l.unit_price, 0);
+      }
 
       return {
         id: this.nuevoIdLinea(),
