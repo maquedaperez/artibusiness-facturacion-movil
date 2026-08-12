@@ -54,6 +54,16 @@ https://generic-invoice-reader-production.up.railway.app
   es exactamente lo que la app ya envía hoy contra el mock, así que no hace
   falta cambiar nada en el frontend en cuanto a la forma de subir el
   fichero.
+- **No se manda `Company`/`BusinessUnit` en el body.** Esos campos solo
+  viajan una vez, en el login (`POST /api/Employees/authenticate`, ver
+  `auth.service.ts`) — a partir de ahí el token de sesión ya identifica la
+  empresa, y **ningún** endpoint de negocio existente (Emitidas, Recibidas)
+  vuelve a mandarla explícita en llamadas posteriores. Este endpoint debe
+  seguir el mismo patrón: la empresa se deriva en el servidor a partir del
+  token autenticado, nunca de un campo que mande el cliente — si se
+  aceptara un "empresa" desde el body, un cliente con un bug (o manipulado)
+  podría intentar crear una factura recibida en una empresa que no es la
+  suya.
 - **Tamaño máximo**: la API de OCR ya rechaza por encima de 10 MB
   (`413 FILE_TOO_LARGE`) — no hace falta duplicar la validación, pero si
   queréis cortar antes para no gastar ancho de banda, 10 MB es el límite
