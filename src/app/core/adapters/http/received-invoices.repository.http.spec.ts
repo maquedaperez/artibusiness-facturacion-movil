@@ -249,6 +249,78 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
     expect(repo.listar().length).toBe(antes + 1);
     expect(repo.obtenerPorId(creada.id)?.numFactura).toBe('F-9');
   });
+
+  it('una línea "non_subject" sin tax_rate se mapea a 0% de IVA, nunca al 21% por defecto', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: {
+          lines: [{ description: 'Canon Saneamiento', unit_price: '11.21', tax_rate: null, tax_treatment: 'non_subject' }],
+        },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    expect(factura.lineas[0].ivaPct).toBe(0);
+  });
+
+  it('una línea "exempt" también se mapea a 0% de IVA', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: { lines: [{ description: 'x', unit_price: '10', tax_rate: null, tax_treatment: 'exempt' }] },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    expect(factura.lineas[0].ivaPct).toBe(0);
+  });
+
+  it('una línea "taxable" con tax_rate explícito sigue usando ese tipo, no se ve afectada por el arreglo', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: { lines: [{ description: 'x', unit_price: '10', tax_rate: '10.0', tax_treatment: 'taxable' }] },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    expect(factura.lineas[0].ivaPct).toBe(10);
+  });
+
+  it('reproduce la factura real de Aguas de Alicante: el total cuadra con los 56,81 € reales, no 60,37 €', async () => {
+    // Antes del arreglo, las dos líneas de Canon Saneamiento (non_subject, tax_rate null)
+    // caían al 21% por defecto y el total salía en 60,37 € — la factura real y el propio
+    // totals.total del OCR dicen 56,81 €.
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: {
+          invoice_number: '00002026AA00468352',
+          issue_date: '2026-07-14',
+          issuer: { legal_name: 'AGUAS MUNICIPALIZADAS DE ALICANTE, E.M.', tax_id: 'B03002441' },
+          lines: [
+            { description: 'AGUA - CUOTA DE SERVICIO', taxable_base: '27.0', tax_rate: '10.0', tax_treatment: 'taxable' },
+            { description: 'AGUA - CONSUMO hasta 12 m3/Trim.', quantity: '12.0', unit_price: '0.01', taxable_base: '0.12', tax_rate: '10.0', tax_treatment: 'taxable' },
+            { description: 'AGUA - CONSUMO de 13 a 30 m3/Trimestre', quantity: '1.0', unit_price: '0.85', taxable_base: '0.85', tax_rate: '10.0', tax_treatment: 'taxable' },
+            { description: 'CONSERVACIÓN - CONTADOR', taxable_base: '1.86', tax_rate: '21.0', tax_treatment: 'taxable' },
+            { description: 'ALCANTARILLADO - CUOTA DE SERVICIO', taxable_base: '6.03', tax_rate: '10.0', tax_treatment: 'taxable' },
+            { description: 'ALCANTARILLADO - CONSUMO hasta 12 m3/Trimestre', quantity: '12.0', unit_price: '0.01', taxable_base: '0.12', tax_rate: '10.0', tax_treatment: 'taxable' },
+            { description: 'ALCANTARILLADO - CONSUMO de 13 a 30 m3/Trimestre', quantity: '1.0', unit_price: '0.08', taxable_base: '0.08', tax_rate: '10.0', tax_treatment: 'taxable' },
+            { description: 'CANON SANEAMIENTO - CUOTA DE SERVICIO', taxable_base: '11.21', tax_rate: null, tax_treatment: 'non_subject' },
+            { description: 'CANON SANEAMIENTO - CONSUMO', quantity: '13.0', unit_price: '0.441', taxable_base: '5.73', tax_rate: null, tax_treatment: 'non_subject' },
+          ],
+          totals: { taxable_base: '36.06', tax: '3.81', total: '56.81' },
+        },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const totales = repo.totales(factura);
+
+    expect(totales.base).toBe(53); // suma de las 9 líneas, sin cambios
+    expect(totales.total).toBe(56.81); // no 60.37
+  });
 });
 
 describe('HttpReceivedInvoicesRepository — el resto de operaciones sigue delegando en el mock', () => {

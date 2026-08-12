@@ -24,6 +24,10 @@ type OcrLine = {
   unit_price?: string | null;
   discount_percent?: string | null;
   tax_rate?: string | null;
+  // "taxable" | "exempt" | "non_subject" | "reverse_charge" | "outside_scope" | "unknown"
+  // — cómo se relaciona la línea con el IVA. Necesario para no asumir el 21% por defecto
+  // en líneas que explícitamente NO llevan IVA (ej. cánones/tasas de organismos públicos).
+  tax_treatment?: string | null;
   // Muchas facturas de servicios/abonos (teléfono, luz...) no traen quantity/unit_price
   // limpios — el OCR da directamente el importe de la línea en taxable_base (preferido,
   // es explícitamente "antes de impuestos", coherente con cómo esta app calcula
@@ -82,6 +86,17 @@ function numeroOpcional(valor: string | null | undefined): number | null {
 // coincida exactamente con ninguno dejaría el selector sin nada marcado.
 function irpfMasCercano(pct: number): number {
   return IRPF_RATES.reduce((mejor, r) => (Math.abs(r - pct) < Math.abs(mejor - pct) ? r : mejor));
+}
+
+// Tratamientos en los que la línea, por definición, NO lleva IVA — un tax_rate ausente
+// aquí significa "0%", nunca "no lo sé, asumo el tipo general". Bug real detectado con
+// una factura de Aguas de Alicante: el Canon de Saneamiento (Generalitat Valenciana) es
+// "non_subject" con tax_rate null, y caía al 21% por defecto, inflando el total.
+const TRATAMIENTOS_SIN_IVA = new Set(['exempt', 'non_subject', 'outside_scope', 'reverse_charge']);
+
+function ivaPctDesdeLinea(l: OcrLine): number {
+  if (l.tax_treatment && TRATAMIENTOS_SIN_IVA.has(l.tax_treatment)) return 0;
+  return numeroDesde(l.tax_rate, 21);
 }
 
 /**
@@ -174,7 +189,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
         cantidad,
         precioUnitario,
         descuentoPct: numeroDesde(l.discount_percent, 0),
-        ivaPct: numeroDesde(l.tax_rate, 21),
+        ivaPct: ivaPctDesdeLinea(l),
       };
     });
 
