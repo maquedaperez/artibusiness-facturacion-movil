@@ -39,6 +39,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
           lines: [
             { description: 'Licencia mensual', quantity: '2', unit_price: '15.00', discount_percent: '0', tax_rate: '21' },
           ],
+          payment: { payment_method: 'Transferencia', due_date: '2026-09-01' },
         },
       },
     });
@@ -51,6 +52,8 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
     expect(factura.proveedorNif).toBe('B99999999');
     expect(factura.numFactura).toBe('DEMO-2026-0001');
     expect(factura.fecha).toBe('2026-08-01');
+    expect(factura.vencimiento).toBe('2026-09-01');
+    expect(factura.formaPago).toBe('Transferencia');
     expect(factura.lineas.length).toBe(1);
     expect(factura.lineas[0].descripcion).toBe('Licencia mensual');
     expect(factura.lineas[0].cantidad).toBe(2);
@@ -60,6 +63,23 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
     expect(factura.documentoUrl).toContain('data:');
 
     expect(apiSpy.postMultipart).toHaveBeenCalledWith('/api/Documento/analizar', jasmine.any(File), 'file');
+  });
+
+  it('usa el due_date a nivel de factura cuando no hay payment.due_date', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        invoice: {
+          invoice_number: 'DEMO-2026-0002',
+          due_date: '2026-10-15',
+          lines: [],
+        },
+      },
+    });
+
+    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    expect(factura.vencimiento).toBe('2026-10-15');
+    expect(factura.formaPago).toBeUndefined();
   });
 
   it('rellena con valores por defecto razonables cuando la extracción viene incompleta', async () => {

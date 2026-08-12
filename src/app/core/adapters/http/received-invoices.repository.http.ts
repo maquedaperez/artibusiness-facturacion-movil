@@ -26,11 +26,18 @@ type OcrLine = {
   tax_rate?: string | null;
 };
 
+type OcrPayment = {
+  payment_method?: string | null;
+  due_date?: string | null;
+};
+
 type OcrInvoice = {
   invoice_number?: string | null;
   issue_date?: string | null;
+  due_date?: string | null;
   issuer?: OcrParty | null;
   lines?: OcrLine[] | null;
+  payment?: OcrPayment | null;
 };
 
 type OcrAnalyzeResponse = {
@@ -149,6 +156,10 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       proveedorNif: inv.issuer?.tax_id?.trim() || undefined,
       numFactura: inv.invoice_number?.trim() || '',
       fecha: inv.issue_date?.trim() || new Date().toISOString().slice(0, 10),
+      // El vencimiento puede venir a nivel de factura o dentro de "payment" según el
+      // documento — se prefiere el de payment por ser el más específico al pago en sí.
+      vencimiento: inv.payment?.due_date?.trim() || inv.due_date?.trim() || undefined,
+      formaPago: inv.payment?.payment_method?.trim() || undefined,
       concepto: 'Pendiente de revisar',
       lineas,
       retencionPct: 0,
