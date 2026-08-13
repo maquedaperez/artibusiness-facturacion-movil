@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { HttpReceivedInvoicesRepository } from './received-invoices.repository.http';
 import { MockReceivedInvoicesRepository } from '../mock/received-invoices.repository.mock';
-import { MockFacturasService } from '../../../services/mock-facturas.service';
+import { FacturaRecibida, MockFacturasService } from '../../../services/mock-facturas.service';
 import { ApiService } from '../../../services/api.service';
 
 function archivoDePrueba(nombre = 'factura.pdf'): File {
@@ -495,6 +495,26 @@ describe('HttpReceivedInvoicesRepository — el resto de operaciones sigue deleg
 
     const factura = await repo.obtenerPorId(500);
     expect(factura?.estado).toBe('borrador');
+  });
+
+  // Regresión: antes duplicar() recibía solo el id y delegaba en el mock, que buscaba ese
+  // id en su propio almacén — las facturas reales del backend NUNCA están ahí (solo viven
+  // en la respuesta de Enumerar/Obtener), así que "Copiar" sobre cualquier factura real
+  // fallaba en silencio. Ahora recibe el objeto completo, así que no hace falta ninguna
+  // búsqueda y funciona igual para facturas reales que para locales.
+  it('duplicar() funciona con una factura "real" (accountingLocked, ausente del almacén del mock)', () => {
+    const facturaReal: FacturaRecibida = {
+      id: 999999, proveedor: 'Iberdrola', proveedorNif: 'A95758389', numFactura: 'F-999999',
+      fecha: '2026-08-01', lineas: [], retencionPct: 0, pagada: true, estado: 'revisada',
+      origenOcr: false, accountingLocked: true,
+    };
+
+    const copia = repo.duplicar(facturaReal);
+
+    expect(copia).toBeTruthy();
+    expect(copia.proveedor).toBe('Iberdrola');
+    expect(copia.id).not.toBe(facturaReal.id);
+    expect(copia.estado).toBe('borrador'); // una copia siempre nace como borrador nuevo
   });
 
   it('crearManual/listar/eliminar siguen funcionando igual que en el mock (sin backend de Recibidas aún)', async () => {

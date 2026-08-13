@@ -211,6 +211,9 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
   return {
     id: dto.idFacturaRecibida,
     proveedor: dto.nombreProveedor?.trim() || 'Proveedor no disponible',
+    // El backend ya resuelve este id para poder darnos nombreProveedor (hace el JOIN él
+    // mismo) — nos lo da gratis, tiene sentido guardarlo ahora que el modelo lo admite.
+    idProveedor: dto.idProveedor,
     numFactura: dto.numFacRec,
     fecha: dto.fechaFactura.slice(0, 10),
     vencimiento: dto.fechaVencimiento ? dto.fechaVencimiento.slice(0, 10) : undefined,
@@ -359,8 +362,11 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return this.mockAdapter.accionesPermitidas(factura);
   }
 
-  duplicar(id: number): FacturaRecibida | undefined {
-    return this.mockAdapter.duplicar(id);
+  duplicar(factura: FacturaRecibida): FacturaRecibida {
+    // Recibe el objeto completo, no un id — así funciona igual para facturas locales
+    // (mock) y para facturas reales del backend, que nunca están en el almacén del mock
+    // (ver el comentario en el puerto: bug real corregido el 2026-08-13).
+    return this.mockAdapter.duplicar(factura);
   }
 
   async crearDesdeOcr(file: File): Promise<FacturaRecibida> {

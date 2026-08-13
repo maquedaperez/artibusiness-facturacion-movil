@@ -48,5 +48,12 @@ export abstract class ReceivedInvoicesRepository {
   abstract adjuntarDocumento(file: File): Promise<{ documentoUrl: string; documentoNombre: string }>;
 
   abstract accionesPermitidas(factura: FacturaRecibida): AccionesPermitidas;
-  abstract duplicar(id: number): FacturaRecibida | undefined;
+  // Recibe la factura completa, no solo el id — a propósito: BUG real encontrado y
+  // corregido el 2026-08-13. Con la firma anterior (duplicar(id)), HttpReceivedInvoicesRepository
+  // delegaba en el mock, que buscaba el id en su propio almacén en memoria — y las facturas
+  // reales del backend NUNCA están ahí (solo viven en la respuesta de Enumerar/Obtener), así
+  // que "Copiar" sobre cualquier factura real fallaba en silencio (sin toast, sin error,
+  // simplemente no pasaba nada). El caso de llamada siempre tiene ya el objeto completo a
+  // mano, así que pasarlo directamente evita la búsqueda y el fallo.
+  abstract duplicar(factura: FacturaRecibida): FacturaRecibida;
 }

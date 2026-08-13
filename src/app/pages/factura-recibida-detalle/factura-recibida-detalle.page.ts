@@ -132,8 +132,11 @@ export class FacturaRecibidaDetallePage implements OnInit {
 
   async duplicar() {
     if (this.facturaId == null) return;
-    const copia = this.invoicesRepo.duplicar(this.facturaId);
-    if (!copia) return;
+    // Objeto completo, no solo el id — mismo motivo que accionesPermitidas() unas líneas
+    // arriba: el repositorio ya no busca la factura en ningún almacén propio, la recibe
+    // tal cual (bug real corregido el 2026-08-13: antes fallaba en silencio al duplicar
+    // una factura real del backend, porque esas nunca están en el almacén del mock).
+    const copia = this.invoicesRepo.duplicar({ ...this.working, id: this.facturaId, origenOcr: this.origenOcr });
     await this.showToast(`Borrador creado a partir de la factura de ${this.working.proveedor}.`);
     this.router.navigate(['/app/recibidas', copia.id], { replaceUrl: true });
   }
@@ -192,6 +195,10 @@ export class FacturaRecibidaDetallePage implements OnInit {
     const p: ProveedorMock = data;
     this.working.proveedor = p.nombre;
     this.working.proveedorNif = p.nif;
+    this.working.proveedorDireccion = p.direccion;
+    this.working.proveedorPoblacion = p.poblacion;
+    this.working.proveedorCp = p.cp;
+    this.working.proveedorProvincia = p.provincia;
     // Solo los proveedores elegidos de una búsqueda real (POST /api/Proveedores/Enumerar,
     // role 'confirm') tienen un id de verdad del backend. Los creados "al vuelo" en el
     // modal (role 'confirm-nuevo') siguen siendo locales — crearAdHoc todavía delega en el

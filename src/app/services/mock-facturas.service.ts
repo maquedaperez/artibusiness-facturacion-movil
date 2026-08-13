@@ -819,14 +819,20 @@ ${filas}
 
   // Copiar crea un borrador nuevo: sin id/documento adjunto/estado "pagada" del
   // original — el usuario adjunta su propio documento a la copia si corresponde.
-  duplicarRecibida(id: number): FacturaRecibida | undefined {
-    const original = this.recibidas.find(r => r.id === id);
-    if (!original) return undefined;
-
+  duplicarRecibida(original: FacturaRecibida): FacturaRecibida {
     const copia: FacturaRecibida = {
       id: nextRecibidaId++,
       proveedor: original.proveedor,
       proveedorNif: original.proveedorNif,
+      // El proveedor en sí no cambia por duplicar la factura — si el original ya tenía un
+      // id/dirección resueltos (de una búsqueda real o de una factura real del backend),
+      // la copia los conserva; solo se resetean los datos propios de ESTA factura (número,
+      // fecha, pagada, adjunto...).
+      idProveedor: original.idProveedor,
+      proveedorDireccion: original.proveedorDireccion,
+      proveedorPoblacion: original.proveedorPoblacion,
+      proveedorCp: original.proveedorCp,
+      proveedorProvincia: original.proveedorProvincia,
       numFactura: '',
       fecha: new Date().toISOString().slice(0, 10),
       vencimiento: '',
@@ -837,6 +843,14 @@ ${filas}
       pagada: false,
       estado: 'borrador',
       origenOcr: false,
+      // Si el original venía del backend real, sus líneas llevan ivaPct=0 como marcador
+      // (el backend todavía no expone el catálogo de Impuestos, no se pudo reconstruir el
+      // % real por línea — ver received-invoices.repository.http.ts). Sin este aviso, la
+      // copia parecería una factura legítimamente exenta de IVA al 0%, cuando en realidad
+      // es un dato que falta, no un hecho de la factura.
+      avisosOcr: original.totalesReales
+        ? ['Esta copia viene de una factura real: el % de IVA por línea no se pudo reconstruir (aparece en 0%). Revisa y corrige el IVA de cada línea antes de guardar.']
+        : undefined,
     };
     this.recibidas.unshift(copia);
     return copia;

@@ -68,7 +68,7 @@ export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return accionesFacturaRecibida(factura);
   }
 
-  duplicar(id: number): FacturaRecibida | undefined {
-    return this.mock.duplicarRecibida(id);
+  duplicar(factura: FacturaRecibida): FacturaRecibida {
+    return this.mock.duplicarRecibida(factura);
   }
 }

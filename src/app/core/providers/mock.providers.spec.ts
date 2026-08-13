@@ -384,7 +384,7 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
       documentoUrl: 'data:image/png;base64,xxx', documentoNombre: 'foto.png',
     });
 
-    const copia = receivedRepo.duplicar(creada.id)!;
+    const copia = receivedRepo.duplicar(creada);
 
     expect(copia.documentoUrl).toBeUndefined();
     expect(copia.documentoNombre).toBeUndefined();

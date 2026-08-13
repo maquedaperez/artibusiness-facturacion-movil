@@ -184,8 +184,7 @@ export class FacturasRecibidasPage implements OnInit {
 
   async duplicar(event: Event, f: FacturaRecibida) {
     event.stopPropagation();
-    const copia = this.invoicesRepo.duplicar(f.id);
-    if (!copia) return;
+    this.invoicesRepo.duplicar(f);
     this.refresh();
     await this.showToast(`Borrador creado a partir de la factura de ${f.proveedor}.`);
   }
