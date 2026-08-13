@@ -13,16 +13,19 @@ import { AccionesPermitidas, FacturaRecibida, TotalesFactura } from '../../servi
  * — conectar en cuanto existan.
  */
 // Subconjunto de filtros de Enumerar que de verdad viajan al backend — no todo lo que se
-// puede filtrar en pantalla: 'estado' se queda fuera porque el valor real (byte) no está
-// documentado todavía, y el rango de fechas porque Enumerar solo admite año+mes, no un
-// rango arbitrario. Esos dos filtros se siguen aplicando en el cliente, sobre lo que haya
-// devuelto listar() — ver facturas-recibidas.page.ts.
+// puede filtrar en pantalla: el rango de fechas se queda fuera porque Enumerar solo admite
+// año+mes, no un rango arbitrario, así que ese sigue aplicándose en el cliente, sobre lo
+// que haya devuelto listar() — ver facturas-recibidas.page.ts.
 export type FiltrosListarRecibidas = {
   // Busca por nombre de proveedor (Enumerar: NombreProveedor, LIKE) — a diferencia del
   // buscador anterior, ya NO mira 'concepto': ese campo no lo admite el backend, y
   // mantenerlo solo en cliente habría exigido descargar todo para no perder resultados.
   query?: string;
   pagada?: boolean;
+  // Confirmado con el jefe: Facturas Recibidas reutiliza los mismos valores de Estado que
+  // Emitidas — 131 = borrador, 132 = revisada (aquí nunca 133/"firmada", Recibidas no pasa
+  // por ahí). El mapeo a estos dos valores numéricos vive en received-invoices.repository.http.ts.
+  estado?: 'borrador' | 'revisada';
 };
 
 export abstract class ReceivedInvoicesRepository {

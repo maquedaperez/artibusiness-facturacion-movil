@@ -121,6 +121,22 @@ const RECIBIDAS_BASE_PATH = '/api/FacturasRecibidas';
 // garantía todavía.
 const PAGINA_TAMANO = 50;
 
+// Confirmado con el jefe: Recibidas reutiliza los mismos códigos de Estado que Emitidas.
+// Aquí solo existen estos dos (nunca 133/"firmada" — Recibidas no pasa por Verifactu/AEAT).
+const ESTADO_BORRADOR_API = 131;
+const ESTADO_REVISADA_API = 132;
+
+function estadoDesdeApi(valor: number): 'borrador' | 'revisada' {
+  // Cualquier valor que no sea uno de los dos confirmados cae en 'revisada' — mismo
+  // criterio conservador que antes de conocer el mapeo: no bloquear la factura por un
+  // estado que no reconocemos, nunca tratarlo como "necesita repaso" sin motivo.
+  return valor === ESTADO_BORRADOR_API ? 'borrador' : 'revisada';
+}
+
+function estadoHaciaApi(valor: 'borrador' | 'revisada'): number {
+  return valor === 'borrador' ? ESTADO_BORRADOR_API : ESTADO_REVISADA_API;
+}
+
 // Ojo con los nombres: "total" en el backend es la BASE IMPONIBLE (antes de IVA/suplidos/
 // retención), no el importe final — así lo define la propia fórmula SQL del servicio:
 // importe = total + iva + suplidos - irpf. "importe" es el total final a pagar.
@@ -193,10 +209,7 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
     lineas: [],
     retencionPct: retencionPctAprox,
     pagada: dto.pagada,
-    // Best-effort: son facturas ya existentes en el ERP, no borradores de esta app —
-    // "revisada" es la lectura más fiel mientras el backend no exponga qué significan sus
-    // propios valores de Estado (byte, sin documentar todavía).
-    estado: 'revisada',
+    estado: estadoDesdeApi(dto.estado),
     origenOcr: dto.escaneada,
     accountingLocked: true,
     accountingLockReason: 'Factura del sistema real: edición pendiente del catálogo de impuestos/proveedores.',
@@ -252,13 +265,15 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     // tener que tocar nada más aquí. Mientras tanto no tiene efecto (el binding de ASP.NET
     // ignora campos que no existen en EnumerarFacturasRecibidasRequest).
     //
-    // nombreProveedor/pagada SÍ los soporta ya Enumerar — se mandan tal cual en vez de
-    // descargarlo todo y filtrar en el cliente, así una búsqueda encuentra facturas
-    // antiguas aunque no quepan en 'top'. estado/fechas se quedan fuera a propósito (ver
-    // FiltrosListarRecibidas) y se siguen filtrando en la página, sobre lo que devuelva esto.
+    // nombreProveedor/pagada/estado SÍ los soporta ya Enumerar — se mandan tal cual en vez
+    // de descargarlo todo y filtrar en el cliente, así una búsqueda encuentra facturas
+    // antiguas aunque no quepan en 'top'. Las fechas se quedan fuera a propósito (ver
+    // FiltrosListarRecibidas: Enumerar solo admite año+mes, no un rango arbitrario) y se
+    // siguen filtrando en la página, sobre lo que devuelva esto.
     const body: Record<string, unknown> = { top: PAGINA_TAMANO };
     if (filtros?.query?.trim()) body['nombreProveedor'] = filtros.query.trim();
     if (filtros?.pagada !== undefined) body['pagada'] = filtros.pagada;
+    if (filtros?.estado !== undefined) body['estado'] = estadoHaciaApi(filtros.estado);
 
     const [cabeceras, locales] = await Promise.all([
       this.api.post<FacturaRecibidaCabeceraApi[]>(`${RECIBIDAS_BASE_PATH}/Enumerar`, body),

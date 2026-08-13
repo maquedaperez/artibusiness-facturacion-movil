@@ -10,7 +10,7 @@ export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   private mock = inject(MockFacturasService);
 
   // Replica en memoria el mismo filtrado que hace Enumerar en el backend real (por
-  // proveedor y pagada) — así el comportamiento no cambia al pasar de mock a real.
+  // proveedor, pagada y estado) — así el comportamiento no cambia al pasar de mock a real.
   async listar(filtros?: FiltrosListarRecibidas): Promise<FacturaRecibida[]> {
     const todas = this.mock.getFacturasRecibidas();
     if (!filtros) return todas;
@@ -19,6 +19,7 @@ export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return todas.filter(f => {
       if (query && !f.proveedor.toLowerCase().includes(query)) return false;
       if (filtros.pagada !== undefined && f.pagada !== filtros.pagada) return false;
+      if (filtros.estado !== undefined && f.estado !== filtros.estado) return false;
       return true;
     });
   }

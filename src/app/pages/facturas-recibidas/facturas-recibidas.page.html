@@ -8,7 +8,7 @@
       placeholder="Buscar por proveedor"
       [(ngModel)]="searchQuery"
       [debounce]="150"
-      (ionInput)="onBusquedaOPagadaCambia()"
+      (ionInput)="onFiltroCambia()"
     ></ion-searchbar>
   </ion-toolbar>
 </ion-header>
@@ -66,7 +66,7 @@
 
   <div *ngIf="mostrarFiltros" class="panel-filtros">
     <ion-item lines="none">
-      <ion-select label="Estado" label-placement="start" interface="popover" [(ngModel)]="estadoFiltro">
+      <ion-select label="Estado" label-placement="start" interface="popover" [(ngModel)]="estadoFiltro" (ionChange)="onFiltroCambia()">
         <ion-select-option value="todos">Todos</ion-select-option>
         <ion-select-option value="borrador">Borrador</ion-select-option>
         <ion-select-option value="revisada">Revisada</ion-select-option>
@@ -74,7 +74,7 @@
     </ion-item>
 
     <ion-item lines="none">
-      <ion-select label="Pago" label-placement="start" interface="popover" [(ngModel)]="pagadaFiltro" (ionChange)="onBusquedaOPagadaCambia()">
+      <ion-select label="Pago" label-placement="start" interface="popover" [(ngModel)]="pagadaFiltro" (ionChange)="onFiltroCambia()">
         <ion-select-option value="todos">Todos</ion-select-option>
         <ion-select-option value="si">Pagada</ion-select-option>
         <ion-select-option value="no">Pendiente</ion-select-option>

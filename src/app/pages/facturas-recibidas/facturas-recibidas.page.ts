@@ -71,9 +71,10 @@ export class FacturasRecibidasPage implements OnInit {
     this.refresh();
   }
 
-  // proveedor (searchQuery) y pagada viajan al backend (Enumerar ya los soporta) — así la
-  // búsqueda encuentra facturas antiguas aunque no quepan en el límite de página. Se llama
-  // de nuevo cada vez que cambian, no solo al entrar en la pantalla.
+  // proveedor (searchQuery), pagada y estado viajan al backend (Enumerar ya los soporta,
+  // confirmado con el jefe el mapeo de Estado: 131 = borrador, 132 = revisada) — así la
+  // búsqueda/filtro encuentra facturas antiguas aunque no quepan en el límite de página. Se
+  // llama de nuevo cada vez que cambian, no solo al entrar en la pantalla.
   async refresh() {
     this.cargando = true;
     try {
@@ -89,24 +90,24 @@ export class FacturasRecibidasPage implements OnInit {
     return {
       query: this.searchQuery.trim() || undefined,
       pagada: this.pagadaFiltro === 'todos' ? undefined : this.pagadaFiltro === 'si',
+      estado: this.estadoFiltro === 'todos' ? undefined : this.estadoFiltro,
     };
   }
 
   // Se llama al escribir en el buscador (con el debounce del propio ion-searchbar) o al
-  // cambiar "Pagada" — ambos ya filtrados en el backend, así que hace falta recargar, no
-  // solo refiltrar lo que ya había en memoria.
-  onBusquedaOPagadaCambia() {
+  // cambiar "Estado"/"Pagada" — los tres ya filtrados en el backend, así que hace falta
+  // recargar, no solo refiltrar lo que ya había en memoria.
+  onFiltroCambia() {
     this.refresh();
   }
 
-  // estado y fechas se quedan como filtro puramente local (ver FiltrosListarRecibidas: el
-  // backend no admite ninguno de los dos todavía) — se aplican sobre lo que ya haya
-  // devuelto refresh(), no disparan una nueva petición. fecha es un string ISO yyyy-mm-dd
+  // El rango de fechas se queda como filtro puramente local (Enumerar solo admite año+mes,
+  // no un rango arbitrario — ver FiltrosListarRecibidas) — se aplica sobre lo que ya haya
+  // devuelto refresh(), no dispara una nueva petición. fecha es un string ISO yyyy-mm-dd
   // tanto en la factura como en los inputs type="date", así que comparar como texto ya
   // ordena bien.
   get facturasFiltradas(): FacturaRecibida[] {
     return this.facturas.filter(f => {
-      if (this.estadoFiltro !== 'todos' && f.estado !== this.estadoFiltro) return false;
       if (this.fechaDesde && f.fecha < this.fechaDesde) return false;
       if (this.fechaHasta && f.fecha > this.fechaHasta) return false;
       return true;

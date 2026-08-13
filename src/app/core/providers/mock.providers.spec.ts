@@ -7,7 +7,7 @@ import {
 } from '../ports';
 import { MockEmisorRepository } from '../adapters/mock/emisor.repository.mock';
 import { MockCustomersRepository } from '../adapters/mock/customers.repository.mock';
-import { MockSuppliersRepository } from '../adapters/mock/suppliers.repository.mock';
+import { HttpSuppliersRepository } from '../adapters/http/suppliers.repository.http';
 import { MockIssuedInvoicesRepository } from '../adapters/mock/issued-invoices.repository.mock';
 import { MockReceivedInvoicesRepository } from '../adapters/mock/received-invoices.repository.mock';
 import { HttpReceivedInvoicesRepository } from '../adapters/http/received-invoices.repository.http';
@@ -17,15 +17,16 @@ import {
   accionesFacturaEmitida, accionesFacturaRecibida, FacturaEmitida, FacturaRecibida,
 } from '../../services/mock-facturas.service';
 
-// ReceivedInvoicesRepository resuelve al adaptador HTTP real (ver arriba), cuyo
-// listar()/obtenerPorId() ya llaman a POST/GET api/FacturasRecibidas de verdad — sin
-// mockear ApiService aquí, esas llamadas saldrían contra el servidor de pruebas de Karma
-// y fallarían con 404. El resto de operaciones de estos describe (crearManual/actualizar/
-// eliminar/etc.) sigue delegando en el mock puro, ajeno a ApiService.
+// ReceivedInvoicesRepository y SuppliersRepository resuelven a sus adaptadores HTTP reales
+// (ver arriba), cuyos métodos ya llaman a la API de verdad — sin mockear ApiService aquí,
+// esas llamadas saldrían contra el servidor de pruebas de Karma y fallarían con 404. El
+// resto de operaciones de estos describe (crearManual/actualizar/eliminar/crearAdHoc/etc.)
+// sigue delegando en el mock puro, ajeno a ApiService.
 function apiServiceStub(): Partial<ApiService> {
   return {
     post: jasmine.createSpy().and.resolveTo([]),
     get: jasmine.createSpy().and.rejectWith(new Error('HTTP 404')),
+    getEmpresaId: jasmine.createSpy().and.returnValue(9),
   };
 }
 
@@ -39,11 +40,14 @@ describe('MOCK_REPOSITORY_PROVIDERS — selección de provider', () => {
   it('resuelve cada puerto a su implementación registrada', () => {
     expect(TestBed.inject(EmisorRepository)).toBeInstanceOf(MockEmisorRepository);
     expect(TestBed.inject(CustomersRepository)).toBeInstanceOf(MockCustomersRepository);
-    expect(TestBed.inject(SuppliersRepository)).toBeInstanceOf(MockSuppliersRepository);
+    // SuppliersRepository ya usa el adaptador HTTP real para buscar() (POST
+    // /api/Proveedores/Enumerar) — crearAdHoc sigue delegando en el mismo mock por debajo,
+    // ver suppliers.repository.http.ts.
+    expect(TestBed.inject(SuppliersRepository)).toBeInstanceOf(HttpSuppliersRepository);
     expect(TestBed.inject(IssuedInvoicesRepository)).toBeInstanceOf(MockIssuedInvoicesRepository);
-    // ReceivedInvoicesRepository ya usa el adaptador HTTP real para crearDesdeOcr (botón
-    // "Escanear factura") — el resto de operaciones sigue delegando en el mismo mock por
-    // debajo, ver received-invoices.repository.http.ts.
+    // ReceivedInvoicesRepository ya usa el adaptador HTTP real para listar/obtenerPorId/
+    // crearDesdeOcr — el resto de operaciones sigue delegando en el mismo mock por debajo,
+    // ver received-invoices.repository.http.ts.
     expect(TestBed.inject(ReceivedInvoicesRepository)).toBeInstanceOf(HttpReceivedInvoicesRepository);
   });
 
@@ -89,12 +93,13 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     expect(porNif.items.length).toBe(1);
   });
 
-  it('busca proveedores de ejemplo por nombre y por NIF, sin devolver nada con menos de 2 caracteres', async () => {
+  // suppliersRepo ya resuelve al adaptador HTTP real — el mapeo/payload exacto de
+  // buscar() contra POST /api/Proveedores/Enumerar se prueba en
+  // suppliers.repository.http.spec.ts. Aquí solo se comprueba, con el ApiService
+  // stubado, que el mínimo de 2 caracteres se sigue respetando antes de llamar a nada.
+  it('no busca proveedores con menos de 2 caracteres', async () => {
     const corta = await suppliersRepo.buscar('V');
     expect(corta.items.length).toBe(0);
-
-    const porNombre = await suppliersRepo.buscar('Vidal');
-    expect(porNombre.items.length).toBe(1);
   });
 
   it('lista facturas emitidas filtradas por estado', () => {

@@ -14,6 +14,7 @@ import { MockSubscriptionsRepository } from '../adapters/mock/subscriptions.repo
 import { MockIssuedInvoicesRepository } from '../adapters/mock/issued-invoices.repository.mock';
 import { MockReceivedInvoicesRepository } from '../adapters/mock/received-invoices.repository.mock';
 import { HttpReceivedInvoicesRepository } from '../adapters/http/received-invoices.repository.http';
+import { HttpSuppliersRepository } from '../adapters/http/suppliers.repository.http';
 
 /**
  * Único punto de la app que decide qué implementación de cada puerto se inyecta.
@@ -27,15 +28,20 @@ import { HttpReceivedInvoicesRepository } from '../adapters/http/received-invoic
  * también lo activa ahí en cuanto se haga push — solo hacerlo cuando el backend confirme
  * que está desplegado con el token real puesto (ver docs/OCR_BACKEND_INTEGRATION.md).
  *
- * ReceivedInvoicesRepository usa HttpReceivedInvoicesRepository: SOLO su crearDesdeOcr
- * (botón "Escanear factura") habla con el backend real — listar/crear-manual/editar/
- * eliminar siguen delegando en el mismo mock por debajo, porque esos endpoints de
- * Recibidas aún no existen (gap #13).
+ * ReceivedInvoicesRepository usa HttpReceivedInvoicesRepository: listar/obtenerPorId y
+ * crearDesdeOcr hablan con el backend real — crear-manual/editar/eliminar siguen delegando
+ * en el mismo mock por debajo, porque Guardar exige catálogos (Impuestos, Proveedores/Crear)
+ * que el backend todavía no expone.
+ *
+ * SuppliersRepository usa HttpSuppliersRepository: solo buscar() habla con el backend real
+ * (POST /api/Proveedores/Enumerar, confirmado 2026-08-13) — crearAdHoc sigue en el mismo
+ * mock, porque el backend todavía no tiene un endpoint de alta de proveedores.
  */
 export const MOCK_REPOSITORY_PROVIDERS: Provider[] = [
   { provide: EmisorRepository, useClass: MockEmisorRepository },
   { provide: CustomersRepository, useClass: MockCustomersRepository },
-  { provide: SuppliersRepository, useClass: MockSuppliersRepository },
+  MockSuppliersRepository,
+  { provide: SuppliersRepository, useClass: HttpSuppliersRepository },
   { provide: CatalogRepository, useClass: MockCatalogRepository },
   { provide: SubscriptionsRepository, useClass: MockSubscriptionsRepository },
   { provide: IssuedInvoicesRepository, useClass: MockIssuedInvoicesRepository },

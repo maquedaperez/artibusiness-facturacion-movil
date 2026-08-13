@@ -3,12 +3,27 @@ import { Capacitor } from '@capacitor/core';
 import { CapacitorHttp, HttpOptions } from '@capacitor/core';
 import { environment } from 'src/environments/environment';
 import { TenantService } from './tenant.service';
+import { decodeJwtPayload } from '../shared/utils/jwt';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private tenant = inject(TenantService);
 
   private readonly TOKEN_KEY = 'arti_access_token';
+
+  // Algunos endpoints (ej. ProveedoresController/Enumerar) declaran idEmpresa como
+  // obligatorio en vez de opcional-con-fallback-al-token como el resto de la API — así que
+  // ahí sí hace falta mandarlo explícito. El login no devuelve el id de empresa en el JSON
+  // (solo userCompany, el NOMBRE), pero sí viaja como claim "EmpresaId" dentro del propio
+  // JWT (confirmado en TokenServiceEmployee.cs), así que lo leemos de ahí en vez de pedirle
+  // al backend un campo nuevo.
+  getEmpresaId(): number | null {
+    const token = localStorage.getItem(this.TOKEN_KEY);
+    if (!token) return null;
+    const payload = decodeJwtPayload<{ EmpresaId?: string }>(token);
+    const empresaId = payload?.EmpresaId ? Number(payload.EmpresaId) : NaN;
+    return Number.isFinite(empresaId) ? empresaId : null;
+  }
 
   private async resolveBaseUrl(): Promise<string> {
     if (!Capacitor.isNativePlatform()) return '';

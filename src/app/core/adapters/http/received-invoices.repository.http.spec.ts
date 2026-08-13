@@ -467,6 +467,29 @@ describe('HttpReceivedInvoicesRepository — el resto de operaciones sigue deleg
     expect(body).toEqual({ top: 50 });
   });
 
+  // Confirmado con el jefe: Recibidas reutiliza los códigos de Estado de Emitidas —
+  // 131 = borrador, 132 = revisada.
+  it('listar() manda el filtro de estado como el código numérico confirmado (131/132)', async () => {
+    await repo.listar({ estado: 'borrador' });
+    expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/Enumerar', jasmine.objectContaining({ estado: 131 }));
+
+    await repo.listar({ estado: 'revisada' });
+    expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/Enumerar', jasmine.objectContaining({ estado: 132 }));
+  });
+
+  it('obtenerPorId() mapea el estado numérico del backend (131/132) al estado de la app', async () => {
+    apiSpy.get.and.resolveTo({
+      idFacturaRecibida: 500, numFacRec: 'F-500', idProveedor: 1, nombreProveedor: 'Proveedor',
+      concepto: 'x', total: 100, iva: 21, suplidos: 0, irpf: 0, importe: 121,
+      pagada: false, estado: 131, escaneada: false,
+      fechaFactura: '2026-08-01', fechaVencimiento: '2026-09-01',
+      idMedioPago: null, idTipoFactura: 1, lineas: [],
+    });
+
+    const factura = await repo.obtenerPorId(500);
+    expect(factura?.estado).toBe('borrador');
+  });
+
   it('crearManual/listar/eliminar siguen funcionando igual que en el mock (sin backend de Recibidas aún)', async () => {
     const inicial = (await repo.listar()).length;
 

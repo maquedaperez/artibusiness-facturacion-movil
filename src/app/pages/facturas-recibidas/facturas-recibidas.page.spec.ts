@@ -86,17 +86,20 @@ describe('FacturasRecibidasPage', () => {
     expect(listarSpy).toHaveBeenCalledWith(jasmine.objectContaining({ pagada: undefined }));
   });
 
-  // estado sí se queda en el cliente (el backend no documenta todavía qué significan sus
-  // valores de Estado) — se filtra sobre lo que ya haya devuelto refresh().
-  it('el filtro de estado sigue siendo local, sobre lo ya cargado en component.facturas', () => {
-    const revisada = { ...facturaDe('A', 'x'), estado: 'revisada' as const };
-    const borrador = { ...facturaDe('B', 'x'), estado: 'borrador' as const };
-    component.facturas = [revisada, borrador];
+  // Confirmado con el jefe el mapeo de Estado (131 = borrador, 132 = revisada) — igual que
+  // proveedor/pagada, ahora también viaja al backend en vez de filtrarse solo en cliente.
+  it('el filtro de estado se manda al repositorio a través de refresh()', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    const listarSpy = spyOn(repo, 'listar').and.resolveTo([]);
 
     component.estadoFiltro = 'revisada';
+    await component.refresh();
 
-    expect(component.facturasFiltradas.length).toBe(1);
-    expect(component.facturasFiltradas[0].proveedor).toBe('A');
+    expect(listarSpy).toHaveBeenCalledWith(jasmine.objectContaining({ estado: 'revisada' }));
+
+    component.estadoFiltro = 'todos';
+    await component.refresh();
+    expect(listarSpy).toHaveBeenCalledWith(jasmine.objectContaining({ estado: undefined }));
   });
 
   it('el filtro de fechas incluye solo las facturas dentro del rango desde/hasta', () => {
