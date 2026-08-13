@@ -6,12 +6,18 @@ import { AccionesPermitidas, FacturaRecibida, TotalesFactura } from '../../servi
  * independiente (docs/SERVICE_CONTRACT_GAPS.md #21), se puede extraer a su propio
  * OcrRepository sin romper este contrato.
  *
- * Backend real: no existe nada todavía salvo la sugerencia de
- * POST /api/FacturaRecibida/desde-ocr en CONTEXTO_FACTURACION.md — ver gap #13.
+ * Backend real (FacturasRecibidasController, confirmado en código — ver
+ * AUDITORIA_INTEGRACION_BACKEND.md): listar/obtener ya están conectados. crear/editar/
+ * eliminar siguen en el mock porque Guardar exige id_proveedor/id_impuesto/id_TipoFactura
+ * (claves foráneas reales) y el backend todavía no expone los catálogos para resolverlas
+ * — conectar en cuanto existan.
  */
 export abstract class ReceivedInvoicesRepository {
-  abstract listar(): FacturaRecibida[];
-  abstract obtenerPorId(id: number): FacturaRecibida | undefined;
+  // Async a propósito: HttpReceivedInvoicesRepository los resuelve contra
+  // POST /api/FacturasRecibidas/Enumerar y GET /api/FacturasRecibidas/{id} (backend real,
+  // confirmado — ver AUDITORIA_INTEGRACION_BACKEND.md).
+  abstract listar(): Promise<FacturaRecibida[]>;
+  abstract obtenerPorId(id: number): Promise<FacturaRecibida | undefined>;
 
   abstract crearManual(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): FacturaRecibida;
   abstract actualizar(id: number, cambios: Partial<Omit<FacturaRecibida, 'id' | 'origenOcr'>>): void;

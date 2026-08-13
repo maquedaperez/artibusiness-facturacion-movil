@@ -14,7 +14,12 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
   let apiSpy: jasmine.SpyObj<ApiService>;
 
   beforeEach(() => {
-    apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['postMultipart']);
+    apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['postMultipart', 'post', 'get']);
+    // listar()/obtenerPorId() no son el foco de este describe (mapeo de OCR) — se dejan
+    // resolviendo "sin datos en el backend real" para que las pruebas que sí los tocan
+    // (ver más abajo) caigan siempre al almacén local, igual que hoy sin backend de Recibidas.
+    apiSpy.post.and.resolveTo([]);
+    apiSpy.get.and.rejectWith(new Error('HTTP 404'));
 
     TestBed.configureTestingModule({
       providers: [
@@ -256,11 +261,11 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       document: { invoice: { invoice_number: 'F-9', lines: [] } },
     });
 
-    const antes = repo.listar().length;
+    const antes = (await repo.listar()).length;
     const creada = await repo.crearDesdeOcr(archivoDePrueba());
 
-    expect(repo.listar().length).toBe(antes + 1);
-    expect(repo.obtenerPorId(creada.id)?.numFactura).toBe('F-9');
+    expect((await repo.listar()).length).toBe(antes + 1);
+    expect((await repo.obtenerPorId(creada.id))?.numFactura).toBe('F-9');
   });
 
   it('una línea "non_subject" sin tax_rate se mapea a 0% de IVA, nunca al 21% por defecto', async () => {
@@ -430,7 +435,9 @@ describe('HttpReceivedInvoicesRepository — el resto de operaciones sigue deleg
   let repo: HttpReceivedInvoicesRepository;
 
   beforeEach(() => {
-    const apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['postMultipart']);
+    const apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['postMultipart', 'post', 'get']);
+    apiSpy.post.and.resolveTo([]);
+    apiSpy.get.and.rejectWith(new Error('HTTP 404'));
     TestBed.configureTestingModule({
       providers: [
         HttpReceivedInvoicesRepository,
@@ -442,8 +449,8 @@ describe('HttpReceivedInvoicesRepository — el resto de operaciones sigue deleg
     repo = TestBed.inject(HttpReceivedInvoicesRepository);
   });
 
-  it('crearManual/listar/eliminar siguen funcionando igual que en el mock (sin backend de Recibidas aún)', () => {
-    const inicial = repo.listar().length;
+  it('crearManual/listar/eliminar siguen funcionando igual que en el mock (sin backend de Recibidas aún)', async () => {
+    const inicial = (await repo.listar()).length;
 
     const creada = repo.crearManual({
       proveedor: 'Proveedor manual', numFactura: 'M-1', fecha: '2026-08-11', vencimiento: '',
@@ -451,10 +458,10 @@ describe('HttpReceivedInvoicesRepository — el resto de operaciones sigue deleg
       retencionPct: 0, pagada: false, estado: 'borrador',
     });
 
-    expect(repo.listar().length).toBe(inicial + 1);
+    expect((await repo.listar()).length).toBe(inicial + 1);
     expect(creada.origenOcr).toBeFalse();
 
     repo.eliminar(creada.id);
-    expect(repo.listar().length).toBe(inicial);
+    expect((await repo.listar()).length).toBe(inicial);
   });
 });

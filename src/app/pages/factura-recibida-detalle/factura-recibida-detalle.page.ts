@@ -58,6 +58,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
   errorMsg = '';
   adjuntando = false;
   guardando = false;
+  cargando = false;
   origenOcr = false;
 
   irpfRates = IRPF_RATES;
@@ -74,7 +75,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
     });
   }
 
-  ngOnInit() {
+  async ngOnInit() {
     const param = this.route.snapshot.paramMap.get('id');
 
     if (param === 'nueva') {
@@ -83,16 +84,23 @@ export class FacturaRecibidaDetallePage implements OnInit {
     }
 
     const id = Number(param);
-    const factura = this.invoicesRepo.obtenerPorId(id);
-    if (!factura) {
-      this.errorMsg = 'Factura no encontrada.';
-      return;
-    }
+    this.cargando = true;
+    try {
+      const factura = await this.invoicesRepo.obtenerPorId(id);
+      if (!factura) {
+        this.errorMsg = 'Factura no encontrada.';
+        return;
+      }
 
-    this.facturaId = id;
-    this.origenOcr = factura.origenOcr;
-    const { id: _id, origenOcr: _ocr, ...resto } = factura;
-    this.working = { ...resto };
+      this.facturaId = id;
+      this.origenOcr = factura.origenOcr;
+      const { id: _id, origenOcr: _ocr, ...resto } = factura;
+      this.working = { ...resto };
+    } catch (e: any) {
+      this.errorMsg = e?.message ?? 'No se pudo cargar la factura.';
+    } finally {
+      this.cargando = false;
+    }
   }
 
   private formularioVacio(): FacturaRecibidaForm {
@@ -157,7 +165,14 @@ export class FacturaRecibidaDetallePage implements OnInit {
   // Previsualización local con la misma fórmula que usa el mock/backend
   // (calcularTotalesLineas) — el guardado no envía este cálculo, solo las líneas y
   // el % de retención; el total definitivo lo sigue calculando el repositorio/backend.
+  //
+  // Si la factura viene del backend real (working.totalesReales), se usan esos importes
+  // tal cual en vez de recalcular: 'lineas' aquí no lleva el IVA por línea real (el
+  // backend todavía no expone el catálogo de impuestos — ver mapearCabecera en
+  // received-invoices.repository.http.ts), así que recalcular daría un número inventado.
   totales(): TotalesFactura {
+    if (this.working.totalesReales) return this.working.totalesReales;
+
     const cfg: ConfiguracionRetencion = {
       aplicable: this.working.retencionPct > 0,
       tipoCodigo: 'recibida',

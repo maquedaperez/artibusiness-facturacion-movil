@@ -2,18 +2,26 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FacturasRecibidasPage } from './facturas-recibidas.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { FacturaRecibida } from '../../services/mock-facturas.service';
+import { ApiService } from '../../services/api.service';
 
 describe('FacturasRecibidasPage', () => {
   let component: FacturasRecibidasPage;
   let fixture: ComponentFixture<FacturasRecibidasPage>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    // ReceivedInvoicesRepository resuelve al adaptador HTTP real: listar() sin esto
+    // llamaría de verdad a POST api/FacturasRecibidas/Enumerar contra el servidor de Karma.
+    const apiStub: Partial<ApiService> = { post: jasmine.createSpy().and.resolveTo([]) };
     TestBed.configureTestingModule({
-      providers: [...MOCK_REPOSITORY_PROVIDERS],
+      providers: [...MOCK_REPOSITORY_PROVIDERS, { provide: ApiService, useValue: apiStub }],
     });
     fixture = TestBed.createComponent(FacturasRecibidasPage);
     component = fixture.componentInstance;
     fixture.detectChanges();
+    // ngOnInit dispara refresh(), que ahora es async (listar() habla con el repositorio
+    // real en producción) — sin esperar a que se asiente, las pruebas de abajo pisan
+    // component.facturas justo después, pero mejor no depender de esa carrera.
+    await fixture.whenStable();
   });
 
   it('should create', () => {

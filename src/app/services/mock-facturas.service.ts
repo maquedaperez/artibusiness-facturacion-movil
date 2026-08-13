@@ -269,6 +269,13 @@ export type FacturaRecibida = {
   // Se calculan UNA vez al crear el borrador, no se recalculan al editar — sirven como
   // registro de "esto merecía revisión cuando se escaneó", no como validación en vivo.
   avisosOcr?: string[];
+  // Totales oficiales tal cual los devuelve el backend real (POST /api/FacturasRecibidas),
+  // ya calculados con las tasas de impuesto reales de la BD. Solo lo rellena
+  // HttpReceivedInvoicesRepository: como id_impuesto es una FK sin catálogo expuesto
+  // todavía, no podemos reconstruir el % de IVA por línea con garantías, así que en vez
+  // de recalcular (y arriesgarnos a mostrar un IVA/total inventado) se usa este valor
+  // directamente cuando está presente. Ver AUDITORIA_INTEGRACION_BACKEND.md.
+  totalesReales?: TotalesFactura;
 };
 
 const ESTADO_AEAT_LABELS: Record<EstadoAeat, string> = {

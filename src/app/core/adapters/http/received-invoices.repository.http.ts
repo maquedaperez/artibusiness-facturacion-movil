@@ -107,28 +107,189 @@ function ivaPctDesdeLinea(l: OcrLine): number {
   return numeroDesde(l.tax_rate, 21);
 }
 
+// Confirmado contra el código real de WebAPIARTIBusiness (Controllers/FacturasRecibidasController.cs
+// + Services/FacturaRecibidaService.cs): [Authorize] con el mismo esquema JWT que ya usa el
+// login, y la empresa se resuelve del claim "EmpresaId" del propio token si no se manda
+// idEmpresa explícito (confirmado en TokenServiceEmployee.cs, línea 41 — el login que ya
+// usa la app incluye ese claim). JSON en camelCase, igual que el resto de la API (confirmado
+// también: Startup.cs no fija PropertyNamingPolicy, así que aplica el default Web de
+// System.Text.Json).
+const RECIBIDAS_BASE_PATH = '/api/FacturasRecibidas';
+
+// Límite de facturas a traer en el listado — Enumerar hoy no pagina (ver comentario en
+// listar()), así que esto es una petición al backend para cuando lo soporte, no una
+// garantía todavía.
+const PAGINA_TAMANO = 50;
+
+// Ojo con los nombres: "total" en el backend es la BASE IMPONIBLE (antes de IVA/suplidos/
+// retención), no el importe final — así lo define la propia fórmula SQL del servicio:
+// importe = total + iva + suplidos - irpf. "importe" es el total final a pagar.
+type FacturaRecibidaCabeceraApi = {
+  idFacturaRecibida: number;
+  numFacRec: string;
+  idProveedor: number;
+  nombreProveedor: string | null;
+  concepto: string | null;
+  total: number;
+  iva: number;
+  suplidos: number;
+  irpf: number;
+  importe: number;
+  pagada: boolean;
+  estado: number;
+  escaneada: boolean;
+  fechaFactura: string;
+  fechaVencimiento: string;
+  idMedioPago: number | null;
+  idTipoFactura: number;
+};
+
+type FacturaRecibidaLineaApi = {
+  idFacturaRecibidaLinea: number;
+  descripcion: string | null;
+  cantidad: number;
+  precioUnitario: number;
+  importe: number;
+  idImpuesto: number;
+};
+
+type FacturaRecibidaDetalleApi = FacturaRecibidaCabeceraApi & {
+  lineas: FacturaRecibidaLineaApi[];
+};
+
+// El backend no expone (todavía) un catálogo de Impuestos que traduzca id_impuesto → %,
+// así que no podemos reconstruir con garantías el IVA real de cada línea — inventar un
+// porcentaje sería exactamente el tipo de número "posiblemente incorrecto sin más" que
+// avisosOcr existe para evitar. En su lugar: totalesReales usa los importes ya calculados
+// por el backend (fiables), y el desglose por tipo se sustituye por un aviso con el
+// importe total de IVA en texto. Cuando el backend publique el catálogo de Impuestos, este
+// mapeo puede reconstruir 'lineas' con ivaPct real y dejar de necesitar el aviso.
+function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
+  const base = dto.total;
+  const retencionPctAprox = base > 0 ? Math.round((dto.irpf / base) * 100) : 0;
+
+  const avisos: string[] = [];
+  if (dto.iva > 0) {
+    avisos.push(
+      `IVA total de esta factura: ${formatEuros(dto.iva)}. El desglose por tipo no está ` +
+      'disponible todavía: el backend aún no expone el catálogo de impuestos.'
+    );
+  }
+  if (dto.suplidos > 0) {
+    avisos.push(`Incluye ${formatEuros(dto.suplidos)} en suplidos, ya sumados al total a pagar.`);
+  }
+  avisos.push(
+    'Esta factura viene del sistema real. Todavía no se puede editar ni eliminar desde aquí: ' +
+    'falta que el backend publique los catálogos de impuestos, tipos de factura y proveedores.'
+  );
+
+  return {
+    id: dto.idFacturaRecibida,
+    proveedor: dto.nombreProveedor?.trim() || 'Proveedor no disponible',
+    numFactura: dto.numFacRec,
+    fecha: dto.fechaFactura.slice(0, 10),
+    vencimiento: dto.fechaVencimiento ? dto.fechaVencimiento.slice(0, 10) : undefined,
+    concepto: dto.concepto?.trim() || undefined,
+    lineas: [],
+    retencionPct: retencionPctAprox,
+    pagada: dto.pagada,
+    // Best-effort: son facturas ya existentes en el ERP, no borradores de esta app —
+    // "revisada" es la lectura más fiel mientras el backend no exponga qué significan sus
+    // propios valores de Estado (byte, sin documentar todavía).
+    estado: 'revisada',
+    origenOcr: dto.escaneada,
+    accountingLocked: true,
+    accountingLockReason: 'Factura del sistema real: edición pendiente del catálogo de impuestos/proveedores.',
+    avisosOcr: avisos,
+    totalesReales: {
+      base,
+      desgloseIva: [],
+      ivaTotal: dto.iva,
+      retencion: {
+        aplicable: dto.irpf > 0,
+        etiqueta: 'Retención',
+        porcentaje: retencionPctAprox,
+        base,
+        importe: dto.irpf,
+      },
+      total: dto.importe,
+    },
+  };
+}
+
+function mapearLinea(l: FacturaRecibidaLineaApi, nuevoId: () => number): LineaFactura {
+  return {
+    id: nuevoId(),
+    origen: 'manual',
+    descripcion: l.descripcion?.trim() || 'Sin descripción',
+    cantidad: l.cantidad,
+    precioUnitario: l.precioUnitario,
+    descuentoPct: 0,
+    // No reconstruible sin el catálogo de Impuestos (ver mapearCabecera) — el importe de
+    // IVA real de la factura completa sí se ve en el aviso de totalesReales.
+    ivaPct: 0,
+  };
+}
+
 /**
- * Adaptador híbrido: solo `crearDesdeOcr` habla con el backend real (que a su vez
- * llama a la API de OCR guardando el token en el servidor — ver
- * docs/OCR_BACKEND_INTEGRATION.md). El resto de operaciones de Recibidas
- * (listar/crear-manual/editar/eliminar) siguen sin tener endpoint propio en el backend
- * (gap #13 de SERVICE_CONTRACT_GAPS.md), así que se delegan al mismo almacén en
- * memoria que usa MockReceivedInvoicesRepository — la factura extraída de verdad se
- * guarda ahí mismo mediante registrarRecibidaExtraida.
- *
- * Todavía NO está enchufado en mock.providers.ts — activar solo cuando el backend
- * confirme la URL del endpoint y el formato de respuesta.
+ * Adaptador híbrido: `listar`/`obtenerPorId` y `crearDesdeOcr` hablan con el backend real
+ * (FacturasRecibidasController y DocumentoController respectivamente — ver
+ * docs/OCR_BACKEND_INTEGRATION.md y AUDITORIA_INTEGRACION_BACKEND.md). El resto
+ * (crearManual/actualizar/eliminar/adjuntarDocumento) sigue delegado al mismo almacén en
+ * memoria que usa MockReceivedInvoicesRepository, porque el backend todavía no expone los
+ * catálogos (Impuestos, TipoFactura, Proveedores) que exige POST .../Guardar — conectar en
+ * cuanto existan. Mientras tanto, toda factura leída del backend real se marca
+ * accountingLocked para que la UI no ofrezca editarla/eliminarla (ver mapearCabecera).
  */
 @Injectable()
 export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   private mockAdapter = inject(MockReceivedInvoicesRepository);
   private api = inject(ApiService);
 
-  listar(): FacturaRecibida[] {
-    return this.mockAdapter.listar();
+  async listar(): Promise<FacturaRecibida[]> {
+    // 'top' todavía no lo soporta el backend (Enumerar no pagina, devuelve todo lo que haya
+    // para la empresa) — se manda ya para que, en cuanto lo soporte, empiece a limitar sin
+    // tener que tocar nada más aquí. Mientras tanto no tiene efecto (el binding de ASP.NET
+    // ignora campos que no existen en EnumerarFacturasRecibidasRequest). Ver
+    // AUDITORIA_INTEGRACION_BACKEND.md: la búsqueda/filtros de esta pantalla trabajan sobre
+    // lo ya descargado, así que un límite aquí significa "no se encuentra algo más antiguo
+    // que las últimas 50" hasta que el buscador también viaje al backend.
+    const [cabeceras, locales] = await Promise.all([
+      this.api.post<FacturaRecibidaCabeceraApi[]>(`${RECIBIDAS_BASE_PATH}/Enumerar`, { top: PAGINA_TAMANO }),
+      this.mockAdapter.listar(),
+    ]);
+
+    // Recorte también en el cliente: mientras el backend no soporte 'top' de verdad,
+    // Enumerar sigue devolviendo la tabla entera de la empresa por red — esto NO arregla
+    // esa descarga, pero sí evita renderizar/filtrar sobre cientos de tarjetas una vez ya
+    // ha llegado la respuesta. Ya viene ordenado por fecha DESC desde el backend, así que
+    // cortar los primeros PAGINA_TAMANO sigue siendo "las más recientes".
+    const cabecerasRecortadas = (cabeceras ?? []).slice(0, PAGINA_TAMANO);
+
+    // Los 2 registros de ejemplo del mock (id 1 y 2, fijos en MockFacturasService) son solo
+    // demo y no tiene sentido mezclarlos con datos reales del backend. Los creados en esta
+    // sesión sí (OCR/duplicar/manual, siempre id >= 100 por la convención ya existente de
+    // nextRecibidaId): todavía no hay endpoint para persistirlos contra el backend (Guardar
+    // exige catálogos de impuestos/proveedores que no existen aún), así que sin este merge
+    // desaparecerían de la lista nada más crearlos.
+    const borradoresLocales = locales.filter(f => f.id >= 100);
+
+    return [...cabecerasRecortadas.map(mapearCabecera), ...borradoresLocales];
   }
 
-  obtenerPorId(id: number): FacturaRecibida | undefined {
+  async obtenerPorId(id: number): Promise<FacturaRecibida | undefined> {
+    try {
+      const dto = await this.api.get<FacturaRecibidaDetalleApi>(`${RECIBIDAS_BASE_PATH}/${id}`);
+      if (dto) {
+        const factura = mapearCabecera(dto);
+        factura.lineas = (dto.lineas ?? []).map(l => mapearLinea(l, () => this.nuevoIdLinea()));
+        return factura;
+      }
+    } catch {
+      // 404 del backend (no existe para esta empresa) o el id pertenece a un borrador
+      // local todavía sin endpoint de guardado (OCR/manual/duplicar) — en ambos casos
+      // caemos al almacén local, igual que hace listar() con los borradores de sesión.
+    }
     return this.mockAdapter.obtenerPorId(id);
   }
 
@@ -149,6 +310,9 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   }
 
   totales(factura: FacturaRecibida): TotalesFactura {
+    // Facturas leídas del backend real ya traen sus totales oficiales (ver mapearCabecera)
+    // — se usan tal cual en vez de recalcular desde 'lineas', que aquí no lleva el IVA real.
+    if (factura.totalesReales) return factura.totalesReales;
     return this.mockAdapter.totales(factura);
   }
 

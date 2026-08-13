@@ -47,6 +47,7 @@ export class FacturasRecibidasPage implements OnInit {
 
   facturas: FacturaRecibida[] = [];
   processing = false;
+  cargando = false;
 
   searchQuery = '';
   mostrarFiltros = false;
@@ -70,8 +71,15 @@ export class FacturasRecibidasPage implements OnInit {
     this.refresh();
   }
 
-  refresh() {
-    this.facturas = this.invoicesRepo.listar();
+  async refresh() {
+    this.cargando = true;
+    try {
+      this.facturas = await this.invoicesRepo.listar();
+    } catch (e: any) {
+      await this.showToast(e?.message ?? 'No se pudo cargar la lista de facturas.', 'danger');
+    } finally {
+      this.cargando = false;
+    }
   }
 
   // Igual que en Emitidas: filtro rápido sobre la lista ya cargada, no una búsqueda

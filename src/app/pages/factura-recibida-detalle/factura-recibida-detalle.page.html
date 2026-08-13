@@ -30,7 +30,12 @@
     <p>{{ errorMsg }}</p>
   </ion-text>
 
-  <ng-container *ngIf="esNueva || facturaId !== null">
+  <div class="carga-factura" *ngIf="cargando">
+    <ion-spinner name="crescent"></ion-spinner>
+    <ion-text color="medium"><p class="ion-no-margin">Cargando factura...</p></ion-text>
+  </div>
+
+  <ng-container *ngIf="!cargando && (esNueva || facturaId !== null)">
 
   <ion-card>
     <ion-card-content>

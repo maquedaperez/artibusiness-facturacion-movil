@@ -9,11 +9,11 @@ import {
 export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   private mock = inject(MockFacturasService);
 
-  listar(): FacturaRecibida[] {
+  async listar(): Promise<FacturaRecibida[]> {
     return this.mock.getFacturasRecibidas();
   }
 
-  obtenerPorId(id: number): FacturaRecibida | undefined {
+  async obtenerPorId(id: number): Promise<FacturaRecibida | undefined> {
     return this.mock.getFacturaRecibidaById(id);
   }
 
