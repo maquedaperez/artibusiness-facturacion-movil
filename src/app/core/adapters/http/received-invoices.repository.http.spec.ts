@@ -434,8 +434,10 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
 describe('HttpReceivedInvoicesRepository — el resto de operaciones sigue delegando en el mock', () => {
   let repo: HttpReceivedInvoicesRepository;
 
+  let apiSpy: jasmine.SpyObj<ApiService>;
+
   beforeEach(() => {
-    const apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['postMultipart', 'post', 'get']);
+    apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['postMultipart', 'post', 'get']);
     apiSpy.post.and.resolveTo([]);
     apiSpy.get.and.rejectWith(new Error('HTTP 404'));
     TestBed.configureTestingModule({
@@ -447,6 +449,22 @@ describe('HttpReceivedInvoicesRepository — el resto de operaciones sigue deleg
       ],
     });
     repo = TestBed.inject(HttpReceivedInvoicesRepository);
+  });
+
+  it('listar() manda query/pagada como nombreProveedor/pagada en el body de Enumerar', async () => {
+    await repo.listar({ query: 'Iberdrola', pagada: true });
+
+    expect(apiSpy.post).toHaveBeenCalledWith(
+      '/api/FacturasRecibidas/Enumerar',
+      jasmine.objectContaining({ nombreProveedor: 'Iberdrola', pagada: true, top: 50 }),
+    );
+  });
+
+  it('listar() sin filtros no manda nombreProveedor ni pagada, solo top', async () => {
+    await repo.listar();
+
+    const [, body] = apiSpy.post.calls.mostRecent().args;
+    expect(body).toEqual({ top: 50 });
   });
 
   it('crearManual/listar/eliminar siguen funcionando igual que en el mock (sin backend de Recibidas aún)', async () => {

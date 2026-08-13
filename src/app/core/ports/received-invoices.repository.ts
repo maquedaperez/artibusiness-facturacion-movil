@@ -12,11 +12,26 @@ import { AccionesPermitidas, FacturaRecibida, TotalesFactura } from '../../servi
  * (claves foráneas reales) y el backend todavía no expone los catálogos para resolverlas
  * — conectar en cuanto existan.
  */
+// Subconjunto de filtros de Enumerar que de verdad viajan al backend — no todo lo que se
+// puede filtrar en pantalla: 'estado' se queda fuera porque el valor real (byte) no está
+// documentado todavía, y el rango de fechas porque Enumerar solo admite año+mes, no un
+// rango arbitrario. Esos dos filtros se siguen aplicando en el cliente, sobre lo que haya
+// devuelto listar() — ver facturas-recibidas.page.ts.
+export type FiltrosListarRecibidas = {
+  // Busca por nombre de proveedor (Enumerar: NombreProveedor, LIKE) — a diferencia del
+  // buscador anterior, ya NO mira 'concepto': ese campo no lo admite el backend, y
+  // mantenerlo solo en cliente habría exigido descargar todo para no perder resultados.
+  query?: string;
+  pagada?: boolean;
+};
+
 export abstract class ReceivedInvoicesRepository {
   // Async a propósito: HttpReceivedInvoicesRepository los resuelve contra
   // POST /api/FacturasRecibidas/Enumerar y GET /api/FacturasRecibidas/{id} (backend real,
-  // confirmado — ver AUDITORIA_INTEGRACION_BACKEND.md).
-  abstract listar(): Promise<FacturaRecibida[]>;
+  // confirmado — ver AUDITORIA_INTEGRACION_BACKEND.md). filtros viaja tal cual al backend
+  // (Enumerar ya los soporta) en vez de descargarlo todo y filtrar en el cliente — así la
+  // búsqueda encuentra facturas antiguas aunque no quepan en el límite de página.
+  abstract listar(filtros?: FiltrosListarRecibidas): Promise<FacturaRecibida[]>;
   abstract obtenerPorId(id: number): Promise<FacturaRecibida | undefined>;
 
   abstract crearManual(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): FacturaRecibida;

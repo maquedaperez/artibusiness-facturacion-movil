@@ -5,9 +5,10 @@
 
   <ion-toolbar>
     <ion-searchbar
-      placeholder="Buscar por proveedor o concepto"
+      placeholder="Buscar por proveedor"
       [(ngModel)]="searchQuery"
       [debounce]="150"
+      (ionInput)="onBusquedaOPagadaCambia()"
     ></ion-searchbar>
   </ion-toolbar>
 </ion-header>
@@ -73,7 +74,7 @@
     </ion-item>
 
     <ion-item lines="none">
-      <ion-select label="Pago" label-placement="start" interface="popover" [(ngModel)]="pagadaFiltro">
+      <ion-select label="Pago" label-placement="start" interface="popover" [(ngModel)]="pagadaFiltro" (ionChange)="onBusquedaOPagadaCambia()">
         <ion-select-option value="todos">Todos</ion-select-option>
         <ion-select-option value="si">Pagada</ion-select-option>
         <ion-select-option value="no">Pendiente</ion-select-option>
@@ -152,10 +153,10 @@
       <ion-card-content>
         <ion-icon name="receipt-outline"></ion-icon>
         <ion-text color="medium">
-          <p class="ion-no-margin" *ngIf="facturas.length === 0">
+          <p class="ion-no-margin" *ngIf="facturas.length === 0 && !searchQuery.trim() && !hayFiltrosActivos()">
             Todavía no hay facturas recibidas.
           </p>
-          <p class="ion-no-margin" *ngIf="facturas.length > 0">
+          <p class="ion-no-margin" *ngIf="facturas.length > 0 || searchQuery.trim() || hayFiltrosActivos()">
             Sin resultados con la búsqueda o los filtros aplicados.
           </p>
         </ion-text>

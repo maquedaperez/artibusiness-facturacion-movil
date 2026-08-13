@@ -17,7 +17,7 @@ import {
 } from 'ionicons/icons';
 
 import { AccionesPermitidas, FacturaRecibida } from '../../services/mock-facturas.service';
-import { ReceivedInvoicesRepository } from '../../core/ports';
+import { FiltrosListarRecibidas, ReceivedInvoicesRepository } from '../../core/ports';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
@@ -71,10 +71,13 @@ export class FacturasRecibidasPage implements OnInit {
     this.refresh();
   }
 
+  // proveedor (searchQuery) y pagada viajan al backend (Enumerar ya los soporta) — así la
+  // búsqueda encuentra facturas antiguas aunque no quepan en el límite de página. Se llama
+  // de nuevo cada vez que cambian, no solo al entrar en la pantalla.
   async refresh() {
     this.cargando = true;
     try {
-      this.facturas = await this.invoicesRepo.listar();
+      this.facturas = await this.invoicesRepo.listar(this.filtrosParaBackend());
     } catch (e: any) {
       await this.showToast(e?.message ?? 'No se pudo cargar la lista de facturas.', 'danger');
     } finally {
@@ -82,16 +85,28 @@ export class FacturasRecibidasPage implements OnInit {
     }
   }
 
-  // Igual que en Emitidas: filtro rápido sobre la lista ya cargada, no una búsqueda
-  // contra el repositorio. fecha es un string ISO yyyy-mm-dd tanto en la factura
-  // como en los inputs type="date", así que comparar como texto ya ordena bien.
+  private filtrosParaBackend(): FiltrosListarRecibidas {
+    return {
+      query: this.searchQuery.trim() || undefined,
+      pagada: this.pagadaFiltro === 'todos' ? undefined : this.pagadaFiltro === 'si',
+    };
+  }
+
+  // Se llama al escribir en el buscador (con el debounce del propio ion-searchbar) o al
+  // cambiar "Pagada" — ambos ya filtrados en el backend, así que hace falta recargar, no
+  // solo refiltrar lo que ya había en memoria.
+  onBusquedaOPagadaCambia() {
+    this.refresh();
+  }
+
+  // estado y fechas se quedan como filtro puramente local (ver FiltrosListarRecibidas: el
+  // backend no admite ninguno de los dos todavía) — se aplican sobre lo que ya haya
+  // devuelto refresh(), no disparan una nueva petición. fecha es un string ISO yyyy-mm-dd
+  // tanto en la factura como en los inputs type="date", así que comparar como texto ya
+  // ordena bien.
   get facturasFiltradas(): FacturaRecibida[] {
-    const q = this.searchQuery.trim().toLowerCase();
     return this.facturas.filter(f => {
-      if (q && !this.proveedorResumen(f).toLowerCase().includes(q) && !this.conceptoResumen(f).toLowerCase().includes(q)) return false;
       if (this.estadoFiltro !== 'todos' && f.estado !== this.estadoFiltro) return false;
-      if (this.pagadaFiltro === 'si' && !f.pagada) return false;
-      if (this.pagadaFiltro === 'no' && f.pagada) return false;
       if (this.fechaDesde && f.fecha < this.fechaDesde) return false;
       if (this.fechaHasta && f.fecha > this.fechaHasta) return false;
       return true;

@@ -3,6 +3,7 @@ import { FacturasRecibidasPage } from './facturas-recibidas.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { FacturaRecibida } from '../../services/mock-facturas.service';
 import { ApiService } from '../../services/api.service';
+import { ReceivedInvoicesRepository } from '../../core/ports';
 
 describe('FacturasRecibidasPage', () => {
   let component: FacturasRecibidasPage;
@@ -53,25 +54,46 @@ describe('FacturasRecibidasPage', () => {
     expect(component.conceptoResumen(sinDatos)).toBe('Sin concepto');
   });
 
-  it('el filtro de proveedor/concepto no distingue mayúsculas y busca en ambos campos', () => {
-    component.facturas = [facturaDe('Suministros Oficina Norte SL', 'Material'), facturaDe('Otro Proveedor', 'papel y tóner')];
+  // La búsqueda por proveedor y el filtro de pagada ya no se aplican en el propio
+  // getter — viajan al backend a través de listar() (Enumerar ya los soporta), así una
+  // búsqueda encuentra facturas antiguas aunque no quepan en el límite de página. Se
+  // comprueba con un spy sobre el repositorio, no filtrando component.facturas a mano.
+  it('la búsqueda por proveedor se manda al repositorio a través de refresh(), no se filtra solo en cliente', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    const listarSpy = spyOn(repo, 'listar').and.resolveTo([]);
 
     component.searchQuery = 'oficina';
-    expect(component.facturasFiltradas.length).toBe(1);
+    await component.refresh();
 
-    component.searchQuery = 'TÓNER';
-    expect(component.facturasFiltradas.length).toBe(1);
-    expect(component.facturasFiltradas[0].proveedor).toBe('Otro Proveedor');
+    expect(listarSpy).toHaveBeenCalledWith(jasmine.objectContaining({ query: 'oficina' }));
   });
 
-  it('el filtro de estado y de pago se combinan (AND, no OR)', () => {
-    const revisadaYPagada = { ...facturaDe('A', 'x'), estado: 'revisada' as const, pagada: true };
-    const revisadaSinPagar = { ...facturaDe('B', 'x'), estado: 'revisada' as const, pagada: false };
-    const borradorPagada = { ...facturaDe('C', 'x'), estado: 'borrador' as const, pagada: true };
-    component.facturas = [revisadaYPagada, revisadaSinPagar, borradorPagada];
+  it('el filtro de pagada se manda al repositorio a través de refresh()', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    const listarSpy = spyOn(repo, 'listar').and.resolveTo([]);
+
+    component.pagadaFiltro = 'si';
+    await component.refresh();
+
+    expect(listarSpy).toHaveBeenCalledWith(jasmine.objectContaining({ pagada: true }));
+
+    component.pagadaFiltro = 'no';
+    await component.refresh();
+    expect(listarSpy).toHaveBeenCalledWith(jasmine.objectContaining({ pagada: false }));
+
+    component.pagadaFiltro = 'todos';
+    await component.refresh();
+    expect(listarSpy).toHaveBeenCalledWith(jasmine.objectContaining({ pagada: undefined }));
+  });
+
+  // estado sí se queda en el cliente (el backend no documenta todavía qué significan sus
+  // valores de Estado) — se filtra sobre lo que ya haya devuelto refresh().
+  it('el filtro de estado sigue siendo local, sobre lo ya cargado en component.facturas', () => {
+    const revisada = { ...facturaDe('A', 'x'), estado: 'revisada' as const };
+    const borrador = { ...facturaDe('B', 'x'), estado: 'borrador' as const };
+    component.facturas = [revisada, borrador];
 
     component.estadoFiltro = 'revisada';
-    component.pagadaFiltro = 'si';
 
     expect(component.facturasFiltradas.length).toBe(1);
     expect(component.facturasFiltradas[0].proveedor).toBe('A');

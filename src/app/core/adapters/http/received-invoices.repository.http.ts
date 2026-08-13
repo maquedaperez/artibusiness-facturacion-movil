@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { ReceivedInvoicesRepository } from '../../ports/received-invoices.repository';
+import { FiltrosListarRecibidas, ReceivedInvoicesRepository } from '../../ports/received-invoices.repository';
 import { MockReceivedInvoicesRepository } from '../mock/received-invoices.repository.mock';
 import { ApiService } from '../../../services/api.service';
 import {
@@ -246,17 +246,23 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   private mockAdapter = inject(MockReceivedInvoicesRepository);
   private api = inject(ApiService);
 
-  async listar(): Promise<FacturaRecibida[]> {
+  async listar(filtros?: FiltrosListarRecibidas): Promise<FacturaRecibida[]> {
     // 'top' todavía no lo soporta el backend (Enumerar no pagina, devuelve todo lo que haya
     // para la empresa) — se manda ya para que, en cuanto lo soporte, empiece a limitar sin
     // tener que tocar nada más aquí. Mientras tanto no tiene efecto (el binding de ASP.NET
-    // ignora campos que no existen en EnumerarFacturasRecibidasRequest). Ver
-    // AUDITORIA_INTEGRACION_BACKEND.md: la búsqueda/filtros de esta pantalla trabajan sobre
-    // lo ya descargado, así que un límite aquí significa "no se encuentra algo más antiguo
-    // que las últimas 50" hasta que el buscador también viaje al backend.
+    // ignora campos que no existen en EnumerarFacturasRecibidasRequest).
+    //
+    // nombreProveedor/pagada SÍ los soporta ya Enumerar — se mandan tal cual en vez de
+    // descargarlo todo y filtrar en el cliente, así una búsqueda encuentra facturas
+    // antiguas aunque no quepan en 'top'. estado/fechas se quedan fuera a propósito (ver
+    // FiltrosListarRecibidas) y se siguen filtrando en la página, sobre lo que devuelva esto.
+    const body: Record<string, unknown> = { top: PAGINA_TAMANO };
+    if (filtros?.query?.trim()) body['nombreProveedor'] = filtros.query.trim();
+    if (filtros?.pagada !== undefined) body['pagada'] = filtros.pagada;
+
     const [cabeceras, locales] = await Promise.all([
-      this.api.post<FacturaRecibidaCabeceraApi[]>(`${RECIBIDAS_BASE_PATH}/Enumerar`, { top: PAGINA_TAMANO }),
-      this.mockAdapter.listar(),
+      this.api.post<FacturaRecibidaCabeceraApi[]>(`${RECIBIDAS_BASE_PATH}/Enumerar`, body),
+      this.mockAdapter.listar(filtros),
     ]);
 
     // Recorte también en el cliente: mientras el backend no soporte 'top' de verdad,

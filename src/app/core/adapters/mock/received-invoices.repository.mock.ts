@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { ReceivedInvoicesRepository } from '../../ports/received-invoices.repository';
+import { FiltrosListarRecibidas, ReceivedInvoicesRepository } from '../../ports/received-invoices.repository';
 import {
   AccionesPermitidas, FacturaRecibida, MockFacturasService, TotalesFactura,
   accionesFacturaRecibida,
@@ -9,8 +9,18 @@ import {
 export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   private mock = inject(MockFacturasService);
 
-  async listar(): Promise<FacturaRecibida[]> {
-    return this.mock.getFacturasRecibidas();
+  // Replica en memoria el mismo filtrado que hace Enumerar en el backend real (por
+  // proveedor y pagada) — así el comportamiento no cambia al pasar de mock a real.
+  async listar(filtros?: FiltrosListarRecibidas): Promise<FacturaRecibida[]> {
+    const todas = this.mock.getFacturasRecibidas();
+    if (!filtros) return todas;
+
+    const query = filtros.query?.trim().toLowerCase();
+    return todas.filter(f => {
+      if (query && !f.proveedor.toLowerCase().includes(query)) return false;
+      if (filtros.pagada !== undefined && f.pagada !== filtros.pagada) return false;
+      return true;
+    });
   }
 
   async obtenerPorId(id: number): Promise<FacturaRecibida | undefined> {
