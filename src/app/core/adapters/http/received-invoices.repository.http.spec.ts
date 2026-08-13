@@ -40,7 +40,10 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
         invoice: {
           invoice_number: 'DEMO-2026-0001',
           issue_date: '2026-08-01',
-          issuer: { legal_name: 'Demo Telecom S.L.', tax_id: 'B99999999' },
+          issuer: {
+            legal_name: 'Demo Telecom S.L.', tax_id: 'B99999999',
+            address: 'Calle Falsa 123', postal_code: '28001', city: 'Madrid', province: 'Madrid',
+          },
           lines: [
             { description: 'Licencia mensual', quantity: '2', unit_price: '15.00', discount_percent: '0', tax_rate: '21' },
           ],
@@ -55,6 +58,10 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
     expect(factura.estado).toBe('borrador');
     expect(factura.proveedor).toBe('Demo Telecom S.L.');
     expect(factura.proveedorNif).toBe('B99999999');
+    expect(factura.proveedorDireccion).toBe('Calle Falsa 123');
+    expect(factura.proveedorCp).toBe('28001');
+    expect(factura.proveedorPoblacion).toBe('Madrid');
+    expect(factura.proveedorProvincia).toBe('Madrid');
     expect(factura.numFactura).toBe('DEMO-2026-0001');
     expect(factura.fecha).toBe('2026-08-01');
     expect(factura.vencimiento).toBe('2026-09-01');

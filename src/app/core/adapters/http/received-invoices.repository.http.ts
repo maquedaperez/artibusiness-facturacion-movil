@@ -17,9 +17,18 @@ const OCR_ENDPOINT_PATH = '/api/Documento/analizar';
 // Subconjunto de AnalyzeDocumentResponse (openapi.json de ARTI-Invoice-Reader-Handoff)
 // que realmente se usa aquí — todos los campos son opcionales/nulos según el propio
 // esquema, el documento puede venir con extracción parcial.
+// address/postal_code/city/province/country: confirmados en el esquema real de la API de
+// OCR (ARTI-Invoice-Reader-Handoff/openapi.json, componente "Party") — no se leían hasta
+// ahora porque no hacían falta para nada; los necesitamos para poder pre-rellenar la
+// pantalla de alta de proveedor en cuanto exista Proveedores/Crear en el backend.
 type OcrParty = {
   legal_name?: string | null;
   tax_id?: string | null;
+  address?: string | null;
+  postal_code?: string | null;
+  city?: string | null;
+  province?: string | null;
+  country?: string | null;
 };
 
 type OcrLine = {
@@ -447,6 +456,13 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return this.mockAdapter.registrarRecibidaExtraida({
       proveedor: inv.issuer?.legal_name?.trim() || `Proveedor detectado (${file.name})`,
       proveedorNif: inv.issuer?.tax_id?.trim() || undefined,
+      // Dirección del emisor — no se usa todavía para nada (Proveedores/Crear no existe en
+      // el backend aún), solo se guarda ya lista para cuando exista, en vez de tener que
+      // volver a tocar este mapeo entonces.
+      proveedorDireccion: inv.issuer?.address?.trim() || undefined,
+      proveedorPoblacion: inv.issuer?.city?.trim() || undefined,
+      proveedorCp: inv.issuer?.postal_code?.trim() || undefined,
+      proveedorProvincia: inv.issuer?.province?.trim() || undefined,
       numFactura: inv.invoice_number?.trim() || '',
       fecha: inv.issue_date?.trim() || new Date().toISOString().slice(0, 10),
       // El vencimiento puede venir a nivel de factura o dentro de "payment" según el

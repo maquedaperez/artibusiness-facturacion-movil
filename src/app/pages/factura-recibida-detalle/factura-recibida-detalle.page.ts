@@ -187,11 +187,17 @@ export class FacturaRecibidaDetallePage implements OnInit {
     await modal.present();
 
     const { data, role } = await modal.onWillDismiss();
-    if (role !== 'confirm' || !data) return;
+    if ((role !== 'confirm' && role !== 'confirm-nuevo') || !data) return;
 
     const p: ProveedorMock = data;
     this.working.proveedor = p.nombre;
     this.working.proveedorNif = p.nif;
+    // Solo los proveedores elegidos de una búsqueda real (POST /api/Proveedores/Enumerar,
+    // role 'confirm') tienen un id de verdad del backend. Los creados "al vuelo" en el
+    // modal (role 'confirm-nuevo') siguen siendo locales — crearAdHoc todavía delega en el
+    // mock porque no existe Proveedores/Crear todavía — así que su id no es válido para
+    // mandar a Guardar y se deja sin definir a propósito.
+    this.working.idProveedor = role === 'confirm' ? p.id : undefined;
   }
 
   triggerAdjuntar() {

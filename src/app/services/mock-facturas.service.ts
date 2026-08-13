@@ -236,6 +236,21 @@ export type FacturaRecibida = {
   id: number;
   proveedor: string;
   proveedorNif?: string;
+  // Id real del proveedor en el backend (Facturacion$proveedores / tabla 'proveedores') —
+  // solo se rellena cuando el usuario lo elige del buscador real (ProveedorSelectorComponent
+  // ya conectado a POST /api/Proveedores/Enumerar) o, más adelante, cuando el flujo de
+  // Guardar lo resuelva automáticamente por NIF. Sin esto, 'proveedor'/'proveedorNif' son
+  // solo texto (del OCR o escritos a mano) y no sirven para guardar contra el backend real
+  // — Guardar exige el id, no el nombre.
+  idProveedor?: number;
+  // Dirección del proveedor tal como la extrajo el OCR (disponible en el esquema de la API
+  // desde siempre, solo no se leía porque no hacía falta) — se guarda para poder
+  // pre-rellenar la pantalla de alta de proveedor en cuanto exista Proveedores/Crear en el
+  // backend. Nunca se usa para nada más mientras tanto.
+  proveedorDireccion?: string;
+  proveedorPoblacion?: string;
+  proveedorCp?: string;
+  proveedorProvincia?: string;
   numFactura: string;
   fecha: string;
   vencimiento?: string;

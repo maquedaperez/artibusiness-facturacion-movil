@@ -201,7 +201,11 @@ export class ProveedorSelectorComponent implements OnDestroy {
       return;
     }
     const creado = this.suppliersRepo.crearAdHoc({ ...this.nuevo });
-    this.modalCtrl.dismiss(creado, 'confirm');
+    // Role distinto a 'confirm': crearAdHoc todavía delega en el mock (no existe
+    // Proveedores/Crear en el backend todavía), así que este id NO es un id real — quien
+    // reciba el resultado del modal necesita poder distinguir "vino de una búsqueda real"
+    // de "se creó al vuelo, localmente" para no mandar un id inventado a Guardar.
+    this.modalCtrl.dismiss(creado, 'confirm-nuevo');
   }
 
   cancel() {
