@@ -262,7 +262,12 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
 
     const [cabeceras, locales] = await Promise.all([
       this.api.post<FacturaRecibidaCabeceraApi[]>(`${RECIBIDAS_BASE_PATH}/Enumerar`, body),
-      this.mockAdapter.listar(filtros),
+      // Sin filtros aquí a propósito: los borradores locales (OCR/manual/duplicar) tienen
+      // que seguir viéndose aunque haya una búsqueda o un filtro de Pagada activo de antes
+      // — si no, un usuario que acaba de escanear una factura la vería "desaparecer" de la
+      // lista nada más crearla, solo porque no encajaba con un filtro que ni sabía que
+      // seguía puesto. Son pocos y recientes, el coste de mostrarlos siempre es bajo.
+      this.mockAdapter.listar(),
     ]);
 
     // Recorte también en el cliente: mientras el backend no soporte 'top' de verdad,
