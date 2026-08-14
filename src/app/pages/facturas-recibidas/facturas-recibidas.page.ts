@@ -198,7 +198,15 @@ export class FacturasRecibidasPage implements OnInit {
     try {
       const nueva = await this.invoicesRepo.crearDesdeDocumentoDirecto(file);
       await this.refresh();
-      await this.showToast(`Factura guardada desde "${file.name}": ${nueva.proveedor}.`, 'success');
+      // Si hay avisos (ej. el PDF no se pudo subir a Blob Storage, o el total no cuadra),
+      // se muestran como tal — de lo contrario quedarían enterrados: esta pantalla no
+      // navega al detalle tras guardar, así que es la única oportunidad de que el usuario
+      // los vea sin tener que abrir la factura a propósito.
+      if (nueva.avisosOcr?.length) {
+        await this.showToast(`Factura guardada, pero con avisos: ${nueva.avisosOcr[0]}`, 'danger');
+      } else {
+        await this.showToast(`Factura guardada desde "${file.name}": ${nueva.proveedor}.`, 'success');
+      }
     } catch (e: any) {
       await this.showToast(e?.message ?? 'No se pudo guardar la factura. Inténtalo de nuevo.', 'danger');
     } finally {
