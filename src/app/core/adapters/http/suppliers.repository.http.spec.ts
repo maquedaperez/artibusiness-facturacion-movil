@@ -48,35 +48,95 @@ describe('HttpSuppliersRepository', () => {
     );
   });
 
-  it('mapea la respuesta del backend a ProveedorMock, prefiriendo nombreCompleto', async () => {
+  it('mapea la respuesta del backend a ProveedorMock, prefiriendo nombreCompleto e incluyendo la dirección de facturación', async () => {
     apiSpy.post.and.resolveTo([
       {
         idProveedor: 42, idEmpresa: 9, idSujeto: 100,
         nombre: 'Iberdrola', apellido1: 'Clientes', apellido2: 'SAU',
         nombreCompleto: 'Iberdrola Clientes SAU', dni: 'A95758389',
+        direccionFacturacion: {
+          idDireccion: 7, direccion: 'Calle Mayor 1', codigoPostal: '28001',
+          poblacion: 'Madrid', idProvincia: 28, provincia: 'Madrid',
+        },
       },
     ]);
 
     const resultado = await repo.buscar('iberdrola');
 
-    expect(resultado.items).toEqual([{ id: 42, nif: 'A95758389', nombre: 'Iberdrola Clientes SAU' }]);
+    expect(resultado.items).toEqual([{
+      id: 42, nif: 'A95758389', nombre: 'Iberdrola Clientes SAU',
+      direccion: 'Calle Mayor 1', poblacion: 'Madrid', cp: '28001', provincia: 'Madrid',
+    }]);
     expect(resultado.total).toBe(1);
   });
 
-  it('si falta nombreCompleto, cae a nombre; si falta dni, deja el nif vacío', async () => {
+  it('si falta nombreCompleto, cae a nombre; si falta dni, deja el nif vacío; sin dirección, deja los campos de dirección sin definir', async () => {
     apiSpy.post.and.resolveTo([
-      { idProveedor: 1, idEmpresa: 9, idSujeto: 1, nombre: 'Solo Nombre', apellido1: null, apellido2: null, nombreCompleto: null, dni: null },
+      {
+        idProveedor: 1, idEmpresa: 9, idSujeto: 1, nombre: 'Solo Nombre',
+        apellido1: null, apellido2: null, nombreCompleto: null, dni: null,
+        direccionFacturacion: null,
+      },
     ]);
 
     const resultado = await repo.buscar('solo');
 
     expect(resultado.items[0].nombre).toBe('Solo Nombre');
     expect(resultado.items[0].nif).toBe('');
+    expect(resultado.items[0].direccion).toBeUndefined();
   });
 
-  it('crearAdHoc sigue delegando en el mock (el backend no tiene endpoint de alta todavía)', () => {
-    const creado = repo.crearAdHoc({ nombre: 'Nuevo Proveedor', nif: 'B00000000' });
-    expect(creado.id).toBeGreaterThan(0);
-    expect(creado.nombre).toBe('Nuevo Proveedor');
+  describe('crearAdHoc', () => {
+    const datosCompletos = {
+      nombre: 'Nuevo Proveedor', nif: 'B00000000',
+      direccion: 'Calle Falsa 123', cp: '28002', poblacion: 'Madrid', provincia: 'Madrid',
+    };
+
+    it('valida nombre y nif antes de llamar al backend', async () => {
+      await expectAsync(repo.crearAdHoc({ ...datosCompletos, nombre: '' }))
+        .toBeRejectedWithError('Nombre y NIF son obligatorios.');
+      expect(apiSpy.post).not.toHaveBeenCalled();
+    });
+
+    it('valida dirección, cp, población y provincia antes de llamar al backend', async () => {
+      await expectAsync(repo.crearAdHoc({ ...datosCompletos, direccion: '' }))
+        .toBeRejectedWithError('Dirección, código postal, población y provincia son obligatorios.');
+      expect(apiSpy.post).not.toHaveBeenCalled();
+    });
+
+    it('llama a Proveedores/Crear con la razón social completa en nombre y un espacio en apellido1', async () => {
+      apiSpy.post.and.resolveTo({
+        idProveedor: 55, idEmpresa: 9, idSujeto: 200,
+        nombre: 'Nuevo Proveedor', apellido1: ' ', apellido2: null,
+        nombreCompleto: 'Nuevo Proveedor', dni: 'B00000000',
+        direccionFacturacion: {
+          idDireccion: 9, direccion: 'Calle Falsa 123', codigoPostal: '28002',
+          poblacion: 'Madrid', idProvincia: 28, provincia: 'Madrid',
+        },
+      });
+
+      const creado = await repo.crearAdHoc(datosCompletos);
+
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/Proveedores/Crear', {
+        idEmpresa: 9,
+        nombre: 'Nuevo Proveedor',
+        apellido1: ' ',
+        nif: 'B00000000',
+        direccion: 'Calle Falsa 123',
+        codigoPostal: '28002',
+        poblacion: 'Madrid',
+        provincia: 'Madrid',
+      });
+      expect(creado).toEqual({
+        id: 55, nif: 'B00000000', nombre: 'Nuevo Proveedor',
+        direccion: 'Calle Falsa 123', poblacion: 'Madrid', cp: '28002', provincia: 'Madrid',
+      });
+    });
+
+    it('propaga el error del backend (ej. NIF duplicado, 409) sin envolverlo', async () => {
+      apiSpy.post.and.rejectWith(new Error("HTTP 409 - Ya existe un proveedor con NIF 'B00000000' para esta empresa."));
+
+      await expectAsync(repo.crearAdHoc(datosCompletos)).toBeRejectedWithError(/409/);
+    });
   });
 });

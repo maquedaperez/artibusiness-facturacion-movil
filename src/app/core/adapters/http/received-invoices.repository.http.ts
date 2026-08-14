@@ -3,7 +3,7 @@ import { FiltrosListarRecibidas, ReceivedInvoicesRepository } from '../../ports/
 import { MockReceivedInvoicesRepository } from '../mock/received-invoices.repository.mock';
 import { ApiService } from '../../../services/api.service';
 import {
-  AccionesPermitidas, FacturaRecibida, IRPF_RATES, LineaFactura, TotalesFactura,
+  AccionesPermitidas, ConfiguracionRetencion, FacturaRecibida, IRPF_RATES, LineaFactura, TotalesFactura,
   calcularTotalesLineas,
 } from '../../../services/mock-facturas.service';
 import { formatEuros } from '../../../shared/utils/format-euros';
@@ -125,6 +125,16 @@ function ivaPctDesdeLinea(l: OcrLine): number {
 // System.Text.Json).
 const RECIBIDAS_BASE_PATH = '/api/FacturasRecibidas';
 
+// OJO: el controlador se llama "ImpuestoController" (singular) — la ruta resultante es
+// /api/Impuesto, no /api/Impuestos como el resto de catálogos plurales de esta API
+// (Proveedores, MediosPago). Confirmado leyendo el atributo [Route] directamente.
+const IMPUESTOS_BASE_PATH = '/api/Impuesto';
+
+// Único tipo que usamos hoy — Facturas Recibidas nunca declara IPSI/IGIC por ahora (eso
+// solo aplicaría a proveedores de Canarias/Ceuta/Melilla, fuera de alcance del MVP). El
+// campo 'tipo' es obligatorio en Enumerar, así que hay que mandarlo siempre.
+const TIPO_IMPUESTO_IVA = 'IVA';
+
 // Límite de facturas a traer en el listado — Enumerar hoy no pagina (ver comentario en
 // listar()), así que esto es una petición al backend para cuando lo soporte, no una
 // garantía todavía.
@@ -182,13 +192,15 @@ type FacturaRecibidaDetalleApi = FacturaRecibidaCabeceraApi & {
   lineas: FacturaRecibidaLineaApi[];
 };
 
-// El backend no expone (todavía) un catálogo de Impuestos que traduzca id_impuesto → %,
-// así que no podemos reconstruir con garantías el IVA real de cada línea — inventar un
-// porcentaje sería exactamente el tipo de número "posiblemente incorrecto sin más" que
-// avisosOcr existe para evitar. En su lugar: totalesReales usa los importes ya calculados
-// por el backend (fiables), y el desglose por tipo se sustituye por un aviso con el
-// importe total de IVA en texto. Cuando el backend publique el catálogo de Impuestos, este
-// mapeo puede reconstruir 'lineas' con ivaPct real y dejar de necesitar el aviso.
+// El catálogo de Impuestos YA existe (Enumerar/{id}), pero deliberadamente no se usa aquí
+// para reconstruir el IVA real por línea de facturas YA GUARDADAS en el backend — solo se
+// usa en sentido contrario (ivaPct → idImpuesto) al CREAR/EDITAR líneas nuevas, donde el
+// % ya es un dato de confianza (elegido por el usuario o extraído por el OCR). Reconstruir
+// hacia atrás aquí exigiría volver a sumar el desglose por línea y compararlo contra
+// dto.iva (el importe ya fiable que da el backend) para no arriesgarse a mostrar un
+// desglose que no cuadre con el total — trabajo real, pendiente, no un simple lookup.
+// Mientras tanto: totalesReales usa los importes ya calculados por el backend (fiables), y
+// el desglose por tipo se sustituye por un aviso con el importe total de IVA en texto.
 function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
   const base = dto.total;
   const retencionPctAprox = base > 0 ? Math.round((dto.irpf / base) * 100) : 0;
@@ -196,16 +208,17 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
   const avisos: string[] = [];
   if (dto.iva > 0) {
     avisos.push(
-      `IVA total de esta factura: ${formatEuros(dto.iva)}. El desglose por tipo no está ` +
-      'disponible todavía: el backend aún no expone el catálogo de impuestos.'
+      `IVA total de esta factura: ${formatEuros(dto.iva)}. El desglose por tipo no se ` +
+      'recalcula aquí para no arriesgarse a que no cuadre con este importe, que ya es el real.'
     );
   }
   if (dto.suplidos > 0) {
     avisos.push(`Incluye ${formatEuros(dto.suplidos)} en suplidos, ya sumados al total a pagar.`);
   }
   avisos.push(
-    'Esta factura viene del sistema real. Todavía no se puede editar ni eliminar desde aquí: ' +
-    'falta que el backend publique los catálogos de impuestos, tipos de factura y proveedores.'
+    'Esta factura viene del sistema real. Todavía no se puede editar desde aquí: no se puede ' +
+    'reconstruir con garantías el IVA real de cada línea ya guardada. Si necesitas corregirla, ' +
+    'bórrala y créala de nuevo.'
   );
 
   return {
@@ -224,7 +237,7 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
     estado: estadoDesdeApi(dto.estado),
     origenOcr: dto.escaneada,
     accountingLocked: true,
-    accountingLockReason: 'Factura del sistema real: edición pendiente del catálogo de impuestos/proveedores.',
+    accountingLockReason: 'Factura del sistema real: no se puede reconstruir el IVA real por línea para reeditarla.',
     avisosOcr: avisos,
     totalesReales: {
       base,
@@ -256,20 +269,44 @@ function mapearLinea(l: FacturaRecibidaLineaApi, nuevoId: () => number): LineaFa
   };
 }
 
+type ImpuestoApi = {
+  idImpuesto: number;
+  descripcion: string | null;
+  porcentaje: number;
+  literalFactura: string | null;
+  tipoFacturaE: string | null;
+};
+
+type TipoFacturaApi = {
+  idTipoFactura: number;
+  descriTipoNumerador: string | null;
+  textoMail: string | null;
+};
+
 /**
- * Adaptador híbrido: `listar`/`obtenerPorId` y `crearDesdeOcr` hablan con el backend real
- * (FacturasRecibidasController y DocumentoController respectivamente — ver
- * docs/OCR_BACKEND_INTEGRATION.md y AUDITORIA_INTEGRACION_BACKEND.md). El resto
- * (crearManual/actualizar/eliminar/adjuntarDocumento) sigue delegado al mismo almacén en
- * memoria que usa MockReceivedInvoicesRepository, porque el backend todavía no expone los
- * catálogos (Impuestos, TipoFactura, Proveedores) que exige POST .../Guardar — conectar en
- * cuanto existan. Mientras tanto, toda factura leída del backend real se marca
- * accountingLocked para que la UI no ofrezca editarla/eliminarla (ver mapearCabecera).
+ * Adaptador híbrido: `listar`/`obtenerPorId`/`crearDesdeOcr`/`eliminar`/`crearManual`/
+ * `actualizar` hablan con el backend real (FacturasRecibidasController, DocumentoController,
+ * ImpuestoController — ver docs/OCR_BACKEND_INTEGRATION.md y
+ * AUDITORIA_INTEGRACION_BACKEND.md). Solo `adjuntarDocumento` sigue delegado al mismo
+ * almacén en memoria que usa MockReceivedInvoicesRepository (no existe endpoint de subida
+ * de blobs todavía). `crearManual`/`actualizar` comparten `guardarReal()`, que resuelve
+ * idProveedor/TipoFactura/Impuestos y llama a POST Guardar — siempre como alta (nunca
+ * update): reeditar una factura YA guardada en el backend real está bloqueado en la UI
+ * (accountingLocked, ver mapearCabecera) porque no se puede reconstruir con garantías el
+ * IVA real de cada línea ya persistida — eliminar sí es real y no depende de este bloqueo,
+ * ver eliminarRecibida() en mock-facturas.service.ts.
  */
 @Injectable()
 export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   private mockAdapter = inject(MockReceivedInvoicesRepository);
   private api = inject(ApiService);
+
+  // Catálogos de referencia (Impuestos, TipoFactura): se resuelven una sola vez por sesión
+  // — no cambian sin cerrar sesión, así que no tiene sentido pedirlos antes de cada línea o
+  // cada guardado. Cacheadas como Promise (no como valor ya resuelto) para que llamadas
+  // simultáneas mientras la primera todavía está en vuelo no disparen una segunda petición.
+  private impuestosCache: Promise<ImpuestoApi[]> | null = null;
+  private tipoFacturaCache: Promise<TipoFacturaApi> | null = null;
 
   async listar(filtros?: FiltrosListarRecibidas): Promise<FacturaRecibida[]> {
     // 'top' todavía no lo soporta el backend (Enumerar no pagina, devuelve todo lo que haya
@@ -307,9 +344,9 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     // Los 2 registros de ejemplo del mock (id 1 y 2, fijos en MockFacturasService) son solo
     // demo y no tiene sentido mezclarlos con datos reales del backend. Los creados en esta
     // sesión sí (OCR/duplicar/manual, siempre id >= 100 por la convención ya existente de
-    // nextRecibidaId): todavía no hay endpoint para persistirlos contra el backend (Guardar
-    // exige catálogos de impuestos/proveedores que no existen aún), así que sin este merge
-    // desaparecerían de la lista nada más crearlos.
+    // nextRecibidaId): aunque Guardar ya es real, siguen siendo solo locales hasta que el
+    // usuario pulsa "Guardar" en el detalle — sin este merge desaparecerían de la lista
+    // nada más crearlas, antes de que a nadie le haya dado tiempo a revisarlas y guardarlas.
     const borradoresLocales = locales.filter(f => f.id >= 100);
 
     return [...cabecerasRecortadas.map(mapearCabecera), ...borradoresLocales];
@@ -331,15 +368,30 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return this.mockAdapter.obtenerPorId(id);
   }
 
-  crearManual(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): FacturaRecibida {
-    return this.mockAdapter.crearManual(data);
+  async crearManual(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): Promise<FacturaRecibida> {
+    return this.guardarReal(data);
   }
 
-  actualizar(id: number, cambios: Partial<Omit<FacturaRecibida, 'id' | 'origenOcr'>>): void {
-    this.mockAdapter.actualizar(id, cambios);
+  async actualizar(id: number, data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): Promise<FacturaRecibida> {
+    // Alcanzable hoy SOLO sobre borradores locales (OCR/manual/duplicar): reeditar una
+    // factura YA real está bloqueado en la UI (accountingLocked, ver mapearCabecera), así
+    // que esto es siempre "primer guardado real de un borrador local", nunca una
+    // actualización de verdad — se manda como alta (sin id), igual que crearManual, y
+    // después se borra el borrador local, que deja de tener sentido una vez que ya existe
+    // la versión real con su propio id (evita verla duplicada en la lista).
+    const guardada = await this.guardarReal(data);
+    this.mockAdapter.eliminar(id);
+    return guardada;
   }
 
-  eliminar(id: number): void {
+  async eliminar(id: number): Promise<void> {
+    try {
+      await this.api.delete(`${RECIBIDAS_BASE_PATH}/${id}`);
+      return;
+    } catch {
+      // 404 (no existe para esta empresa) o el id es de un borrador local todavía sin
+      // guardar — mismo criterio que obtenerPorId(): caer al almacén local.
+    }
     this.mockAdapter.eliminar(id);
   }
 
@@ -462,9 +514,9 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return this.mockAdapter.registrarRecibidaExtraida({
       proveedor: inv.issuer?.legal_name?.trim() || `Proveedor detectado (${file.name})`,
       proveedorNif: inv.issuer?.tax_id?.trim() || undefined,
-      // Dirección del emisor — no se usa todavía para nada (Proveedores/Crear no existe en
-      // el backend aún), solo se guarda ya lista para cuando exista, en vez de tener que
-      // volver a tocar este mapeo entonces.
+      // Dirección del emisor — se usa para pre-rellenar la pantalla de alta de proveedor
+      // (modo "Proveedor nuevo" de ProveedorSelectorComponent) cuando el NIF del OCR no
+      // coincide con ningún proveedor ya existente.
       proveedorDireccion: inv.issuer?.address?.trim() || undefined,
       proveedorPoblacion: inv.issuer?.city?.trim() || undefined,
       proveedorCp: inv.issuer?.postal_code?.trim() || undefined,
@@ -504,5 +556,108 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     }
 
     return 0;
+  }
+
+  // Catálogo de Impuestos (id_impuesto → %), confirmado en Controllers/ImpuestoController.cs
+  // + Services/ImpuestoService.cs (2026-08-14). El controlador se llama "Impuesto"
+  // (singular) — la ruta es /api/Impuesto, no /api/Impuestos. 'tipo' es obligatorio en
+  // Enumerar (el backend devuelve 400 sin él); aquí solo pedimos IVA — Recibidas no maneja
+  // IPSI/IGIC (Canarias/Ceuta/Melilla) todavía.
+  private async obtenerImpuestos(): Promise<ImpuestoApi[]> {
+    if (!this.impuestosCache) {
+      this.impuestosCache = this.api.post<ImpuestoApi[]>(
+        `${IMPUESTOS_BASE_PATH}/Enumerar`,
+        { tipo: TIPO_IMPUESTO_IVA },
+      );
+    }
+    return this.impuestosCache;
+  }
+
+  // Sentido contrario a la lectura: aquí ivaPct ya es un dato de confianza (elegido por el
+  // usuario o extraído por el OCR), así que basta con encontrar la fila del catálogo con
+  // ese porcentaje. Confirmado con el jefe: puede haber más de un id_impuesto con el mismo
+  // porcentaje para la misma empresa — en ese caso, se usa el primero tal cual lo devuelve
+  // el backend (decisión suya, no arbitraria de aquí).
+  private async resolverIdImpuesto(ivaPct: number): Promise<number> {
+    const catalogo = await this.obtenerImpuestos();
+    const encontrado = catalogo.find(i => i.porcentaje === ivaPct);
+    if (!encontrado) {
+      throw new Error(
+        `No existe en el catálogo de impuestos ningún tipo de IVA al ${ivaPct}%. ` +
+        'Revisa el IVA de esa línea o pide que se añada ese tipo en el catálogo.'
+      );
+    }
+    return encontrado.idImpuesto;
+  }
+
+  // GET /api/FacturasRecibidas/TipoFactura?idEmpresa=X — no es un catálogo seleccionable,
+  // es el único TipoFactura configurado para "Facturas" en esta empresa (fijo, no varía
+  // durante el uso de la app).
+  private async obtenerTipoFactura(): Promise<TipoFacturaApi> {
+    if (!this.tipoFacturaCache) {
+      this.tipoFacturaCache = this.api.get<TipoFacturaApi>(`${RECIBIDAS_BASE_PATH}/TipoFactura`);
+    }
+    return this.tipoFacturaCache;
+  }
+
+  // El guardado real, común a crearManual (siempre alta) y actualizar (alta también, ver
+  // el comentario en ese método — reeditar una factura ya real está bloqueado hoy).
+  private async guardarReal(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): Promise<FacturaRecibida> {
+    if (!data.idProveedor) {
+      throw new Error(
+        'Selecciona el proveedor de la lista (o créalo) antes de guardar — no se puede ' +
+        'guardar una factura solo con el nombre en texto.'
+      );
+    }
+    if (!data.numFactura?.trim()) {
+      throw new Error('El número de factura es obligatorio.');
+    }
+    if (data.lineas.length === 0) {
+      throw new Error('La factura necesita al menos una línea.');
+    }
+
+    const [tipoFactura, lineasConImpuesto] = await Promise.all([
+      this.obtenerTipoFactura(),
+      Promise.all(data.lineas.map(async l => ({
+        descripcion: l.descripcion,
+        cantidad: l.cantidad,
+        precioUnitario: l.precioUnitario,
+        idImpuesto: await this.resolverIdImpuesto(l.ivaPct),
+      }))),
+    ]);
+
+    const cfgRetencion: ConfiguracionRetencion = {
+      aplicable: data.retencionPct > 0, tipoCodigo: 'recibida', etiqueta: 'Retención', porcentaje: data.retencionPct,
+    };
+    const totales = calcularTotalesLineas(data.lineas, cfgRetencion);
+
+    const body = {
+      idProveedor: data.idProveedor,
+      numFacRec: data.numFactura.trim(),
+      // concepto es obligatorio en Guardar; si el usuario lo dejó vacío, usamos el número
+      // de factura como mínimo válido en vez de bloquear el guardado por esto.
+      concepto: data.concepto?.trim() || data.numFactura.trim(),
+      total: totales.base,
+      iva: totales.ivaTotal,
+      suplidos: 0, // esta app no maneja suplidos en Recibidas todavía
+      irpf: totales.retencion.importe,
+      pagada: data.pagada,
+      fechaFactura: data.fecha,
+      fechaVencimiento: data.vencimiento || data.fecha,
+      idTipoFactura: tipoFactura.idTipoFactura,
+      estado: estadoHaciaApi(data.estado),
+      escaneada: !!data.documentoUrl,
+      lineas: lineasConImpuesto,
+    };
+
+    const dto = await this.api.post<FacturaRecibidaDetalleApi>(`${RECIBIDAS_BASE_PATH}/Guardar`, body);
+
+    // No pasa por mapearCabecera/mapearLinea a propósito: esas funciones asumen que no
+    // conocemos el IVA real por línea (el caso de leer algo ya existente vía Enumerar/
+    // Obtener). Aquí SÍ lo conocemos — acabamos de resolverlo nosotros mismos — así que se
+    // devuelve la factura tal cual la teníamos, solo con el id real que ha asignado el
+    // backend. Tampoco se marca accountingLocked: no hay motivo para bloquear reeditar algo
+    // que acabamos de guardar en la misma sesión con datos que sí conocemos bien.
+    return { ...data, id: dto.idFacturaRecibida, origenOcr: !!data.documentoUrl };
   }
 }

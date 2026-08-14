@@ -28,7 +28,7 @@ export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return this.mock.getFacturaRecibidaById(id);
   }
 
-  crearManual(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): FacturaRecibida {
+  async crearManual(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): Promise<FacturaRecibida> {
     return this.mock.crearManual(data);
   }
 
@@ -40,11 +40,13 @@ export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return this.mock.registrarRecibidaExtraida(data);
   }
 
-  actualizar(id: number, cambios: Partial<Omit<FacturaRecibida, 'id' | 'origenOcr'>>): void {
-    this.mock.actualizarRecibida(id, cambios);
+  async actualizar(id: number, data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): Promise<FacturaRecibida> {
+    const actualizada = this.mock.actualizarRecibida(id, data);
+    if (!actualizada) throw new Error(`No se pudo actualizar la factura ${id}: no existe o está bloqueada.`);
+    return actualizada;
   }
 
-  eliminar(id: number): void {
+  async eliminar(id: number): Promise<void> {
     this.mock.eliminarRecibida(id);
   }
 

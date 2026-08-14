@@ -28,12 +28,10 @@ describe('FacturaRecibidaDetallePage', () => {
     expect(component).toBeTruthy();
   });
 
-  // idProveedor solo puede ser un id real del backend — crearAdHoc (el modo "Proveedor
-  // nuevo" del selector) sigue delegando en el mock porque Proveedores/Crear no existe
-  // todavía, así que su id es local y NUNCA debe tratarse como si fuera real. El selector
-  // distingue el origen con el role del modal ('confirm' = búsqueda real, 'confirm-nuevo'
-  // = creado al vuelo).
-  it('guarda idProveedor cuando el proveedor viene de una búsqueda real (role "confirm")', async () => {
+  // idProveedor siempre es un id real del backend: tanto una búsqueda (POST
+  // /api/Proveedores/Enumerar) como un alta rápida (POST /api/Proveedores/Crear) lo
+  // devuelven así, y el selector dismissea los dos casos con el mismo role 'confirm'.
+  it('guarda idProveedor cuando el modal confirma (búsqueda o alta rápida, mismo role "confirm")', async () => {
     const modalCtrl = TestBed.inject(ModalController);
     spyOn(modalCtrl, 'create').and.resolveTo({
       present: async () => {},
@@ -46,16 +44,17 @@ describe('FacturaRecibidaDetallePage', () => {
     expect(component.working.idProveedor).toBe(42);
   });
 
-  it('NO guarda idProveedor cuando el proveedor se creó al vuelo (role "confirm-nuevo", id local)', async () => {
+  it('NO toca el proveedor si el selector se cancela', async () => {
     const modalCtrl = TestBed.inject(ModalController);
     spyOn(modalCtrl, 'create').and.resolveTo({
       present: async () => {},
-      onWillDismiss: async () => ({ data: { nombre: 'Proveedor Nuevo SL', nif: 'B00000000', id: 105 }, role: 'confirm-nuevo' }),
+      onWillDismiss: async () => ({ data: null, role: 'cancel' }),
     } as any);
 
+    const proveedorPrevio = component.working.proveedor;
     await component.elegirProveedor();
 
-    expect(component.working.proveedor).toBe('Proveedor Nuevo SL');
+    expect(component.working.proveedor).toBe(proveedorPrevio);
     expect(component.working.idProveedor).toBeUndefined();
   });
 });

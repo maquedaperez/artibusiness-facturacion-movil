@@ -190,7 +190,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
     await modal.present();
 
     const { data, role } = await modal.onWillDismiss();
-    if ((role !== 'confirm' && role !== 'confirm-nuevo') || !data) return;
+    if (role !== 'confirm' || !data) return;
 
     const p: ProveedorMock = data;
     this.working.proveedor = p.nombre;
@@ -199,12 +199,9 @@ export class FacturaRecibidaDetallePage implements OnInit {
     this.working.proveedorPoblacion = p.poblacion;
     this.working.proveedorCp = p.cp;
     this.working.proveedorProvincia = p.provincia;
-    // Solo los proveedores elegidos de una búsqueda real (POST /api/Proveedores/Enumerar,
-    // role 'confirm') tienen un id de verdad del backend. Los creados "al vuelo" en el
-    // modal (role 'confirm-nuevo') siguen siendo locales — crearAdHoc todavía delega en el
-    // mock porque no existe Proveedores/Crear todavía — así que su id no es válido para
-    // mandar a Guardar y se deja sin definir a propósito.
-    this.working.idProveedor = role === 'confirm' ? p.id : undefined;
+    // Tanto una búsqueda real (POST /api/Proveedores/Enumerar) como un alta rápida
+    // (POST /api/Proveedores/Crear) devuelven ahora un id real del backend.
+    this.working.idProveedor = p.id;
   }
 
   triggerAdjuntar() {
@@ -244,18 +241,29 @@ export class FacturaRecibidaDetallePage implements OnInit {
       this.errorMsg = 'Proveedor y número de factura son obligatorios.';
       return;
     }
+    if (!this.working.idProveedor) {
+      this.errorMsg = 'Selecciona el proveedor de la lista (o créalo) antes de guardar.';
+      return;
+    }
 
     this.guardando = true;
     try {
       if (this.esNueva) {
-        const creada = this.invoicesRepo.crearManual(this.working);
+        const creada = await this.invoicesRepo.crearManual(this.working);
         this.facturaId = creada.id;
         this.esNueva = false;
       } else if (this.facturaId != null) {
-        this.invoicesRepo.actualizar(this.facturaId, this.working);
+        // actualizar() puede devolver un id distinto: la primera vez que se guarda de
+        // verdad una factura que solo existía como borrador local, siempre hace un INSERT
+        // en el backend (ver nota en HttpReceivedInvoicesRepository.guardarReal), así que
+        // el id local anterior deja de ser válido.
+        const guardada = await this.invoicesRepo.actualizar(this.facturaId, this.working);
+        this.facturaId = guardada.id;
       }
 
       await this.showToast('Factura guardada.');
+    } catch (e) {
+      this.errorMsg = e instanceof Error ? e.message : 'No se pudo guardar la factura.';
     } finally {
       this.guardando = false;
     }
@@ -273,9 +281,13 @@ export class FacturaRecibidaDetallePage implements OnInit {
           text: 'Eliminar',
           role: 'destructive',
           handler: async () => {
-            this.invoicesRepo.eliminar(this.facturaId!);
-            await this.showToast('Factura eliminada.');
-            this.volver();
+            try {
+              await this.invoicesRepo.eliminar(this.facturaId!);
+              await this.showToast('Factura eliminada.');
+              this.volver();
+            } catch (e) {
+              await this.showToast(e instanceof Error ? e.message : 'No se pudo eliminar la factura.', 'danger');
+            }
           },
         },
       ],

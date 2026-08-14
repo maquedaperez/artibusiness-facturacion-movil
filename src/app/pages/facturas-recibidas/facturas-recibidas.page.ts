@@ -225,10 +225,14 @@ export class FacturasRecibidasPage implements OnInit {
         {
           text: 'Eliminar',
           role: 'destructive',
-          handler: () => {
-            this.invoicesRepo.eliminar(f.id);
-            this.refresh();
-            this.showToast('Factura eliminada.');
+          handler: async () => {
+            try {
+              await this.invoicesRepo.eliminar(f.id);
+              await this.refresh();
+              await this.showToast('Factura eliminada.');
+            } catch (e) {
+              await this.showToast(e instanceof Error ? e.message : 'No se pudo eliminar la factura.', 'danger');
+            }
           },
         },
       ],

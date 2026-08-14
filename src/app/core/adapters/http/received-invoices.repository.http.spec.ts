@@ -438,15 +438,16 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
   });
 });
 
-describe('HttpReceivedInvoicesRepository — el resto de operaciones sigue delegando en el mock', () => {
+describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplicar/guardado real', () => {
   let repo: HttpReceivedInvoicesRepository;
 
   let apiSpy: jasmine.SpyObj<ApiService>;
 
   beforeEach(() => {
-    apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['postMultipart', 'post', 'get']);
+    apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['postMultipart', 'post', 'get', 'delete']);
     apiSpy.post.and.resolveTo([]);
     apiSpy.get.and.rejectWith(new Error('HTTP 404'));
+    apiSpy.delete.and.rejectWith(new Error('HTTP 404'));
     TestBed.configureTestingModule({
       providers: [
         HttpReceivedInvoicesRepository,
@@ -517,19 +518,142 @@ describe('HttpReceivedInvoicesRepository — el resto de operaciones sigue deleg
     expect(copia.estado).toBe('borrador'); // una copia siempre nace como borrador nuevo
   });
 
-  it('crearManual/listar/eliminar siguen funcionando igual que en el mock (sin backend de Recibidas aún)', async () => {
-    const inicial = (await repo.listar()).length;
-
-    const creada = repo.crearManual({
-      proveedor: 'Proveedor manual', numFactura: 'M-1', fecha: '2026-08-11', vencimiento: '',
-      lineas: [{ id: repo.nuevoIdLinea(), origen: 'manual', descripcion: 'x', cantidad: 1, precioUnitario: 10, descuentoPct: 0, ivaPct: 21 }],
-      retencionPct: 0, pagada: false, estado: 'borrador',
+  describe('eliminar()', () => {
+    it('llama a DELETE /api/FacturasRecibidas/{id}', async () => {
+      apiSpy.delete.and.resolveTo(undefined);
+      await repo.eliminar(500);
+      expect(apiSpy.delete).toHaveBeenCalledWith('/api/FacturasRecibidas/500');
     });
 
-    expect((await repo.listar()).length).toBe(inicial + 1);
-    expect(creada.origenOcr).toBeFalse();
+    it('si el DELETE falla (404, borrador local todavía sin guardar), cae al almacén local', async () => {
+      const mockAdapter = TestBed.inject(MockReceivedInvoicesRepository);
+      const creada = await mockAdapter.crearManual({
+        proveedor: 'Borrador local', numFactura: 'L-1', fecha: '2026-08-11', vencimiento: '',
+        lineas: [{ id: mockAdapter.nuevoIdLinea(), origen: 'manual', descripcion: 'x', cantidad: 1, precioUnitario: 10, descuentoPct: 0, ivaPct: 21 }],
+        retencionPct: 0, pagada: false, estado: 'borrador',
+      });
 
-    repo.eliminar(creada.id);
-    expect((await repo.listar()).length).toBe(inicial);
+      await repo.eliminar(creada.id);
+
+      expect(await mockAdapter.obtenerPorId(creada.id)).toBeUndefined();
+    });
+  });
+
+  describe('crearManual() / actualizar() — guardado real contra POST Guardar', () => {
+    const datosBase = {
+      proveedor: 'Proveedor manual', idProveedor: 7, numFactura: 'M-1', fecha: '2026-08-11', vencimiento: '',
+      concepto: 'Prueba', formaPago: 'Transferencia',
+      lineas: [{ id: 1, origen: 'manual' as const, descripcion: 'Línea', cantidad: 2, precioUnitario: 50, descuentoPct: 0, ivaPct: 21 }],
+      retencionPct: 0, pagada: false, estado: 'borrador' as const,
+    };
+
+    function stubCatalogos() {
+      apiSpy.post.and.callFake((path: string): Promise<any> => {
+        if (path === '/api/Impuesto/Enumerar') {
+          return Promise.resolve([
+            { idImpuesto: 1, descripcion: 'IVA 21%', porcentaje: 21, literalFactura: 'IVA 21%', tipoFacturaE: 'IVA' },
+            { idImpuesto: 2, descripcion: 'IVA 10%', porcentaje: 10, literalFactura: 'IVA 10%', tipoFacturaE: 'IVA' },
+          ]);
+        }
+        if (path === '/api/FacturasRecibidas/Guardar') {
+          return Promise.resolve({
+            idFacturaRecibida: 900, numFacRec: 'M-1', idProveedor: 7, nombreProveedor: 'Proveedor manual',
+            concepto: 'Prueba', total: 100, iva: 21, suplidos: 0, irpf: 0, importe: 121,
+            pagada: false, estado: 131, escaneada: false,
+            fechaFactura: '2026-08-11', fechaVencimiento: '2026-08-11',
+            idMedioPago: null, idTipoFactura: 3, lineas: [],
+          });
+        }
+        return Promise.resolve([]);
+      });
+      apiSpy.get.and.resolveTo({ idTipoFactura: 3, descriTipoNumerador: 'Facturas', textoMail: null });
+    }
+
+    it('rechaza sin llamar a nada si falta idProveedor', async () => {
+      await expectAsync(repo.crearManual({ ...datosBase, idProveedor: undefined }))
+        .toBeRejectedWithError(/Selecciona el proveedor/);
+      expect(apiSpy.post).not.toHaveBeenCalled();
+    });
+
+    it('rechaza sin llamar a nada si falta el número de factura', async () => {
+      await expectAsync(repo.crearManual({ ...datosBase, numFactura: '' }))
+        .toBeRejectedWithError('El número de factura es obligatorio.');
+      expect(apiSpy.post).not.toHaveBeenCalled();
+    });
+
+    it('resuelve idImpuesto por porcentaje y manda idTipoFactura + idProveedor a Guardar', async () => {
+      stubCatalogos();
+
+      const creada = await repo.crearManual(datosBase);
+
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/Impuesto/Enumerar', { tipo: 'IVA' });
+      expect(apiSpy.get).toHaveBeenCalledWith('/api/FacturasRecibidas/TipoFactura');
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/Guardar', jasmine.objectContaining({
+        idProveedor: 7,
+        numFacRec: 'M-1',
+        idTipoFactura: 3,
+        lineas: [jasmine.objectContaining({ idImpuesto: 1 })], // 21% → idImpuesto 1
+      }));
+      expect(creada.id).toBe(900);
+    });
+
+    it('con porcentajes duplicados en el catálogo, usa el primero que devuelve el backend', async () => {
+      apiSpy.post.and.callFake((path: string): Promise<any> => {
+        if (path === '/api/Impuesto/Enumerar') {
+          return Promise.resolve([
+            { idImpuesto: 5, descripcion: 'IVA 21% (antiguo)', porcentaje: 21, literalFactura: null, tipoFacturaE: 'IVA' },
+            { idImpuesto: 6, descripcion: 'IVA 21% (nuevo)', porcentaje: 21, literalFactura: null, tipoFacturaE: 'IVA' },
+          ]);
+        }
+        return Promise.resolve({
+          idFacturaRecibida: 901, numFacRec: 'M-1', idProveedor: 7, nombreProveedor: null,
+          concepto: 'Prueba', total: 100, iva: 21, suplidos: 0, irpf: 0, importe: 121,
+          pagada: false, estado: 131, escaneada: false,
+          fechaFactura: '2026-08-11', fechaVencimiento: '2026-08-11',
+          idMedioPago: null, idTipoFactura: 3, lineas: [],
+        });
+      });
+      apiSpy.get.and.resolveTo({ idTipoFactura: 3, descriTipoNumerador: 'Facturas', textoMail: null });
+
+      await repo.crearManual(datosBase);
+
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/Guardar', jasmine.objectContaining({
+        lineas: [jasmine.objectContaining({ idImpuesto: 5 })],
+      }));
+    });
+
+    it('si ningún % del catálogo coincide con el de la línea, rechaza con un mensaje claro', async () => {
+      apiSpy.post.and.callFake((path: string): Promise<any> => {
+        if (path === '/api/Impuesto/Enumerar') {
+          return Promise.resolve([{ idImpuesto: 2, descripcion: 'IVA 10%', porcentaje: 10, literalFactura: null, tipoFacturaE: 'IVA' }]);
+        }
+        return Promise.resolve([]);
+      });
+      apiSpy.get.and.resolveTo({ idTipoFactura: 3, descriTipoNumerador: 'Facturas', textoMail: null });
+
+      await expectAsync(repo.crearManual(datosBase)).toBeRejectedWithError(/21%/);
+    });
+
+    it('cachea Impuestos y TipoFactura: dos guardados seguidos solo piden cada catálogo una vez', async () => {
+      stubCatalogos();
+
+      await repo.crearManual(datosBase);
+      await repo.crearManual(datosBase);
+
+      const llamadasImpuesto = apiSpy.post.calls.allArgs().filter(([path]) => path === '/api/Impuesto/Enumerar');
+      expect(llamadasImpuesto.length).toBe(1);
+      expect(apiSpy.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('actualizar() guarda como alta (mismo Guardar) y borra el borrador local previo', async () => {
+      stubCatalogos();
+      const mockAdapter = TestBed.inject(MockReceivedInvoicesRepository);
+      const borrador = await mockAdapter.crearManual(datosBase);
+
+      const guardada = await repo.actualizar(borrador.id, datosBase);
+
+      expect(guardada.id).toBe(900); // id real devuelto por Guardar, no el id local del borrador
+      expect(await mockAdapter.obtenerPorId(borrador.id)).toBeUndefined(); // borrador local limpiado
+    });
   });
 });

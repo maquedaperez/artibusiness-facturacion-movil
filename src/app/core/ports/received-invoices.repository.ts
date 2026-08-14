@@ -7,10 +7,11 @@ import { AccionesPermitidas, FacturaRecibida, TotalesFactura } from '../../servi
  * OcrRepository sin romper este contrato.
  *
  * Backend real (FacturasRecibidasController, confirmado en código — ver
- * AUDITORIA_INTEGRACION_BACKEND.md): listar/obtener ya están conectados. crear/editar/
- * eliminar siguen en el mock porque Guardar exige id_proveedor/id_impuesto/id_TipoFactura
- * (claves foráneas reales) y el backend todavía no expone los catálogos para resolverlas
- * — conectar en cuanto existan.
+ * AUDITORIA_INTEGRACION_BACKEND.md): listar/obtener/eliminar/crear/actualizar ya están
+ * conectados (2026-08-14: Impuestos, Proveedores/Crear y Facturas Recibidas/Eliminar ya
+ * publicados). Reeditar una factura YA existente en el backend real sigue bloqueado en la
+ * UI (accountingLocked) porque no se puede reconstruir el IVA real por línea de algo ya
+ * guardado — ver received-invoices.repository.http.ts.
  */
 // Subconjunto de filtros de Enumerar que de verdad viajan al backend — no todo lo que se
 // puede filtrar en pantalla: el rango de fechas se queda fuera porque Enumerar solo admite
@@ -37,9 +38,16 @@ export abstract class ReceivedInvoicesRepository {
   abstract listar(filtros?: FiltrosListarRecibidas): Promise<FacturaRecibida[]>;
   abstract obtenerPorId(id: number): Promise<FacturaRecibida | undefined>;
 
-  abstract crearManual(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): FacturaRecibida;
-  abstract actualizar(id: number, cambios: Partial<Omit<FacturaRecibida, 'id' | 'origenOcr'>>): void;
-  abstract eliminar(id: number): void;
+  // Async a propósito — HttpReceivedInvoicesRepository las resuelve contra
+  // POST /api/FacturasRecibidas/Guardar de verdad. 'actualizar' recibe la factura completa,
+  // no un parche parcial: el backend no admite parches, cada Guardar manda el documento
+  // entero. Devuelve la factura ya guardada (con su id real) porque, alcanzable hoy desde
+  // la UI, "actualizar" siempre es en realidad "primer guardado real de un borrador local"
+  // (reeditar una factura YA real está bloqueado) — el id puede cambiar, así que quien
+  // llama necesita el resultado, no basta con asumir que el id de entrada se mantiene.
+  abstract crearManual(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): Promise<FacturaRecibida>;
+  abstract actualizar(id: number, data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): Promise<FacturaRecibida>;
+  abstract eliminar(id: number): Promise<void>;
 
   abstract nuevoIdLinea(): number;
   abstract totales(factura: FacturaRecibida): TotalesFactura;

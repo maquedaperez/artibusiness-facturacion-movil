@@ -15,13 +15,12 @@ import { ApiService } from '../../services/api.service';
 import {
   CONFIGURACION_RETENCION_ALQUILER_DEMO, ConfiguracionRetencion, aplicarRetencion,
   accionesFacturaEmitida, accionesFacturaRecibida, FacturaEmitida, FacturaRecibida,
+  MockFacturasService,
 } from '../../services/mock-facturas.service';
 
 // ReceivedInvoicesRepository y SuppliersRepository resuelven a sus adaptadores HTTP reales
 // (ver arriba), cuyos métodos ya llaman a la API de verdad — sin mockear ApiService aquí,
-// esas llamadas saldrían contra el servidor de pruebas de Karma y fallarían con 404. El
-// resto de operaciones de estos describe (crearManual/actualizar/eliminar/crearAdHoc/etc.)
-// sigue delegando en el mock puro, ajeno a ApiService.
+// esas llamadas saldrían contra el servidor de pruebas de Karma y fallarían con 404.
 function apiServiceStub(): Partial<ApiService> {
   return {
     post: jasmine.createSpy().and.resolveTo([]),
@@ -40,14 +39,14 @@ describe('MOCK_REPOSITORY_PROVIDERS — selección de provider', () => {
   it('resuelve cada puerto a su implementación registrada', () => {
     expect(TestBed.inject(EmisorRepository)).toBeInstanceOf(MockEmisorRepository);
     expect(TestBed.inject(CustomersRepository)).toBeInstanceOf(MockCustomersRepository);
-    // SuppliersRepository ya usa el adaptador HTTP real para buscar() (POST
-    // /api/Proveedores/Enumerar) — crearAdHoc sigue delegando en el mismo mock por debajo,
-    // ver suppliers.repository.http.ts.
+    // SuppliersRepository ya usa el adaptador HTTP real (POST /api/Proveedores/Enumerar y
+    // /api/Proveedores/Crear), ver suppliers.repository.http.ts.
     expect(TestBed.inject(SuppliersRepository)).toBeInstanceOf(HttpSuppliersRepository);
     expect(TestBed.inject(IssuedInvoicesRepository)).toBeInstanceOf(MockIssuedInvoicesRepository);
     // ReceivedInvoicesRepository ya usa el adaptador HTTP real para listar/obtenerPorId/
-    // crearDesdeOcr — el resto de operaciones sigue delegando en el mismo mock por debajo,
-    // ver received-invoices.repository.http.ts.
+    // eliminar/crearManual/actualizar/crearDesdeOcr — solo adjuntarDocumento sigue
+    // delegando en el mock (no existe endpoint de subida de blobs todavía), ver
+    // received-invoices.repository.http.ts.
     expect(TestBed.inject(ReceivedInvoicesRepository)).toBeInstanceOf(HttpReceivedInvoicesRepository);
   });
 
@@ -152,31 +151,37 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     expect(actualizada?.estadoAeat).toBe('Correcto');
   });
 
-  it('lista, crea y elimina facturas recibidas manuales', async () => {
-    const inicial = (await receivedRepo.listar()).length;
+  it('lista, crea y elimina facturas recibidas manuales (a través del adaptador mock puro)', async () => {
+    // crearManual/eliminar de ReceivedInvoicesRepository ya son reales (hablan con el
+    // backend) — el round-trip de persistencia local se prueba aquí directamente contra
+    // MockReceivedInvoicesRepository, que es lo que de verdad lo implementa por debajo.
+    const mockReceivedRepo = TestBed.inject(MockReceivedInvoicesRepository);
+    const inicial = (await mockReceivedRepo.listar()).length;
 
-    const creada = receivedRepo.crearManual({
+    const creada = await mockReceivedRepo.crearManual({
       proveedor: 'Proveedor de prueba', proveedorNif: '00000000T',
       numFactura: 'TEST-1', fecha: '2026-08-11', vencimiento: '',
       concepto: 'Prueba', formaPago: 'Transferencia',
       lineas: [
-        { id: receivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'Prueba', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 },
+        { id: mockReceivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'Prueba', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 },
       ],
       retencionPct: 0,
       pagada: false, estado: 'borrador',
     });
 
-    expect((await receivedRepo.listar()).length).toBe(inicial + 1);
-    expect((await receivedRepo.obtenerPorId(creada.id))?.proveedor).toBe('Proveedor de prueba');
+    expect((await mockReceivedRepo.listar()).length).toBe(inicial + 1);
+    expect((await mockReceivedRepo.obtenerPorId(creada.id))?.proveedor).toBe('Proveedor de prueba');
 
-    receivedRepo.eliminar(creada.id);
-    expect((await receivedRepo.listar()).length).toBe(inicial);
-    expect(await receivedRepo.obtenerPorId(creada.id)).toBeUndefined();
+    await mockReceivedRepo.eliminar(creada.id);
+    expect((await mockReceivedRepo.listar()).length).toBe(inicial);
+    expect(await mockReceivedRepo.obtenerPorId(creada.id)).toBeUndefined();
   });
 
   it('una factura recibida con varias líneas manuales calcula bien el desglose de IVA y el total', () => {
-    const creada = receivedRepo.crearManual({
-      proveedor: 'Proveedor multi-línea', proveedorNif: '00000000T',
+    // totales() es cálculo puro a partir de lineas/retencionPct — no hace falta persistir
+    // la factura (crearManual) para probarlo, basta con un objeto con esa forma.
+    const factura: FacturaRecibida = {
+      id: 0, proveedor: 'Proveedor multi-línea', proveedorNif: '00000000T',
       numFactura: 'TEST-2', fecha: '2026-08-11', vencimiento: '',
       concepto: 'Varias líneas', formaPago: 'Transferencia',
       lineas: [
@@ -184,10 +189,10 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
         { id: receivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'Línea B', cantidad: 1, precioUnitario: 40, descuentoPct: 0, ivaPct: 10 },
       ],
       retencionPct: 15,
-      pagada: false, estado: 'borrador',
-    });
+      pagada: false, estado: 'borrador', origenOcr: false,
+    };
 
-    const totales = receivedRepo.totales(creada);
+    const totales = receivedRepo.totales(factura);
     // base = (2*50) + (1*40) = 140; IVA: 21% de 100 = 21, 10% de 40 = 4 → ivaTotal 25;
     // retención 15% sobre 140 = 21 → total = 140 + 25 - 21 = 144.
     expect(totales.base).toBe(140);
@@ -196,8 +201,6 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     expect(totales.retencion.aplicable).toBeTrue();
     expect(totales.retencion.importe).toBe(21);
     expect(totales.total).toBe(144);
-
-    receivedRepo.eliminar(creada.id);
   });
 
   it('el total cuadra con la factura de origen cuando las líneas tienen decimales de más de 2 cifras (caso real Movistar)', () => {
@@ -205,8 +208,8 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     // OCR (importes prorrateados). Sumar base e IVA ya redondeados por separado daba
     // 253,89 € — la factura real dice 253,90 €. El total ahora se calcula sin redondear
     // los pasos intermedios, redondeando solo el resultado final.
-    const creada = receivedRepo.crearManual({
-      proveedor: 'Telefónica de España, S.A.U.', proveedorNif: 'A-82018474',
+    const factura: FacturaRecibida = {
+      id: 0, proveedor: 'Telefónica de España, S.A.U.', proveedorNif: 'A-82018474',
       numFactura: 'FMDVAGJ0044689', fecha: '2026-07-13', vencimiento: '',
       concepto: 'Pendiente de revisar', formaPago: 'Recibo bancario',
       lineas: [
@@ -215,15 +218,13 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
         { id: receivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'Consumos', cantidad: 1, precioUnitario: 0.7417, descuentoPct: 0, ivaPct: 21 },
       ],
       retencionPct: 0,
-      pagada: false, estado: 'borrador',
-    });
+      pagada: false, estado: 'borrador', origenOcr: false,
+    };
 
-    const totales = receivedRepo.totales(creada);
+    const totales = receivedRepo.totales(factura);
     expect(totales.base).toBe(209.83);
     expect(totales.ivaTotal).toBe(44.06);
     expect(totales.total).toBe(253.90); // no 253.89
-
-    receivedRepo.eliminar(creada.id);
   });
 });
 
@@ -319,12 +320,11 @@ describe('Política de acciones permitidas — accionesFacturaEmitida / acciones
     expect(accionesFacturaRecibida(f).editar).toBeTrue();
   });
 
-  it('recibida bloqueada SOLO cuando accountingLocked es true (bloqueo contable simulado)', () => {
+  it('recibida bloqueada: accountingLocked bloquea SOLO editar, no eliminar (DELETE ya real, sin recalcular nada)', () => {
     const bloqueada = recibidaConEstado('revisada', true);
     const acciones = accionesFacturaRecibida(bloqueada);
     expect(acciones.editar).toBeFalse();
-    expect(acciones.eliminar).toBeFalse();
-    // Copiar/descargar/compartir siguen disponibles incluso bloqueada contablemente.
+    expect(acciones.eliminar).toBeTrue();
     expect(acciones.copiar).toBeTrue();
     expect(acciones.descargar).toBeTrue();
     expect(acciones.compartir).toBeTrue();
@@ -342,7 +342,9 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
   let customersRepo: CustomersRepository;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [...MOCK_REPOSITORY_PROVIDERS] });
+    TestBed.configureTestingModule({
+      providers: [...MOCK_REPOSITORY_PROVIDERS, { provide: ApiService, useValue: apiServiceStub() }],
+    });
     issuedRepo = TestBed.inject(IssuedInvoicesRepository);
     receivedRepo = TestBed.inject(ReceivedInvoicesRepository);
     customersRepo = TestBed.inject(CustomersRepository);
@@ -377,14 +379,16 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
   });
 
   it('duplicar una factura recibida no arrastra el documento adjunto del original', () => {
-    const creada = receivedRepo.crearManual({
-      proveedor: 'Proveedor con adjunto', numFactura: 'F-ADJ', fecha: '2026-08-11', vencimiento: '',
+    // duplicar() es síncrono y solo necesita un objeto con forma de FacturaRecibida — no
+    // hace falta persistirlo de verdad (crearManual ya llama al backend real).
+    const original: FacturaRecibida = {
+      id: 1, proveedor: 'Proveedor con adjunto', numFactura: 'F-ADJ', fecha: '2026-08-11', vencimiento: '',
       lineas: [{ id: receivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'x', cantidad: 1, precioUnitario: 50, descuentoPct: 0, ivaPct: 21 }],
-      retencionPct: 0, pagada: false, estado: 'borrador',
+      retencionPct: 0, pagada: false, estado: 'borrador', origenOcr: false,
       documentoUrl: 'data:image/png;base64,xxx', documentoNombre: 'foto.png',
-    });
+    };
 
-    const copia = receivedRepo.duplicar(creada);
+    const copia = receivedRepo.duplicar(original);
 
     expect(copia.documentoUrl).toBeUndefined();
     expect(copia.documentoNombre).toBeUndefined();
@@ -411,57 +415,59 @@ describe('generarDocumento — documento simulado, nunca presentado como fiscal'
   });
 });
 
+// El puerto ReceivedInvoicesRepository ya exige la factura completa en actualizar() (el
+// backend real de Guardar no admite parches) — el patch parcial de estos escenarios sigue
+// viviendo un nivel más abajo, en MockFacturasService.actualizarRecibida, así que se prueba
+// ahí directamente en vez de contra el puerto.
 describe('Recibidas revisadas — siguen editables, bloqueo real solo con accountingLocked', () => {
-  let receivedRepo: ReceivedInvoicesRepository;
+  let mock: MockFacturasService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      providers: [...MOCK_REPOSITORY_PROVIDERS, { provide: ApiService, useValue: apiServiceStub() }],
-    });
-    receivedRepo = TestBed.inject(ReceivedInvoicesRepository);
+    TestBed.configureTestingModule({ providers: [] });
+    mock = TestBed.inject(MockFacturasService);
   });
 
   function crearRecibidaRevisada() {
-    return receivedRepo.crearManual({
+    return mock.crearManual({
       proveedor: 'Proveedor revisado', proveedorNif: 'B00000000',
       numFactura: 'REV-1', fecha: '2026-08-11', vencimiento: '',
       concepto: 'Prueba', formaPago: 'Transferencia',
       lineas: [
-        { id: receivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'Línea original', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 },
+        { id: mock.nuevoIdLineaRecibida(), origen: 'manual', descripcion: 'Línea original', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 },
       ],
       retencionPct: 0, pagada: false, estado: 'revisada',
     });
   }
 
-  it('se pueden cambiar las líneas de una recibida ya revisada (sin bloqueo contable)', async () => {
+  it('se pueden cambiar las líneas de una recibida ya revisada (sin bloqueo contable)', () => {
     const creada = crearRecibidaRevisada();
     const nuevasLineas = [
       ...creada.lineas,
-      { id: receivedRepo.nuevoIdLinea(), origen: 'manual' as const, descripcion: 'Línea añadida tras revisar', cantidad: 2, precioUnitario: 30, descuentoPct: 0, ivaPct: 10 },
+      { id: mock.nuevoIdLineaRecibida(), origen: 'manual' as const, descripcion: 'Línea añadida tras revisar', cantidad: 2, precioUnitario: 30, descuentoPct: 0, ivaPct: 10 },
     ];
 
-    receivedRepo.actualizar(creada.id, { lineas: nuevasLineas });
+    mock.actualizarRecibida(creada.id, { lineas: nuevasLineas });
 
-    const actualizada = await receivedRepo.obtenerPorId(creada.id);
+    const actualizada = mock.getFacturaRecibidaById(creada.id);
     expect(actualizada?.lineas.length).toBe(2);
     expect(actualizada?.lineas[1].descripcion).toBe('Línea añadida tras revisar');
   });
 
-  it('se puede marcar/desmarcar "pagada" después de revisar', async () => {
+  it('se puede marcar/desmarcar "pagada" después de revisar', () => {
     const creada = crearRecibidaRevisada();
     expect(creada.pagada).toBeFalse();
 
-    receivedRepo.actualizar(creada.id, { pagada: true });
-    expect((await receivedRepo.obtenerPorId(creada.id))?.pagada).toBeTrue();
+    mock.actualizarRecibida(creada.id, { pagada: true });
+    expect(mock.getFacturaRecibidaById(creada.id)?.pagada).toBeTrue();
 
-    receivedRepo.actualizar(creada.id, { pagada: false });
-    expect((await receivedRepo.obtenerPorId(creada.id))?.pagada).toBeFalse();
+    mock.actualizarRecibida(creada.id, { pagada: false });
+    expect(mock.getFacturaRecibidaById(creada.id)?.pagada).toBeFalse();
   });
 
-  it('proveedor, concepto, fechas y documento adjunto también se pueden editar tras revisar', async () => {
+  it('proveedor, concepto, fechas y documento adjunto también se pueden editar tras revisar', () => {
     const creada = crearRecibidaRevisada();
 
-    receivedRepo.actualizar(creada.id, {
+    mock.actualizarRecibida(creada.id, {
       proveedor: 'Proveedor corregido',
       concepto: 'Concepto corregido',
       vencimiento: '2026-09-30',
@@ -469,7 +475,7 @@ describe('Recibidas revisadas — siguen editables, bloqueo real solo con accoun
       documentoNombre: 'nuevo.png',
     });
 
-    const actualizada = await receivedRepo.obtenerPorId(creada.id);
+    const actualizada = mock.getFacturaRecibidaById(creada.id);
     expect(actualizada?.proveedor).toBe('Proveedor corregido');
     expect(actualizada?.concepto).toBe('Concepto corregido');
     expect(actualizada?.documentoNombre).toBe('nuevo.png');
@@ -477,24 +483,24 @@ describe('Recibidas revisadas — siguen editables, bloqueo real solo con accoun
 
   it('copiar/descargar siguen disponibles en una recibida revisada', () => {
     const creada = crearRecibidaRevisada();
-    const acciones = receivedRepo.accionesPermitidas(creada);
+    const acciones = accionesFacturaRecibida(creada);
     expect(acciones.copiar).toBeTrue();
     expect(acciones.descargar).toBeTrue();
     expect(acciones.compartir).toBeTrue();
   });
 
-  it('con accountingLocked simulado, el repositorio rechaza actualizar y eliminar (no solo la UI)', async () => {
+  it('con accountingLocked simulado, el repositorio rechaza actualizar pero sí permite eliminar', () => {
     const creada = crearRecibidaRevisada();
-    receivedRepo.actualizar(creada.id, { accountingLocked: true, accountingLockReason: 'Periodo contable cerrado (simulado)' });
+    mock.actualizarRecibida(creada.id, { accountingLocked: true, accountingLockReason: 'No se puede reconstruir el IVA real por línea (simulado)' });
 
-    receivedRepo.actualizar(creada.id, { concepto: 'Intento de cambio tras bloqueo' });
-    expect((await receivedRepo.obtenerPorId(creada.id))?.concepto).toBe('Prueba'); // no cambió
+    mock.actualizarRecibida(creada.id, { concepto: 'Intento de cambio tras bloqueo' });
+    expect(mock.getFacturaRecibidaById(creada.id)?.concepto).toBe('Prueba'); // no cambió
 
-    receivedRepo.eliminar(creada.id);
-    expect(await receivedRepo.obtenerPorId(creada.id)).toBeTruthy(); // sigue existiendo, no se borró
-
-    const acciones = receivedRepo.accionesPermitidas((await receivedRepo.obtenerPorId(creada.id))!);
+    const acciones = accionesFacturaRecibida(mock.getFacturaRecibidaById(creada.id)!);
     expect(acciones.editar).toBeFalse();
-    expect(acciones.eliminar).toBeFalse();
+    expect(acciones.eliminar).toBeTrue();
+
+    mock.eliminarRecibida(creada.id);
+    expect(mock.getFacturaRecibidaById(creada.id)).toBeUndefined(); // sí se borró
   });
 });

@@ -1,20 +1,28 @@
 import { Injectable, inject } from '@angular/core';
 import { SuppliersRepository } from '../../ports/suppliers.repository';
-import { MockSuppliersRepository } from '../mock/suppliers.repository.mock';
 import { ApiService } from '../../../services/api.service';
 import { ProveedorMock } from '../../../services/mock-facturas.service';
 import { PaginaResultado } from '../../../shared/types/pagination';
 
 // Confirmado contra el código real de WebAPIARTIBusiness (Controllers/ProveedoresController.cs
-// + Services/ProveedorService.cs, revisado 2026-08-13): [Authorize], mismo JWT que el login.
+// + Services/ProveedorService.cs, revisado 2026-08-14): [Authorize], mismo JWT que el login.
 //
-// OJO: a diferencia de Recibidas/MediosPago/TipoFactura, aquí 'idEmpresa' es un campo
-// OBLIGATORIO (int, no int?) en EnumerarProveedoresRequest — el backend NO cae al claim del
-// token si se omite. Por eso lo leemos nosotros mismos del JWT (ApiService.getEmpresaId())
-// y lo mandamos siempre explícito, en vez de confiar en que se resuelva solo como en el
-// resto de endpoints. Pendiente pedirle al jefe que lo haga opcional para ser consistente
-// con el resto de la API — mientras tanto, este rodeo funciona igual.
+// OJO: a diferencia de Recibidas/MediosPago/TipoFactura, en EnumerarProveedoresRequest
+// 'idEmpresa' es un campo OBLIGATORIO (int, no int?) — el backend NO cae al claim del token
+// si se omite. Por eso lo leemos nosotros mismos del JWT (ApiService.getEmpresaId()) y lo
+// mandamos siempre explícito. En CrearProveedorRequest, en cambio, sí es int? opcional —
+// inconsistencia entre los dos endpoints del mismo controlador, pero lo mandamos explícito
+// en los dos por simplicidad y para no depender de cuál es cuál.
 const PROVEEDORES_BASE_PATH = '/api/Proveedores';
+
+type DireccionApi = {
+  idDireccion: number;
+  direccion: string | null;
+  codigoPostal: string | null;
+  poblacion: string | null;
+  idProvincia: number | null;
+  provincia: string | null;
+};
 
 type ProveedorApi = {
   idProveedor: number;
@@ -25,6 +33,7 @@ type ProveedorApi = {
   apellido2: string | null;
   nombreCompleto: string | null;
   dni: string | null;
+  direccionFacturacion: DireccionApi | null;
 };
 
 function mapearProveedor(dto: ProveedorApi): ProveedorMock {
@@ -32,23 +41,32 @@ function mapearProveedor(dto: ProveedorApi): ProveedorMock {
     id: dto.idProveedor,
     nif: dto.dni?.trim() || '',
     nombre: dto.nombreCompleto?.trim() || dto.nombre?.trim() || 'Proveedor sin nombre',
+    direccion: dto.direccionFacturacion?.direccion?.trim() || undefined,
+    poblacion: dto.direccionFacturacion?.poblacion?.trim() || undefined,
+    cp: dto.direccionFacturacion?.codigoPostal?.trim() || undefined,
+    provincia: dto.direccionFacturacion?.provincia?.trim() || undefined,
   };
 }
 
 /**
- * Adaptador híbrido: solo `buscar` habla con el backend real
- * (POST /api/Proveedores/Enumerar). `crearAdHoc` sigue delegado al mismo almacén en
- * memoria que usa MockSuppliersRepository — el backend todavía no tiene un endpoint de
- * alta de proveedores (Crear), así que un proveedor nuevo elegido "al vuelo" sigue siendo
- * solo local hasta que exista.
+ * Adaptador real: `buscar` y `crearAdHoc` hablan con el backend
+ * (POST /api/Proveedores/Enumerar y POST /api/Proveedores/Crear, ambos confirmados en
+ * código 2026-08-14).
  *
  * EnumerarProveedoresRequest solo admite buscar por 'nombre' O por 'dni' (son AND, no OR,
  * en el SQL del backend, así que no se pueden mandar los dos a la vez esperando un OR) —
  * este buscador manual usa 'nombre', igual que el resto de buscadores de la app.
+ *
+ * CrearProveedorRequest exige 'nombre' Y 'apellido1' por separado, como si 'proveedores'
+ * fuera siempre una persona física (viene de reutilizar la misma tabla 'sujeto' que
+ * clientes/empleados) — pero un proveedor de esta app es casi siempre una empresa, con un
+ * único texto de razón social (el que da el OCR, ej. "IBERDROLA CLIENTES, S.A.U."), nunca
+ * separado en nombre/apellidos. Decisión tomada explícitamente: la razón social completa
+ * va en 'nombre', y 'apellido1' se manda con un espacio — el mínimo no-vacío que exige la
+ * validación del backend — sin intentar partir el texto de verdad.
  */
 @Injectable()
 export class HttpSuppliersRepository extends SuppliersRepository {
-  private mockAdapter = inject(MockSuppliersRepository);
   private api = inject(ApiService);
 
   async buscar(query: string, page = 1, pageSize = 20): Promise<PaginaResultado<ProveedorMock>> {
@@ -70,7 +88,31 @@ export class HttpSuppliersRepository extends SuppliersRepository {
     return { items, total: items.length, page, pageSize };
   }
 
-  crearAdHoc(data: Omit<ProveedorMock, 'id'>): ProveedorMock {
-    return this.mockAdapter.crearAdHoc(data);
+  async crearAdHoc(data: Omit<ProveedorMock, 'id'>): Promise<ProveedorMock> {
+    if (!data.nombre?.trim() || !data.nif?.trim()) {
+      throw new Error('Nombre y NIF son obligatorios.');
+    }
+    // El backend exige también dirección/CP/población/provincia (400 si falta alguno) —
+    // se comprueba aquí para dar un mensaje claro en vez de esperar al rechazo del backend.
+    if (!data.direccion?.trim() || !data.cp?.trim() || !data.poblacion?.trim() || !data.provincia?.trim()) {
+      throw new Error('Dirección, código postal, población y provincia son obligatorios.');
+    }
+
+    const body = {
+      idEmpresa: this.api.getEmpresaId() ?? undefined,
+      nombre: data.nombre.trim(),
+      apellido1: ' ',
+      nif: data.nif.trim(),
+      direccion: data.direccion.trim(),
+      codigoPostal: data.cp.trim(),
+      poblacion: data.poblacion.trim(),
+      provincia: data.provincia.trim(),
+    };
+
+    // Errores esperables del backend, ya con mensaje humano listo para mostrar tal cual:
+    // 409 si el NIF ya existe para esta empresa, 400 si la provincia no coincide con
+    // ninguna de las que tiene configuradas la empresa (comparación exacta, no parcial).
+    const dto = await this.api.post<ProveedorApi>(`${PROVEEDORES_BASE_PATH}/Crear`, body);
+    return mapearProveedor(dto);
   }
 }

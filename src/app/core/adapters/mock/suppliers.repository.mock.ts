@@ -11,7 +11,7 @@ export class MockSuppliersRepository extends SuppliersRepository {
     return this.mock.buscarProveedoresPaginado(query, page, pageSize);
   }
 
-  crearAdHoc(data: Omit<ProveedorMock, 'id'>): ProveedorMock {
+  async crearAdHoc(data: Omit<ProveedorMock, 'id'>): Promise<ProveedorMock> {
     return this.mock.crearProveedorAdHoc(data);
   }
 }

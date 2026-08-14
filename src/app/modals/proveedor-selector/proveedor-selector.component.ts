@@ -110,8 +110,11 @@ type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error'
         </ion-text>
 
         <div class="botones">
-          <ion-button expand="block" fill="outline" (click)="modoNuevo = false">Volver a buscar</ion-button>
-          <ion-button expand="block" (click)="confirmarNuevo()">Usar este proveedor</ion-button>
+          <ion-button expand="block" fill="outline" [disabled]="guardando" (click)="modoNuevo = false">Volver a buscar</ion-button>
+          <ion-button expand="block" [disabled]="guardando" (click)="confirmarNuevo()">
+            <ion-spinner name="dots" *ngIf="guardando"></ion-spinner>
+            <ng-container *ngIf="!guardando">Usar este proveedor</ng-container>
+          </ion-button>
         </div>
       </ng-container>
     </ion-content>
@@ -194,18 +197,30 @@ export class ProveedorSelectorComponent implements OnDestroy {
     this.modalCtrl.dismiss(p, 'confirm');
   }
 
-  confirmarNuevo() {
+  guardando = false;
+
+  async confirmarNuevo() {
     this.errorMsg = '';
     if (!this.nuevo.nombre.trim() || !this.nuevo.nif.trim()) {
       this.errorMsg = 'Nombre y NIF son obligatorios.';
       return;
     }
-    const creado = this.suppliersRepo.crearAdHoc({ ...this.nuevo });
-    // Role distinto a 'confirm': crearAdHoc todavía delega en el mock (no existe
-    // Proveedores/Crear en el backend todavía), así que este id NO es un id real — quien
-    // reciba el resultado del modal necesita poder distinguir "vino de una búsqueda real"
-    // de "se creó al vuelo, localmente" para no mandar un id inventado a Guardar.
-    this.modalCtrl.dismiss(creado, 'confirm-nuevo');
+    if (!this.nuevo.direccion?.trim() || !this.nuevo.cp?.trim() || !this.nuevo.poblacion?.trim() || !this.nuevo.provincia?.trim()) {
+      this.errorMsg = 'Dirección, código postal, población y provincia son obligatorios.';
+      return;
+    }
+
+    this.guardando = true;
+    try {
+      // crearAdHoc llama de verdad a POST /api/Proveedores/Crear, así que el id que vuelve
+      // ya es un id real del backend — mismo role 'confirm' que una búsqueda normal.
+      const creado = await this.suppliersRepo.crearAdHoc({ ...this.nuevo });
+      this.modalCtrl.dismiss(creado, 'confirm');
+    } catch (e) {
+      this.errorMsg = e instanceof Error ? e.message : 'No se pudo crear el proveedor.';
+    } finally {
+      this.guardando = false;
+    }
   }
 
   cancel() {

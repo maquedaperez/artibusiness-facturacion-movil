@@ -91,6 +91,38 @@ export class ApiService {
     return text as unknown as T;
   }
 
+  // DELETE simple, sin body — usado hoy solo por Facturas Recibidas. El backend devuelve
+  // 204 No Content en éxito, por eso el manejo de "sin texto" ya cubierto abajo (igual que
+  // get()) es el camino normal, no un caso raro.
+  async delete<T>(path: string, extraHeaders?: Record<string, string>): Promise<T> {
+    const baseUrl = await this.resolveBaseUrl();
+    const url = `${baseUrl}${path}`;
+    const headers = this.buildHeaders(extraHeaders);
+
+    if (Capacitor.isNativePlatform()) {
+      const res = await CapacitorHttp.request({ url, method: 'DELETE', headers });
+      if (res.status < 200 || res.status >= 300) {
+        const msg = res.data ? (typeof res.data === 'string' ? res.data : JSON.stringify(res.data)) : '';
+        throw new Error(`HTTP ${res.status} ${msg}`);
+      }
+      return res.data as T;
+    }
+
+    const r = await fetch(url, { method: 'DELETE', headers, cache: 'no-store', credentials: 'include' });
+    const text = await r.text().catch(() => '');
+    if (!r.ok) {
+      const ct = r.headers.get('content-type') ?? '';
+      const detail = ct.includes('text/html') ? this.stripHtmlToOneLine(text) : (text || r.statusText);
+      throw new Error(`HTTP ${r.status} - ${detail}`);
+    }
+    if (!text) return undefined as unknown as T;
+    const ct = r.headers.get('content-type') ?? '';
+    if (ct.includes('application/json')) {
+      try { return JSON.parse(text) as T; } catch { return text as unknown as T; }
+    }
+    return text as unknown as T;
+  }
+
   async post<T>(path: string, body: any, extraHeaders?: Record<string, string>): Promise<T> {
     const baseUrl = await this.resolveBaseUrl();
     const url = `${baseUrl}${path}`;

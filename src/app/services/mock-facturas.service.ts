@@ -340,12 +340,17 @@ export function accionesFacturaEmitida(f: FacturaEmitida): AccionesPermitidas {
 // Política de RECIBIDAS — deliberadamente independiente de la de Emitidas. Esta app
 // nunca remite las recibidas a Verifactu/AEAT, así que 'estado' ('borrador'/'revisada')
 // es solo un repaso interno, no una contabilización fiscal, y NO debe bloquear nada
-// por sí solo — tampoco 'pagada'. El único bloqueo real es accountingLocked, que hoy
-// no pone nadie en el mock (por eso todo sigue editable/eliminable/copiable) y que en
-// producción debe llegar del backend cuando exista un cierre contable de verdad.
+// por sí solo — tampoco 'pagada'.
+//
+// accountingLocked hoy lo marca HttpReceivedInvoicesRepository en toda factura leída del
+// backend real — pero SOLO bloquea 'editar' (Guardar exige el IVA real por línea, que no
+// se puede reconstruir en una factura ya existente — ver mapearCabecera). 'eliminar' es
+// un DELETE simple, sin recalcular nada, así que no se ve afectado: si algún día llega un
+// bloqueo de cierre contable real, ahí sí habría que reconsiderar si eliminar debe seguir
+// permitido.
 export function accionesFacturaRecibida(f: FacturaRecibida): AccionesPermitidas {
   if (f.accountingLocked) {
-    return { editar: false, eliminar: false, copiar: true, descargar: true, compartir: true };
+    return { editar: false, eliminar: true, copiar: true, descargar: true, compartir: true };
   }
   return { editar: true, eliminar: true, copiar: true, descargar: true, compartir: true };
 }
@@ -801,19 +806,25 @@ ${filas}
   }
 
   // Bloqueado solo por accountingLocked — nunca por 'estado'/'pagada'. Mismo criterio
-  // que eliminarRecibida/accionesFacturaRecibida.
-  actualizarRecibida(id: number, cambios: Partial<Omit<FacturaRecibida, 'id' | 'origenOcr'>>): void {
+  // que eliminarRecibida/accionesFacturaRecibida. Devuelve la factura ya actualizada (o
+  // undefined si no existía/estaba bloqueada) — HttpReceivedInvoicesRepository.actualizar
+  // ya no delega aquí para el guardado real (ver received-invoices.repository.http.ts),
+  // pero MockReceivedInvoicesRepository sigue necesitando esta devolución para cumplir el
+  // contrato del puerto tal cual.
+  actualizarRecibida(id: number, cambios: Partial<Omit<FacturaRecibida, 'id' | 'origenOcr'>>): FacturaRecibida | undefined {
     const f = this.recibidas.find(r => r.id === id);
-    if (!f || f.accountingLocked) return;
+    if (!f || f.accountingLocked) return undefined;
     Object.assign(f, cambios);
+    return f;
   }
 
-  // Bloqueado solo por accountingLocked (nunca por 'estado'/'pagada') — coherente con
-  // accionesFacturaRecibida. Mientras nadie marque el bloqueo contable en el mock, se
-  // puede eliminar en cualquier estado de repaso interno.
+  // A diferencia de actualizarRecibida, NO se bloquea por accountingLocked — coherente con
+  // accionesFacturaRecibida: ese bloqueo es solo sobre reeditar/reguardar (no se puede
+  // reconstruir el IVA real por línea para volver a mandarlo), pero eliminar no recalcula
+  // nada, así que sigue permitido incluso en una factura bloqueada para editar.
   eliminarRecibida(id: number): void {
     const f = this.recibidas.find(r => r.id === id);
-    if (!f || f.accountingLocked) return;
+    if (!f) return;
     this.recibidas = this.recibidas.filter(r => r.id !== id);
   }
 
