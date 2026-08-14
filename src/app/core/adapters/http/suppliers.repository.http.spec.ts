@@ -104,11 +104,11 @@ describe('HttpSuppliersRepository', () => {
       expect(apiSpy.post).not.toHaveBeenCalled();
     });
 
-    it('parte la razón social por la última palabra: nombre/apellido1 se reconstruyen igual que el original', async () => {
+    it('manda la razón social completa en nombre y un punto fijo "." como apellido1 (decisión del jefe)', async () => {
       apiSpy.post.and.resolveTo({
         idProveedor: 55, idEmpresa: 9, idSujeto: 200,
-        nombre: 'Nuevo', apellido1: 'Proveedor', apellido2: null,
-        nombreCompleto: 'Nuevo Proveedor', dni: 'B00000000',
+        nombre: 'Nuevo Proveedor', apellido1: '.', apellido2: null,
+        nombreCompleto: 'Nuevo Proveedor .', dni: 'B00000000',
         direccionFacturacion: {
           idDireccion: 9, direccion: 'Calle Falsa 123', codigoPostal: '28002',
           poblacion: 'Madrid', idProvincia: 28, provincia: 'Madrid',
@@ -118,37 +118,26 @@ describe('HttpSuppliersRepository', () => {
       const creado = await repo.crearAdHoc(datosCompletos);
 
       // apellido1 NO puede ser un espacio en blanco: el backend usa IsNullOrWhiteSpace, lo
-      // rechaza con 400 "apellido1 es obligatorio" (probado en real 2026-08-14).
+      // rechaza con 400 "apellido1 es obligatorio" (probado en real 2026-08-14). El jefe
+      // confirmó que no se hace opcional en el backend, y prefiere un placeholder fijo y
+      // reconocible ('.') antes que partir el texto para disimularlo.
       expect(apiSpy.post).toHaveBeenCalledWith('/api/Proveedores/Crear', {
         idEmpresa: 9,
-        nombre: 'Nuevo',
-        apellido1: 'Proveedor',
+        nombre: 'Nuevo Proveedor',
+        apellido1: '.',
         nif: 'B00000000',
         direccion: 'Calle Falsa 123',
         codigoPostal: '28002',
         poblacion: 'Madrid',
         provincia: 'Madrid',
       });
+      // '.' no es whitespace para el backend (Where(!IsNullOrWhiteSpace) no lo filtra), así
+      // que sí queda visible al final de nombreCompleto — efecto secundario conocido y
+      // aceptado de usar un placeholder fijo en vez de partir el texto.
       expect(creado).toEqual({
-        id: 55, nif: 'B00000000', nombre: 'Nuevo Proveedor',
+        id: 55, nif: 'B00000000', nombre: 'Nuevo Proveedor .',
         direccion: 'Calle Falsa 123', poblacion: 'Madrid', cp: '28002', provincia: 'Madrid',
       });
-    });
-
-    it('con una razón social de una sola palabra, usa "-" como apellido1 (no hay nada que partir)', async () => {
-      apiSpy.post.and.resolveTo({
-        idProveedor: 56, idEmpresa: 9, idSujeto: 201,
-        nombre: 'Iberdrola', apellido1: '-', apellido2: null,
-        nombreCompleto: 'Iberdrola -', dni: 'B00000001',
-        direccionFacturacion: null,
-      });
-
-      await repo.crearAdHoc({ ...datosCompletos, nombre: 'Iberdrola' });
-
-      expect(apiSpy.post).toHaveBeenCalledWith('/api/Proveedores/Crear', jasmine.objectContaining({
-        nombre: 'Iberdrola',
-        apellido1: '-',
-      }));
     });
 
     it('propaga el error del backend (ej. NIF duplicado, 409) sin envolverlo', async () => {
