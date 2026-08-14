@@ -524,6 +524,20 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
     expect(factura?.estado).toBe('borrador');
   });
 
+  it('limpia el punto de relleno del apellido1 al final de nombreProveedor', async () => {
+    apiSpy.get.and.resolveTo({
+      idFacturaRecibida: 502, numFacRec: 'F-502', idProveedor: 1,
+      nombreProveedor: 'Iberdrola Clientes, S.A.U. .',
+      concepto: 'x', total: 100, iva: 21, suplidos: 0, irpf: 0, importe: 121,
+      pagada: false, estado: 131, escaneada: false,
+      fechaFactura: '2026-08-01', fechaVencimiento: '2026-09-01',
+      idMedioPago: null, idTipoFactura: 1, lineas: [],
+    });
+
+    const factura = await repo.obtenerPorId(502);
+    expect(factura?.proveedor).toBe('Iberdrola Clientes, S.A.U.');
+  });
+
   it('obtenerPorId() copia idMedioPago del backend cuando viene informado', async () => {
     apiSpy.get.and.resolveTo({
       idFacturaRecibida: 501, numFacRec: 'F-501', idProveedor: 1, nombreProveedor: 'Proveedor',
@@ -604,6 +618,17 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       await repo.eliminar(creada.id);
 
       expect(await mockAdapter.obtenerPorId(creada.id)).toBeUndefined();
+    });
+
+    // BUG real corregido 2026-08-14: antes se caía al almacén local con CUALQUIER error del
+    // DELETE, no solo un 404 — si el backend rechazaba el borrado por una regla de negocio
+    // real (ej. factura pagada / con analítica asociada, mencionado por el jefe en reunión),
+    // el usuario veía "Factura eliminada" como si hubiera ido bien, sin haberse borrado de
+    // verdad. Ahora solo un 404 cae al almacén local; cualquier otro error se propaga.
+    it('si el DELETE falla por algo que NO es un 404 (ej. rechazado por regla de negocio), propaga el error en vez de tragárselo', async () => {
+      apiSpy.delete.and.rejectWith(new Error('HTTP 400 - No se puede eliminar: la factura ya está pagada.'));
+
+      await expectAsync(repo.eliminar(777)).toBeRejectedWithError(/ya está pagada/);
     });
   });
 

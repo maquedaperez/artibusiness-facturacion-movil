@@ -184,9 +184,19 @@ export class FacturasRecibidasPage implements OnInit {
 
   async duplicar(event: Event, f: FacturaRecibida) {
     event.stopPropagation();
-    this.invoicesRepo.duplicar(f);
-    this.refresh();
-    await this.showToast(`Borrador creado a partir de la factura de ${f.proveedor}.`);
+    try {
+      // BUG real (2026-08-14): 'f' viene tal cual de listar(), que para facturas reales
+      // nunca rellena 'lineas' (solo lo hace obtenerPorId, con una petición aparte) — copiar
+      // directamente desde la lista producía un borrador con 0 líneas y, por tanto, 0,00 €
+      // en todo. Se pide el detalle completo antes de duplicar, igual que ya hacía el botón
+      // de copiar dentro de la propia página de detalle.
+      const completa = await this.invoicesRepo.obtenerPorId(f.id) ?? f;
+      this.invoicesRepo.duplicar(completa);
+      await this.refresh();
+      await this.showToast(`Borrador creado a partir de la factura de ${completa.proveedor}.`);
+    } catch (e: any) {
+      await this.showToast(e?.message ?? 'No se pudo copiar la factura.', 'danger');
+    }
   }
 
   private async adjuntoABlob(f: FacturaRecibida): Promise<Blob> {

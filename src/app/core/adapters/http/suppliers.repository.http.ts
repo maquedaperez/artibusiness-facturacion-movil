@@ -3,6 +3,7 @@ import { SuppliersRepository } from '../../ports/suppliers.repository';
 import { ApiService } from '../../../services/api.service';
 import { ProveedorMock } from '../../../services/mock-facturas.service';
 import { PaginaResultado } from '../../../shared/types/pagination';
+import { limpiarNombreProveedor } from '../../../shared/utils/limpiar-nombre-proveedor';
 
 // Confirmado contra el código real de WebAPIARTIBusiness (Controllers/ProveedoresController.cs
 // + Services/ProveedorService.cs, revisado 2026-08-14): [Authorize], mismo JWT que el login.
@@ -48,10 +49,11 @@ type ProveedorApi = {
 const APELLIDO1_PLACEHOLDER = '.';
 
 function mapearProveedor(dto: ProveedorApi): ProveedorMock {
+  const nombreCrudo = dto.nombreCompleto?.trim() || dto.nombre?.trim() || 'Proveedor sin nombre';
   return {
     id: dto.idProveedor,
     nif: dto.dni?.trim() || '',
-    nombre: dto.nombreCompleto?.trim() || dto.nombre?.trim() || 'Proveedor sin nombre',
+    nombre: limpiarNombreProveedor(nombreCrudo),
     direccion: dto.direccionFacturacion?.direccion?.trim() || undefined,
     poblacion: dto.direccionFacturacion?.poblacion?.trim() || undefined,
     cp: dto.direccionFacturacion?.codigoPostal?.trim() || undefined,

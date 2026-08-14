@@ -86,6 +86,44 @@ describe('FacturasRecibidasPage', () => {
     expect(listarSpy).toHaveBeenCalledWith(jasmine.objectContaining({ pagada: undefined }));
   });
 
+  // BUG real corregido 2026-08-14: 'f' tal como llega del listado no trae 'lineas' (listar()
+  // nunca las rellena para facturas reales, solo obtenerPorId lo hace con una petición
+  // aparte) — copiar directamente desde la tarjeta de la lista producía un borrador con 0
+  // líneas y, por tanto, 0,00 € en todo. duplicar() en esta página debe pedir primero el
+  // detalle completo.
+  it('copiar desde la lista pide primero el detalle completo (obtenerPorId) antes de duplicar', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    const filaDeLista: FacturaRecibida = {
+      id: 500, proveedor: 'Iberdrola', numFactura: 'F-500', fecha: '2026-08-01',
+      lineas: [], retencionPct: 0, pagada: false, estado: 'revisada', origenOcr: false,
+    };
+    const detalleCompleto: FacturaRecibida = {
+      ...filaDeLista,
+      lineas: [{ id: 1, origen: 'manual', descripcion: 'Luz', cantidad: 1, precioUnitario: 80, descuentoPct: 0, ivaPct: 21 }],
+    };
+    spyOn(repo, 'obtenerPorId').and.resolveTo(detalleCompleto);
+    const duplicarSpy = spyOn(repo, 'duplicar').and.returnValue({ ...detalleCompleto, id: 999 });
+
+    await component.duplicar(new Event('click'), filaDeLista);
+
+    expect(repo.obtenerPorId).toHaveBeenCalledWith(500);
+    expect(duplicarSpy).toHaveBeenCalledWith(detalleCompleto); // no la fila vacía de la lista
+  });
+
+  it('si no se puede obtener el detalle completo, sigue duplicando con lo que ya tenía (mejor que fallar del todo)', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    const filaDeLista: FacturaRecibida = {
+      id: 501, proveedor: 'Iberdrola', numFactura: 'F-501', fecha: '2026-08-01',
+      lineas: [], retencionPct: 0, pagada: false, estado: 'revisada', origenOcr: false,
+    };
+    spyOn(repo, 'obtenerPorId').and.resolveTo(undefined);
+    const duplicarSpy = spyOn(repo, 'duplicar').and.returnValue({ ...filaDeLista, id: 999 });
+
+    await component.duplicar(new Event('click'), filaDeLista);
+
+    expect(duplicarSpy).toHaveBeenCalledWith(filaDeLista);
+  });
+
   // Confirmado con el jefe el mapeo de Estado (131 = borrador, 132 = revisada) — igual que
   // proveedor/pagada, ahora también viaja al backend en vez de filtrarse solo en cliente.
   it('el filtro de estado se manda al repositorio a través de refresh()', async () => {

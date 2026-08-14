@@ -70,6 +70,21 @@ describe('HttpSuppliersRepository', () => {
     expect(resultado.total).toBe(1);
   });
 
+  it('limpia el punto de relleno del apellido1 al final de nombreCompleto (proveedor tipo empresa)', async () => {
+    apiSpy.post.and.resolveTo([
+      {
+        idProveedor: 43, idEmpresa: 9, idSujeto: 101,
+        nombre: 'Iberdrola Clientes, S.A.U.', apellido1: '.', apellido2: null,
+        nombreCompleto: 'Iberdrola Clientes, S.A.U. .', dni: 'A95758389',
+        direccionFacturacion: null,
+      },
+    ]);
+
+    const resultado = await repo.buscar('iberdrola');
+
+    expect(resultado.items[0].nombre).toBe('Iberdrola Clientes, S.A.U.');
+  });
+
   it('si falta nombreCompleto, cae a nombre; si falta dni, deja el nif vacío; sin dirección, deja los campos de dirección sin definir', async () => {
     apiSpy.post.and.resolveTo([
       {
@@ -132,10 +147,11 @@ describe('HttpSuppliersRepository', () => {
         provincia: 'Madrid',
       });
       // '.' no es whitespace para el backend (Where(!IsNullOrWhiteSpace) no lo filtra), así
-      // que sí queda visible al final de nombreCompleto — efecto secundario conocido y
-      // aceptado de usar un placeholder fijo en vez de partir el texto.
+      // que el propio backend lo deja pegado en nombreCompleto — pero mapearProveedor lo
+      // limpia antes de mostrarlo (petición del jefe en la reunión 2026-08-14: un proveedor
+      // tipo empresa se ve solo con su razón social, sin el punto de relleno).
       expect(creado).toEqual({
-        id: 55, nif: 'B00000000', nombre: 'Nuevo Proveedor .',
+        id: 55, nif: 'B00000000', nombre: 'Nuevo Proveedor',
         direccion: 'Calle Falsa 123', poblacion: 'Madrid', cp: '28002', provincia: 'Madrid',
       });
     });

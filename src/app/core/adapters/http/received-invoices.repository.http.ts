@@ -7,6 +7,7 @@ import {
   calcularTotalesLineas,
 } from '../../../services/mock-facturas.service';
 import { formatEuros } from '../../../shared/utils/format-euros';
+import { limpiarNombreProveedor } from '../../../shared/utils/limpiar-nombre-proveedor';
 
 // Confirmado contra el código real de WebAPIARTIBusiness (Controllers/DocumentoController.cs
 // + Services/DocumentoService.cs): [Authorize] con el mismo esquema JWT que ya usa el login,
@@ -161,6 +162,12 @@ function estadoHaciaApi(valor: 'borrador' | 'revisada'): number {
   return valor === 'borrador' ? ESTADO_BORRADOR_API : ESTADO_REVISADA_API;
 }
 
+// ApiService da el status siempre al principio del mensaje ("HTTP 404 ..." en nativo,
+// "HTTP 404 - ..." en web) — mirar solo ese prefijo evita depender del resto del formato.
+function esHttp404(e: unknown): boolean {
+  return e instanceof Error && /^HTTP 404\b/.test(e.message);
+}
+
 // Ojo con los nombres: "total" en el backend es la BASE IMPONIBLE (antes de IVA/suplidos/
 // retención), no el importe final — así lo define la propia fórmula SQL del servicio:
 // importe = total + iva + suplidos - irpf. "importe" es el total final a pagar.
@@ -228,7 +235,7 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
 
   return {
     id: dto.idFacturaRecibida,
-    proveedor: dto.nombreProveedor?.trim() || 'Proveedor no disponible',
+    proveedor: limpiarNombreProveedor(dto.nombreProveedor?.trim() || 'Proveedor no disponible'),
     // El backend ya resuelve este id para poder darnos nombreProveedor (hace el JOIN él
     // mismo) — nos lo da gratis, tiene sentido guardarlo ahora que el modelo lo admite.
     idProveedor: dto.idProveedor,
@@ -417,9 +424,15 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     try {
       await this.api.delete(`${RECIBIDAS_BASE_PATH}/${id}`);
       return;
-    } catch {
-      // 404 (no existe para esta empresa) o el id es de un borrador local todavía sin
-      // guardar — mismo criterio que obtenerPorId(): caer al almacén local.
+    } catch (e) {
+      // Solo un 404 real (no existe para esta empresa, o el id es de un borrador local
+      // todavía sin guardar) cae al almacén local. BUG real corregido 2026-08-14: antes se
+      // tragaba CUALQUIER error aquí — si el backend llega a rechazar un borrado por una
+      // regla de negocio (factura pagada / con analítica asociada, mencionada por el jefe
+      // en reunión — a día de hoy EliminarAsync todavía no la implementa, pero puede
+      // llegar en cualquier momento), el usuario veía "Factura eliminada" como si hubiera
+      // ido bien, cuando en realidad la factura seguía existiendo en el backend.
+      if (!esHttp404(e)) throw e;
     }
     this.mockAdapter.eliminar(id);
   }
