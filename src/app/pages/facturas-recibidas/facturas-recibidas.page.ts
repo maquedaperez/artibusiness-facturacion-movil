@@ -13,7 +13,7 @@ import {
 import { addIcons } from 'ionicons';
 import {
   cameraOutline, receiptOutline, documentTextOutline, addOutline, filterOutline,
-  copyOutline, downloadOutline, shareSocialOutline, trashOutline,
+  copyOutline, downloadOutline, shareSocialOutline, trashOutline, flashOutline,
 } from 'ionicons/icons';
 
 import { AccionesPermitidas, FacturaRecibida } from '../../services/mock-facturas.service';
@@ -44,6 +44,7 @@ export class FacturasRecibidasPage implements OnInit {
 
   @ViewChild('fileInputCamera') fileInputCamera?: ElementRef<HTMLInputElement>;
   @ViewChild('fileInputUpload') fileInputUpload?: ElementRef<HTMLInputElement>;
+  @ViewChild('fileInputRapido') fileInputRapido?: ElementRef<HTMLInputElement>;
 
   facturas: FacturaRecibida[] = [];
   processing = false;
@@ -59,7 +60,7 @@ export class FacturasRecibidasPage implements OnInit {
   constructor() {
     addIcons({
       cameraOutline, receiptOutline, documentTextOutline, addOutline, filterOutline,
-      copyOutline, downloadOutline, shareSocialOutline, trashOutline,
+      copyOutline, downloadOutline, shareSocialOutline, trashOutline, flashOutline,
     });
   }
 
@@ -158,6 +159,10 @@ export class FacturasRecibidasPage implements OnInit {
     this.fileInputUpload?.nativeElement.click();
   }
 
+  triggerGuardadoRapido() {
+    this.fileInputRapido?.nativeElement.click();
+  }
+
   async onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -173,6 +178,29 @@ export class FacturasRecibidasPage implements OnInit {
       await this.showToast(`Borrador creado desde "${file.name}": ${nueva.proveedor}.`, 'success');
     } catch (e: any) {
       await this.showToast(e?.message ?? 'No se pudo procesar el archivo. Inténtalo de nuevo.', 'danger');
+    } finally {
+      this.processing = false;
+    }
+  }
+
+  // "Guardado rápido" (pedido por el jefe, reunión 2026-08-14): a diferencia de
+  // onFileSelected, esto NO crea un borrador para revisar — la factura queda guardada de
+  // verdad (con el PDF ya en Blob Storage) en la misma llamada. Si el proveedor no se
+  // reconoce por NIF o el documento no trae número de factura, el backend rechaza y no se
+  // guarda nada — el mensaje de error ya viene listo para mostrar tal cual.
+  async onFileSelectedGuardadoRapido(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    this.processing = true;
+    try {
+      const nueva = await this.invoicesRepo.crearDesdeDocumentoDirecto(file);
+      await this.refresh();
+      await this.showToast(`Factura guardada desde "${file.name}": ${nueva.proveedor}.`, 'success');
+    } catch (e: any) {
+      await this.showToast(e?.message ?? 'No se pudo guardar la factura. Inténtalo de nuevo.', 'danger');
     } finally {
       this.processing = false;
     }

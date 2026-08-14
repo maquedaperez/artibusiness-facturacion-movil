@@ -59,6 +59,17 @@ export abstract class ReceivedInvoicesRepository {
   abstract crearDesdeOcr(file: File): Promise<FacturaRecibida>;
   abstract adjuntarDocumento(file: File): Promise<{ documentoUrl: string; documentoNombre: string }>;
 
+  // "Guardado rápido": pedido por el jefe en reunión 2026-08-14. A diferencia de
+  // crearDesdeOcr (que solo extrae los datos y deja un borrador local para revisar antes de
+  // Guardar), esto llama a POST /api/FacturasRecibidas/CrearDesdeDocumento — el backend
+  // hace TODO de una vez: OCR + resolver proveedor/impuestos + guardar en BBDD + subir el
+  // PDF a Azure Blob Storage. No hay paso de revisión: si el proveedor no se reconoce por
+  // NIF, o el documento no trae número de factura, rechaza con un error claro en vez de
+  // guardar algo a medias. La factura que devuelve ya es real (accountingLocked, igual que
+  // cualquier otra leída de Enumerar/Obtener) — decisión confirmada: mantener los dos
+  // flujos en paralelo, no sustituir el que ya existe (escanear → revisar → Guardar).
+  abstract crearDesdeDocumentoDirecto(file: File): Promise<FacturaRecibida>;
+
   // Catálogos de referencia para el formulario de la factura — se resuelven una sola vez
   // por sesión (cacheados como Promise en los adaptadores, no como valor ya resuelto).
   // obtenerMediosPago(): POST /api/MediosPago/Enumerar (confirmado 2026-08-14). No existe

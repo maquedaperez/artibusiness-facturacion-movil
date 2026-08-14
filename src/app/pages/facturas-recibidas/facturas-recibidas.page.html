@@ -32,6 +32,13 @@
     hidden
     (change)="onFileSelected($event)"
   />
+  <input
+    #fileInputRapido
+    type="file"
+    accept="image/jpeg,image/png,image/webp,application/pdf"
+    hidden
+    (change)="onFileSelectedGuardadoRapido($event)"
+  />
 
   <div class="scan-actions">
     <ion-button
@@ -56,6 +63,18 @@
     >
       <ion-icon slot="start" name="document-text-outline"></ion-icon>
       Subir archivo (imagen o PDF)
+    </ion-button>
+
+    <ion-button
+      expand="block"
+      size="small"
+      fill="clear"
+      class="guardado-rapido-button"
+      [disabled]="processing"
+      (click)="triggerGuardadoRapido()"
+    >
+      <ion-icon slot="start" name="flash-outline"></ion-icon>
+      Guardado rápido (sin revisar, se guarda directamente)
     </ion-button>
   </div>
 

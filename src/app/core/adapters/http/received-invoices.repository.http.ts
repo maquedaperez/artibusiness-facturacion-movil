@@ -204,6 +204,11 @@ type FacturaRecibidaDetalleApi = FacturaRecibidaCabeceraApi & {
   lineas: FacturaRecibidaLineaApi[];
 };
 
+type CrearDesdeDocumentoApi = {
+  factura: FacturaRecibidaDetalleApi;
+  avisos: string[];
+};
+
 // El catálogo de Impuestos YA existe (Enumerar/{id}), pero deliberadamente no se usa aquí
 // para reconstruir el IVA real por línea de facturas YA GUARDADAS en el backend — solo se
 // usa en sentido contrario (ivaPct → idImpuesto) al CREAR/EDITAR líneas nuevas, donde el
@@ -579,6 +584,25 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       documentoNombre: documento.documentoNombre,
       avisosOcr: avisosOcr.length > 0 ? avisosOcr : undefined,
     });
+  }
+
+  // "Guardado rápido" (pedido por el jefe, reunión 2026-08-14): el backend hace todo de una
+  // vez (OCR + guardar + subir el PDF a Blob Storage) y devuelve la factura ya real — se
+  // mapea igual que obtenerPorId/listar (mapearCabecera/mapearLinea), con el mismo
+  // accountingLocked=true de cualquier factura leída del sistema real. Los avisos propios
+  // del endpoint (total que no cuadra, fallo al subir el documento) se añaden a avisosOcr,
+  // junto a la explicación habitual de por qué las líneas no traen el IVA real reconstruido.
+  async crearDesdeDocumentoDirecto(file: File): Promise<FacturaRecibida> {
+    const resultado = await this.api.postMultipart<CrearDesdeDocumentoApi>(
+      `${RECIBIDAS_BASE_PATH}/CrearDesdeDocumento`, file, 'file',
+    );
+
+    const factura = mapearCabecera(resultado.factura);
+    factura.lineas = (resultado.factura.lineas ?? []).map(l => mapearLinea(l, () => this.nuevoIdLinea()));
+    if (resultado.avisos?.length) {
+      factura.avisosOcr = [...(factura.avisosOcr ?? []), ...resultado.avisos];
+    }
+    return factura;
   }
 
   // Preferimos un withholding_rate ya explícito en alguna línea (lo habitual: la misma

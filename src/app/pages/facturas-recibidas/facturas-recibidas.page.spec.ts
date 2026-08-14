@@ -29,6 +29,35 @@ describe('FacturasRecibidasPage', () => {
     expect(component).toBeTruthy();
   });
 
+  function eventoConArchivo(nombre = 'factura.pdf'): Event {
+    const file = new File(['contenido'], nombre, { type: 'application/pdf' });
+    const input = document.createElement('input');
+    Object.defineProperty(input, 'files', { value: [file] });
+    return { target: input } as unknown as Event;
+  }
+
+  // "Guardado rápido" (pedido por el jefe, reunión 2026-08-14): a diferencia de escanear
+  // con OCR (que deja un borrador local para revisar), esto llama directamente al
+  // repositorio para guardar la factura ya real, sin pantalla intermedia.
+  it('guardado rápido llama a crearDesdeDocumentoDirecto y refresca la lista', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    const crearSpy = spyOn(repo, 'crearDesdeDocumentoDirecto').and.resolveTo(facturaDe('Iberdrola', 'Luz'));
+    spyOn(repo, 'listar').and.resolveTo([]);
+
+    await component.onFileSelectedGuardadoRapido(eventoConArchivo());
+
+    expect(crearSpy).toHaveBeenCalled();
+    expect(component.processing).toBeFalse();
+  });
+
+  it('guardado rápido muestra el error del backend si rechaza (ej. proveedor no reconocido)', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    spyOn(repo, 'crearDesdeDocumentoDirecto').and.rejectWith(new Error('No existe ningún proveedor con ese NIF.'));
+
+    await expectAsync(component.onFileSelectedGuardadoRapido(eventoConArchivo())).toBeResolved();
+    expect(component.processing).toBeFalse();
+  });
+
   function facturaDe(proveedor: string, concepto: string): FacturaRecibida {
     return {
       id: 1, proveedor, proveedorNif: 'B00000000', numFactura: 'F-999', fecha: '2026-08-11',

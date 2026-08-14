@@ -760,4 +760,51 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       expect(await mockAdapter.obtenerPorId(borrador.id)).toBeUndefined(); // borrador local limpiado
     });
   });
+
+  describe('crearDesdeDocumentoDirecto() — "guardado rápido" contra el endpoint todo-en-uno', () => {
+    it('sube el fichero a CrearDesdeDocumento y mapea la respuesta igual que obtenerPorId', async () => {
+      apiSpy.postMultipart.and.resolveTo({
+        factura: {
+          idFacturaRecibida: 700, numFacRec: 'D-1', idProveedor: 7, nombreProveedor: 'Iberdrola Clientes, S.A.U. .',
+          concepto: 'Pendiente de revisar', total: 100, iva: 21, suplidos: 0, irpf: 0, importe: 121,
+          pagada: false, estado: 131, escaneada: true,
+          fechaFactura: '2026-08-14', fechaVencimiento: '2026-08-14',
+          idMedioPago: null, idTipoFactura: 3,
+          lineas: [{ idFacturaRecibidaLinea: 1, descripcion: 'Luz', cantidad: 1, precioUnitario: 100, importe: 100, idImpuesto: 1 }],
+        },
+        avisos: [],
+      });
+
+      const factura = await repo.crearDesdeDocumentoDirecto(archivoDePrueba());
+
+      expect(apiSpy.postMultipart).toHaveBeenCalledWith('/api/FacturasRecibidas/CrearDesdeDocumento', jasmine.anything(), 'file');
+      expect(factura.id).toBe(700);
+      expect(factura.proveedor).toBe('Iberdrola Clientes, S.A.U.'); // limpia el punto de apellido1
+      expect(factura.lineas.length).toBe(1);
+      expect(factura.accountingLocked).toBeTrue(); // factura real, igual que cualquier otra leída del backend
+    });
+
+    it('añade los avisos propios del endpoint (ej. documento no subido) a avisosOcr', async () => {
+      apiSpy.postMultipart.and.resolveTo({
+        factura: {
+          idFacturaRecibida: 701, numFacRec: 'D-2', idProveedor: 7, nombreProveedor: 'Proveedor',
+          concepto: 'x', total: 100, iva: 21, suplidos: 0, irpf: 0, importe: 121,
+          pagada: false, estado: 131, escaneada: true,
+          fechaFactura: '2026-08-14', fechaVencimiento: '2026-08-14',
+          idMedioPago: null, idTipoFactura: 3, lineas: [],
+        },
+        avisos: ['La factura se guardó correctamente, pero no se pudo subir el documento original.'],
+      });
+
+      const factura = await repo.crearDesdeDocumentoDirecto(archivoDePrueba());
+
+      expect(factura.avisosOcr).toContain('La factura se guardó correctamente, pero no se pudo subir el documento original.');
+    });
+
+    it('propaga el error del backend (ej. proveedor no reconocido por NIF, 400) sin envolverlo', async () => {
+      apiSpy.postMultipart.and.rejectWith(new Error("HTTP 400 - No existe ningún proveedor con NIF 'B00000000' para esta empresa."));
+
+      await expectAsync(repo.crearDesdeDocumentoDirecto(archivoDePrueba())).toBeRejectedWithError(/NIF/);
+    });
+  });
 });
