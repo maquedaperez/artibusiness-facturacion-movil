@@ -104,10 +104,10 @@ describe('HttpSuppliersRepository', () => {
       expect(apiSpy.post).not.toHaveBeenCalled();
     });
 
-    it('llama a Proveedores/Crear con la razón social completa en nombre y un espacio en apellido1', async () => {
+    it('parte la razón social por la última palabra: nombre/apellido1 se reconstruyen igual que el original', async () => {
       apiSpy.post.and.resolveTo({
         idProveedor: 55, idEmpresa: 9, idSujeto: 200,
-        nombre: 'Nuevo Proveedor', apellido1: ' ', apellido2: null,
+        nombre: 'Nuevo', apellido1: 'Proveedor', apellido2: null,
         nombreCompleto: 'Nuevo Proveedor', dni: 'B00000000',
         direccionFacturacion: {
           idDireccion: 9, direccion: 'Calle Falsa 123', codigoPostal: '28002',
@@ -117,10 +117,12 @@ describe('HttpSuppliersRepository', () => {
 
       const creado = await repo.crearAdHoc(datosCompletos);
 
+      // apellido1 NO puede ser un espacio en blanco: el backend usa IsNullOrWhiteSpace, lo
+      // rechaza con 400 "apellido1 es obligatorio" (probado en real 2026-08-14).
       expect(apiSpy.post).toHaveBeenCalledWith('/api/Proveedores/Crear', {
         idEmpresa: 9,
-        nombre: 'Nuevo Proveedor',
-        apellido1: ' ',
+        nombre: 'Nuevo',
+        apellido1: 'Proveedor',
         nif: 'B00000000',
         direccion: 'Calle Falsa 123',
         codigoPostal: '28002',
@@ -131,6 +133,22 @@ describe('HttpSuppliersRepository', () => {
         id: 55, nif: 'B00000000', nombre: 'Nuevo Proveedor',
         direccion: 'Calle Falsa 123', poblacion: 'Madrid', cp: '28002', provincia: 'Madrid',
       });
+    });
+
+    it('con una razón social de una sola palabra, usa "-" como apellido1 (no hay nada que partir)', async () => {
+      apiSpy.post.and.resolveTo({
+        idProveedor: 56, idEmpresa: 9, idSujeto: 201,
+        nombre: 'Iberdrola', apellido1: '-', apellido2: null,
+        nombreCompleto: 'Iberdrola -', dni: 'B00000001',
+        direccionFacturacion: null,
+      });
+
+      await repo.crearAdHoc({ ...datosCompletos, nombre: 'Iberdrola' });
+
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/Proveedores/Crear', jasmine.objectContaining({
+        nombre: 'Iberdrola',
+        apellido1: '-',
+      }));
     });
 
     it('propaga el error del backend (ej. NIF duplicado, 409) sin envolverlo', async () => {

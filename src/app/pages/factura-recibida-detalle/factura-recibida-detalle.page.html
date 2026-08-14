@@ -79,7 +79,10 @@
       </ion-item>
 
       <ion-item [disabled]="!esEditable">
-        <ion-input label="Forma de pago" labelPlacement="stacked" [(ngModel)]="working.formaPago"></ion-input>
+        <ion-select label="Forma de pago" labelPlacement="stacked" interface="action-sheet"
+          placeholder="Selecciona forma de pago" [(ngModel)]="working.idMedioPago">
+          <ion-select-option *ngFor="let m of mediosPago" [value]="m.id">{{ m.label }}</ion-select-option>
+        </ion-select>
       </ion-item>
 
       <ion-item [disabled]="!esEditable">
@@ -101,6 +104,7 @@
     [permitirCatalogo]="false"
     [permitirSuscripcion]="false"
     [generarId]="generarIdLinea"
+    [ivaRates]="ivaRates"
   ></app-lineas-editor>
 
   <ion-card class="totales-card">

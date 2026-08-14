@@ -475,6 +475,32 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
     expect(body).toEqual({ top: 50 });
   });
 
+  // BUG real encontrado en pruebas manuales 2026-08-14: antes los borradores locales se
+  // anexaban siempre al final, así que un borrador recién creado (fecha de hoy) quedaba
+  // enterrado detrás de facturas reales más antiguas y parecía "no haberse guardado".
+  it('mezcla facturas reales y borradores locales ordenados por fecha, no con los locales siempre al final', async () => {
+    apiSpy.post.and.resolveTo([
+      {
+        idFacturaRecibida: 1, numFacRec: 'R-1', idProveedor: 1, nombreProveedor: 'Antigua',
+        concepto: 'x', total: 100, iva: 21, suplidos: 0, irpf: 0, importe: 121,
+        pagada: false, estado: 131, escaneada: false,
+        fechaFactura: '2020-01-01', fechaVencimiento: '2020-02-01',
+        idMedioPago: null, idTipoFactura: 1, lineas: [],
+      },
+    ]);
+    const mockAdapter = TestBed.inject(MockReceivedInvoicesRepository);
+    const borrador = await mockAdapter.crearManual({
+      proveedor: 'Borrador de hoy', numFactura: 'L-1', fecha: '2030-01-01', vencimiento: '',
+      lineas: [{ id: mockAdapter.nuevoIdLinea(), origen: 'manual', descripcion: 'x', cantidad: 1, precioUnitario: 10, descuentoPct: 0, ivaPct: 21 }],
+      retencionPct: 0, pagada: false, estado: 'borrador',
+    });
+
+    const lista = await repo.listar();
+
+    expect(lista[0].id).toBe(borrador.id); // el borrador (fecha futura/más reciente) va primero
+    expect(lista[1].proveedor).toBe('Antigua');
+  });
+
   // Confirmado con el jefe: Recibidas reutiliza los códigos de Estado de Emitidas —
   // 131 = borrador, 132 = revisada.
   it('listar() manda el filtro de estado como el código numérico confirmado (131/132)', async () => {
@@ -496,6 +522,48 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
 
     const factura = await repo.obtenerPorId(500);
     expect(factura?.estado).toBe('borrador');
+  });
+
+  it('obtenerPorId() copia idMedioPago del backend cuando viene informado', async () => {
+    apiSpy.get.and.resolveTo({
+      idFacturaRecibida: 501, numFacRec: 'F-501', idProveedor: 1, nombreProveedor: 'Proveedor',
+      concepto: 'x', total: 100, iva: 21, suplidos: 0, irpf: 0, importe: 121,
+      pagada: false, estado: 131, escaneada: false,
+      fechaFactura: '2026-08-01', fechaVencimiento: '2026-09-01',
+      idMedioPago: 3, idTipoFactura: 1, lineas: [],
+    });
+
+    const factura = await repo.obtenerPorId(501);
+    expect(factura?.idMedioPago).toBe(3);
+  });
+
+  describe('obtenerMediosPago() / obtenerPorcentajesIva()', () => {
+    it('obtenerMediosPago() llama a MediosPago/Enumerar y arma la etiqueta con descFormaPago + descripcion', async () => {
+      apiSpy.post.and.resolveTo([
+        { idMedioPago: 1, descFormaPago: 'Transferencia', descripcion: 'Sabadell' },
+        { idMedioPago: 2, descFormaPago: 'Contado', descripcion: null },
+      ]);
+
+      const opciones = await repo.obtenerMediosPago();
+
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/MediosPago/Enumerar', {});
+      expect(opciones).toEqual([
+        { id: 1, label: 'Transferencia — Sabadell' },
+        { id: 2, label: 'Contado' },
+      ]);
+    });
+
+    it('obtenerPorcentajesIva() reutiliza el catálogo de Impuestos, sin duplicados y ordenado', async () => {
+      apiSpy.post.and.resolveTo([
+        { idImpuesto: 1, descripcion: 'IVA 21%', porcentaje: 21, literalFactura: null, tipoFacturaE: 'IVA' },
+        { idImpuesto: 2, descripcion: 'IVA 21% (otro)', porcentaje: 21, literalFactura: null, tipoFacturaE: 'IVA' },
+        { idImpuesto: 3, descripcion: 'IVA 10%', porcentaje: 10, literalFactura: null, tipoFacturaE: 'IVA' },
+      ]);
+
+      const porcentajes = await repo.obtenerPorcentajesIva();
+
+      expect(porcentajes).toEqual([10, 21]);
+    });
   });
 
   // Regresión: antes duplicar() recibía solo el id y delegaba en el mock, que buscaba ese
@@ -592,9 +660,20 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
         idProveedor: 7,
         numFacRec: 'M-1',
         idTipoFactura: 3,
+        idMedioPago: null, // no se eligió forma de pago en datosBase
         lineas: [jasmine.objectContaining({ idImpuesto: 1 })], // 21% → idImpuesto 1
       }));
       expect(creada.id).toBe(900);
+    });
+
+    it('manda idMedioPago cuando el usuario eligió una forma de pago del desplegable', async () => {
+      stubCatalogos();
+
+      await repo.crearManual({ ...datosBase, idMedioPago: 4 });
+
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/Guardar', jasmine.objectContaining({
+        idMedioPago: 4,
+      }));
     });
 
     it('con porcentajes duplicados en el catálogo, usa el primero que devuelve el backend', async () => {

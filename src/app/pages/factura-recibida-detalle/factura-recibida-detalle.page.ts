@@ -18,10 +18,10 @@ import {
 } from 'ionicons/icons';
 
 import {
-  AccionesPermitidas, FacturaRecibida, ProveedorMock, IRPF_RATES, TotalesFactura,
+  AccionesPermitidas, FacturaRecibida, ProveedorMock, IRPF_RATES, IVA_RATES, TotalesFactura,
   ConfiguracionRetencion, calcularTotalesLineas, accionesFacturaRecibida,
 } from '../../services/mock-facturas.service';
-import { ReceivedInvoicesRepository } from '../../core/ports';
+import { MedioPagoOpcion, ReceivedInvoicesRepository } from '../../core/ports';
 import { VerDocumentoComponent } from '../../modals/ver-documento/ver-documento.component';
 import { ProveedorSelectorComponent } from '../../modals/proveedor-selector/proveedor-selector.component';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
@@ -62,6 +62,10 @@ export class FacturaRecibidaDetallePage implements OnInit {
   origenOcr = false;
 
   irpfRates = IRPF_RATES;
+  // Valor por defecto hasta que cargue el catálogo real (obtenerPorcentajesIva) — si la
+  // carga falla, se queda con esta lista fija en vez de dejar el desplegable vacío.
+  ivaRates = IVA_RATES;
+  mediosPago: MedioPagoOpcion[] = [];
 
   working: FacturaRecibidaForm = this.formularioVacio();
 
@@ -76,6 +80,11 @@ export class FacturaRecibidaDetallePage implements OnInit {
   }
 
   async ngOnInit() {
+    // En paralelo, sin bloquear la carga de la factura: si tarda o falla, el formulario
+    // sigue siendo usable con los valores por defecto (ivaRates) o un desplegable vacío
+    // (mediosPago) en vez de quedarse colgado.
+    this.cargarCatalogos();
+
     const param = this.route.snapshot.paramMap.get('id');
 
     if (param === 'nueva') {
@@ -100,6 +109,20 @@ export class FacturaRecibidaDetallePage implements OnInit {
       this.errorMsg = e?.message ?? 'No se pudo cargar la factura.';
     } finally {
       this.cargando = false;
+    }
+  }
+
+  private async cargarCatalogos() {
+    try {
+      this.mediosPago = await this.invoicesRepo.obtenerMediosPago();
+    } catch {
+      // El desplegable de forma de pago queda vacío — no bloquea ver/editar la factura.
+    }
+    try {
+      const porcentajes = await this.invoicesRepo.obtenerPorcentajesIva();
+      if (porcentajes.length > 0) this.ivaRates = porcentajes;
+    } catch {
+      // Se mantiene IVA_RATES como valor por defecto.
     }
   }
 

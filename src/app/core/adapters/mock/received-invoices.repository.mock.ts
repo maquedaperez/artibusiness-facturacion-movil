@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import { FiltrosListarRecibidas, ReceivedInvoicesRepository } from '../../ports/received-invoices.repository';
+import { FiltrosListarRecibidas, MedioPagoOpcion, ReceivedInvoicesRepository } from '../../ports/received-invoices.repository';
 import {
-  AccionesPermitidas, FacturaRecibida, MockFacturasService, TotalesFactura,
+  AccionesPermitidas, FacturaRecibida, IVA_RATES, MEDIO_PAGO_OPTIONS, MockFacturasService, TotalesFactura,
   accionesFacturaRecibida,
 } from '../../../services/mock-facturas.service';
 
@@ -72,5 +72,15 @@ export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
 
   duplicar(factura: FacturaRecibida): FacturaRecibida {
     return this.mock.duplicarRecibida(factura);
+  }
+
+  // Sin backend real detrás en modo mock: se simula el catálogo con ids secuenciales fijos
+  // a partir de la misma lista de nombres que ya usaba el campo de texto libre.
+  async obtenerMediosPago(): Promise<MedioPagoOpcion[]> {
+    return MEDIO_PAGO_OPTIONS.map((label, i) => ({ id: i + 1, label }));
+  }
+
+  async obtenerPorcentajesIva(): Promise<number[]> {
+    return IVA_RATES;
   }
 }

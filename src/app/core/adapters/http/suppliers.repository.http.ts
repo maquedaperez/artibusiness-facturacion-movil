@@ -36,6 +36,30 @@ type ProveedorApi = {
   direccionFacturacion: DireccionApi | null;
 };
 
+// El backend exige Nombre Y Apellido1 como dos campos NO vacíos por separado (reutiliza la
+// tabla 'sujeto' que comparte con clientes/empleados, siempre persona física) — y NO basta
+// con un espacio: la validación usa IsNullOrWhiteSpace, no IsNullOrEmpty (confirmado en
+// ProveedoresController.Crear, probado en real 2026-08-14: rechaza con 400 "apellido1 es
+// obligatorio"). Como esta app trata cada proveedor como una única razón social sin nombre/
+// apellidos de verdad, se parte por el último espacio: todo menos la última palabra va a
+// Nombre, la última palabra va a Apellido1. El backend reconstruye nombreCompleto como
+// "Nombre Apellido1 Apellido2" (RTRIM/Join con espacios), así que esto reproduce el texto
+// original exacto sin ningún artefacto visible — no es un intento real de separar
+// nombre/apellidos, solo una forma mecánica de rellenar los dos campos obligatorios.
+function partirNombreApellido1(razonSocial: string): { nombre: string; apellido1: string } {
+  const texto = razonSocial.trim();
+  const ultimoEspacio = texto.lastIndexOf(' ');
+  if (ultimoEspacio === -1) {
+    // Razón social de una sola palabra (raro) — no hay nada que partir sin inventar un
+    // apellido que no es tal, así que aquí sí hace falta un placeholder visible.
+    return { nombre: texto, apellido1: '-' };
+  }
+  return {
+    nombre: texto.slice(0, ultimoEspacio).trim(),
+    apellido1: texto.slice(ultimoEspacio + 1).trim(),
+  };
+}
+
 function mapearProveedor(dto: ProveedorApi): ProveedorMock {
   return {
     id: dto.idProveedor,
@@ -61,9 +85,9 @@ function mapearProveedor(dto: ProveedorApi): ProveedorMock {
  * fuera siempre una persona física (viene de reutilizar la misma tabla 'sujeto' que
  * clientes/empleados) — pero un proveedor de esta app es casi siempre una empresa, con un
  * único texto de razón social (el que da el OCR, ej. "IBERDROLA CLIENTES, S.A.U."), nunca
- * separado en nombre/apellidos. Decisión tomada explícitamente: la razón social completa
- * va en 'nombre', y 'apellido1' se manda con un espacio — el mínimo no-vacío que exige la
- * validación del backend — sin intentar partir el texto de verdad.
+ * separado en nombre/apellidos de verdad. Ver partirNombreApellido1(): se parte por el
+ * último espacio (no se manda un espacio en blanco como apellido1 — el backend lo rechaza,
+ * usa IsNullOrWhiteSpace, no IsNullOrEmpty, confirmado en pruebas reales 2026-08-14).
  */
 @Injectable()
 export class HttpSuppliersRepository extends SuppliersRepository {
@@ -98,10 +122,11 @@ export class HttpSuppliersRepository extends SuppliersRepository {
       throw new Error('Dirección, código postal, población y provincia son obligatorios.');
     }
 
+    const { nombre, apellido1 } = partirNombreApellido1(data.nombre);
     const body = {
       idEmpresa: this.api.getEmpresaId() ?? undefined,
-      nombre: data.nombre.trim(),
-      apellido1: ' ',
+      nombre,
+      apellido1,
       nif: data.nif.trim(),
       direccion: data.direccion.trim(),
       codigoPostal: data.cp.trim(),

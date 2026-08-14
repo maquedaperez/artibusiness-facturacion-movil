@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { FiltrosListarRecibidas, ReceivedInvoicesRepository } from '../../ports/received-invoices.repository';
+import { FiltrosListarRecibidas, MedioPagoOpcion, ReceivedInvoicesRepository } from '../../ports/received-invoices.repository';
 import { MockReceivedInvoicesRepository } from '../mock/received-invoices.repository.mock';
 import { ApiService } from '../../../services/api.service';
 import {
@@ -135,6 +135,11 @@ const IMPUESTOS_BASE_PATH = '/api/Impuesto';
 // campo 'tipo' es obligatorio en Enumerar, así que hay que mandarlo siempre.
 const TIPO_IMPUESTO_IVA = 'IVA';
 
+// Confirmado en Controllers/MediosPagoController.cs (2026-08-14): a diferencia de
+// Proveedores/Enumerar, aquí 'idEmpresa' SÍ es int? con fallback normal al claim del JWT —
+// no hace falta mandarlo explícito.
+const MEDIOS_PAGO_BASE_PATH = '/api/MediosPago';
+
 // Límite de facturas a traer en el listado — Enumerar hoy no pagina (ver comentario en
 // listar()), así que esto es una petición al backend para cuando lo soporte, no una
 // garantía todavía.
@@ -231,6 +236,10 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
     fecha: dto.fechaFactura.slice(0, 10),
     vencimiento: dto.fechaVencimiento ? dto.fechaVencimiento.slice(0, 10) : undefined,
     concepto: dto.concepto?.trim() || undefined,
+    // Sin etiqueta aquí (mapearCabecera es síncrono, resolver el label exige la caché
+    // async de obtenerMediosPago) — la página de detalle resuelve el label a partir de
+    // este id una vez ha cargado el catálogo, igual que hace con el proveedor.
+    idMedioPago: dto.idMedioPago ?? undefined,
     lineas: [],
     retencionPct: retencionPctAprox,
     pagada: dto.pagada,
@@ -283,6 +292,17 @@ type TipoFacturaApi = {
   textoMail: string | null;
 };
 
+type MedioPagoApi = {
+  idMedioPago: number;
+  descFormaPago: string | null;
+  descripcion: string | null;
+};
+
+function etiquetaMedioPago(m: MedioPagoApi): string {
+  const partes = [m.descFormaPago?.trim(), m.descripcion?.trim()].filter((p): p is string => !!p);
+  return partes.length > 0 ? partes.join(' — ') : `Medio de pago ${m.idMedioPago}`;
+}
+
 /**
  * Adaptador híbrido: `listar`/`obtenerPorId`/`crearDesdeOcr`/`eliminar`/`crearManual`/
  * `actualizar` hablan con el backend real (FacturasRecibidasController, DocumentoController,
@@ -307,6 +327,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   // simultáneas mientras la primera todavía está en vuelo no disparen una segunda petición.
   private impuestosCache: Promise<ImpuestoApi[]> | null = null;
   private tipoFacturaCache: Promise<TipoFacturaApi> | null = null;
+  private mediosPagoCache: Promise<MedioPagoApi[]> | null = null;
 
   async listar(filtros?: FiltrosListarRecibidas): Promise<FacturaRecibida[]> {
     // 'top' todavía no lo soporta el backend (Enumerar no pagina, devuelve todo lo que haya
@@ -349,7 +370,15 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     // nada más crearlas, antes de que a nadie le haya dado tiempo a revisarlas y guardarlas.
     const borradoresLocales = locales.filter(f => f.id >= 100);
 
-    return [...cabecerasRecortadas.map(mapearCabecera), ...borradoresLocales];
+    // BUG real encontrado en pruebas manuales (2026-08-14): antes se devolvían las reales
+    // primero y los borradores locales anexados al final sin más, así que un borrador recién
+    // creado (OCR/manual/duplicar) quedaba enterrado después de hasta 50 facturas reales —
+    // el usuario veía el toast de "borrador creado" pero no lo encontraba en la lista sin
+    // hacer scroll hasta el final. Se ordena todo junto por fecha DESC para que lo más
+    // reciente (normalmente el borrador que se acaba de crear) aparezca arriba de verdad.
+    const todas = [...cabecerasRecortadas.map(mapearCabecera), ...borradoresLocales];
+    todas.sort((a, b) => b.fecha.localeCompare(a.fecha));
+    return todas;
   }
 
   async obtenerPorId(id: number): Promise<FacturaRecibida | undefined> {
@@ -600,6 +629,31 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return this.tipoFacturaCache;
   }
 
+  private async obtenerMediosPagoApi(): Promise<MedioPagoApi[]> {
+    if (!this.mediosPagoCache) {
+      this.mediosPagoCache = this.api.post<MedioPagoApi[]>(`${MEDIOS_PAGO_BASE_PATH}/Enumerar`, {});
+    }
+    return this.mediosPagoCache;
+  }
+
+  // Catálogo seleccionable para el desplegable "Forma de pago" del detalle — a diferencia
+  // de Impuestos/TipoFactura (que se resuelven solos, sin que el usuario elija nada), este
+  // sí hay que listarlo entero para que la persona pueda escoger una opción.
+  async obtenerMediosPago(): Promise<MedioPagoOpcion[]> {
+    const catalogo = await this.obtenerMediosPagoApi();
+    return (catalogo ?? []).map(m => ({ id: m.idMedioPago, label: etiquetaMedioPago(m) }));
+  }
+
+  // Reutiliza el mismo catálogo de Impuestos que resuelve idImpuesto al guardar — así el
+  // desplegable de % de IVA de cada línea solo ofrece porcentajes que de verdad existen
+  // para esta empresa, en vez de la lista fija [0, 4, 10, 21] que se usaba antes (podía no
+  // coincidir con el catálogo real y hacer fallar el guardado con un % inexistente).
+  async obtenerPorcentajesIva(): Promise<number[]> {
+    const catalogo = await this.obtenerImpuestos();
+    const porcentajes = [...new Set(catalogo.map(i => i.porcentaje))];
+    return porcentajes.sort((a, b) => a - b);
+  }
+
   // El guardado real, común a crearManual (siempre alta) y actualizar (alta también, ver
   // el comentario en ese método — reeditar una factura ya real está bloqueado hoy).
   private async guardarReal(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): Promise<FacturaRecibida> {
@@ -644,6 +698,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       pagada: data.pagada,
       fechaFactura: data.fecha,
       fechaVencimiento: data.vencimiento || data.fecha,
+      idMedioPago: data.idMedioPago ?? null,
       idTipoFactura: tipoFactura.idTipoFactura,
       estado: estadoHaciaApi(data.estado),
       escaneada: !!data.documentoUrl,

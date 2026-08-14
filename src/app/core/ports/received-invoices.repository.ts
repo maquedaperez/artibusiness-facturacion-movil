@@ -17,6 +17,10 @@ import { AccionesPermitidas, FacturaRecibida, TotalesFactura } from '../../servi
 // puede filtrar en pantalla: el rango de fechas se queda fuera porque Enumerar solo admite
 // año+mes, no un rango arbitrario, así que ese sigue aplicándose en el cliente, sobre lo
 // que haya devuelto listar() — ver facturas-recibidas.page.ts.
+// Opción del desplegable "Forma de pago" — id real del catálogo de la empresa (POST
+// /api/MediosPago/Enumerar) + una etiqueta ya lista para mostrar.
+export type MedioPagoOpcion = { id: number; label: string };
+
 export type FiltrosListarRecibidas = {
   // Busca por nombre de proveedor (Enumerar: NombreProveedor, LIKE) — a diferencia del
   // buscador anterior, ya NO mira 'concepto': ese campo no lo admite el backend, y
@@ -54,6 +58,17 @@ export abstract class ReceivedInvoicesRepository {
 
   abstract crearDesdeOcr(file: File): Promise<FacturaRecibida>;
   abstract adjuntarDocumento(file: File): Promise<{ documentoUrl: string; documentoNombre: string }>;
+
+  // Catálogos de referencia para el formulario de la factura — se resuelven una sola vez
+  // por sesión (cacheados como Promise en los adaptadores, no como valor ya resuelto).
+  // obtenerMediosPago(): POST /api/MediosPago/Enumerar (confirmado 2026-08-14). No existe
+  // un endpoint equivalente para los % de IVA seleccionables: obtenerPorcentajesIva()
+  // reutiliza el mismo catálogo de Impuestos que ya resuelve idImpuesto al guardar (POST
+  // /api/Impuesto/Enumerar con tipo=IVA), así el desplegable de cada línea solo ofrece
+  // porcentajes que de verdad existen para esta empresa — antes venía de una lista fija
+  // ([0, 4, 10, 21]) que podía no coincidir con el catálogo real y hacer fallar el guardado.
+  abstract obtenerMediosPago(): Promise<MedioPagoOpcion[]>;
+  abstract obtenerPorcentajesIva(): Promise<number[]>;
 
   abstract accionesPermitidas(factura: FacturaRecibida): AccionesPermitidas;
   // Recibe la factura completa, no solo el id — a propósito: BUG real encontrado y

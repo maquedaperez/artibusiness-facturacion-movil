@@ -255,7 +255,12 @@ export type FacturaRecibida = {
   fecha: string;
   vencimiento?: string;
   concepto?: string;
+  // 'formaPago' es solo texto libre (lo que extrae el OCR de payment.payment_method, o lo
+  // que se escriba a mano) — no viaja a Guardar, es informativo. 'idMedioPago' es el id
+  // real del catálogo de la empresa (POST /api/MediosPago/Enumerar), el que de verdad se
+  // manda al backend; se rellena al elegir una opción del desplegable real.
   formaPago?: string;
+  idMedioPago?: number;
   lineas: LineaFactura[];
   // % de retención que declara la propia factura del proveedor — a diferencia del
   // IRPF de las emitidas (que sale de la configuración fiscal de nuestra empresa),
