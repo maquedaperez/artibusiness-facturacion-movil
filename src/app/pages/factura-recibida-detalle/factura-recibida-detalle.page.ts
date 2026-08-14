@@ -242,6 +242,11 @@ export class FacturaRecibidaDetallePage implements OnInit {
       const { documentoUrl, documentoNombre } = await this.invoicesRepo.adjuntarDocumento(file);
       this.working.documentoUrl = documentoUrl;
       this.working.documentoNombre = documentoNombre;
+    } catch (e: any) {
+      // BUG real encontrado en auditoría 2026-08-14: sin este catch, un fichero no legible
+      // (corrupto, formato raro) dejaba desaparecer el spinner sin ningún aviso — el usuario
+      // no se enteraba de que el adjunto había fallado.
+      await this.showToast(e?.message ?? 'No se pudo adjuntar el documento. Inténtalo de nuevo.', 'danger');
     } finally {
       this.adjuntando = false;
     }

@@ -551,6 +551,16 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
     expect(factura?.idMedioPago).toBe(3);
   });
 
+  // BUG real corregido 2026-08-14 (auditoría): antes cualquier fallo del GET (no solo un
+  // 404) caía al almacén local — un 500/timeout real hacía que, si por casualidad existía
+  // un borrador local con el mismo id numérico, se mostrara esa factura equivocada sin
+  // ningún aviso de que hubo un error real.
+  it('si el GET falla por algo que NO es un 404, propaga el error en vez de caer al almacén local', async () => {
+    apiSpy.get.and.rejectWith(new Error('HTTP 500 - Error interno del servidor.'));
+
+    await expectAsync(repo.obtenerPorId(502)).toBeRejectedWithError(/500/);
+  });
+
   describe('obtenerMediosPago() / obtenerPorcentajesIva()', () => {
     it('obtenerMediosPago() llama a MediosPago/Enumerar y arma la etiqueta con descFormaPago + descripcion', async () => {
       apiSpy.post.and.resolveTo([

@@ -32,11 +32,10 @@ describe('HttpSuppliersRepository', () => {
     expect(resultado).toEqual({ items: [], total: 0, page: 1, pageSize: 20 });
   });
 
-  it('sin idEmpresa resoluble (token ausente/roto), no llama al backend y devuelve página vacía', async () => {
+  it('sin idEmpresa resoluble (token ausente/roto), lanza un error claro en vez de fingir "sin resultados"', async () => {
     apiSpy.getEmpresaId.and.returnValue(null);
-    const resultado = await repo.buscar('iberdrola');
+    await expectAsync(repo.buscar('iberdrola')).toBeRejectedWithError(/sesión/);
     expect(apiSpy.post).not.toHaveBeenCalled();
-    expect(resultado.items).toEqual([]);
   });
 
   it('manda idEmpresa (leído del JWT), nombre y top a Proveedores/Enumerar', async () => {

@@ -90,7 +90,14 @@ export class HttpSuppliersRepository extends SuppliersRepository {
     if (q.length < 2) return { items: [], total: 0, page, pageSize };
 
     const idEmpresa = this.api.getEmpresaId();
-    if (idEmpresa == null) return { items: [], total: 0, page, pageSize };
+    // BUG real encontrado en auditoría 2026-08-14: devolver aquí una página vacía (en vez de
+    // lanzar) hacía que un problema real de sesión (token sin el claim EmpresaId, o
+    // corrupto) se viera en el selector como "Sin resultados para...", ocultando que en
+    // realidad no se llegó a buscar nada — inconsistente además con crearAdHoc(), que sí
+    // deja que este mismo caso falle con el error real del backend.
+    if (idEmpresa == null) {
+      throw new Error('No se ha podido identificar la empresa de tu sesión. Vuelve a iniciar sesión e inténtalo de nuevo.');
+    }
 
     const body = { idEmpresa, nombre: q, top: pageSize };
     const resultado = await this.api.post<ProveedorApi[]>(`${PROVEEDORES_BASE_PATH}/Enumerar`, body);

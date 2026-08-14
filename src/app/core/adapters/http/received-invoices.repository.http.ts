@@ -401,10 +401,14 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
         factura.lineas = (dto.lineas ?? []).map(l => mapearLinea(l, () => this.nuevoIdLinea()));
         return factura;
       }
-    } catch {
-      // 404 del backend (no existe para esta empresa) o el id pertenece a un borrador
-      // local todavía sin endpoint de guardado (OCR/manual/duplicar) — en ambos casos
-      // caemos al almacén local, igual que hace listar() con los borradores de sesión.
+    } catch (e) {
+      // Solo un 404 real (no existe para esta empresa, o el id pertenece a un borrador
+      // local todavía sin guardar) cae al almacén local — mismo criterio que eliminar().
+      // BUG real encontrado en auditoría 2026-08-14: antes cualquier fallo (timeout, 500,
+      // problema de red) caía aquí también, y si por casualidad existía un borrador local
+      // con ese mismo id numérico, se mostraba esa factura equivocada sin ningún aviso de
+      // que hubo un error real. Ahora cualquier error que no sea 404 se propaga tal cual.
+      if (!esHttp404(e)) throw e;
     }
     return this.mockAdapter.obtenerPorId(id);
   }
