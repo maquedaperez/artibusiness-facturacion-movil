@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef, inject } from '@angular/core';
+import { Component, ViewChild, ElementRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -21,6 +21,7 @@ import { FiltrosListarRecibidas, ReceivedInvoicesRepository } from '../../core/p
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
+import { environment } from 'src/environments/environment';
 
 @Component({
   selector: 'app-facturas-recibidas',
@@ -36,7 +37,7 @@ import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros'
     DemoBannerComponent,
   ],
 })
-export class FacturasRecibidasPage implements OnInit {
+export class FacturasRecibidasPage {
   private invoicesRepo = inject(ReceivedInvoicesRepository);
   private toastCtrl = inject(ToastController);
   private alertCtrl = inject(AlertController);
@@ -49,6 +50,12 @@ export class FacturasRecibidasPage implements OnInit {
   facturas: FacturaRecibida[] = [];
   processing = false;
   cargando = false;
+
+  // El endpoint CrearDesdeDocumento está listo en local pero todavía no desplegado en el
+  // backend real — mientras el flag esté en false, el botón ni siquiera se muestra, para no
+  // dejar una acción que solo devolvería 404. Se activa en environment.ts/.prod.ts en
+  // cuanto el jefe lo publique, sin tocar esta pantalla.
+  mostrarGuardadoRapido = environment.features?.enableQuickSave ?? false;
 
   searchQuery = '';
   mostrarFiltros = false;
@@ -64,10 +71,10 @@ export class FacturasRecibidasPage implements OnInit {
     });
   }
 
-  ngOnInit() {
-    this.refresh();
-  }
-
+  // Solo ionViewWillEnter, no también ngOnInit: en Ionic, ionViewWillEnter ya se dispara la
+  // primera vez que se entra a la pantalla (además de cada vez que se vuelve a ella) — tener
+  // los dos disparaba refresh() por duplicado en la primera carga. Encontrado en revisión
+  // 2026-08-14.
   ionViewWillEnter() {
     this.refresh();
   }
@@ -76,14 +83,24 @@ export class FacturasRecibidasPage implements OnInit {
   // confirmado con el jefe el mapeo de Estado: 131 = borrador, 132 = revisada) — así la
   // búsqueda/filtro encuentra facturas antiguas aunque no quepan en el límite de página. Se
   // llama de nuevo cada vez que cambian, no solo al entrar en la pantalla.
+  //
+  // Guarda de carrera: si el usuario escribe rápido en el buscador y una respuesta antigua
+  // llega DESPUÉS que una más reciente (nada garantiza el orden de llegada de dos peticiones
+  // en vuelo a la vez), sin esto la respuesta vieja podía pisar la lista ya actualizada con
+  // los resultados nuevos. Solo se aplica la respuesta si sigue siendo la última pedida.
+  private peticionListarEnCurso = 0;
   async refresh() {
+    const idPeticion = ++this.peticionListarEnCurso;
     this.cargando = true;
     try {
-      this.facturas = await this.invoicesRepo.listar(this.filtrosParaBackend());
+      const resultado = await this.invoicesRepo.listar(this.filtrosParaBackend());
+      if (idPeticion !== this.peticionListarEnCurso) return; // ya hay otra más reciente en vuelo
+      this.facturas = resultado;
     } catch (e: any) {
+      if (idPeticion !== this.peticionListarEnCurso) return;
       await this.showToast(e?.message ?? 'No se pudo cargar la lista de facturas.', 'danger');
     } finally {
-      this.cargando = false;
+      if (idPeticion === this.peticionListarEnCurso) this.cargando = false;
     }
   }
 
@@ -160,6 +177,10 @@ export class FacturasRecibidasPage implements OnInit {
   }
 
   triggerGuardadoRapido() {
+    // Defensa en profundidad: el botón ya está oculto por *ngIf="mostrarGuardadoRapido" en
+    // la plantilla, pero por si acaso se llega a llamar de otra forma, no se dispara ningún
+    // selector de fichero que acabaría en una llamada al endpoint todavía no desplegado.
+    if (!this.mostrarGuardadoRapido) return;
     this.fileInputRapido?.nativeElement.click();
   }
 

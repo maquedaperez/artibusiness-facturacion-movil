@@ -99,7 +99,16 @@ export class HttpSuppliersRepository extends SuppliersRepository {
       throw new Error('No se ha podido identificar la empresa de tu sesión. Vuelve a iniciar sesión e inténtalo de nuevo.');
     }
 
-    const body = { idEmpresa, nombre: q, top: pageSize };
+    // El placeholder del selector promete "nombre o NIF" — Enumerar admite los dos, pero
+    // como filtros AND (no OR: no se puede mandar nombre+dni a la vez esperando que
+    // cualquiera de los dos valga), hace falta decidir cuál mandar. NIF/CIF/NIE españoles
+    // tienen 9 caracteres y siempre mezclan letras y dígitos (NIF: 8 dígitos + letra; CIF:
+    // letra + 7-8 dígitos; NIE: letra + 7 dígitos + letra) — un nombre de proveedor normal
+    // no cumple eso a la vez, así que sirve como heurística simple y fiable para decidir.
+    // BUG real corregido en auditoría 2026-08-14: antes SIEMPRE se mandaba nombre, así que
+    // teclear un NIF nunca encontraba nada aunque el proveedor existiera.
+    const pareceNif = q.length === 9 && /[A-Za-z]/.test(q) && /\d/.test(q);
+    const body = pareceNif ? { idEmpresa, dni: q, top: pageSize } : { idEmpresa, nombre: q, top: pageSize };
     const resultado = await this.api.post<ProveedorApi[]>(`${PROVEEDORES_BASE_PATH}/Enumerar`, body);
     const items = (resultado ?? []).map(mapearProveedor);
 

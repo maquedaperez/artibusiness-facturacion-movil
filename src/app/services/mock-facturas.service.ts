@@ -79,6 +79,11 @@ export type LineaFactura = {
   precioUnitario: number;
   descuentoPct: number;
   ivaPct: number;
+  // Solo Facturas Recibidas: id real de la línea en Facturacion$FacturasRecibidasLineas,
+  // presente cuando la línea viene de leer una factura real del backend. Al volver a
+  // guardar, se manda de vuelta para que el backend actualice esa línea en vez de
+  // borrarla y crear una nueva (GuardarAsync ya soporta esto por id_facturaRecibidaLinea).
+  idLineaBackend?: number;
 };
 
 // Producto/servicio del catálogo de la empresa — buscado bajo demanda, nunca
@@ -268,18 +273,27 @@ export type FacturaRecibida = {
   // nosotros. Se muestra igualmente solo en el bloque de totales, nunca por línea.
   retencionPct: number;
   pagada: boolean;
-  // 'revisada' es un estado de repaso INTERNO de esta app — a diferencia de Emitidas,
-  // las facturas recibidas nunca se remiten a Verifactu/AEAT desde aquí, así que este
-  // estado NO implica contabilización fiscal ni bloqueo contable. No usar como sinónimo
-  // de "contabilizada" en código, comentarios, tests ni documentación.
+  // Corrección 2026-08-14: el código numérico 132 corresponde a "Contabilizada" en
+  // ag_estado, no a un simple repaso interno — el nombre 'revisada' se queda por no tocar
+  // el resto del código que ya lo usa, pero SÍ implica bloqueo contable real (por eso
+  // accountingLocked se deriva de este estado en received-invoices.repository.http.ts).
+  // 131=Borrador es el único estado libremente editable; cualquier otro código (132,
+  // 133/'firmada' si algún día aplicara, o uno no reconocido) cae en 'revisada' por
+  // defecto — conservador a propósito, ver estadoDesdeApi().
   estado: 'borrador' | 'revisada';
   origenOcr: boolean;
   documentoUrl?: string;
   documentoNombre?: string;
-  // Bloqueo contable real — SOLO lo marca el backend (allowedActions o este campo
-  // equivalente) cuando confirme un cierre contable de verdad. Nunca se infiere a
-  // partir de 'estado' ni de 'pagada'. Mientras nadie lo marque (todo el MVP mock
-  // actual), la factura sigue siendo editable — ver docs/SERVICE_CONTRACT_GAPS.md.
+  // Solo Facturas Recibidas: true mientras la factura solo existe en el almacén local de
+  // esta sesión (recién escaneada/creada a mano/duplicada, todavía sin guardar de verdad, o
+  // datos de ejemplo del modo mock puro) — nunca inferido a partir del id. Antes se usaba
+  // "id >= 100" para distinguirlo, pero un id real del backend puede perfectamente ser >=
+  // 100 en cualquier empresa con más de un puñado de facturas — ese criterio podía
+  // colisionar. Ver listar() en received-invoices.repository.http.ts.
+  esBorradorLocal?: boolean;
+  // Bloqueo contable real — lo deriva HttpReceivedInvoicesRepository a partir del estado
+  // (132/'revisada' = contabilizada = bloqueada) para toda factura leída del backend real.
+  // Mientras nadie lo marque (modo mock puro), la factura sigue siendo editable.
   accountingLocked?: boolean;
   accountingLockReason?: string;
   accountingPeriodClosed?: boolean;
@@ -353,11 +367,18 @@ export function accionesFacturaEmitida(f: FacturaEmitida): AccionesPermitidas {
 // un DELETE simple, sin recalcular nada, así que no se ve afectado: si algún día llega un
 // bloqueo de cierre contable real, ahí sí habría que reconsiderar si eliminar debe seguir
 // permitido.
+// 'eliminar' se bloquea aparte de 'editar', por pagada — no por accountingLocked (borrar no
+// recalcula nada, sigue sin depender de si se puede reeditar). Protección conservadora en
+// el front: el backend (EliminarAsync) todavía no impide borrar una factura pagada, pero de
+// cara a esta demo no tiene sentido dejar borrar desde la app algo que representa un pago ya
+// hecho, sin ningún movimiento contable real detrás — fuera de alcance (pagos vía
+// agt_caja), pendiente de que el backend lo autorice de verdad.
 export function accionesFacturaRecibida(f: FacturaRecibida): AccionesPermitidas {
+  const eliminar = !f.pagada;
   if (f.accountingLocked) {
-    return { editar: false, eliminar: true, copiar: true, descargar: true, compartir: true };
+    return { editar: false, eliminar, copiar: true, descargar: true, compartir: true };
   }
-  return { editar: true, eliminar: true, copiar: true, descargar: true, compartir: true };
+  return { editar: true, eliminar, copiar: true, descargar: true, compartir: true };
 }
 
 export const IVA_RATES = [0, 4, 10, 21];
@@ -794,7 +815,9 @@ ${filas}
   }
 
   crearManual(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): FacturaRecibida {
-    const nueva: FacturaRecibida = { id: nextRecibidaId++, origenOcr: false, ...data };
+    // esBorradorLocal siempre true al final, después de ...data — si 'data' viniera de
+    // duplicar una factura real (que no lo lleva marcado), no debe heredar ese "vacío".
+    const nueva: FacturaRecibida = { id: nextRecibidaId++, origenOcr: false, ...data, esBorradorLocal: true };
     this.recibidas.unshift(nueva);
     return nueva;
   }
@@ -805,7 +828,7 @@ ${filas}
   // Recibidas (listar/editar/eliminar) sigue sin existir (gap #13), así que de momento
   // siguen apoyándose en este mismo mock aunque la extracción ya sea real.
   registrarRecibidaExtraida(data: Omit<FacturaRecibida, 'id'>): FacturaRecibida {
-    const nueva: FacturaRecibida = { id: nextRecibidaId++, ...data };
+    const nueva: FacturaRecibida = { id: nextRecibidaId++, ...data, esBorradorLocal: true };
     this.recibidas.unshift(nueva);
     return nueva;
   }
@@ -854,19 +877,19 @@ ${filas}
       vencimiento: '',
       concepto: original.concepto,
       formaPago: original.formaPago,
-      lineas: original.lineas.map(l => ({ ...l, id: nextLineaId++ })),
+      // idLineaBackend se descarta a propósito: la copia son líneas NUEVAS, no ediciones de
+      // las líneas del original — mandar el id real de otra factura en el guardado
+      // confundiría al backend (intentaría actualizar la línea equivocada).
+      lineas: original.lineas.map(({ idLineaBackend, ...resto }) => ({ ...resto, id: nextLineaId++ })),
       retencionPct: original.retencionPct,
       pagada: false,
       estado: 'borrador',
       origenOcr: false,
-      // Si el original venía del backend real, sus líneas llevan ivaPct=0 como marcador
-      // (el backend todavía no expone el catálogo de Impuestos, no se pudo reconstruir el
-      // % real por línea — ver received-invoices.repository.http.ts). Sin este aviso, la
-      // copia parecería una factura legítimamente exenta de IVA al 0%, cuando en realidad
-      // es un dato que falta, no un hecho de la factura.
-      avisosOcr: original.totalesReales
-        ? ['Esta copia viene de una factura real: el % de IVA por línea no se pudo reconstruir (aparece en 0%). Revisa y corrige el IVA de cada línea antes de guardar.']
-        : undefined,
+      esBorradorLocal: true,
+      // El ivaPct de las líneas SÍ es fiable aunque el original venga del backend real (se
+      // reconstruye desde idImpuesto al leerlo, ver mapearLinea en
+      // received-invoices.repository.http.ts) — ya no hace falta avisar de nada aquí.
+      avisosOcr: undefined,
     };
     this.recibidas.unshift(copia);
     return copia;

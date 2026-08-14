@@ -4,10 +4,12 @@ import { IonChip, IonIcon, IonLabel } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { informationCircleOutline } from 'ionicons/icons';
 
-// Indicador único y reutilizable de "modo demo": se usa en todas las pantallas
-// principales del MVP para que quede claro en todo momento que los datos y las
-// acciones fiscales (contabilizar/firmar/OCR) son simulados, nunca una conexión
-// real a Verifactu/AEAT.
+// Indicador único y reutilizable del entorno de esta demo: por defecto avisa de que los
+// datos son simulados (la mayoría de módulos todavía lo son), pero el texto es
+// configurable por página vía [titulo] — Facturas Recibidas, por ejemplo, ya habla con el
+// backend real de Development, así que usa un mensaje distinto (ver
+// facturas-recibidas.page.html) en vez de decir "simulado" sobre datos que sí se guardan
+// de verdad. Nunca representa una conexión real a Verifactu/AEAT en ningún módulo.
 @Component({
   selector: 'app-demo-banner',
   standalone: true,
@@ -15,7 +17,7 @@ import { informationCircleOutline } from 'ionicons/icons';
   template: `
     <ion-chip color="medium" class="demo-banner">
       <ion-icon name="information-circle-outline"></ion-icon>
-      <ion-label>Modo demo — datos simulados<ng-container *ngIf="detalle">, {{ detalle }}</ng-container></ion-label>
+      <ion-label>{{ titulo }}<ng-container *ngIf="detalle">, {{ detalle }}</ng-container></ion-label>
     </ion-chip>
   `,
   styles: [`
@@ -31,6 +33,11 @@ import { informationCircleOutline } from 'ionicons/icons';
   `],
 })
 export class DemoBannerComponent {
+  // Configurable por página, no por un flag global: distintos módulos pueden estar en
+  // estados distintos a la vez (Recibidas ya habla con el backend real de Development;
+  // otros siguen siendo mock puro) — cada página sabe la verdad sobre sus propios datos,
+  // así que decide su propio texto en vez de una comprobación repartida por toda la app.
+  @Input() titulo = 'Modo demo — datos simulados';
   @Input() detalle?: string;
 
   constructor() {

@@ -137,11 +137,19 @@ export class FacturaRecibidaDetallePage implements OnInit {
     };
   }
 
-  // A diferencia de Emitidas, aquí NO se mira 'estado' — una recibida "revisada" es
-  // solo un repaso interno, no un cierre contable. El único motivo real para bloquear
-  // la edición es accountingLocked, que hoy no marca nadie en el mock.
+  // accountingLocked lo deriva HttpReceivedInvoicesRepository a partir del estado real
+  // (132/'revisada' = contabilizada = bloqueada; 131/'borrador' se puede reeditar y volver
+  // a guardar con garantías, ver mapearCabecera/mapearLinea).
   get esEditable(): boolean {
     return this.esNueva || !this.working.accountingLocked;
+  }
+
+  // 'pagada' solo se puede marcar/desmarcar al dar de alta una factura nueva — una vez que
+  // ya es real (recién guardada esta sesión, o leída del backend), cambiarla aquí sería
+  // fingir un cambio de estado de pago sin ningún movimiento contable real detrás (fuera de
+  // alcance de esta app: pagos vía agt_caja). Se muestra como dato de solo lectura.
+  get pagadaEditable(): boolean {
+    return this.esNueva;
   }
 
   // Igual patrón que en Emitidas: "working" es un formulario (sin id) mientras no se
@@ -192,12 +200,15 @@ export class FacturaRecibidaDetallePage implements OnInit {
   // (calcularTotalesLineas) — el guardado no envía este cálculo, solo las líneas y
   // el % de retención; el total definitivo lo sigue calculando el repositorio/backend.
   //
-  // Si la factura viene del backend real (working.totalesReales), se usan esos importes
-  // tal cual en vez de recalcular: 'lineas' aquí no lleva el IVA por línea real (el
-  // backend todavía no expone el catálogo de impuestos — ver mapearCabecera en
-  // received-invoices.repository.http.ts), así que recalcular daría un número inventado.
+  // Si la factura viene del backend real Y no es editable ahora mismo (working.totalesReales,
+  // solo mientras esté bloqueada), se muestran esos importes oficiales tal cual en vez de
+  // recalcular. En cuanto es editable (borrador real desbloqueado, o cualquier borrador
+  // local), se recalcula en vivo desde 'lineas' — el ivaPct de cada línea ya es fiable
+  // (reconstruido desde idImpuesto al leerla, ver mapearLinea), así que si el usuario edita
+  // una línea, el total mostrado tiene que reflejarlo al momento, no quedarse congelado con
+  // el valor de cuando se abrió la factura.
   totales(): TotalesFactura {
-    if (this.working.totalesReales) return this.working.totalesReales;
+    if (this.working.totalesReales && !this.esEditable) return this.working.totalesReales;
 
     const cfg: ConfiguracionRetencion = {
       aplicable: this.working.retencionPct > 0,
@@ -299,6 +310,13 @@ export class FacturaRecibidaDetallePage implements OnInit {
 
   async confirmarEliminar() {
     if (this.facturaId == null) return;
+    // Protección conservadora en el front (el backend todavía no lo impide, ver
+    // AUDITORIA_INTEGRACION_BACKEND.md): no tiene sentido dejar borrar desde la app algo
+    // marcado como ya pagado sin ningún movimiento contable real detrás.
+    if (this.working.pagada) {
+      await this.showToast('No se puede eliminar una factura marcada como pagada.', 'danger');
+      return;
+    }
 
     const alert = await this.alertCtrl.create({
       header: 'Eliminar factura',

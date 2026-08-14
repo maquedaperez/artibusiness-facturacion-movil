@@ -47,6 +47,19 @@ describe('HttpSuppliersRepository', () => {
     );
   });
 
+  // BUG real corregido en auditoría 2026-08-14: el placeholder del selector prometía
+  // "nombre o NIF", pero siempre se mandaba como 'nombre' — teclear un NIF real no
+  // encontraba nunca nada porque Enumerar filtra por dni con un campo aparte.
+  it('si el texto parece un NIF/CIF, busca por dni en vez de por nombre', async () => {
+    await repo.buscar('B12345678');
+    expect(apiSpy.post).toHaveBeenCalledWith('/api/Proveedores/Enumerar', { idEmpresa: 9, dni: 'B12345678', top: 20 });
+  });
+
+  it('un texto que no tiene pinta de NIF sigue buscando por nombre', async () => {
+    await repo.buscar('Iberdrola');
+    expect(apiSpy.post).toHaveBeenCalledWith('/api/Proveedores/Enumerar', { idEmpresa: 9, nombre: 'Iberdrola', top: 20 });
+  });
+
   it('mapea la respuesta del backend a ProveedorMock, prefiriendo nombreCompleto e incluyendo la dirección de facturación', async () => {
     apiSpy.post.and.resolveTo([
       {

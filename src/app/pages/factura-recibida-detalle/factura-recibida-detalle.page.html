@@ -92,8 +92,14 @@
         </ion-select>
       </ion-item>
 
-      <ion-item lines="none" [disabled]="!esEditable">
+      <ion-item lines="none" *ngIf="pagadaEditable">
         <ion-checkbox [(ngModel)]="working.pagada">Pagada</ion-checkbox>
+      </ion-item>
+      <ion-item lines="none" *ngIf="!pagadaEditable">
+        <ion-label>Pagada</ion-label>
+        <ion-text slot="end" [color]="working.pagada ? 'success' : 'medium'">
+          {{ working.pagada ? 'Sí' : 'No' }}
+        </ion-text>
       </ion-item>
     </ion-card-content>
   </ion-card>

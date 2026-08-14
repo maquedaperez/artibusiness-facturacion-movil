@@ -209,34 +209,29 @@ type CrearDesdeDocumentoApi = {
   avisos: string[];
 };
 
-// El catálogo de Impuestos YA existe (Enumerar/{id}), pero deliberadamente no se usa aquí
-// para reconstruir el IVA real por línea de facturas YA GUARDADAS en el backend — solo se
-// usa en sentido contrario (ivaPct → idImpuesto) al CREAR/EDITAR líneas nuevas, donde el
-// % ya es un dato de confianza (elegido por el usuario o extraído por el OCR). Reconstruir
-// hacia atrás aquí exigiría volver a sumar el desglose por línea y compararlo contra
-// dto.iva (el importe ya fiable que da el backend) para no arriesgarse a mostrar un
-// desglose que no cuadre con el total — trabajo real, pendiente, no un simple lookup.
-// Mientras tanto: totalesReales usa los importes ya calculados por el backend (fiables), y
-// el desglose por tipo se sustituye por un aviso con el importe total de IVA en texto.
+// Bloqueo de edición: SOLO para facturas ya "revisadas" (estado 132) — un repaso ya hecho
+// no debe tocarse a la ligera desde aquí. Una factura real en borrador (131) sí se puede
+// reeditar: cada línea ya trae su idImpuesto, y esa relación id→% es unívoca (a diferencia
+// del sentido contrario, %→id, donde sí puede haber duplicados) — no hay ambigüedad al
+// reconstruir el ivaPct real de cada línea, así que ya no hace falta bloquear la edición
+// "por si acaso". BUG real corregido en revisión con el jefe 2026-08-14: antes se marcaba
+// accountingLocked=true para CUALQUIER factura leída del backend, sin mirar el estado.
 function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
   const base = dto.total;
   const retencionPctAprox = base > 0 ? Math.round((dto.irpf / base) * 100) : 0;
+  const estado = estadoDesdeApi(dto.estado);
+  const bloqueada = estado === 'revisada';
 
   const avisos: string[] = [];
-  if (dto.iva > 0) {
-    avisos.push(
-      `IVA total de esta factura: ${formatEuros(dto.iva)}. El desglose por tipo no se ` +
-      'recalcula aquí para no arriesgarse a que no cuadre con este importe, que ya es el real.'
-    );
-  }
   if (dto.suplidos > 0) {
     avisos.push(`Incluye ${formatEuros(dto.suplidos)} en suplidos, ya sumados al total a pagar.`);
   }
-  avisos.push(
-    'Esta factura viene del sistema real. Todavía no se puede editar desde aquí: no se puede ' +
-    'reconstruir con garantías el IVA real de cada línea ya guardada. Si necesitas corregirla, ' +
-    'bórrala y créala de nuevo.'
-  );
+  if (bloqueada) {
+    avisos.push(
+      'Esta factura ya está revisada. Para corregirla, bórrala y créala de nuevo — reeditar ' +
+      'una factura ya repasada podría descuadrar la contabilidad si alguien más ya la dio por buena.'
+    );
+  }
 
   return {
     id: dto.idFacturaRecibida,
@@ -255,11 +250,11 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
     lineas: [],
     retencionPct: retencionPctAprox,
     pagada: dto.pagada,
-    estado: estadoDesdeApi(dto.estado),
+    estado,
     origenOcr: dto.escaneada,
-    accountingLocked: true,
-    accountingLockReason: 'Factura del sistema real: no se puede reconstruir el IVA real por línea para reeditarla.',
-    avisosOcr: avisos,
+    accountingLocked: bloqueada,
+    accountingLockReason: bloqueada ? 'Factura ya revisada: bórrala y créala de nuevo si necesitas corregirla.' : undefined,
+    avisosOcr: avisos.length > 0 ? avisos : undefined,
     totalesReales: {
       base,
       desgloseIva: [],
@@ -276,17 +271,23 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
   };
 }
 
-function mapearLinea(l: FacturaRecibidaLineaApi, nuevoId: () => number): LineaFactura {
+// catalogoImpuestos: id→% es unívoco (cada idImpuesto tiene un solo porcentaje) — a
+// diferencia de resolverIdImpuesto (%→id, donde SÍ puede haber duplicados), esta dirección
+// nunca es ambigua, así que reconstruir el ivaPct real de una línea ya guardada es fiable.
+function mapearLinea(l: FacturaRecibidaLineaApi, nuevoId: () => number, catalogoImpuestos: ImpuestoApi[]): LineaFactura {
+  const impuesto = catalogoImpuestos.find(i => i.idImpuesto === l.idImpuesto);
   return {
     id: nuevoId(),
+    idLineaBackend: l.idFacturaRecibidaLinea,
     origen: 'manual',
     descripcion: l.descripcion?.trim() || 'Sin descripción',
     cantidad: l.cantidad,
     precioUnitario: l.precioUnitario,
     descuentoPct: 0,
-    // No reconstruible sin el catálogo de Impuestos (ver mapearCabecera) — el importe de
-    // IVA real de la factura completa sí se ve en el aviso de totalesReales.
-    ivaPct: 0,
+    // Si el id_impuesto ya no existe en el catálogo vigente (p.ej. se dio de baja), se cae
+    // a 0% en vez de reventar — caso raro, pero mejor mostrar un dato conservador que
+    // lanzar un error al abrir la factura.
+    ivaPct: impuesto?.porcentaje ?? 0,
   };
 }
 
@@ -342,10 +343,12 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   private mediosPagoCache: Promise<MedioPagoApi[]> | null = null;
 
   async listar(filtros?: FiltrosListarRecibidas): Promise<FacturaRecibida[]> {
-    // 'top' todavía no lo soporta el backend (Enumerar no pagina, devuelve todo lo que haya
-    // para la empresa) — se manda ya para que, en cuanto lo soporte, empiece a limitar sin
-    // tener que tocar nada más aquí. Mientras tanto no tiene efecto (el binding de ASP.NET
-    // ignora campos que no existen en EnumerarFacturasRecibidasRequest).
+    // Corrección 2026-08-14: 'top' SÍ lo soporta el backend (Enumerar aplica TOP N cuando
+    // se manda, confirmado en FacturaRecibidaService.EnumerarAsync) — el comentario anterior
+    // decía lo contrario, ya estaba desactualizado. Sigue sin haber paginación real (no hay
+    // 'page'/'skip'), así que esto limita cuántas trae la respuesta, pero no permite pedir
+    // "la página siguiente" — de ahí PAGINA_TAMANO=50 y el aviso "Últimas 50 facturas" en la
+    // UI cuando no hay filtro de búsqueda activo.
     //
     // nombreProveedor/pagada/estado SÍ los soporta ya Enumerar — se mandan tal cual en vez
     // de descargarlo todo y filtrar en el cliente, así una búsqueda encuentra facturas
@@ -374,13 +377,16 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     // cortar los primeros PAGINA_TAMANO sigue siendo "las más recientes".
     const cabecerasRecortadas = (cabeceras ?? []).slice(0, PAGINA_TAMANO);
 
-    // Los 2 registros de ejemplo del mock (id 1 y 2, fijos en MockFacturasService) son solo
-    // demo y no tiene sentido mezclarlos con datos reales del backend. Los creados en esta
-    // sesión sí (OCR/duplicar/manual, siempre id >= 100 por la convención ya existente de
-    // nextRecibidaId): aunque Guardar ya es real, siguen siendo solo locales hasta que el
-    // usuario pulsa "Guardar" en el detalle — sin este merge desaparecerían de la lista
+    // Los 2 registros de ejemplo del mock (id 1 y 2, fijos en MockFacturasService, sin
+    // esBorradorLocal) son solo demo y no tiene sentido mezclarlos con datos reales del
+    // backend. Los creados en esta sesión sí (OCR/duplicar/manual, marcados explícitamente
+    // esBorradorLocal=true): aunque Guardar ya es real, siguen siendo solo locales hasta que
+    // el usuario pulsa "Guardar" en el detalle — sin este merge desaparecerían de la lista
     // nada más crearlas, antes de que a nadie le haya dado tiempo a revisarlas y guardarlas.
-    const borradoresLocales = locales.filter(f => f.id >= 100);
+    // Corrección 2026-08-14: antes se usaba "id >= 100" para distinguirlo — un id real del
+    // backend puede perfectamente ser >= 100 en cualquier empresa con más de un puñado de
+    // facturas, así que ese criterio podía colisionar y mostrar datos equivocados.
+    const borradoresLocales = locales.filter(f => f.esBorradorLocal === true);
 
     // BUG real encontrado en pruebas manuales (2026-08-14): antes se devolvían las reales
     // primero y los borradores locales anexados al final sin más, así que un borrador recién
@@ -398,7 +404,8 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       const dto = await this.api.get<FacturaRecibidaDetalleApi>(`${RECIBIDAS_BASE_PATH}/${id}`);
       if (dto) {
         const factura = mapearCabecera(dto);
-        factura.lineas = (dto.lineas ?? []).map(l => mapearLinea(l, () => this.nuevoIdLinea()));
+        const catalogoImpuestos = await this.obtenerImpuestos();
+        factura.lineas = (dto.lineas ?? []).map(l => mapearLinea(l, () => this.nuevoIdLinea(), catalogoImpuestos));
         return factura;
       }
     } catch (e) {
@@ -418,14 +425,26 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   }
 
   async actualizar(id: number, data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): Promise<FacturaRecibida> {
-    // Alcanzable hoy SOLO sobre borradores locales (OCR/manual/duplicar): reeditar una
-    // factura YA real está bloqueado en la UI (accountingLocked, ver mapearCabecera), así
-    // que esto es siempre "primer guardado real de un borrador local", nunca una
-    // actualización de verdad — se manda como alta (sin id), igual que crearManual, y
-    // después se borra el borrador local, que deja de tener sentido una vez que ya existe
-    // la versión real con su propio id (evita verla duplicada en la lista).
-    const guardada = await this.guardarReal(data);
-    this.mockAdapter.eliminar(id);
+    // BUG real corregido 2026-08-14 (guardado duplicado): antes esto SIEMPRE mandaba un
+    // alta (sin idFacturaRecibida), asumiendo que actualizar() solo se alcanzaba sobre
+    // borradores locales — cierto la PRIMERA vez, pero una factura real en estado borrador
+    // ya se puede reeditar (ver mapearCabecera: accountingLocked ahora depende del estado,
+    // no es siempre true), así que un segundo "Guardar" sobre la misma factura real
+    // volvía a hacer un INSERT en vez de un UPDATE — cada guardado sucesivo creaba una fila
+    // nueva y dejaba la anterior huérfana en la base de datos.
+    //
+    // El almacén local (mockAdapter) sigue siendo la fuente de verdad de "¿esto es todavía
+    // un borrador sin guardar, o ya es una factura real?": si el id sigue ahí, es la
+    // primera vez que se guarda de verdad (alta); si ya no está, es un id real del backend
+    // (se guardó antes en esta sesión, o se leyó de obtenerPorId) y toca actualizar esa
+    // misma fila.
+    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
+    if (borradorLocal) {
+      const guardada = await this.guardarReal(data);
+      this.mockAdapter.eliminar(id);
+      return guardada;
+    }
+    const guardada = await this.guardarReal(data, id);
     return guardada;
   }
 
@@ -602,7 +621,8 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     );
 
     const factura = mapearCabecera(resultado.factura);
-    factura.lineas = (resultado.factura.lineas ?? []).map(l => mapearLinea(l, () => this.nuevoIdLinea()));
+    const catalogoImpuestos = await this.obtenerImpuestos();
+    factura.lineas = (resultado.factura.lineas ?? []).map(l => mapearLinea(l, () => this.nuevoIdLinea(), catalogoImpuestos));
     if (resultado.avisos?.length) {
       factura.avisosOcr = [...(factura.avisosOcr ?? []), ...resultado.avisos];
     }
@@ -695,9 +715,11 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return porcentajes.sort((a, b) => a - b);
   }
 
-  // El guardado real, común a crearManual (siempre alta) y actualizar (alta también, ver
-  // el comentario en ese método — reeditar una factura ya real está bloqueado hoy).
-  private async guardarReal(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): Promise<FacturaRecibida> {
+  // El guardado real, común a crearManual (siempre alta) y actualizar (alta la primera vez,
+  // actualización de verdad a partir de la segunda — ver el comentario en actualizar()).
+  // 'idExistente' es el id real del backend a actualizar; sin él, el backend hace un alta
+  // (GuardarAsync: esNueva = !IdFacturaRecibida.HasValue).
+  private async guardarReal(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>, idExistente?: number): Promise<FacturaRecibida> {
     if (!data.idProveedor) {
       throw new Error(
         'Selecciona el proveedor de la lista (o créalo) antes de guardar — no se puede ' +
@@ -714,6 +736,11 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     const [tipoFactura, lineasConImpuesto] = await Promise.all([
       this.obtenerTipoFactura(),
       Promise.all(data.lineas.map(async l => ({
+        // Se manda el id real de la línea cuando existe (viene de leer una factura real del
+        // backend) — así GuardarAsync la actualiza en vez de borrarla y crear una nueva.
+        // Una línea añadida a mano en esta sesión no lo tiene: se manda undefined, que
+        // JSON.stringify simplemente omite, y el backend la trata como alta.
+        idFacturaRecibidaLinea: l.idLineaBackend,
         descripcion: l.descripcion,
         cantidad: l.cantidad,
         precioUnitario: l.precioUnitario,
@@ -727,6 +754,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     const totales = calcularTotalesLineas(data.lineas, cfgRetencion);
 
     const body = {
+      idFacturaRecibida: idExistente,
       idProveedor: data.idProveedor,
       numFacRec: data.numFactura.trim(),
       // concepto es obligatorio en Guardar; si el usuario lo dejó vacío, usamos el número
@@ -748,12 +776,15 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
 
     const dto = await this.api.post<FacturaRecibidaDetalleApi>(`${RECIBIDAS_BASE_PATH}/Guardar`, body);
 
-    // No pasa por mapearCabecera/mapearLinea a propósito: esas funciones asumen que no
-    // conocemos el IVA real por línea (el caso de leer algo ya existente vía Enumerar/
-    // Obtener). Aquí SÍ lo conocemos — acabamos de resolverlo nosotros mismos — así que se
-    // devuelve la factura tal cual la teníamos, solo con el id real que ha asignado el
-    // backend. Tampoco se marca accountingLocked: no hay motivo para bloquear reeditar algo
-    // que acabamos de guardar en la misma sesión con datos que sí conocemos bien.
-    return { ...data, id: dto.idFacturaRecibida, origenOcr: !!data.documentoUrl };
+    // No pasa por mapearCabecera/mapearLinea a propósito: esas funciones están pensadas
+    // para leer una factura ya guardada desde cero (Enumerar/Obtener). Aquí ya tenemos los
+    // datos en 'data' (ivaPct incluido, elegido por el usuario o reconstruido al leerla) —
+    // se devuelve tal cual, solo con el id real de cabecera y de cada línea que acaba de
+    // asignar el backend, para que un guardado posterior pueda actualizar en vez de
+    // duplicar. accountingLocked se conserva tal cual venía en 'data' (false para un
+    // borrador nunca bloqueado; puede venir true si esto es una factura ya 'revisada' que
+    // se guarda por alguna otra vía, aunque hoy la UI no lo permite editar).
+    const lineas = data.lineas.map((l, i) => ({ ...l, idLineaBackend: dto.lineas?.[i]?.idFacturaRecibidaLinea }));
+    return { ...data, lineas, id: dto.idFacturaRecibida, origenOcr: !!data.documentoUrl };
   }
 }

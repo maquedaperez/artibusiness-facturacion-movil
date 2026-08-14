@@ -1,60 +1,221 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
+import { ActivatedRoute } from '@angular/router';
 import { ModalController, provideIonicAngular } from '@ionic/angular/standalone';
 import { FacturaRecibidaDetallePage } from './factura-recibida-detalle.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { ApiService } from '../../services/api.service';
+import { ReceivedInvoicesRepository } from '../../core/ports';
+import { FacturaRecibida } from '../../services/mock-facturas.service';
 
 describe('FacturaRecibidaDetallePage', () => {
   let component: FacturaRecibidaDetallePage;
   let fixture: ComponentFixture<FacturaRecibidaDetallePage>;
 
-  beforeEach(async () => {
-    // ReceivedInvoicesRepository resuelve al adaptador HTTP real: obtenerPorId() sin esto
-    // llamaría de verdad a GET api/FacturasRecibidas/{id} contra el servidor de Karma.
-    const apiStub: Partial<ApiService> = { get: jasmine.createSpy().and.rejectWith(new Error('HTTP 404')) };
+  // 'routeId' simula el parámetro :id de la URL ('nueva' para alta manual, un id numérico
+  // para abrir una factura ya existente). apiStub sustituye ApiService entero: por defecto
+  // get() rechaza con 404 (para que obtenerPorId caiga al almacén local, igual que contra
+  // el backend real cuando el id no existe todavía) y post() resuelve vacío (catálogos).
+  async function configurar(routeId: string, apiStub: Partial<ApiService> = {}) {
     TestBed.configureTestingModule({
       imports: [FacturaRecibidaDetallePage, RouterTestingModule],
-      providers: [...MOCK_REPOSITORY_PROVIDERS, provideIonicAngular(), { provide: ApiService, useValue: apiStub }],
+      providers: [
+        ...MOCK_REPOSITORY_PROVIDERS,
+        provideIonicAngular(),
+        {
+          provide: ApiService,
+          useValue: {
+            get: jasmine.createSpy().and.rejectWith(new Error('HTTP 404')),
+            post: jasmine.createSpy().and.resolveTo([]),
+            delete: jasmine.createSpy().and.resolveTo(undefined),
+            ...apiStub,
+          },
+        },
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => routeId } } } },
+      ],
     });
     fixture = TestBed.createComponent(FacturaRecibidaDetallePage);
     component = fixture.componentInstance;
     fixture.detectChanges();
-    // ngOnInit ahora es async (obtenerPorId habla con el repositorio real en producción).
     await fixture.whenStable();
+  }
+
+  function facturaBorradorReal(overrides: Partial<FacturaRecibida> = {}): FacturaRecibida {
+    return {
+      id: 501, proveedor: 'Iberdrola', proveedorNif: 'A95758389', idProveedor: 7,
+      numFactura: 'F-501', fecha: '2026-08-01', vencimiento: '',
+      concepto: 'Luz', lineas: [{ id: 1, origen: 'manual', descripcion: 'Luz', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 }],
+      retencionPct: 0, pagada: false, estado: 'borrador', origenOcr: false,
+      accountingLocked: false, // 131/borrador: no bloqueada
+      ...overrides,
+    };
+  }
+
+  describe('estado por defecto (id sin resolver, factura no encontrada)', () => {
+    beforeEach(async () => configurar('999'));
+
+    it('should create', () => {
+      expect(component).toBeTruthy();
+    });
+
+    // idProveedor siempre es un id real del backend: tanto una búsqueda (POST
+    // /api/Proveedores/Enumerar) como un alta rápida (POST /api/Proveedores/Crear) lo
+    // devuelven así, y el selector dismissea los dos casos con el mismo role 'confirm'.
+    it('guarda idProveedor cuando el modal confirma (búsqueda o alta rápida, mismo role "confirm")', async () => {
+      const modalCtrl = TestBed.inject(ModalController);
+      spyOn(modalCtrl, 'create').and.resolveTo({
+        present: async () => {},
+        onWillDismiss: async () => ({ data: { nombre: 'Iberdrola', nif: 'A95758389', id: 42 }, role: 'confirm' }),
+      } as any);
+
+      await component.elegirProveedor();
+
+      expect(component.working.proveedor).toBe('Iberdrola');
+      expect(component.working.idProveedor).toBe(42);
+    });
+
+    it('NO toca el proveedor si el selector se cancela', async () => {
+      const modalCtrl = TestBed.inject(ModalController);
+      spyOn(modalCtrl, 'create').and.resolveTo({
+        present: async () => {},
+        onWillDismiss: async () => ({ data: null, role: 'cancel' }),
+      } as any);
+
+      const proveedorPrevio = component.working.proveedor;
+      await component.elegirProveedor();
+
+      expect(component.working.proveedor).toBe(proveedorPrevio);
+      expect(component.working.idProveedor).toBeUndefined();
+    });
+
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
+  describe('error real (no 404) al cargar la factura', () => {
+    beforeEach(async () => configurar('502', { get: jasmine.createSpy().and.rejectWith(new Error('HTTP 500 - Error interno del servidor.')) }));
+
+    it('se muestra el error real, no "factura no encontrada"', () => {
+      expect(component.errorMsg).toContain('500');
+    });
   });
 
-  // idProveedor siempre es un id real del backend: tanto una búsqueda (POST
-  // /api/Proveedores/Enumerar) como un alta rápida (POST /api/Proveedores/Crear) lo
-  // devuelven así, y el selector dismissea los dos casos con el mismo role 'confirm'.
-  it('guarda idProveedor cuando el modal confirma (búsqueda o alta rápida, mismo role "confirm")', async () => {
-    const modalCtrl = TestBed.inject(ModalController);
-    spyOn(modalCtrl, 'create').and.resolveTo({
-      present: async () => {},
-      onWillDismiss: async () => ({ data: { nombre: 'Iberdrola', nif: 'A95758389', id: 42 }, role: 'confirm' }),
-    } as any);
+  describe('alta manual (nueva)', () => {
+    beforeEach(async () => configurar('nueva'));
 
-    await component.elegirProveedor();
+    it('empieza en modo nueva, editable, sin id', () => {
+      expect(component.esNueva).toBeTrue();
+      expect(component.facturaId).toBeNull();
+      expect(component.esEditable).toBeTrue();
+      expect(component.pagadaEditable).toBeTrue();
+    });
 
-    expect(component.working.proveedor).toBe('Iberdrola');
-    expect(component.working.idProveedor).toBe(42);
+    it('crearManual() da de alta la factura y actualiza esNueva/facturaId con la respuesta real', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      spyOn(repo, 'crearManual').and.resolveTo({ ...facturaBorradorReal(), id: 900 });
+
+      component.working.proveedor = 'Iberdrola';
+      component.working.numFactura = 'F-900';
+      component.working.idProveedor = 7;
+      component.working.lineas = [{ id: 1, origen: 'manual', descripcion: 'Luz', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 }];
+
+      await component.guardar();
+
+      expect(component.esNueva).toBeFalse();
+      expect(component.facturaId).toBe(900);
+      expect(component.errorMsg).toBe('');
+    });
+
+    // BUG real corregido 2026-08-14 (guardado duplicado): pulsar "Guardar" una segunda vez
+    // sobre la misma factura ya guardada debe llamar a actualizar(id, ...) con el id real
+    // que devolvió el primer guardado — nunca a crearManual() otra vez, que crearía una
+    // fila nueva en vez de corregir la existente.
+    it('guardarla una segunda vez llama a actualizar(id, ...) con el mismo id, nunca vuelve a crearManual', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      const crearSpy = spyOn(repo, 'crearManual').and.resolveTo({ ...facturaBorradorReal(), id: 900 });
+      const actualizarSpy = spyOn(repo, 'actualizar').and.resolveTo({ ...facturaBorradorReal(), id: 900 });
+
+      component.working.proveedor = 'Iberdrola';
+      component.working.numFactura = 'F-900';
+      component.working.idProveedor = 7;
+      component.working.lineas = [{ id: 1, origen: 'manual', descripcion: 'Luz', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 }];
+
+      await component.guardar(); // primera vez: alta
+      component.working.concepto = 'Corregido';
+      await component.guardar(); // segunda vez: actualización
+
+      expect(crearSpy).toHaveBeenCalledTimes(1);
+      expect(actualizarSpy).toHaveBeenCalledTimes(1);
+      expect(actualizarSpy).toHaveBeenCalledWith(900, jasmine.objectContaining({ concepto: 'Corregido' }));
+      expect(component.facturaId).toBe(900); // sigue siendo el mismo id, no uno nuevo
+    });
+
+    it('no guarda sin proveedor seleccionado', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      const crearSpy = spyOn(repo, 'crearManual');
+
+      component.working.proveedor = 'Iberdrola';
+      component.working.numFactura = 'F-900';
+      // idProveedor sin definir a propósito
+
+      await component.guardar();
+
+      expect(crearSpy).not.toHaveBeenCalled();
+      expect(component.errorMsg).toContain('proveedor');
+    });
   });
 
-  it('NO toca el proveedor si el selector se cancela', async () => {
-    const modalCtrl = TestBed.inject(ModalController);
-    spyOn(modalCtrl, 'create').and.resolveTo({
-      present: async () => {},
-      onWillDismiss: async () => ({ data: null, role: 'cancel' }),
-    } as any);
+  describe('factura real en estado borrador (editable, ya no bloqueada indiscriminadamente)', () => {
+    beforeEach(async () => configurar('501', {
+      get: jasmine.createSpy().and.resolveTo({
+        idFacturaRecibida: 501, numFacRec: 'F-501', idProveedor: 7, nombreProveedor: 'Iberdrola',
+        concepto: 'Luz', total: 100, iva: 21, suplidos: 0, irpf: 0, importe: 121,
+        pagada: false, estado: 131, escaneada: false,
+        fechaFactura: '2026-08-01', fechaVencimiento: '2026-08-01',
+        idMedioPago: null, idTipoFactura: 1,
+        lineas: [{ idFacturaRecibidaLinea: 20, descripcion: 'Luz', cantidad: 1, precioUnitario: 100, importe: 100, idImpuesto: 1 }],
+      }),
+      post: jasmine.createSpy().and.resolveTo([{ idImpuesto: 1, descripcion: 'IVA 21%', porcentaje: 21, literalFactura: null, tipoFacturaE: 'IVA' }]),
+    }));
 
-    const proveedorPrevio = component.working.proveedor;
-    await component.elegirProveedor();
+    it('es editable (estado borrador, no contabilizada)', () => {
+      expect(component.esEditable).toBeTrue();
+    });
 
-    expect(component.working.proveedor).toBe(proveedorPrevio);
-    expect(component.working.idProveedor).toBeUndefined();
+    it('reconstruye el ivaPct real de la línea (no 0%) y conserva idLineaBackend', () => {
+      expect(component.working.lineas[0].ivaPct).toBe(21);
+      expect(component.working.lineas[0].idLineaBackend).toBe(20);
+    });
+
+    // Petición explícita en revisión 2026-08-14: 'pagada' no debe ser un checkbox libre en
+    // una factura ya real — cambiarla aquí fingiría un pago sin ningún movimiento contable
+    // real detrás (fuera de alcance: pagos vía agt_caja).
+    it('pagada NO es editable (ya es una factura real)', () => {
+      expect(component.pagadaEditable).toBeFalse();
+    });
+
+    it('bloquea el borrado si está marcada como pagada, sin llegar a llamar al repositorio', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      const eliminarSpy = spyOn(repo, 'eliminar');
+      component.working.pagada = true;
+
+      await component.confirmarEliminar();
+
+      expect(eliminarSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('factura real en estado revisada/contabilizada (bloqueada)', () => {
+    beforeEach(async () => configurar('502', {
+      get: jasmine.createSpy().and.resolveTo({
+        idFacturaRecibida: 502, numFacRec: 'F-502', idProveedor: 7, nombreProveedor: 'Iberdrola',
+        concepto: 'Luz', total: 100, iva: 21, suplidos: 0, irpf: 0, importe: 121,
+        pagada: false, estado: 132, escaneada: false,
+        fechaFactura: '2026-08-01', fechaVencimiento: '2026-08-01',
+        idMedioPago: null, idTipoFactura: 1, lineas: [],
+      }),
+    }));
+
+    it('NO es editable (estado 132 = contabilizada)', () => {
+      expect(component.esEditable).toBeFalse();
+    });
   });
 });

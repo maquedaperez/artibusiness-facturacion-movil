@@ -524,6 +524,35 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
     expect(factura?.estado).toBe('borrador');
   });
 
+  // Cubre el flujo "recargar el detalle y conservar IVA e identificadores" pedido en
+  // revisión 2026-08-14: al reabrir una factura real, cada línea debe traer de vuelta su %
+  // de IVA real (reconstruido desde idImpuesto, nunca 0%) y su id real de línea, para que un
+  // guardado posterior actualice en vez de duplicar.
+  it('obtenerPorId() reconstruye ivaPct e idLineaBackend de cada línea desde el catálogo de impuestos', async () => {
+    apiSpy.post.and.resolveTo([
+      { idImpuesto: 1, descripcion: 'IVA 21%', porcentaje: 21, literalFactura: null, tipoFacturaE: 'IVA' },
+      { idImpuesto: 2, descripcion: 'IVA 10%', porcentaje: 10, literalFactura: null, tipoFacturaE: 'IVA' },
+    ]);
+    apiSpy.get.and.resolveTo({
+      idFacturaRecibida: 503, numFacRec: 'F-503', idProveedor: 1, nombreProveedor: 'Proveedor',
+      concepto: 'x', total: 140, iva: 25, suplidos: 0, irpf: 0, importe: 165,
+      pagada: false, estado: 131, escaneada: false,
+      fechaFactura: '2026-08-01', fechaVencimiento: '2026-09-01',
+      idMedioPago: null, idTipoFactura: 1,
+      lineas: [
+        { idFacturaRecibidaLinea: 10, descripcion: 'Línea A', cantidad: 2, precioUnitario: 50, importe: 100, idImpuesto: 1 },
+        { idFacturaRecibidaLinea: 11, descripcion: 'Línea B', cantidad: 1, precioUnitario: 40, importe: 40, idImpuesto: 2 },
+      ],
+    });
+
+    const factura = await repo.obtenerPorId(503);
+
+    expect(factura?.lineas[0].ivaPct).toBe(21);
+    expect(factura?.lineas[0].idLineaBackend).toBe(10);
+    expect(factura?.lineas[1].ivaPct).toBe(10);
+    expect(factura?.lineas[1].idLineaBackend).toBe(11);
+  });
+
   it('limpia el punto de relleno del apellido1 al final de nombreProveedor', async () => {
     apiSpy.get.and.resolveTo({
       idFacturaRecibida: 502, numFacRec: 'F-502', idProveedor: 1,
@@ -759,20 +788,56 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       expect(apiSpy.get).toHaveBeenCalledTimes(1);
     });
 
-    it('actualizar() guarda como alta (mismo Guardar) y borra el borrador local previo', async () => {
+    it('actualizar() sobre un borrador local (primera vez) manda un alta y borra el borrador local previo', async () => {
       stubCatalogos();
       const mockAdapter = TestBed.inject(MockReceivedInvoicesRepository);
       const borrador = await mockAdapter.crearManual(datosBase);
 
       const guardada = await repo.actualizar(borrador.id, datosBase);
 
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/Guardar', jasmine.objectContaining({ idFacturaRecibida: undefined }));
       expect(guardada.id).toBe(900); // id real devuelto por Guardar, no el id local del borrador
       expect(await mockAdapter.obtenerPorId(borrador.id)).toBeUndefined(); // borrador local limpiado
+    });
+
+    // BUG real corregido 2026-08-14 (guardado duplicado): antes actualizar() SIEMPRE mandaba
+    // un alta, incluso sobre un id que ya era real (guardado antes en la misma sesión) —
+    // pulsar "Guardar" una segunda vez creaba una fila nueva en vez de actualizar la
+    // existente, dejando la anterior huérfana. Ahora, una vez que el id ya no está en el
+    // almacén local (se limpió tras el primer guardado), actualizar() manda idFacturaRecibida
+    // y el mismo id se conserva.
+    it('actualizar() una segunda vez sobre la misma factura ya real actualiza la misma fila, no crea otra', async () => {
+      stubCatalogos();
+
+      const primera = await repo.crearManual(datosBase);
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/Guardar', jasmine.objectContaining({ idFacturaRecibida: undefined }));
+
+      const segunda = await repo.actualizar(primera.id, { ...datosBase, concepto: 'Corregido tras el primer guardado' });
+
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/Guardar', jasmine.objectContaining({ idFacturaRecibida: primera.id }));
+      expect(segunda.id).toBe(primera.id);
+    });
+
+    it('preserva idLineaBackend de las líneas ya existentes al reguardar (GuardarAsync las actualiza, no las duplica)', async () => {
+      stubCatalogos();
+      const conLineaReal = {
+        ...datosBase,
+        lineas: [{ id: 1, origen: 'manual' as const, descripcion: 'Línea real', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21, idLineaBackend: 555 }],
+      };
+
+      await repo.crearManual(conLineaReal);
+
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/Guardar', jasmine.objectContaining({
+        lineas: [jasmine.objectContaining({ idFacturaRecibidaLinea: 555 })],
+      }));
     });
   });
 
   describe('crearDesdeDocumentoDirecto() — "guardado rápido" contra el endpoint todo-en-uno', () => {
-    it('sube el fichero a CrearDesdeDocumento y mapea la respuesta igual que obtenerPorId', async () => {
+    it('sube el fichero a CrearDesdeDocumento, mapea la respuesta y reconstruye ivaPct/idLineaBackend', async () => {
+      apiSpy.post.and.resolveTo([
+        { idImpuesto: 1, descripcion: 'IVA 21%', porcentaje: 21, literalFactura: null, tipoFacturaE: 'IVA' },
+      ]);
       apiSpy.postMultipart.and.resolveTo({
         factura: {
           idFacturaRecibida: 700, numFacRec: 'D-1', idProveedor: 7, nombreProveedor: 'Iberdrola Clientes, S.A.U. .',
@@ -780,7 +845,7 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
           pagada: false, estado: 131, escaneada: true,
           fechaFactura: '2026-08-14', fechaVencimiento: '2026-08-14',
           idMedioPago: null, idTipoFactura: 3,
-          lineas: [{ idFacturaRecibidaLinea: 1, descripcion: 'Luz', cantidad: 1, precioUnitario: 100, importe: 100, idImpuesto: 1 }],
+          lineas: [{ idFacturaRecibidaLinea: 55, descripcion: 'Luz', cantidad: 1, precioUnitario: 100, importe: 100, idImpuesto: 1 }],
         },
         avisos: [],
       });
@@ -791,7 +856,11 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       expect(factura.id).toBe(700);
       expect(factura.proveedor).toBe('Iberdrola Clientes, S.A.U.'); // limpia el punto de apellido1
       expect(factura.lineas.length).toBe(1);
-      expect(factura.accountingLocked).toBeTrue(); // factura real, igual que cualquier otra leída del backend
+      expect(factura.lineas[0].ivaPct).toBe(21); // reconstruido desde idImpuesto→% del catálogo
+      expect(factura.lineas[0].idLineaBackend).toBe(55);
+      // estado 131/borrador: se puede reeditar y volver a guardar — ya no se bloquea
+      // indiscriminadamente toda factura leída del backend (corregido 2026-08-14).
+      expect(factura.accountingLocked).toBeFalse();
     });
 
     it('añade los avisos propios del endpoint (ej. documento no subido) a avisosOcr', async () => {

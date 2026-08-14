@@ -334,6 +334,16 @@ describe('Política de acciones permitidas — accionesFacturaEmitida / acciones
     const acciones = accionesFacturaRecibida(recibidaConEstado('borrador'));
     expect(acciones).toEqual({ editar: true, eliminar: true, copiar: true, descargar: true, compartir: true });
   });
+
+  // Protección conservadora pedida en revisión 2026-08-14: no tiene sentido dejar borrar
+  // desde la app algo marcado como ya pagado sin ningún movimiento contable real detrás.
+  it('recibida marcada como pagada: NO se puede eliminar, sin importar el estado ni accountingLocked', () => {
+    const pagadaBorrador = { ...recibidaConEstado('borrador'), pagada: true };
+    expect(accionesFacturaRecibida(pagadaBorrador).eliminar).toBeFalse();
+
+    const pagadaBloqueada = { ...recibidaConEstado('revisada', true), pagada: true };
+    expect(accionesFacturaRecibida(pagadaBloqueada).eliminar).toBeFalse();
+  });
 });
 
 describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', () => {

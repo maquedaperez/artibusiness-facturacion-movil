@@ -19,14 +19,29 @@ describe('FacturasRecibidasPage', () => {
     fixture = TestBed.createComponent(FacturasRecibidasPage);
     component = fixture.componentInstance;
     fixture.detectChanges();
-    // ngOnInit dispara refresh(), que ahora es async (listar() habla con el repositorio
-    // real en producción) — sin esperar a que se asiente, las pruebas de abajo pisan
-    // component.facturas justo después, pero mejor no depender de esa carrera.
+    // ionViewWillEnter (no ngOnInit — se quitó de ahí en revisión 2026-08-14 para no
+    // disparar refresh() por duplicado en la primera carga) no se dispara solo en este
+    // entorno de test — cada prueba llama a refresh() explícitamente cuando lo necesita.
     await fixture.whenStable();
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  // El endpoint que necesita este botón (CrearDesdeDocumento) está listo en local pero
+  // todavía no desplegado — mientras environment.ts tenga enableQuickSave=false (su valor
+  // hoy), el botón ni se muestra, para no dejar una acción que solo devolvería 404.
+  it('el botón de Guardado rápido está oculto porque el endpoint aún no está desplegado', () => {
+    expect(component.mostrarGuardadoRapido).toBeFalse();
+    const boton = fixture.nativeElement.querySelector('.guardado-rapido-button');
+    expect(boton).toBeNull();
+  });
+
+  it('triggerGuardadoRapido() no hace nada mientras el flag esté desactivado (defensa en profundidad)', () => {
+    const clickSpy = spyOn(component.fileInputRapido!.nativeElement, 'click');
+    component.triggerGuardadoRapido();
+    expect(clickSpy).not.toHaveBeenCalled();
   });
 
   function eventoConArchivo(nombre = 'factura.pdf'): Event {
