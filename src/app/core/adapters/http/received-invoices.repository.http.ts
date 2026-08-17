@@ -793,14 +793,17 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     // datos en 'data' (ivaPct incluido, elegido por el usuario o reconstruido al leerla) —
     // se devuelve tal cual, solo con el id real de cabecera y de cada línea que acaba de
     // asignar el backend, para que un guardado posterior pueda actualizar en vez de
-    // duplicar. accountingLocked se conserva tal cual venía en 'data' (false para un
-    // borrador nunca bloqueado; puede venir true si esto es una factura ya 'revisada' que
-    // se guarda por alguna otra vía, aunque hoy la UI no lo permite editar).
+    // duplicar.
     const lineas = data.lineas.map((l, i) => ({ ...l, idLineaBackend: dto.lineas?.[i]?.idFacturaRecibidaLinea }));
-    // esBorradorLocal siempre false aquí: si 'data' viene de duplicar() lo trae en true
-    // (heredado del borrador local intermedio) — pero en cuanto este POST responde bien, ya
-    // es una fila real, y dejarlo en true haría que la lista la siguiera mostrando como
-    // "Sin guardar" aunque ya esté guardada.
-    return { ...data, lineas, id: dto.idFacturaRecibida, origenOcr: !!data.documentoUrl, esBorradorLocal: false };
+    // BUG real corregido 2026-08-17: accountingLocked se copiaba tal cual venía en 'data'
+    // (el valor de ANTES de este guardado) en vez de recalcularse a partir del estado que se
+    // acaba de guardar — así, "Contabilizar" (que manda estado:'revisada' sobre una factura
+    // hasta entonces editable) devolvía accountingLocked:false, y la pantalla se quedaba
+    // mostrando la factura como editable pese a haberse bloqueado ya de verdad en el
+    // backend. Mismo criterio que mapearCabecera: bloqueada solo si estado === 'revisada'.
+    return {
+      ...data, lineas, id: dto.idFacturaRecibida, origenOcr: !!data.documentoUrl,
+      esBorradorLocal: false, accountingLocked: data.estado === 'revisada',
+    };
   }
 }

@@ -85,11 +85,11 @@
         </ion-select>
       </ion-item>
 
-      <ion-item [disabled]="!esEditable">
-        <ion-select label="Estado" labelPlacement="stacked" [(ngModel)]="working.estado">
-          <ion-select-option value="borrador">Borrador</ion-select-option>
-          <ion-select-option value="revisada">Revisada</ion-select-option>
-        </ion-select>
+      <ion-item lines="none">
+        <ion-label>Estado</ion-label>
+        <ion-text slot="end" [color]="working.estado === 'revisada' ? 'success' : 'medium'">
+          {{ working.estado === 'revisada' ? 'Contabilizada' : 'Borrador' }}
+        </ion-text>
       </ion-item>
 
       <ion-item lines="none" *ngIf="pagadaEditable">
@@ -207,6 +207,11 @@
       <ion-spinner *ngIf="guardando" slot="start" name="dots"></ion-spinner>
       <ion-icon *ngIf="!guardando" slot="start" name="create-outline"></ion-icon>
       {{ guardando ? 'Guardando...' : 'Guardar' }}
+    </ion-button>
+
+    <ion-button *ngIf="esEditable && !esNueva" expand="block" fill="outline" [disabled]="guardando" (click)="confirmarContabilizar()">
+      <ion-icon slot="start" name="checkmark-done-outline"></ion-icon>
+      Contabilizar
     </ion-button>
   </div>
 </ion-footer>

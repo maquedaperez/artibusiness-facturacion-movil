@@ -14,7 +14,7 @@ import { addIcons } from 'ionicons';
 import {
   arrowBackOutline, documentTextOutline, createOutline, trashOutline,
   attachOutline, eyeOutline, copyOutline, downloadOutline, shareSocialOutline,
-  warningOutline,
+  warningOutline, checkmarkDoneOutline,
 } from 'ionicons/icons';
 
 import {
@@ -75,7 +75,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
     addIcons({
       arrowBackOutline, documentTextOutline, createOutline, trashOutline,
       attachOutline, eyeOutline, copyOutline, downloadOutline, shareSocialOutline,
-      warningOutline,
+      warningOutline, checkmarkDoneOutline,
     });
   }
 
@@ -339,6 +339,39 @@ export class FacturaRecibidaDetallePage implements OnInit {
     } finally {
       this.guardando = false;
     }
+  }
+
+  // Pedido por el jefe en reunión 2026-08-17: "Contabilizar" debe ser una acción propia y
+  // aislada — solo cambia el estado de 131 a 132, nada más — igual que en Facturas Emitidas,
+  // en vez de ser una opción más dentro del desplegable de Estado que se guardaba junto con
+  // cualquier otro cambio del formulario. Reutiliza el mismo POST Guardar real (no hay un
+  // endpoint aparte para "solo cambiar estado"), pero el usuario nunca lo ve como una edición
+  // más: es un paso explícito y confirmado, y tras aceptar la factura queda bloqueada para
+  // editar (esEditable pasa a depender de accountingLocked, que ahora vendrá en true).
+  async confirmarContabilizar() {
+    if (this.esNueva || this.facturaId == null || !this.esEditable) return;
+
+    const alert = await this.alertCtrl.create({
+      header: 'Contabilizar factura',
+      message: `¿Contabilizar la factura ${this.working.numFactura} de ${this.working.proveedor} por ${this.formatEuros(this.totales().total)}? Quedará bloqueada para editar — solo podrá eliminarse (si corresponde) o gestionarse desde analítica/pagos.`,
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        {
+          text: 'Contabilizar',
+          handler: async () => {
+            try {
+              const guardada = await this.invoicesRepo.actualizar(this.facturaId!, { ...this.working, estado: 'revisada' });
+              this.working = guardada;
+              this.facturaId = guardada.id;
+              await this.showToast('Factura contabilizada.');
+            } catch (e) {
+              await this.showToast(e instanceof Error ? e.message : 'No se pudo contabilizar la factura.', 'danger');
+            }
+          },
+        },
+      ],
+    });
+    await alert.present();
   }
 
   async confirmarEliminar() {

@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { ActivatedRoute } from '@angular/router';
-import { ModalController, provideIonicAngular } from '@ionic/angular/standalone';
+import { AlertController, ModalController, provideIonicAngular } from '@ionic/angular/standalone';
 import { FacturaRecibidaDetallePage } from './factura-recibida-detalle.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { ApiService } from '../../services/api.service';
@@ -200,6 +200,31 @@ describe('FacturaRecibidaDetallePage', () => {
       await component.confirmarEliminar();
 
       expect(eliminarSpy).not.toHaveBeenCalled();
+    });
+
+    // Pedido por el jefe en reunión 2026-08-17: "Contabilizar" es una acción propia (igual
+    // que en Emitidas) que solo cambia el estado de 131 a 132 — tras confirmar, la factura
+    // debe quedar bloqueada para editar de inmediato, sin tener que recargarla.
+    it('confirmarContabilizar() manda estado revisada a actualizar() y bloquea el formulario tras confirmar', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      const actualizarSpy = spyOn(repo, 'actualizar').and.resolveTo({
+        id: 501, proveedor: 'Iberdrola', proveedorNif: 'A95758389', idProveedor: 7,
+        numFactura: 'F-501', fecha: '2026-08-01', vencimiento: '2026-08-01',
+        concepto: 'Luz', lineas: component.working.lineas,
+        retencionPct: 0, pagada: false, estado: 'revisada', origenOcr: false,
+        accountingLocked: true,
+      });
+      const alertCtrl = TestBed.inject(AlertController);
+      spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
+        const boton = opts.buttons.find((b: any) => b.text === 'Contabilizar');
+        await boton.handler();
+        return { present: async () => {} } as any;
+      });
+
+      await component.confirmarContabilizar();
+
+      expect(actualizarSpy).toHaveBeenCalledWith(501, jasmine.objectContaining({ estado: 'revisada' }));
+      expect(component.esEditable).toBeFalse(); // bloqueada de inmediato, sin recargar
     });
   });
 
