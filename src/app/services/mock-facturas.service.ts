@@ -357,28 +357,27 @@ export function accionesFacturaEmitida(f: FacturaEmitida): AccionesPermitidas {
 }
 
 // Política de RECIBIDAS — deliberadamente independiente de la de Emitidas. Esta app
-// nunca remite las recibidas a Verifactu/AEAT, así que 'estado' ('borrador'/'revisada')
-// es solo un repaso interno, no una contabilización fiscal, y NO debe bloquear nada
-// por sí solo — tampoco 'pagada'.
+// Regla confirmada por el jefe (reunión 2026-08-17), igual que ya hace accionesFacturaEmitida
+// para 'contabilizada'/'firmada': Borrador permite las 4 acciones (copiar/descargar/
+// compartir/eliminar). Contabilizada (estado 132, accountingLocked=true) bloquea editar Y
+// eliminar — solo quedan copiar/descargar/compartir. 'pagada' bloquea eliminar aparte,
+// independientemente del estado (protección conservadora en el front: el backend
+// (EliminarAsync) todavía no impide borrar una factura pagada, pero no tiene sentido
+// dejarlo desde la app sin ningún movimiento contable real detrás — fuera de alcance,
+// pagos vía agt_caja).
 //
-// accountingLocked hoy lo marca HttpReceivedInvoicesRepository en toda factura leída del
-// backend real — pero SOLO bloquea 'editar' (Guardar exige el IVA real por línea, que no
-// se puede reconstruir en una factura ya existente — ver mapearCabecera). 'eliminar' es
-// un DELETE simple, sin recalcular nada, así que no se ve afectado: si algún día llega un
-// bloqueo de cierre contable real, ahí sí habría que reconsiderar si eliminar debe seguir
-// permitido.
-// 'eliminar' se bloquea aparte de 'editar', por pagada — no por accountingLocked (borrar no
-// recalcula nada, sigue sin depender de si se puede reeditar). Protección conservadora en
-// el front: el backend (EliminarAsync) todavía no impide borrar una factura pagada, pero de
-// cara a esta demo no tiene sentido dejar borrar desde la app algo que representa un pago ya
-// hecho, sin ningún movimiento contable real detrás — fuera de alcance (pagos vía
-// agt_caja), pendiente de que el backend lo autorice de verdad.
+// BUG real corregido 2026-08-17: antes 'eliminar' solo miraba 'pagada', nunca
+// accountingLocked — una factura ya contabilizada (no pagada) se podía seguir borrando
+// desde la app sin ningún aviso.
 export function accionesFacturaRecibida(f: FacturaRecibida): AccionesPermitidas {
-  const eliminar = !f.pagada;
-  if (f.accountingLocked) {
-    return { editar: false, eliminar, copiar: true, descargar: true, compartir: true };
-  }
-  return { editar: true, eliminar, copiar: true, descargar: true, compartir: true };
+  const bloqueada = !!f.accountingLocked;
+  return {
+    editar: !bloqueada,
+    eliminar: !f.pagada && !bloqueada,
+    copiar: true,
+    descargar: true,
+    compartir: true,
+  };
 }
 
 export const IVA_RATES = [0, 4, 10, 21];
@@ -846,13 +845,11 @@ ${filas}
     return f;
   }
 
-  // A diferencia de actualizarRecibida, NO se bloquea por accountingLocked — coherente con
-  // accionesFacturaRecibida: ese bloqueo es solo sobre reeditar/reguardar (no se puede
-  // reconstruir el IVA real por línea para volver a mandarlo), pero eliminar no recalcula
-  // nada, así que sigue permitido incluso en una factura bloqueada para editar.
+  // Igual regla que accionesFacturaRecibida (reunión 2026-08-17): bloqueada por
+  // accountingLocked, no solo por pagada.
   eliminarRecibida(id: number): void {
     const f = this.recibidas.find(r => r.id === id);
-    if (!f) return;
+    if (!f || f.accountingLocked) return;
     this.recibidas = this.recibidas.filter(r => r.id !== id);
   }
 

@@ -306,10 +306,14 @@ describe('Política de acciones permitidas — accionesFacturaEmitida / acciones
     expect(acciones).toEqual({ editar: false, eliminar: false, copiar: false, descargar: true, compartir: true });
   });
 
-  // Recibidas nunca pasa por Verifactu/AEAT desde esta app — "revisada" es solo un
-  // repaso interno, no debe bloquear nada por sí solo (a diferencia de "contabilizada"
-  // en Emitidas, que sí es un estado fiscal real).
-  it('recibida "revisada" sigue totalmente editable — el estado de repaso interno no bloquea nada', () => {
+  // accionesFacturaRecibida solo mira el flag accountingLocked, nunca el string 'estado'
+  // directamente — esta fixture pone estado:'revisada' SIN accountingLocked (a mano, fuera
+  // del flujo real) a propósito, para comprobar que el string por sí solo no bloquea nada.
+  // En una factura real del backend nunca se da este caso: mapearCabecera() siempre deriva
+  // accountingLocked=true exactamente cuando estado es 'revisada' (132/Contabilizada,
+  // confirmado por el jefe como estado fiscal real, igual que en Emitidas) — ver el test
+  // "accountingLocked bloquea editar Y eliminar" más abajo para el caso real.
+  it('el string "revisada" por sí solo (sin accountingLocked) no bloquea nada', () => {
     const acciones = accionesFacturaRecibida(recibidaConEstado('revisada'));
     expect(acciones).toEqual({ editar: true, eliminar: true, copiar: true, descargar: true, compartir: true });
   });
@@ -320,11 +324,14 @@ describe('Política de acciones permitidas — accionesFacturaEmitida / acciones
     expect(accionesFacturaRecibida(f).editar).toBeTrue();
   });
 
-  it('recibida bloqueada: accountingLocked bloquea SOLO editar, no eliminar (DELETE ya real, sin recalcular nada)', () => {
+  // Regla confirmada por el jefe (reunión 2026-08-17), igual que ya hacía Emitidas para
+  // contabilizada/firmada: una factura recibida contabilizada bloquea editar Y eliminar,
+  // solo quedan copiar/descargar/compartir.
+  it('recibida bloqueada: accountingLocked bloquea editar Y eliminar, solo quedan copiar/descargar/compartir', () => {
     const bloqueada = recibidaConEstado('revisada', true);
     const acciones = accionesFacturaRecibida(bloqueada);
     expect(acciones.editar).toBeFalse();
-    expect(acciones.eliminar).toBeTrue();
+    expect(acciones.eliminar).toBeFalse();
     expect(acciones.copiar).toBeTrue();
     expect(acciones.descargar).toBeTrue();
     expect(acciones.compartir).toBeTrue();
@@ -504,7 +511,7 @@ describe('Recibidas revisadas — siguen editables, bloqueo real solo con accoun
     expect(acciones.compartir).toBeTrue();
   });
 
-  it('con accountingLocked simulado, el repositorio rechaza actualizar pero sí permite eliminar', () => {
+  it('con accountingLocked simulado, el repositorio rechaza actualizar Y eliminar', () => {
     const creada = crearRecibidaRevisada();
     mock.actualizarRecibida(creada.id, { accountingLocked: true, accountingLockReason: 'No se puede reconstruir el IVA real por línea (simulado)' });
 
@@ -513,9 +520,9 @@ describe('Recibidas revisadas — siguen editables, bloqueo real solo con accoun
 
     const acciones = accionesFacturaRecibida(mock.getFacturaRecibidaById(creada.id)!);
     expect(acciones.editar).toBeFalse();
-    expect(acciones.eliminar).toBeTrue();
+    expect(acciones.eliminar).toBeFalse();
 
     mock.eliminarRecibida(creada.id);
-    expect(mock.getFacturaRecibidaById(creada.id)).toBeUndefined(); // sí se borró
+    expect(mock.getFacturaRecibidaById(creada.id)).toBeTruthy(); // no se borró
   });
 });

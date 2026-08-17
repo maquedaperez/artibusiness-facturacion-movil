@@ -376,11 +376,16 @@ export class FacturaRecibidaDetallePage implements OnInit {
 
   async confirmarEliminar() {
     if (this.facturaId == null) return;
-    // Protección conservadora en el front (el backend todavía no lo impide, ver
-    // AUDITORIA_INTEGRACION_BACKEND.md): no tiene sentido dejar borrar desde la app algo
-    // marcado como ya pagado sin ningún movimiento contable real detrás.
+    // Defensa en profundidad (el botón ya está oculto por accionesPermitidas().eliminar):
+    // no tiene sentido dejar borrar desde la app algo marcado como ya pagado (sin ningún
+    // movimiento contable real detrás) ni una factura ya contabilizada (regla confirmada
+    // por el jefe, reunión 2026-08-17) — el backend todavía no impide ninguno de los dos.
     if (this.working.pagada) {
       await this.showToast('No se puede eliminar una factura marcada como pagada.', 'danger');
+      return;
+    }
+    if (this.working.accountingLocked) {
+      await this.showToast('No se puede eliminar una factura ya contabilizada.', 'danger');
       return;
     }
 

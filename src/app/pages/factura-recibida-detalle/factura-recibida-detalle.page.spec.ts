@@ -242,5 +242,16 @@ describe('FacturaRecibidaDetallePage', () => {
     it('NO es editable (estado 132 = contabilizada)', () => {
       expect(component.esEditable).toBeFalse();
     });
+
+    // Regla confirmada por el jefe (reunión 2026-08-17): una factura ya contabilizada no
+    // se puede eliminar desde la app — antes solo se bloqueaba por 'pagada'.
+    it('bloquea el borrado si está contabilizada, sin llegar a llamar al repositorio', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      const eliminarSpy = spyOn(repo, 'eliminar');
+
+      await component.confirmarEliminar();
+
+      expect(eliminarSpy).not.toHaveBeenCalled();
+    });
   });
 });

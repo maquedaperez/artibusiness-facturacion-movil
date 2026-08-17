@@ -125,6 +125,30 @@ describe('FacturasRecibidasPage', () => {
     };
   }
 
+  // Regla confirmada por el jefe (reunión 2026-08-17): Borrador permite las 4 acciones
+  // (copiar/descargar/compartir/eliminar); Contabilizada las mismas EXCEPTO eliminar.
+  // Estos guards son defensa en profundidad — el icono ya está oculto por
+  // accionesPermitidas(f).eliminar, pero se comprueba aparte por si acaso.
+  it('confirmarEliminar() bloquea una factura pagada sin llegar a llamar al repositorio', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    const eliminarSpy = spyOn(repo, 'eliminar');
+    const pagada = { ...facturaDe('Iberdrola', 'Luz'), pagada: true };
+
+    await component.confirmarEliminar(new Event('click'), pagada);
+
+    expect(eliminarSpy).not.toHaveBeenCalled();
+  });
+
+  it('confirmarEliminar() bloquea una factura contabilizada sin llegar a llamar al repositorio', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    const eliminarSpy = spyOn(repo, 'eliminar');
+    const contabilizada = { ...facturaDe('Iberdrola', 'Luz'), accountingLocked: true };
+
+    await component.confirmarEliminar(new Event('click'), contabilizada);
+
+    expect(eliminarSpy).not.toHaveBeenCalled();
+  });
+
   it('el resumen usa el nombre del proveedor, nunca la serie/número, como cabecera', () => {
     const f = facturaDe('Suministros Oficina Norte SL', 'Material de oficina');
     expect(component.proveedorResumen(f)).toBe('Suministros Oficina Norte SL');

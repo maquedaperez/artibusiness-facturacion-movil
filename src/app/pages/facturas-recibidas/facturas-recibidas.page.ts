@@ -287,6 +287,19 @@ export class FacturasRecibidasPage {
 
   async confirmarEliminar(event: Event, f: FacturaRecibida) {
     event.stopPropagation();
+    // Defensa en profundidad (el icono ya está oculto por accionesPermitidas(f).eliminar):
+    // no tiene sentido dejar borrar desde la app algo marcado como ya pagado, ni una
+    // factura ya contabilizada (regla confirmada por el jefe, reunión 2026-08-17) — el
+    // backend todavía no impide ninguno de los dos.
+    if (f.pagada) {
+      await this.showToast('No se puede eliminar una factura marcada como pagada.', 'danger');
+      return;
+    }
+    if (f.accountingLocked) {
+      await this.showToast('No se puede eliminar una factura ya contabilizada.', 'danger');
+      return;
+    }
+
     const alert = await this.alertCtrl.create({
       header: 'Eliminar factura',
       message: `¿Eliminar la factura de ${f.proveedor}? Esta acción no se puede deshacer.`,
