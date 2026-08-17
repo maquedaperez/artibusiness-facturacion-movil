@@ -317,17 +317,21 @@ function etiquetaMedioPago(m: MedioPagoApi): string {
 }
 
 /**
- * Adaptador híbrido: `listar`/`obtenerPorId`/`crearDesdeOcr`/`eliminar`/`crearManual`/
- * `actualizar` hablan con el backend real (FacturasRecibidasController, DocumentoController,
- * ImpuestoController — ver docs/OCR_BACKEND_INTEGRATION.md y
- * AUDITORIA_INTEGRACION_BACKEND.md). Solo `adjuntarDocumento` sigue delegado al mismo
- * almacén en memoria que usa MockReceivedInvoicesRepository (no existe endpoint de subida
- * de blobs todavía). `crearManual`/`actualizar` comparten `guardarReal()`, que resuelve
- * idProveedor/TipoFactura/Impuestos y llama a POST Guardar — siempre como alta (nunca
- * update): reeditar una factura YA guardada en el backend real está bloqueado en la UI
- * (accountingLocked, ver mapearCabecera) porque no se puede reconstruir con garantías el
- * IVA real de cada línea ya persistida — eliminar sí es real y no depende de este bloqueo,
- * ver eliminarRecibida() en mock-facturas.service.ts.
+ * Adaptador híbrido: `listar`/`obtenerPorId`/`crearDesdeOcr`/`crearDesdeDocumentoDirecto`/
+ * `eliminar`/`crearManual`/`actualizar` hablan con el backend real
+ * (FacturasRecibidasController, DocumentoController, ImpuestoController, MediosPagoController
+ * — ver docs/OCR_BACKEND_INTEGRATION.md y AUDITORIA_INTEGRACION_BACKEND.md). Solo
+ * `adjuntarDocumento` (el adjunto del flujo manual de dos pasos) sigue delegado al mismo
+ * almacén en memoria que usa MockReceivedInvoicesRepository — a diferencia de
+ * `crearDesdeDocumentoDirecto`, que sí sube el documento a Blob Storage de verdad a través
+ * del backend. `crearManual`/`actualizar` comparten `guardarReal()`, que resuelve
+ * idProveedor/TipoFactura/Impuestos y llama a POST Guardar. Corrección 2026-08-14:
+ * `actualizar` YA NO es siempre un alta — el ivaPct real de cada línea se reconstruye de
+ * forma fiable desde idImpuesto (relación unívoca id→%, ver mapearLinea), así que una
+ * factura real en estado borrador se puede reeditar y volver a guardar de verdad (UPDATE),
+ * no solo una factura todavía local — ver actualizar() más abajo. Solo las facturas ya
+ * revisadas (estado 132/'revisada', contabilizadas) quedan bloqueadas para editar —
+ * eliminar sigue sin depender de ese bloqueo en ningún caso.
  */
 @Injectable()
 export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
