@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { AlertController } from '@ionic/angular/standalone';
 import { FacturasRecibidasPage } from './facturas-recibidas.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { FacturaRecibida } from '../../services/mock-facturas.service';
 import { ApiService } from '../../services/api.service';
 import { ReceivedInvoicesRepository } from '../../core/ports';
+import { environment } from 'src/environments/environment';
 
 describe('FacturasRecibidasPage', () => {
   let component: FacturasRecibidasPage;
@@ -29,19 +31,59 @@ describe('FacturasRecibidasPage', () => {
     expect(component).toBeTruthy();
   });
 
-  // El endpoint que necesita este botón (CrearDesdeDocumento) está listo en local pero
-  // todavía no desplegado — mientras environment.ts tenga enableQuickSave=false (su valor
-  // hoy), el botón ni se muestra, para no dejar una acción que solo devolvería 404.
-  it('el botón de Guardado rápido está oculto porque el endpoint aún no está desplegado', () => {
-    expect(component.mostrarGuardadoRapido).toBeFalse();
+  // El endpoint que necesita este botón (CrearDesdeDocumento) se desplegó de verdad en
+  // Development el 2026-08-17 (confirmado por el jefe) — environment.ts/.prod.ts ya tienen
+  // enableQuickSave=true, así que el botón se muestra. El caso "flag desactivado" (defensa
+  // en profundidad, por si algún entorno lo vuelve a poner en false) se prueba aparte más
+  // abajo, con su propia instancia del componente.
+  it('el botón de Guardado rápido se muestra: el endpoint ya está desplegado', () => {
+    expect(component.mostrarGuardadoRapido).toBeTrue();
     const boton = fixture.nativeElement.querySelector('.guardado-rapido-button');
-    expect(boton).toBeNull();
+    expect(boton).not.toBeNull();
   });
 
-  it('triggerGuardadoRapido() no hace nada mientras el flag esté desactivado (defensa en profundidad)', () => {
+  it('triggerGuardadoRapido() abre el selector de fichero cuando el flag está activado', () => {
     const clickSpy = spyOn(component.fileInputRapido!.nativeElement, 'click');
     component.triggerGuardadoRapido();
-    expect(clickSpy).not.toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+  });
+
+  // mostrarGuardadoRapido se calcula una sola vez, al construir el componente, leyendo el
+  // valor que tenga entonces environment.features.enableQuickSave — así que para probar el
+  // caso "desactivado" hace falta forzar el flag ANTES de crear una instancia nueva, no
+  // sobre la instancia compartida del resto de pruebas (esa ya se construyó con el valor
+  // real de environment.ts, que hoy es true).
+  describe('con enableQuickSave desactivado (defensa en profundidad, por si algún entorno lo revierte)', () => {
+    let componentFlagOff: FacturasRecibidasPage;
+    let fixtureFlagOff: ComponentFixture<FacturasRecibidasPage>;
+
+    beforeEach(async () => {
+      environment.features.enableQuickSave = false;
+      const apiStub: Partial<ApiService> = { post: jasmine.createSpy().and.resolveTo([]) };
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [...MOCK_REPOSITORY_PROVIDERS, { provide: ApiService, useValue: apiStub }],
+      });
+      fixtureFlagOff = TestBed.createComponent(FacturasRecibidasPage);
+      componentFlagOff = fixtureFlagOff.componentInstance;
+      fixtureFlagOff.detectChanges();
+      await fixtureFlagOff.whenStable();
+    });
+
+    afterEach(() => {
+      environment.features.enableQuickSave = true; // restaura el valor real de environment.ts
+    });
+
+    it('el botón no se muestra', () => {
+      expect(componentFlagOff.mostrarGuardadoRapido).toBeFalse();
+      expect(fixtureFlagOff.nativeElement.querySelector('.guardado-rapido-button')).toBeNull();
+    });
+
+    it('triggerGuardadoRapido() no hace nada', () => {
+      const clickSpy = spyOn(componentFlagOff.fileInputRapido!.nativeElement, 'click');
+      componentFlagOff.triggerGuardadoRapido();
+      expect(clickSpy).not.toHaveBeenCalled();
+    });
   });
 
   function eventoConArchivo(nombre = 'factura.pdf'): Event {
@@ -135,7 +177,22 @@ describe('FacturasRecibidasPage', () => {
   // aparte) — copiar directamente desde la tarjeta de la lista producía un borrador con 0
   // líneas y, por tanto, 0,00 € en todo. duplicar() en esta página debe pedir primero el
   // detalle completo.
-  it('copiar desde la lista pide primero el detalle completo (obtenerPorId) antes de duplicar', async () => {
+  // "Copiar" ahora pide el número de la nueva factura por un ion-alert (2026-08-17: la copia
+  // se guarda ya de verdad en el backend, y Guardar exige un número no vacío) — se simula
+  // confirmando el diálogo directamente contra el AlertController real, sin espiar sus
+  // internals, para no acoplar el test al detalle de implementación del alert.
+  function confirmarNumeroFacturaEnDialogo(numFactura: string) {
+    const alertCtrl = TestBed.inject(AlertController);
+    // El propio componente construye los botones del alert con su handler — se invoca aquí
+    // el handler de "Copiar y guardar" directamente, como haría Ionic al pulsarlo.
+    spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
+      const boton = opts.buttons.find((b: any) => b.handler && b.text !== 'Cancelar');
+      boton.handler({ numFactura });
+      return { present: async () => {} } as any;
+    });
+  }
+
+  it('copiar desde la lista pide primero el detalle completo (obtenerPorId), pide el número por diálogo y duplica con ese número', async () => {
     const repo = TestBed.inject(ReceivedInvoicesRepository);
     const filaDeLista: FacturaRecibida = {
       id: 500, proveedor: 'Iberdrola', numFactura: 'F-500', fecha: '2026-08-01',
@@ -146,12 +203,13 @@ describe('FacturasRecibidasPage', () => {
       lineas: [{ id: 1, origen: 'manual', descripcion: 'Luz', cantidad: 1, precioUnitario: 80, descuentoPct: 0, ivaPct: 21 }],
     };
     spyOn(repo, 'obtenerPorId').and.resolveTo(detalleCompleto);
-    const duplicarSpy = spyOn(repo, 'duplicar').and.returnValue({ ...detalleCompleto, id: 999 });
+    const duplicarSpy = spyOn(repo, 'duplicar').and.resolveTo({ ...detalleCompleto, id: 999, numFactura: 'F-500-B' });
+    confirmarNumeroFacturaEnDialogo('F-500-B');
 
     await component.duplicar(new Event('click'), filaDeLista);
 
     expect(repo.obtenerPorId).toHaveBeenCalledWith(500);
-    expect(duplicarSpy).toHaveBeenCalledWith(detalleCompleto); // no la fila vacía de la lista
+    expect(duplicarSpy).toHaveBeenCalledWith(detalleCompleto, 'F-500-B'); // no la fila vacía de la lista
   });
 
   it('si no se puede obtener el detalle completo, sigue duplicando con lo que ya tenía (mejor que fallar del todo)', async () => {
@@ -161,11 +219,32 @@ describe('FacturasRecibidasPage', () => {
       lineas: [], retencionPct: 0, pagada: false, estado: 'revisada', origenOcr: false,
     };
     spyOn(repo, 'obtenerPorId').and.resolveTo(undefined);
-    const duplicarSpy = spyOn(repo, 'duplicar').and.returnValue({ ...filaDeLista, id: 999 });
+    const duplicarSpy = spyOn(repo, 'duplicar').and.resolveTo({ ...filaDeLista, id: 999, numFactura: 'F-501-B' });
+    confirmarNumeroFacturaEnDialogo('F-501-B');
 
     await component.duplicar(new Event('click'), filaDeLista);
 
-    expect(duplicarSpy).toHaveBeenCalledWith(filaDeLista);
+    expect(duplicarSpy).toHaveBeenCalledWith(filaDeLista, 'F-501-B');
+  });
+
+  it('si se cancela el diálogo del número de factura, no se llega a duplicar nada', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    const filaDeLista: FacturaRecibida = {
+      id: 502, proveedor: 'Iberdrola', numFactura: 'F-502', fecha: '2026-08-01',
+      lineas: [], retencionPct: 0, pagada: false, estado: 'revisada', origenOcr: false,
+    };
+    spyOn(repo, 'obtenerPorId').and.resolveTo(filaDeLista);
+    const duplicarSpy = spyOn(repo, 'duplicar');
+    const alertCtrl = TestBed.inject(AlertController);
+    spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
+      const cancelar = opts.buttons.find((b: any) => b.role === 'cancel');
+      cancelar.handler();
+      return { present: async () => {} } as any;
+    });
+
+    await component.duplicar(new Event('click'), filaDeLista);
+
+    expect(duplicarSpy).not.toHaveBeenCalled();
   });
 
   // Confirmado con el jefe el mapeo de Estado (131 = borrador, 132 = revisada) — igual que

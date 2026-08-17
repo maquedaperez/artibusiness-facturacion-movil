@@ -89,5 +89,13 @@ export abstract class ReceivedInvoicesRepository {
   // que "Copiar" sobre cualquier factura real fallaba en silencio (sin toast, sin error,
   // simplemente no pasaba nada). El caso de llamada siempre tiene ya el objeto completo a
   // mano, así que pasarlo directamente evita la búsqueda y el fallo.
-  abstract duplicar(factura: FacturaRecibida): FacturaRecibida;
+  //
+  // Async desde el 2026-08-17: antes "Copiar" solo dejaba un borrador local (esBorradorLocal,
+  // "Sin guardar" en la lista) que había que abrir y guardar a mano — confundía, porque
+  // parecía un tercer estado además de Borrador/Revisada. Decisión: copiar guarda ya de
+  // verdad en el backend (mismo POST Guardar que crearManual/actualizar), así que hace falta
+  // el número de la nueva factura ANTES de llamar — numFactura es obligatorio para guardar, y
+  // la copia nunca hereda el del original (sería un número repetido). El propio número se
+  // pide al usuario justo antes de llamar aquí (ver el alert en las páginas que lo usan).
+  abstract duplicar(factura: FacturaRecibida, numFacturaNueva: string): Promise<FacturaRecibida>;
 }

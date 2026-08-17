@@ -241,19 +241,48 @@ export class FacturasRecibidasPage {
 
   async duplicar(event: Event, f: FacturaRecibida) {
     event.stopPropagation();
+    // BUG real (2026-08-14): 'f' viene tal cual de listar(), que para facturas reales
+    // nunca rellena 'lineas' (solo lo hace obtenerPorId, con una petición aparte) — copiar
+    // directamente desde la lista producía un borrador con 0 líneas y, por tanto, 0,00 €
+    // en todo. Se pide el detalle completo antes de duplicar, igual que ya hacía el botón
+    // de copiar dentro de la propia página de detalle.
+    const completa = await this.invoicesRepo.obtenerPorId(f.id) ?? f;
+    const numFacturaNueva = await this.pedirNumeroFacturaCopia(completa.proveedor);
+    if (numFacturaNueva == null) return; // cancelado en el diálogo
+
     try {
-      // BUG real (2026-08-14): 'f' viene tal cual de listar(), que para facturas reales
-      // nunca rellena 'lineas' (solo lo hace obtenerPorId, con una petición aparte) — copiar
-      // directamente desde la lista producía un borrador con 0 líneas y, por tanto, 0,00 €
-      // en todo. Se pide el detalle completo antes de duplicar, igual que ya hacía el botón
-      // de copiar dentro de la propia página de detalle.
-      const completa = await this.invoicesRepo.obtenerPorId(f.id) ?? f;
-      this.invoicesRepo.duplicar(completa);
+      await this.invoicesRepo.duplicar(completa, numFacturaNueva);
       await this.refresh();
-      await this.showToast(`Borrador creado a partir de la factura de ${completa.proveedor}.`);
+      await this.showToast(`Copia guardada a partir de la factura de ${completa.proveedor}.`);
     } catch (e: any) {
       await this.showToast(e?.message ?? 'No se pudo copiar la factura.', 'danger');
     }
+  }
+
+  // "Copiar" guarda ya de verdad en el backend (2026-08-17, ver ReceivedInvoicesRepository.
+  // duplicar) — Guardar exige un número de factura no vacío, y la copia nunca hereda el del
+  // original (sería un número repetido), así que hace falta pedirlo antes de nada. Devuelve
+  // null si el usuario cancela.
+  private pedirNumeroFacturaCopia(proveedor: string): Promise<string | null> {
+    return new Promise(resolve => {
+      this.alertCtrl.create({
+        header: 'Número de la nueva factura',
+        message: `Se copiará la factura de ${proveedor} (proveedor, líneas, importes...) y se guardará directamente. El resto de datos se pueden ajustar después.`,
+        inputs: [{ name: 'numFactura', type: 'text', placeholder: 'Número de factura' }],
+        buttons: [
+          { text: 'Cancelar', role: 'cancel', handler: () => resolve(null) },
+          {
+            text: 'Copiar y guardar',
+            handler: (data: { numFactura?: string }) => {
+              const valor = data.numFactura?.trim();
+              if (!valor) return false; // no cierra el diálogo: hace falta un número
+              resolve(valor);
+              return true;
+            },
+          },
+        ],
+      }).then(alert => alert.present());
+    });
   }
 
   private async adjuntoABlob(f: FacturaRecibida): Promise<Blob> {

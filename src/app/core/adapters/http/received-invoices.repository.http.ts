@@ -488,11 +488,19 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return this.mockAdapter.accionesPermitidas(factura);
   }
 
-  duplicar(factura: FacturaRecibida): FacturaRecibida {
-    // Recibe el objeto completo, no un id — así funciona igual para facturas locales
-    // (mock) y para facturas reales del backend, que nunca están en el almacén del mock
-    // (ver el comentario en el puerto: bug real corregido el 2026-08-13).
-    return this.mockAdapter.duplicar(factura);
+  // Copiar guarda ya de verdad en el backend (2026-08-17) — deja de existir el paso
+  // intermedio de "borrador local sin guardar" que confundía en la lista. mockAdapter.
+  // duplicar() sigue siendo quien arma la forma correcta de la copia (proveedor conservado,
+  // número/fecha/pagada/adjunto reseteados, ids de línea del original descartados) — se
+  // reutiliza esa forma y se manda tal cual a guardarReal(), igual que crearManual. El
+  // registro que mockAdapter.duplicar() deja en su almacén en memoria es solo un paso
+  // intermedio: se borra en cuanto el guardado real confirma, para que no aparezca
+  // duplicado en la lista (una vez como borrador local, otra vez como fila real).
+  async duplicar(factura: FacturaRecibida, numFacturaNueva: string): Promise<FacturaRecibida> {
+    const copiaLocal = await this.mockAdapter.duplicar(factura, numFacturaNueva);
+    const guardada = await this.crearManual(copiaLocal);
+    this.mockAdapter.eliminar(copiaLocal.id);
+    return guardada;
   }
 
   async crearDesdeOcr(file: File): Promise<FacturaRecibida> {
@@ -789,6 +797,10 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     // borrador nunca bloqueado; puede venir true si esto es una factura ya 'revisada' que
     // se guarda por alguna otra vía, aunque hoy la UI no lo permite editar).
     const lineas = data.lineas.map((l, i) => ({ ...l, idLineaBackend: dto.lineas?.[i]?.idFacturaRecibidaLinea }));
-    return { ...data, lineas, id: dto.idFacturaRecibida, origenOcr: !!data.documentoUrl };
+    // esBorradorLocal siempre false aquí: si 'data' viene de duplicar() lo trae en true
+    // (heredado del borrador local intermedio) — pero en cuanto este POST responde bien, ya
+    // es una fila real, y dejarlo en true haría que la lista la siguiera mostrando como
+    // "Sin guardar" aunque ya esté guardada.
+    return { ...data, lineas, id: dto.idFacturaRecibida, origenOcr: !!data.documentoUrl, esBorradorLocal: false };
   }
 }

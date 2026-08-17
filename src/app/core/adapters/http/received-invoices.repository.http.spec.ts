@@ -619,25 +619,9 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
     });
   });
 
-  // Regresión: antes duplicar() recibía solo el id y delegaba en el mock, que buscaba ese
-  // id en su propio almacén — las facturas reales del backend NUNCA están ahí (solo viven
-  // en la respuesta de Enumerar/Obtener), así que "Copiar" sobre cualquier factura real
-  // fallaba en silencio. Ahora recibe el objeto completo, así que no hace falta ninguna
-  // búsqueda y funciona igual para facturas reales que para locales.
-  it('duplicar() funciona con una factura "real" (accountingLocked, ausente del almacén del mock)', () => {
-    const facturaReal: FacturaRecibida = {
-      id: 999999, proveedor: 'Iberdrola', proveedorNif: 'A95758389', numFactura: 'F-999999',
-      fecha: '2026-08-01', lineas: [], retencionPct: 0, pagada: true, estado: 'revisada',
-      origenOcr: false, accountingLocked: true,
-    };
-
-    const copia = repo.duplicar(facturaReal);
-
-    expect(copia).toBeTruthy();
-    expect(copia.proveedor).toBe('Iberdrola');
-    expect(copia.id).not.toBe(facturaReal.id);
-    expect(copia.estado).toBe('borrador'); // una copia siempre nace como borrador nuevo
-  });
+  // duplicar() ahora guarda de verdad en el backend (2026-08-17) — ver la descripción
+  // completa junto a stubCatalogos(), en el describe de crearManual()/actualizar(), que
+  // comparte exactamente el mismo POST Guardar por debajo.
 
   describe('eliminar()', () => {
     it('llama a DELETE /api/FacturasRecibidas/{id}', async () => {
@@ -830,6 +814,52 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/Guardar', jasmine.objectContaining({
         lineas: [jasmine.objectContaining({ idFacturaRecibidaLinea: 555 })],
       }));
+    });
+
+    // Regresión: antes duplicar() recibía solo el id y delegaba en el mock, que buscaba ese
+    // id en su propio almacén — las facturas reales del backend NUNCA están ahí (solo viven
+    // en la respuesta de Enumerar/Obtener), así que "Copiar" sobre cualquier factura real
+    // fallaba en silencio. Sigue recibiendo el objeto completo (funciona igual para
+    // facturas reales que para locales), pero desde 2026-08-17 ya no se queda como borrador
+    // local: llama a Guardar de inmediato con el número que se le pase.
+    it('duplicar() guarda ya de verdad en el backend, con el número de factura indicado (no el del original)', async () => {
+      stubCatalogos();
+      const facturaReal: FacturaRecibida = {
+        id: 999999, proveedor: 'Iberdrola', proveedorNif: 'A95758389', idProveedor: 7, numFactura: 'F-999999',
+        fecha: '2026-08-01', vencimiento: '',
+        lineas: [{ id: 1, origen: 'manual', descripcion: 'Luz', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21, idLineaBackend: 321 }],
+        retencionPct: 0, pagada: true, estado: 'revisada', origenOcr: false, accountingLocked: true,
+      };
+
+      const copia = await repo.duplicar(facturaReal, 'F-999999-COPIA');
+
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/Guardar', jasmine.objectContaining({
+        idFacturaRecibida: undefined, // alta nueva, no actualiza la factura original
+        numFacRec: 'F-999999-COPIA',
+        lineas: [jasmine.objectContaining({ idFacturaRecibidaLinea: undefined })], // línea nueva, no la del original
+      }));
+      expect(copia.id).toBe(900); // id real que devuelve Guardar, ya no es un borrador local
+      expect(copia.esBorradorLocal).toBeFalse();
+      expect(copia.pagada).toBeFalse(); // una copia nunca nace pagada
+      expect(copia.estado).toBe('borrador');
+    });
+
+    it('duplicar() no deja el borrador local intermedio en el almacén en memoria una vez guardado', async () => {
+      stubCatalogos();
+      const mockAdapter = TestBed.inject(MockReceivedInvoicesRepository);
+      const original: FacturaRecibida = {
+        id: 1, proveedor: 'Iberdrola', idProveedor: 7, numFactura: 'F-1', fecha: '2026-08-01', vencimiento: '',
+        lineas: [{ id: 1, origen: 'manual', descripcion: 'Luz', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 }],
+        retencionPct: 0, pagada: false, estado: 'borrador', origenOcr: false,
+      };
+
+      await repo.duplicar(original, 'F-1-COPIA');
+
+      // listar() solo debe traer lo que devuelve Enumerar (stubCatalogos no incluye
+      // facturas ahí) — si el borrador local intermedio no se hubiera limpiado, aparecería
+      // aquí también, duplicando la fila en la lista.
+      const lista = await repo.listar();
+      expect(lista.length).toBe(0);
     });
   });
 

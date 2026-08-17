@@ -388,9 +388,13 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
     expect(issuedRepo.obtenerPorId(borrador.id)).toBeTruthy();
   });
 
-  it('duplicar una factura recibida no arrastra el documento adjunto del original', () => {
-    // duplicar() es síncrono y solo necesita un objeto con forma de FacturaRecibida — no
-    // hace falta persistirlo de verdad (crearManual ya llama al backend real).
+  it('duplicar una factura recibida no arrastra el documento adjunto del original ni su número de factura', async () => {
+    // ReceivedInvoicesRepository (HttpReceivedInvoicesRepository) ahora guarda de verdad en
+    // el backend al duplicar (ver received-invoices.repository.http.spec.ts, que ya cubre
+    // ese flujo completo con sus catálogos) — aquí solo interesa comprobar la FORMA de la
+    // copia, así que se prueba directamente contra MockReceivedInvoicesRepository, el
+    // adaptador puramente en memoria del que se reutiliza esa lógica de "resetear campos".
+    const mockRepo = TestBed.inject(MockReceivedInvoicesRepository);
     const original: FacturaRecibida = {
       id: 1, proveedor: 'Proveedor con adjunto', numFactura: 'F-ADJ', fecha: '2026-08-11', vencimiento: '',
       lineas: [{ id: receivedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'x', cantidad: 1, precioUnitario: 50, descuentoPct: 0, ivaPct: 21 }],
@@ -398,11 +402,12 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
       documentoUrl: 'data:image/png;base64,xxx', documentoNombre: 'foto.png',
     };
 
-    const copia = receivedRepo.duplicar(original);
+    const copia = await mockRepo.duplicar(original, 'F-ADJ-2');
 
     expect(copia.documentoUrl).toBeUndefined();
     expect(copia.documentoNombre).toBeUndefined();
     expect(copia.proveedor).toBe('Proveedor con adjunto');
+    expect(copia.numFactura).toBe('F-ADJ-2'); // el número se pide al usuario, no se hereda del original
     expect(copia.estado).toBe('borrador');
   });
 });

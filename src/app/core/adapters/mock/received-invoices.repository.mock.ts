@@ -77,8 +77,8 @@ export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return accionesFacturaRecibida(factura);
   }
 
-  duplicar(factura: FacturaRecibida): FacturaRecibida {
-    return this.mock.duplicarRecibida(factura);
+  async duplicar(factura: FacturaRecibida, numFacturaNueva: string): Promise<FacturaRecibida> {
+    return this.mock.duplicarRecibida(factura, numFacturaNueva);
   }
 
   // Sin backend real detrás en modo mock: se simula el catálogo con ids secuenciales fijos

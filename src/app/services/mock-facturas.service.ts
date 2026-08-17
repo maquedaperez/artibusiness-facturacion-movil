@@ -858,7 +858,12 @@ ${filas}
 
   // Copiar crea un borrador nuevo: sin id/documento adjunto/estado "pagada" del
   // original — el usuario adjunta su propio documento a la copia si corresponde.
-  duplicarRecibida(original: FacturaRecibida): FacturaRecibida {
+  // numFacturaNueva llega ya resuelta desde fuera (se pide al usuario ANTES de duplicar,
+  // ver factura-recibida-detalle.page.ts/facturas-recibidas.page.ts): decisión 2026-08-17,
+  // "Copiar" ahora guarda de inmediato en el backend real (HttpReceivedInvoicesRepository.
+  // duplicar), y Guardar exige un número de factura no vacío — dejarlo en '' como antes
+  // haría fallar ese guardado automático nada más copiar.
+  duplicarRecibida(original: FacturaRecibida, numFacturaNueva: string): FacturaRecibida {
     const copia: FacturaRecibida = {
       id: nextRecibidaId++,
       proveedor: original.proveedor,
@@ -872,7 +877,7 @@ ${filas}
       proveedorPoblacion: original.proveedorPoblacion,
       proveedorCp: original.proveedorCp,
       proveedorProvincia: original.proveedorProvincia,
-      numFactura: '',
+      numFactura: numFacturaNueva,
       fecha: new Date().toISOString().slice(0, 10),
       vencimiento: '',
       concepto: original.concepto,
