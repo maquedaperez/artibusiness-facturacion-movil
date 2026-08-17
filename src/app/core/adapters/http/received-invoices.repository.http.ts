@@ -176,6 +176,11 @@ type FacturaRecibidaCabeceraApi = {
   numFacRec: string;
   idProveedor: number;
   nombreProveedor: string | null;
+  // Añadido 2026-08-17 (junto con el redondeo de totales, pendiente de que el jefe
+  // despliegue este mismo cambio): antes esta consulta no traía el NIF del proveedor —
+  // se usaba por dentro para encontrarlo (ResolverIdProveedorAsync), pero nunca viajaba de
+  // vuelta a la app. Puede venir undefined en backends todavía sin este campo.
+  nifProveedor?: string | null;
   concepto: string | null;
   total: number;
   iva: number;
@@ -239,6 +244,7 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
     // El backend ya resuelve este id para poder darnos nombreProveedor (hace el JOIN él
     // mismo) — nos lo da gratis, tiene sentido guardarlo ahora que el modelo lo admite.
     idProveedor: dto.idProveedor,
+    proveedorNif: dto.nifProveedor?.trim() || undefined,
     numFactura: dto.numFacRec,
     fecha: dto.fechaFactura.slice(0, 10),
     vencimiento: dto.fechaVencimiento ? dto.fechaVencimiento.slice(0, 10) : undefined,

@@ -567,6 +567,36 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
     expect(factura?.proveedor).toBe('Iberdrola Clientes, S.A.U.');
   });
 
+  // Añadido 2026-08-17: antes SelectCabecera (backend) no traía el NIF del proveedor, solo
+  // el nombre — se usaba por dentro para resolver el proveedor pero nunca viajaba de vuelta.
+  it('mapea nifProveedor a proveedorNif cuando el backend lo trae', async () => {
+    apiSpy.get.and.resolveTo({
+      idFacturaRecibida: 503, numFacRec: 'F-503', idProveedor: 1,
+      nombreProveedor: 'Iberdrola Clientes, S.A.U.', nifProveedor: 'A95758389',
+      concepto: 'x', total: 100, iva: 21, suplidos: 0, irpf: 0, importe: 121,
+      pagada: false, estado: 131, escaneada: false,
+      fechaFactura: '2026-08-01', fechaVencimiento: '2026-09-01',
+      idMedioPago: null, idTipoFactura: 1, lineas: [],
+    });
+
+    const factura = await repo.obtenerPorId(503);
+    expect(factura?.proveedorNif).toBe('A95758389');
+  });
+
+  it('proveedorNif queda undefined si el backend todavía no manda nifProveedor (compatibilidad)', async () => {
+    apiSpy.get.and.resolveTo({
+      idFacturaRecibida: 504, numFacRec: 'F-504', idProveedor: 1,
+      nombreProveedor: 'Iberdrola Clientes, S.A.U.',
+      concepto: 'x', total: 100, iva: 21, suplidos: 0, irpf: 0, importe: 121,
+      pagada: false, estado: 131, escaneada: false,
+      fechaFactura: '2026-08-01', fechaVencimiento: '2026-09-01',
+      idMedioPago: null, idTipoFactura: 1, lineas: [],
+    });
+
+    const factura = await repo.obtenerPorId(504);
+    expect(factura?.proveedorNif).toBeUndefined();
+  });
+
   it('obtenerPorId() copia idMedioPago del backend cuando viene informado', async () => {
     apiSpy.get.and.resolveTo({
       idFacturaRecibida: 501, numFacRec: 'F-501', idProveedor: 1, nombreProveedor: 'Proveedor',
