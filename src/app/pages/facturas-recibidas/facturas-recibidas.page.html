@@ -20,11 +20,10 @@
     detalle="el resto de módulos de la app puede usar datos simulados"
   ></app-demo-banner>
 
-  <ion-text color="medium" class="aviso-documento-local">
+  <ion-text *ngIf="!mostrarEscaneo" color="medium" class="aviso-documento-local">
     <p class="ion-no-margin">
-      El documento escaneado se conserva solo en este dispositivo mientras no exista el
-      endpoint definitivo de subida permanente (pendiente de publicar) — recargar la página
-      antes de guardar la factura lo pierde.
+      Escanear facturas no está disponible ahora mismo — usa "Nueva factura" para darla de
+      alta a mano mientras tanto.
     </p>
   </ion-text>
 
@@ -43,15 +42,8 @@
     hidden
     (change)="onFileSelected($event)"
   />
-  <input
-    #fileInputRapido
-    type="file"
-    accept="image/jpeg,image/png,image/webp,application/pdf"
-    hidden
-    (change)="onFileSelectedGuardadoRapido($event)"
-  />
 
-  <div class="scan-actions">
+  <div class="scan-actions" *ngIf="mostrarEscaneo">
     <ion-button
       expand="block"
       size="large"
@@ -73,20 +65,7 @@
       (click)="triggerUpload()"
     >
       <ion-icon slot="start" name="document-text-outline"></ion-icon>
-      Subir archivo (imagen o PDF)
-    </ion-button>
-
-    <ion-button
-      *ngIf="mostrarGuardadoRapido"
-      expand="block"
-      size="small"
-      fill="clear"
-      class="guardado-rapido-button"
-      [disabled]="processing"
-      (click)="triggerGuardadoRapido()"
-    >
-      <ion-icon slot="start" name="flash-outline"></ion-icon>
-      Guardado rápido (sin revisar, se guarda directamente)
+      Adjuntar documento (imagen o PDF)
     </ion-button>
   </div>
 

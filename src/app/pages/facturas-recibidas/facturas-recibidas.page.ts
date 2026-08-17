@@ -13,7 +13,7 @@ import {
 import { addIcons } from 'ionicons';
 import {
   cameraOutline, receiptOutline, documentTextOutline, addOutline, filterOutline,
-  copyOutline, downloadOutline, shareSocialOutline, trashOutline, flashOutline,
+  copyOutline, downloadOutline, shareSocialOutline, trashOutline,
 } from 'ionicons/icons';
 
 import { AccionesPermitidas, FacturaRecibida } from '../../services/mock-facturas.service';
@@ -45,17 +45,16 @@ export class FacturasRecibidasPage {
 
   @ViewChild('fileInputCamera') fileInputCamera?: ElementRef<HTMLInputElement>;
   @ViewChild('fileInputUpload') fileInputUpload?: ElementRef<HTMLInputElement>;
-  @ViewChild('fileInputRapido') fileInputRapido?: ElementRef<HTMLInputElement>;
 
   facturas: FacturaRecibida[] = [];
   processing = false;
   cargando = false;
 
-  // El endpoint CrearDesdeDocumento está listo en local pero todavía no desplegado en el
-  // backend real — mientras el flag esté en false, el botón ni siquiera se muestra, para no
-  // dejar una acción que solo devolvería 404. Se activa en environment.ts/.prod.ts en
-  // cuanto el jefe lo publique, sin tocar esta pantalla.
-  mostrarGuardadoRapido = environment.features?.enableQuickSave ?? false;
+  // El endpoint CrearDesdeDocumento (escanea + guarda + sube el PDF al blob, todo de una
+  // vez) es lo que hay detrás de los dos botones de escanear/adjuntar — mientras el flag
+  // esté en false esos botones ni se muestran, para no dejar una acción que solo devolvería
+  // 404 (ver mostrarEscaneo() más abajo). Se activa en environment.ts/.prod.ts.
+  mostrarEscaneo = environment.features?.enableQuickSave ?? false;
 
   searchQuery = '';
   mostrarFiltros = false;
@@ -67,7 +66,7 @@ export class FacturasRecibidasPage {
   constructor() {
     addIcons({
       cameraOutline, receiptOutline, documentTextOutline, addOutline, filterOutline,
-      copyOutline, downloadOutline, shareSocialOutline, trashOutline, flashOutline,
+      copyOutline, downloadOutline, shareSocialOutline, trashOutline,
     });
   }
 
@@ -176,40 +175,15 @@ export class FacturasRecibidasPage {
     this.fileInputUpload?.nativeElement.click();
   }
 
-  triggerGuardadoRapido() {
-    // Defensa en profundidad: el botón ya está oculto por *ngIf="mostrarGuardadoRapido" en
-    // la plantilla, pero por si acaso se llega a llamar de otra forma, no se dispara ningún
-    // selector de fichero que acabaría en una llamada al endpoint todavía no desplegado.
-    if (!this.mostrarGuardadoRapido) return;
-    this.fileInputRapido?.nativeElement.click();
-  }
-
-  async onFileSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
-
-    this.processing = true;
-    try {
-      // El servicio recibe el File real: la integración real solo cambia la
-      // implementación interna por una subida multipart a POST /api/FacturaRecibida/desde-ocr.
-      const nueva = await this.invoicesRepo.crearDesdeOcr(file);
-      this.refresh();
-      await this.showToast(`Borrador creado desde "${file.name}": ${nueva.proveedor}.`, 'success');
-    } catch (e: any) {
-      await this.showToast(e?.message ?? 'No se pudo procesar el archivo. Inténtalo de nuevo.', 'danger');
-    } finally {
-      this.processing = false;
-    }
-  }
-
-  // "Guardado rápido" (pedido por el jefe, reunión 2026-08-14): a diferencia de
-  // onFileSelected, esto NO crea un borrador para revisar — la factura queda guardada de
-  // verdad (con el PDF ya en Blob Storage) en la misma llamada. Si el proveedor no se
-  // reconoce por NIF o el documento no trae número de factura, el backend rechaza y no se
+  // Consolidado 2026-08-17 a petición del jefe: antes había tres botones (Escanear con
+  // cámara / Subir archivo → dejaban un borrador local para revisar antes de guardar; y por
+  // separado, Guardado rápido → escaneaba, guardaba y subía el PDF al blob en un solo paso).
+  // Confirmado que el flujo todo-en-uno ya funciona bien, así que ahora es EL ÚNICO camino:
+  // los dos botones que quedan (cámara y adjuntar documento) llaman los dos a
+  // crearDesdeDocumentoDirecto — no hay pantalla de revisión intermedia. Si el proveedor no
+  // se reconoce por NIF o el documento no trae número de factura, el backend rechaza y no se
   // guarda nada — el mensaje de error ya viene listo para mostrar tal cual.
-  async onFileSelectedGuardadoRapido(event: Event) {
+  async onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';

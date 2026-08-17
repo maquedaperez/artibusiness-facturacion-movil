@@ -31,28 +31,32 @@ describe('FacturasRecibidasPage', () => {
     expect(component).toBeTruthy();
   });
 
-  // El endpoint que necesita este botón (CrearDesdeDocumento) se desplegó de verdad en
-  // Development el 2026-08-17 (confirmado por el jefe) — environment.ts/.prod.ts ya tienen
-  // enableQuickSave=true, así que el botón se muestra. El caso "flag desactivado" (defensa
-  // en profundidad, por si algún entorno lo vuelve a poner en false) se prueba aparte más
-  // abajo, con su propia instancia del componente.
-  it('el botón de Guardado rápido se muestra: el endpoint ya está desplegado', () => {
-    expect(component.mostrarGuardadoRapido).toBeTrue();
-    const boton = fixture.nativeElement.querySelector('.guardado-rapido-button');
-    expect(boton).not.toBeNull();
+  // Consolidado 2026-08-17: ya no hay un botón "Guardado rápido" aparte — los dos botones de
+  // escanear/adjuntar llaman directamente a crearDesdeDocumentoDirecto (confirmado por el
+  // jefe: el endpoint funciona bien). El caso "flag desactivado" (defensa en profundidad,
+  // por si algún entorno lo revierte) se prueba aparte más abajo, con su propia instancia.
+  it('los botones de escanear/adjuntar se muestran: el endpoint ya está desplegado', () => {
+    expect(component.mostrarEscaneo).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.scan-button')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.upload-button')).not.toBeNull();
   });
 
-  it('triggerGuardadoRapido() abre el selector de fichero cuando el flag está activado', () => {
-    const clickSpy = spyOn(component.fileInputRapido!.nativeElement, 'click');
-    component.triggerGuardadoRapido();
-    expect(clickSpy).toHaveBeenCalled();
+  it('triggerCamera()/triggerUpload() abren su selector de fichero correspondiente', () => {
+    const clickCamera = spyOn(component.fileInputCamera!.nativeElement, 'click');
+    const clickUpload = spyOn(component.fileInputUpload!.nativeElement, 'click');
+
+    component.triggerCamera();
+    component.triggerUpload();
+
+    expect(clickCamera).toHaveBeenCalled();
+    expect(clickUpload).toHaveBeenCalled();
   });
 
-  // mostrarGuardadoRapido se calcula una sola vez, al construir el componente, leyendo el
-  // valor que tenga entonces environment.features.enableQuickSave — así que para probar el
-  // caso "desactivado" hace falta forzar el flag ANTES de crear una instancia nueva, no
-  // sobre la instancia compartida del resto de pruebas (esa ya se construyó con el valor
-  // real de environment.ts, que hoy es true).
+  // mostrarEscaneo se calcula una sola vez, al construir el componente, leyendo el valor que
+  // tenga entonces environment.features.enableQuickSave — así que para probar el caso
+  // "desactivado" hace falta forzar el flag ANTES de crear una instancia nueva, no sobre la
+  // instancia compartida del resto de pruebas (esa ya se construyó con el valor real de
+  // environment.ts, que hoy es true).
   describe('con enableQuickSave desactivado (defensa en profundidad, por si algún entorno lo revierte)', () => {
     let componentFlagOff: FacturasRecibidasPage;
     let fixtureFlagOff: ComponentFixture<FacturasRecibidasPage>;
@@ -74,15 +78,10 @@ describe('FacturasRecibidasPage', () => {
       environment.features.enableQuickSave = true; // restaura el valor real de environment.ts
     });
 
-    it('el botón no se muestra', () => {
-      expect(componentFlagOff.mostrarGuardadoRapido).toBeFalse();
-      expect(fixtureFlagOff.nativeElement.querySelector('.guardado-rapido-button')).toBeNull();
-    });
-
-    it('triggerGuardadoRapido() no hace nada', () => {
-      const clickSpy = spyOn(componentFlagOff.fileInputRapido!.nativeElement, 'click');
-      componentFlagOff.triggerGuardadoRapido();
-      expect(clickSpy).not.toHaveBeenCalled();
+    it('no se muestra ningún botón de escanear/adjuntar', () => {
+      expect(componentFlagOff.mostrarEscaneo).toBeFalse();
+      expect(fixtureFlagOff.nativeElement.querySelector('.scan-button')).toBeNull();
+      expect(fixtureFlagOff.nativeElement.querySelector('.upload-button')).toBeNull();
     });
   });
 
@@ -93,25 +92,26 @@ describe('FacturasRecibidasPage', () => {
     return { target: input } as unknown as Event;
   }
 
-  // "Guardado rápido" (pedido por el jefe, reunión 2026-08-14): a diferencia de escanear
-  // con OCR (que deja un borrador local para revisar), esto llama directamente al
-  // repositorio para guardar la factura ya real, sin pantalla intermedia.
-  it('guardado rápido llama a crearDesdeDocumentoDirecto y refresca la lista', async () => {
+  // Único flujo de escaneo desde 2026-08-17 (ver el comentario en onFileSelected en el
+  // componente): escanea, guarda en BBDD y sube el PDF al blob en la misma llamada, sin
+  // pantalla de revisión intermedia. Usado tanto por "Escanear con cámara" como por
+  // "Adjuntar documento" — ambos botones llaman al mismo método.
+  it('escanear/adjuntar llama a crearDesdeDocumentoDirecto y refresca la lista', async () => {
     const repo = TestBed.inject(ReceivedInvoicesRepository);
     const crearSpy = spyOn(repo, 'crearDesdeDocumentoDirecto').and.resolveTo(facturaDe('Iberdrola', 'Luz'));
     spyOn(repo, 'listar').and.resolveTo([]);
 
-    await component.onFileSelectedGuardadoRapido(eventoConArchivo());
+    await component.onFileSelected(eventoConArchivo());
 
     expect(crearSpy).toHaveBeenCalled();
     expect(component.processing).toBeFalse();
   });
 
-  it('guardado rápido muestra el error del backend si rechaza (ej. proveedor no reconocido)', async () => {
+  it('muestra el error del backend si rechaza (ej. proveedor no reconocido)', async () => {
     const repo = TestBed.inject(ReceivedInvoicesRepository);
     spyOn(repo, 'crearDesdeDocumentoDirecto').and.rejectWith(new Error('No existe ningún proveedor con ese NIF.'));
 
-    await expectAsync(component.onFileSelectedGuardadoRapido(eventoConArchivo())).toBeResolved();
+    await expectAsync(component.onFileSelected(eventoConArchivo())).toBeResolved();
     expect(component.processing).toBeFalse();
   });
 
