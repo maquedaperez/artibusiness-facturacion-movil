@@ -597,6 +597,35 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
     expect(factura?.proveedorNif).toBeUndefined();
   });
 
+  // Añadido 2026-08-17: mismo cambio que nifProveedor, pero para el total real (columna
+  // TotalFactura, money, pendiente de que el jefe termine de desplegarla).
+  it('prefiere totalFactura sobre importe cuando el backend lo trae (evita el desfase de redondeo)', async () => {
+    apiSpy.get.and.resolveTo({
+      idFacturaRecibida: 505, numFacRec: 'F-505', idProveedor: 1, nombreProveedor: 'Telefónica',
+      concepto: 'x', total: 209.83, iva: 44.06, suplidos: 0, irpf: 0, importe: 253.89,
+      totalFactura: 253.90, // el total real de la factura, sin el desfase de 1 céntimo
+      pagada: false, estado: 131, escaneada: false,
+      fechaFactura: '2026-08-01', fechaVencimiento: '2026-09-01',
+      idMedioPago: null, idTipoFactura: 1, lineas: [],
+    });
+
+    const factura = await repo.obtenerPorId(505);
+    expect(factura?.totalesReales?.total).toBe(253.90);
+  });
+
+  it('cae a importe si el backend todavía no manda totalFactura (compatibilidad)', async () => {
+    apiSpy.get.and.resolveTo({
+      idFacturaRecibida: 506, numFacRec: 'F-506', idProveedor: 1, nombreProveedor: 'Telefónica',
+      concepto: 'x', total: 209.83, iva: 44.06, suplidos: 0, irpf: 0, importe: 253.89,
+      pagada: false, estado: 131, escaneada: false,
+      fechaFactura: '2026-08-01', fechaVencimiento: '2026-09-01',
+      idMedioPago: null, idTipoFactura: 1, lineas: [],
+    });
+
+    const factura = await repo.obtenerPorId(506);
+    expect(factura?.totalesReales?.total).toBe(253.89);
+  });
+
   it('obtenerPorId() copia idMedioPago del backend cuando viene informado', async () => {
     apiSpy.get.and.resolveTo({
       idFacturaRecibida: 501, numFacRec: 'F-501', idProveedor: 1, nombreProveedor: 'Proveedor',
@@ -725,6 +754,21 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       await expectAsync(repo.crearManual({ ...datosBase, numFactura: '' }))
         .toBeRejectedWithError('El número de factura es obligatorio.');
       expect(apiSpy.post).not.toHaveBeenCalled();
+    });
+
+    // Añadido 2026-08-17: columna nueva TotalFactura (money) en el backend, pendiente de
+    // que el jefe termine de desplegarla — mandamos siempre el total real (calculado sin
+    // redondear base/IVA por separado antes de sumarlos), para que no se pierda el céntimo
+    // que 'importe' (recalculado desde total+iva ya redondeados) puede perder en facturas
+    // con líneas de muchos decimales.
+    it('manda totalFactura (el total real, sin redondeos intermedios) en el body de Guardar', async () => {
+      stubCatalogos();
+
+      await repo.crearManual(datosBase);
+
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/Guardar', jasmine.objectContaining({
+        totalFactura: 121, // base 100 + IVA 21% (21) — sin decimales raros en este caso
+      }));
     });
 
     it('resuelve idImpuesto por porcentaje y manda idTipoFactura + idProveedor a Guardar', async () => {

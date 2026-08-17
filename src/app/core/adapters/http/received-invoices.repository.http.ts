@@ -187,6 +187,14 @@ type FacturaRecibidaCabeceraApi = {
   suplidos: number;
   irpf: number;
   importe: number;
+  // Añadido 2026-08-17 (columna nueva 'TotalFactura', money, en el backend, pendiente de
+  // que el jefe termine de desplegarla): el total real de la factura, calculado SIN
+  // redondear base/IVA por separado antes de sumarlos — evita el desfase de 1 céntimo que
+  // 'importe' (= total + iva + suplidos - irpf, siempre recalculado con los campos YA
+  // redondeados) puede tener en facturas con líneas de muchos decimales. Puede venir
+  // undefined en backends todavía sin este campo, o null en filas guardadas antes de que
+  // existiera — en ambos casos se cae a 'importe' (ver mapearCabecera).
+  totalFactura?: number | null;
   pagada: boolean;
   estado: number;
   escaneada: boolean;
@@ -272,7 +280,11 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
         base,
         importe: dto.irpf,
       },
-      total: dto.importe,
+      // Preferimos totalFactura (el total real, sin el desfase de 1 céntimo que puede
+      // introducir recalcular total+iva ya redondeados por separado) — cae a 'importe' si
+      // el backend todavía no lo manda (no desplegado) o es null (fila guardada antes de
+      // que existiera la columna).
+      total: dto.totalFactura ?? dto.importe,
     },
   };
 }
@@ -782,6 +794,11 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       iva: totales.ivaTotal,
       suplidos: 0, // esta app no maneja suplidos en Recibidas todavía
       irpf: totales.retencion.importe,
+      // Añadido 2026-08-17: el total real (sin el desfase de 1 céntimo de recalcular
+      // total+iva ya redondeados por separado) — columna nueva TotalFactura (money) en el
+      // backend, pendiente de que el jefe termine de desplegarla. Mandarlo siempre no hace
+      // daño aunque el backend todavía no la tenga: un campo de más en el JSON que ignora.
+      totalFactura: totales.total,
       pagada: data.pagada,
       fechaFactura: data.fecha,
       fechaVencimiento: data.vencimiento || data.fecha,
