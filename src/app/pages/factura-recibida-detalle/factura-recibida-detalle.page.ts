@@ -269,7 +269,25 @@ export class FacturaRecibidaDetallePage implements OnInit {
   }
 
   async elegirProveedor() {
-    const modal = await this.modalCtrl.create({ component: ProveedorSelectorComponent });
+    // Cuando el proveedor viene de un escaneo sin reconocer (ver el fallback a crearDesdeOcr
+    // en facturas-recibidas.page.ts), 'working' ya trae nombre/NIF/dirección extraídos por
+    // el OCR aunque no tenga idProveedor todavía — se le pasan al selector para que el alta
+    // rápida empiece precargada en vez de que el usuario tenga que teclearlo todo de cero.
+    const datosIniciales = !this.working.idProveedor
+      ? {
+          nombre: this.working.proveedor,
+          nif: this.working.proveedorNif,
+          direccion: this.working.proveedorDireccion,
+          poblacion: this.working.proveedorPoblacion,
+          cp: this.working.proveedorCp,
+          provincia: this.working.proveedorProvincia,
+        }
+      : undefined;
+
+    const modal = await this.modalCtrl.create({
+      component: ProveedorSelectorComponent,
+      componentProps: { datosIniciales },
+    });
     await modal.present();
 
     const { data, role } = await modal.onWillDismiss();

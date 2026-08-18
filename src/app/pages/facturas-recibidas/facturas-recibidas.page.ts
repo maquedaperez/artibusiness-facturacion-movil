@@ -203,8 +203,9 @@ export class FacturasRecibidasPage {
         await this.showToast(`Factura guardada desde "${file.name}": ${nueva.proveedor}.`, 'success');
       }
     } catch (e: any) {
-      if (this.esErrorRecuperableConBorrador(e?.message)) {
-        await this.intentarBorradorLocal(file, e.message);
+      const motivo = this.motivoBorradorLocal(e?.message);
+      if (motivo) {
+        await this.intentarBorradorLocal(file, motivo);
       } else {
         await this.showToast(e?.message ?? 'No se pudo guardar la factura. Inténtalo de nuevo.', 'danger');
       }
@@ -224,12 +225,27 @@ export class FacturasRecibidasPage {
   // falta completar a mano) — un fallo total de extracción o una factura duplicada deben
   // seguir siendo un error claro, no un borrador fantasma que solo confundiría (reintentar
   // el análisis puro fallaría igual, o el usuario pensaría que puede seguir con una factura
-  // que el backend ya le ha dicho que no).
-  private esErrorRecuperableConBorrador(mensaje?: string): boolean {
-    if (!mensaje) return false;
-    return /no existe ningún proveedor con nif/i.test(mensaje)
-      || /no trae un nif de proveedor legible/i.test(mensaje)
-      || /no trae un número de factura legible/i.test(mensaje);
+  // que el backend ya le ha dicho que no). Devuelve el motivo concreto (no solo si/no) para
+  // poder mostrar un aviso claro en vez del texto crudo del backend — pedido por el usuario
+  // 2026-08-18: el mensaje original era correcto pero poco directo para alguien sin contexto
+  // técnico.
+  private motivoBorradorLocal(mensaje?: string): 'proveedor-no-encontrado' | 'nif-ilegible' | 'numero-ilegible' | null {
+    if (!mensaje) return null;
+    if (/no existe ningún proveedor con nif/i.test(mensaje)) return 'proveedor-no-encontrado';
+    if (/no trae un nif de proveedor legible/i.test(mensaje)) return 'nif-ilegible';
+    if (/no trae un número de factura legible/i.test(mensaje)) return 'numero-ilegible';
+    return null;
+  }
+
+  private mensajeBorradorLocal(motivo: 'proveedor-no-encontrado' | 'nif-ilegible' | 'numero-ilegible'): string {
+    switch (motivo) {
+      case 'proveedor-no-encontrado':
+        return 'Proveedor no encontrado en el sistema. Se ha abierto un borrador: dalo de alta manualmente antes de guardar.';
+      case 'nif-ilegible':
+        return 'No se ha podido leer el NIF del proveedor. Se ha abierto un borrador: complétalo o da de alta el proveedor manualmente.';
+      case 'numero-ilegible':
+        return 'No se ha podido leer el número de factura. Se ha abierto un borrador para completarlo a mano.';
+    }
   }
 
   // Pedido por el usuario 2026-08-18: dejar el borrador en la lista y ya está no basta —
@@ -237,18 +253,17 @@ export class FacturasRecibidasPage {
   // detalle para que el usuario siga trabajando ahí mismo (completar proveedor y guardar) sin
   // tener que encontrarlo primero. No hace falta refresh() aquí: se navega fuera de esta
   // pantalla, y la lista ya se recarga sola al volver a ella (ionViewWillEnter).
-  private async intentarBorradorLocal(file: File, motivoOriginal: string) {
+  private async intentarBorradorLocal(
+    file: File,
+    motivo: 'proveedor-no-encontrado' | 'nif-ilegible' | 'numero-ilegible',
+  ) {
     try {
       const borrador = await this.invoicesRepo.crearDesdeOcr(file);
-      await this.showToast(
-        `${motivoOriginal} Se ha abierto un borrador con los datos extraídos para completarlo a mano.`,
-        'danger',
-      );
+      await this.showToast(this.mensajeBorradorLocal(motivo), 'danger');
       await this.router.navigate(['/app/recibidas', borrador.id]);
     } catch {
-      // Si ni siquiera el análisis puro consigue nada, no hay borrador que ofrecer — se
-      // muestra el motivo original, que es la información útil que sí tenemos.
-      await this.showToast(motivoOriginal, 'danger');
+      // Si ni siquiera el análisis puro consigue nada, no hay borrador que ofrecer.
+      await this.showToast('No se pudo procesar el documento. Inténtalo de nuevo o crea la factura manualmente.', 'danger');
     }
   }
 

@@ -210,6 +210,46 @@ describe('FacturaRecibidaDetallePage', () => {
       }));
     });
 
+    // Pedido por el usuario 2026-08-18: cuando el proveedor viene de un escaneo sin
+    // reconocer, la factura ya trae nombre/NIF/dirección extraídos por el OCR — elegirProveedor()
+    // debe pasárselos al selector para que el alta rápida no obligue a teclearlos de cero.
+    it('con datos de proveedor ya extraídos (sin idProveedor todavía), se los pasa al selector para precargar el alta', async () => {
+      component.working.proveedor = 'Suministros Vallejo';
+      component.working.proveedorNif = 'B12345678';
+      component.working.proveedorDireccion = 'Calle Mayor 1';
+      // idProveedor sin definir a propósito: así es exactamente como llega un borrador del
+      // fallback de escaneo (crearDesdeOcr) cuando el proveedor no se reconoció.
+
+      const modalCtrl = TestBed.inject(ModalController);
+      const createSpy = spyOn(modalCtrl, 'create').and.resolveTo({
+        present: async () => {},
+        onWillDismiss: async () => ({ data: null, role: 'cancel' }),
+      } as any);
+
+      await component.elegirProveedor();
+
+      expect(createSpy).toHaveBeenCalledWith(jasmine.objectContaining({
+        componentProps: { datosIniciales: jasmine.objectContaining({ nombre: 'Suministros Vallejo', nif: 'B12345678' }) },
+      }));
+    });
+
+    it('con idProveedor ya resuelto, NO precarga nada (es una edición normal, no un borrador de escaneo)', async () => {
+      component.working.proveedor = 'Iberdrola';
+      component.working.idProveedor = 7;
+
+      const modalCtrl = TestBed.inject(ModalController);
+      const createSpy = spyOn(modalCtrl, 'create').and.resolveTo({
+        present: async () => {},
+        onWillDismiss: async () => ({ data: null, role: 'cancel' }),
+      } as any);
+
+      await component.elegirProveedor();
+
+      expect(createSpy).toHaveBeenCalledWith(jasmine.objectContaining({
+        componentProps: { datosIniciales: undefined },
+      }));
+    });
+
     it('un error real al guardar (rechazo del backend) también salta como toast rojo', async () => {
       const repo = TestBed.inject(ReceivedInvoicesRepository);
       spyOn(repo, 'crearManual').and.rejectWith(new Error('Ya existe una factura con ese número.'));

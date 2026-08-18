@@ -140,7 +140,7 @@ describe('FacturasRecibidasPage', () => {
 
     expect(ocrSpy).toHaveBeenCalled();
     expect(toastSpy).toHaveBeenCalledWith(jasmine.objectContaining({
-      message: jasmine.stringContaining('borrador'),
+      message: 'Proveedor no encontrado en el sistema. Se ha abierto un borrador: dalo de alta manualmente antes de guardar.',
     }));
     expect(navigateSpy).toHaveBeenCalledWith(['/app/recibidas', 777]);
   });
@@ -158,7 +158,7 @@ describe('FacturasRecibidasPage', () => {
     expect(ocrSpy).toHaveBeenCalled();
   });
 
-  it('si ni siquiera el análisis puro (crearDesdeOcr) consigue nada, se muestra el motivo original', async () => {
+  it('si ni siquiera el análisis puro (crearDesdeOcr) consigue nada, se avisa de que no se pudo procesar', async () => {
     const repo = TestBed.inject(ReceivedInvoicesRepository);
     spyOn(repo, 'crearDesdeDocumentoDirecto').and.rejectWith(
       new Error("HTTP 400 - \"No existe ningún proveedor con NIF 'B12345678' para esta empresa. Dalo de alta antes de volver a intentarlo.\"")
@@ -170,7 +170,7 @@ describe('FacturasRecibidasPage', () => {
     await expectAsync(component.onFileSelected(eventoConArchivo())).toBeResolved();
 
     expect(toastSpy).toHaveBeenCalledWith(jasmine.objectContaining({
-      message: jasmine.stringContaining('No existe ningún proveedor'),
+      message: jasmine.stringContaining('No se pudo procesar el documento'),
     }));
   });
 

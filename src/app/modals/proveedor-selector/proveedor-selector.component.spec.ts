@@ -96,3 +96,49 @@ describe('ProveedorSelectorComponent — búsqueda bajo demanda', () => {
     expect(component.estado).toBe('inicial');
   }));
 });
+
+// Pedido por el usuario 2026-08-18: cuando el borrador viene de un escaneo sin proveedor
+// reconocido, la factura ya trae nombre/NIF/dirección extraídos por el OCR — no debería hacer
+// falta teclearlos de cero en el alta rápida. datosIniciales es un @Input, así que cada test
+// crea su propia instancia y lo fija ANTES del primer detectChanges() (que dispara ngOnInit).
+describe('ProveedorSelectorComponent — precarga desde un escaneo (datosIniciales)', () => {
+  let component: ProveedorSelectorComponent;
+  let fixture: ComponentFixture<ProveedorSelectorComponent>;
+
+  function crear(datosIniciales?: Partial<Omit<ProveedorMock, 'id'>>) {
+    const suppliersRepoSpy = jasmine.createSpyObj('SuppliersRepository', ['buscar', 'crearAdHoc']);
+    TestBed.configureTestingModule({
+      imports: [ProveedorSelectorComponent],
+      providers: [
+        provideIonicAngular(),
+        { provide: SuppliersRepository, useValue: suppliersRepoSpy },
+      ],
+    });
+    fixture = TestBed.createComponent(ProveedorSelectorComponent);
+    component = fixture.componentInstance;
+    component.datosIniciales = datosIniciales;
+    fixture.detectChanges();
+  }
+
+  it('con nombre o NIF ya extraídos, abre directo en modo alta con el formulario precargado', () => {
+    crear({ nombre: 'Suministros Vallejo', nif: 'B12345678', direccion: 'Calle Mayor 1', poblacion: 'Madrid', cp: '28001', provincia: 'Madrid' });
+
+    expect(component.modoNuevo).toBeTrue();
+    expect(component.nuevo).toEqual(jasmine.objectContaining({
+      nombre: 'Suministros Vallejo', nif: 'B12345678',
+    }));
+  });
+
+  it('sin datosIniciales (búsqueda manual normal), no cambia el comportamiento por defecto', () => {
+    crear(undefined);
+
+    expect(component.modoNuevo).toBeFalse();
+    expect(component.nuevo.nombre).toBe('');
+  });
+
+  it('con datosIniciales vacío (ni nombre ni NIF), tampoco fuerza el modo alta', () => {
+    crear({ direccion: 'Calle Mayor 1' });
+
+    expect(component.modoNuevo).toBeFalse();
+  });
+});

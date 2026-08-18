@@ -1,4 +1,4 @@
-import { Component, OnDestroy, inject } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription, from, of } from 'rxjs';
@@ -135,9 +135,16 @@ type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error'
     }
   `],
 })
-export class ProveedorSelectorComponent implements OnDestroy {
+export class ProveedorSelectorComponent implements OnInit, OnDestroy {
   private suppliersRepo = inject(SuppliersRepository);
   private modalCtrl = inject(ModalController);
+
+  // Pedido por el usuario 2026-08-18: cuando el borrador viene de un escaneo cuyo proveedor
+  // no se reconoció por NIF, la factura YA tiene nombre/NIF/dirección extraídos por el OCR
+  // (ver FacturaRecibida.proveedor*) — antes había que teclearlos otra vez de cero aquí,
+  // aunque la app ya los tuviera delante. Quien abre el modal decide si hay algo que
+  // precargar (factura-recibida-detalle.page.ts, elegirProveedor()).
+  @Input() datosIniciales?: Partial<Omit<ProveedorMock, 'id'>>;
 
   private querySubject = new Subject<string>();
   private busquedaSub: Subscription;
@@ -179,6 +186,17 @@ export class ProveedorSelectorComponent implements OnDestroy {
       this.resultados = resultado.items;
       this.estado = resultado.items.length === 0 ? 'sin-resultados' : 'ok';
     });
+  }
+
+  ngOnInit() {
+    // Ya sabemos (el propio backend lo acaba de decir) que este NIF no tiene proveedor dado
+    // de alta — no tiene sentido mandar al usuario a la pantalla de búsqueda primero cuando
+    // ya se le puede llevar directo al alta con lo que ya tenemos; "Volver a buscar" sigue
+    // ahí por si el OCR se equivocó y el proveedor real ya existe con otro NIF.
+    if (this.datosIniciales?.nombre?.trim() || this.datosIniciales?.nif?.trim()) {
+      this.nuevo = { ...this.nuevo, ...this.datosIniciales };
+      this.modoNuevo = true;
+    }
   }
 
   ngOnDestroy() {
