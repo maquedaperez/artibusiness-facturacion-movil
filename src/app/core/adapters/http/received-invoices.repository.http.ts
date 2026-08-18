@@ -830,9 +830,19 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     // hasta entonces editable) devolvía accountingLocked:false, y la pantalla se quedaba
     // mostrando la factura como editable pese a haberse bloqueado ya de verdad en el
     // backend. Mismo criterio que mapearCabecera: bloqueada solo si estado === 'revisada'.
+    //
+    // BUG real corregido 2026-08-18: totalesReales tenía el mismo problema — se copiaba tal
+    // cual venía en 'data' (los totales de ANTES de este guardado, del momento en que se
+    // cargó la factura), nunca los recién calculados en 'totales' unas líneas más arriba.
+    // No se notaba mientras la factura seguía editable (totales() del detalle ignora
+    // totalesReales y recalcula en vivo) — pero en cuanto se contabiliza (deja de ser
+    // editable), totales() empieza a usar totalesReales tal cual, y si se había editado una
+    // línea justo antes de contabilizar, se veía el total VIEJO en vez del que de verdad se
+    // acababa de guardar.
     return {
       ...data, lineas, id: dto.idFacturaRecibida, origenOcr: !!data.documentoUrl,
       esBorradorLocal: false, accountingLocked: data.estado === 'revisada',
+      totalesReales: totales,
     };
   }
 }

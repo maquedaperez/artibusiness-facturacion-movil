@@ -876,6 +876,28 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       expect(segunda.id).toBe(primera.id);
     });
 
+    // BUG real corregido 2026-08-18: totalesReales en la respuesta se copiaba tal cual venía
+    // en 'data' (los totales de ANTES de este guardado) en vez de los recién calculados —
+    // no se notaba mientras la factura seguía editable (el detalle ignora totalesReales y
+    // recalcula en vivo), pero en cuanto se bloquea (Contabilizar), el detalle empieza a
+    // fiarse de totalesReales tal cual — si se había editado una línea justo antes de
+    // contabilizar, se veía el total VIEJO en vez del que de verdad se acababa de guardar.
+    it('totalesReales en la respuesta refleja el total recién calculado, no uno viejo que trajera "data"', async () => {
+      stubCatalogos();
+      const conTotalesViejos = {
+        ...datosBase,
+        // Simula una factura real cargada antes de editar: ya trae totalesReales de cuando
+        // se abrió, con un total distinto al que resultará de las líneas actuales.
+        totalesReales: { base: 999, desgloseIva: [], ivaTotal: 999, retencion: { aplicable: false, etiqueta: 'Retención', porcentaje: 0, base: 0, importe: 0 }, total: 999 },
+      };
+
+      const guardada = await repo.crearManual(conTotalesViejos);
+
+      // datosBase: 1 línea, cantidad 2 × 50 = 100 de base, IVA 21% = 21 → total 121.
+      expect(guardada.totalesReales?.total).toBe(121);
+      expect(guardada.totalesReales?.total).not.toBe(999);
+    });
+
     it('preserva idLineaBackend de las líneas ya existentes al reguardar (GuardarAsync las actualiza, no las duplica)', async () => {
       stubCatalogos();
       const conLineaReal = {

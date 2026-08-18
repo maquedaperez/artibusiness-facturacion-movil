@@ -242,10 +242,10 @@ export class FacturasRecibidasPage {
       this.alertCtrl.create({
         header: 'Número de la nueva factura',
         message: `Se copiará la factura de ${proveedor} (proveedor, líneas, importes...) y se guardará directamente. El resto de datos se pueden ajustar después.`,
-        // BUG real corregido 2026-08-18: sin esto, tocar fuera del diálogo lo cierra sin
-        // pasar por ningún botón — ni "Cancelar" ni "Copiar y guardar" llegan a ejecutarse,
-        // así que la promesa nunca se resuelve y quien esperaba este resultado (duplicar())
-        // se queda colgado para siempre.
+        // Corregido 2026-08-18: sin esto, tocar fuera del diálogo lo cierra sin pasar por
+        // ningún botón — ni "Cancelar" ni "Copiar y guardar" llegan a ejecutarse. No cubre
+        // el botón físico/gesto "atrás" de Android, que puede cerrar el diálogo igual sin
+        // pasar por backdropDismiss — de ahí la red de seguridad en onDidDismiss() de abajo.
         backdropDismiss: false,
         inputs: [{ name: 'numFactura', type: 'text', placeholder: 'Número de factura' }],
         buttons: [
@@ -260,7 +260,14 @@ export class FacturasRecibidasPage {
             },
           },
         ],
-      }).then(alert => alert.present());
+      }).then(alert => {
+        // Red de seguridad: si el diálogo se cierra por cualquier vía que no sea un botón
+        // (atrás en Android, por ejemplo), resuelve null en vez de dejar la promesa
+        // colgada. resolve() es idempotente — si un botón ya resolvió con un valor real,
+        // esta llamada no hace nada.
+        alert.onDidDismiss().then(() => resolve(null));
+        alert.present();
+      });
     });
   }
 

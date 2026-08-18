@@ -212,7 +212,7 @@ describe('FacturasRecibidasPage', () => {
     spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
       const boton = opts.buttons.find((b: any) => b.handler && b.text !== 'Cancelar');
       boton.handler({ numFactura });
-      return { present: async () => {} } as any;
+      return { present: async () => {}, onDidDismiss: async () => ({} as any) } as any;
     });
   }
 
@@ -263,7 +263,7 @@ describe('FacturasRecibidasPage', () => {
     spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
       const cancelar = opts.buttons.find((b: any) => b.role === 'cancel');
       cancelar.handler();
-      return { present: async () => {} } as any;
+      return { present: async () => {}, onDidDismiss: async () => ({} as any) } as any;
     });
 
     await component.duplicar(new Event('click'), filaDeLista);
