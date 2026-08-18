@@ -232,14 +232,19 @@ export class FacturasRecibidasPage {
       || /no trae un número de factura legible/i.test(mensaje);
   }
 
+  // Pedido por el usuario 2026-08-18: dejar el borrador en la lista y ya está no basta —
+  // entre las demás facturas se pierde de vista y hay que ir a buscarlo. Se abre directo su
+  // detalle para que el usuario siga trabajando ahí mismo (completar proveedor y guardar) sin
+  // tener que encontrarlo primero. No hace falta refresh() aquí: se navega fuera de esta
+  // pantalla, y la lista ya se recarga sola al volver a ella (ionViewWillEnter).
   private async intentarBorradorLocal(file: File, motivoOriginal: string) {
     try {
-      await this.invoicesRepo.crearDesdeOcr(file);
-      await this.refresh();
+      const borrador = await this.invoicesRepo.crearDesdeOcr(file);
       await this.showToast(
-        `${motivoOriginal} Se ha dejado un borrador con los datos extraídos para completarlo a mano.`,
+        `${motivoOriginal} Se ha abierto un borrador con los datos extraídos para completarlo a mano.`,
         'danger',
       );
+      await this.router.navigate(['/app/recibidas', borrador.id]);
     } catch {
       // Si ni siquiera el análisis puro consigue nada, no hay borrador que ofrecer — se
       // muestra el motivo original, que es la información útil que sí tenemos.

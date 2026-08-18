@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
 import { AlertController, ToastController } from '@ionic/angular/standalone';
 import { FacturasRecibidasPage } from './facturas-recibidas.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
@@ -124,15 +125,16 @@ describe('FacturasRecibidasPage', () => {
   // el proveedor no estaba dado de alta, se quedaba sin nada. onFileSelected() debe detectar
   // estos motivos concretos y recurrir a crearDesdeOcr (solo extrae, deja borrador local)
   // en vez de limitarse a mostrar el error.
-  it('proveedor no reconocido por NIF: cae a un borrador local con los datos extraídos, no se pierde el escaneo', async () => {
+  it('proveedor no reconocido por NIF: cae a un borrador local y abre directo su detalle, no se pierde el escaneo', async () => {
     const repo = TestBed.inject(ReceivedInvoicesRepository);
     spyOn(repo, 'crearDesdeDocumentoDirecto').and.rejectWith(
       new Error("HTTP 400 - \"No existe ningún proveedor con NIF 'B12345678' para esta empresa. Dalo de alta antes de volver a intentarlo.\"")
     );
-    const ocrSpy = spyOn(repo, 'crearDesdeOcr').and.resolveTo(facturaDe('Proveedor sin dar de alta', 'Pendiente de revisar'));
-    spyOn(repo, 'listar').and.resolveTo([]);
+    const ocrSpy = spyOn(repo, 'crearDesdeOcr').and.resolveTo({ ...facturaDe('Proveedor sin dar de alta', 'Pendiente de revisar'), id: 777 });
     const toastCtrl = TestBed.inject(ToastController);
     const toastSpy = spyOn(toastCtrl, 'create').and.callThrough();
+    const router = TestBed.inject(Router);
+    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
 
     await component.onFileSelected(eventoConArchivo());
 
@@ -140,6 +142,7 @@ describe('FacturasRecibidasPage', () => {
     expect(toastSpy).toHaveBeenCalledWith(jasmine.objectContaining({
       message: jasmine.stringContaining('borrador'),
     }));
+    expect(navigateSpy).toHaveBeenCalledWith(['/app/recibidas', 777]);
   });
 
   it('NIF o número de factura ilegibles: también caen a un borrador local en vez de perderse', async () => {
@@ -148,7 +151,7 @@ describe('FacturasRecibidasPage', () => {
       new Error('HTTP 400 - "El documento no trae un número de factura legible — usa el alta manual para revisarlo antes de guardar."')
     );
     const ocrSpy = spyOn(repo, 'crearDesdeOcr').and.resolveTo(facturaDe('Iberdrola', 'Pendiente de revisar'));
-    spyOn(repo, 'listar').and.resolveTo([]);
+    spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
 
     await component.onFileSelected(eventoConArchivo());
 
