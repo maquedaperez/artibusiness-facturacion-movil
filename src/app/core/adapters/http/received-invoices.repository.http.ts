@@ -240,14 +240,14 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
     avisos.push(`Incluye ${formatEuros(dto.suplidos)} en suplidos, ya sumados al total a pagar.`);
   }
   if (bloqueada) {
-    // Terminología corregida 2026-08-18: "revisada"/"repasada" venía de antes de que el
-    // jefe confirmara que 132 es "Contabilizada" de verdad (un estado fiscal real, no un
-    // simple repaso interno) — este aviso se había quedado con el texto viejo mientras el
-    // resto de la pantalla (el campo Estado, el botón Contabilizar) ya usa el término
-    // correcto.
+    // Corregido 2026-08-18: el texto sugería "bórrala y créala de nuevo" para corregirla —
+    // pero desde que eliminar() bloquea también las facturas contabilizadas (regla del
+    // jefe, reunión 2026-08-17), esa instrucción ya no es posible de seguir: ni se puede
+    // editar NI se puede borrar. El único camino real que queda es Copiar.
     avisos.push(
-      'Esta factura ya está contabilizada. Para corregirla, bórrala y créala de nuevo (o usa ' +
-      'Copiar) — reeditar una factura ya contabilizada podría descuadrar la contabilidad si ' +
+      'Esta factura ya está contabilizada — no se puede editar ni eliminar. Si necesitas ' +
+      'corregirla, usa "Copiar" para crear una nueva a partir de esta y ajusta lo que haga ' +
+      'falta: reeditar una factura ya contabilizada podría descuadrar la contabilidad si ' +
       'alguien más ya la dio por buena.'
     );
   }
@@ -273,7 +273,7 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
     estado,
     origenOcr: dto.escaneada,
     accountingLocked: bloqueada,
-    accountingLockReason: bloqueada ? 'Factura ya contabilizada: bórrala y créala de nuevo si necesitas corregirla.' : undefined,
+    accountingLockReason: bloqueada ? 'Factura ya contabilizada: no se puede editar ni eliminar. Usa "Copiar" si necesitas corregirla.' : undefined,
     avisosOcr: avisos.length > 0 ? avisos : undefined,
     totalesReales: {
       base,
