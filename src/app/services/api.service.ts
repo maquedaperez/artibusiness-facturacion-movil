@@ -27,8 +27,15 @@ export class ApiService {
 
   private async resolveBaseUrl(): Promise<string> {
     if (!Capacitor.isNativePlatform()) return '';
-    const cfg = await this.tenant.getTenantConfig();
-    return (cfg?.baseUrl ?? environment.defaultBaseUrl ?? '').replace(/\/$/, '');
+
+    // ⚠️ TEMPORAL: igual que el redirect de /api/* en netlify.toml, forzamos Development
+    // porque DocumentoController (OCR) todavía no está publicado en Producción. Sin esto,
+    // el nativo resolvía el baseUrl real (Producción) vía la clave de empresa mientras
+    // Netlify seguía apuntando a Development — mismo usuario/clave, dos bases de datos
+    // distintas, y el login fallaba solo en el móvil. Revertir a `(await
+    // this.tenant.getTenantConfig())?.baseUrl` en cuanto el jefe publique OCR en
+    // Producción — a la vez que se revierte netlify.toml.
+    return (environment.defaultBaseUrl ?? '').replace(/\/$/, '');
   }
 
   private buildHeaders(extra?: Record<string, string>, opts?: { defaultJson?: boolean }): Record<string, string> {
