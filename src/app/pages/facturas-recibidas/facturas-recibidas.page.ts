@@ -12,7 +12,7 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
-  cameraOutline, receiptOutline, documentTextOutline, addOutline, filterOutline,
+  cameraOutline, receiptOutline, attachOutline, addOutline, filterOutline,
   copyOutline, downloadOutline, shareSocialOutline, trashOutline, checkmarkCircleOutline,
 } from 'ionicons/icons';
 
@@ -65,7 +65,7 @@ export class FacturasRecibidasPage {
 
   constructor() {
     addIcons({
-      cameraOutline, receiptOutline, documentTextOutline, addOutline, filterOutline,
+      cameraOutline, receiptOutline, attachOutline, addOutline, filterOutline,
       copyOutline, downloadOutline, shareSocialOutline, trashOutline, checkmarkCircleOutline,
     });
   }

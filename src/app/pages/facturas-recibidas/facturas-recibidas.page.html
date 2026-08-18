@@ -46,26 +46,24 @@
   <div class="scan-actions" *ngIf="mostrarEscaneo">
     <ion-button
       expand="block"
-      size="large"
       class="scan-button"
       [disabled]="processing"
       (click)="triggerCamera()"
     >
       <ion-spinner *ngIf="processing" slot="start" name="crescent"></ion-spinner>
       <ion-icon *ngIf="!processing" slot="start" name="camera-outline"></ion-icon>
-      {{ processing ? 'Procesando...' : 'Escanear con cámara' }}
+      {{ processing ? 'Procesando...' : 'Escanear' }}
     </ion-button>
 
     <ion-button
       expand="block"
-      size="large"
       fill="outline"
       class="upload-button"
       [disabled]="processing"
       (click)="triggerUpload()"
     >
-      <ion-icon slot="start" name="document-text-outline"></ion-icon>
-      Adjuntar documento (imagen o PDF)
+      <ion-icon slot="start" name="attach-outline"></ion-icon>
+      Adjuntar
     </ion-button>
   </div>
 

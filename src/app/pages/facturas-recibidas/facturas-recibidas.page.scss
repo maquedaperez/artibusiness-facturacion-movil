@@ -8,22 +8,29 @@
   font-size: 12px;
 }
 
+// Pedido por el usuario 2026-08-18: antes iban apiladas a ancho completo (dos líneas la de
+// adjuntar) — ahora van en la misma fila, mitad y mitad, mismos colores/iconos/funcionalidad
+// que antes, solo el texto más corto para que quepa en una sola línea a ese ancho.
 .scan-actions {
   margin-top: 8px;
   display: flex;
-  flex-direction: column;
   gap: 10px;
+
+  ion-button {
+    flex: 1;
+    margin: 0;
+  }
 }
 
 .scan-button {
   --border-radius: 12px;
-  height: 56px;
+  height: 52px;
   font-weight: 600;
 }
 
 .upload-button {
   --border-radius: 12px;
-  height: 48px;
+  height: 52px;
   font-weight: 600;
 }
 
