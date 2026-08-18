@@ -130,6 +130,16 @@
         </div>
 
         <div class="row-actions">
+          <ion-button
+            *ngIf="f.estado === 'borrador'"
+            size="small"
+            class="accion-principal"
+            (click)="confirmarContabilizar($event, f)"
+          >
+            <ion-icon slot="start" name="checkmark-circle-outline"></ion-icon>
+            Contabilizar
+          </ion-button>
+
           <span class="acciones-secundarias">
             <ion-button
               *ngIf="accionesPermitidas(f).copiar"

@@ -143,13 +143,24 @@
 .row-actions {
   margin-top: 4px;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+
+  .accion-principal {
+    margin: 0;
+    height: 30px;
+    font-size: 12.5px;
+    --padding-top: 0;
+    --padding-bottom: 0;
+  }
 }
 
 .acciones-secundarias {
   display: flex;
   align-items: center;
   gap: 2px;
+  margin-left: auto;
 
   ion-button {
     margin: 0;

@@ -13,7 +13,7 @@ import {
 import { addIcons } from 'ionicons';
 import {
   cameraOutline, receiptOutline, documentTextOutline, addOutline, filterOutline,
-  copyOutline, downloadOutline, shareSocialOutline, trashOutline,
+  copyOutline, downloadOutline, shareSocialOutline, trashOutline, checkmarkCircleOutline,
 } from 'ionicons/icons';
 
 import { AccionesPermitidas, FacturaRecibida } from '../../services/mock-facturas.service';
@@ -66,7 +66,7 @@ export class FacturasRecibidasPage {
   constructor() {
     addIcons({
       cameraOutline, receiptOutline, documentTextOutline, addOutline, filterOutline,
-      copyOutline, downloadOutline, shareSocialOutline, trashOutline,
+      copyOutline, downloadOutline, shareSocialOutline, trashOutline, checkmarkCircleOutline,
     });
   }
 
@@ -211,6 +211,42 @@ export class FacturasRecibidasPage {
 
   accionesPermitidas(f: FacturaRecibida): AccionesPermitidas {
     return this.invoicesRepo.accionesPermitidas(f);
+  }
+
+  // Acceso directo a "Contabilizar" desde el listado, igual que ya existe en Facturas
+  // Emitidas — sigue el mismo proceso que el botón del detalle (factura-recibida-detalle.
+  // page.ts): pide la factura completa antes de guardar porque 'f' viene de listar(), que
+  // nunca rellena 'lineas' (ver duplicar() más abajo) — reenviar el objeto tal cual a
+  // actualizar() borraría todas las líneas reales de la factura.
+  async confirmarContabilizar(event: Event, f: FacturaRecibida) {
+    event.stopPropagation();
+    const completa = await this.invoicesRepo.obtenerPorId(f.id);
+    if (!completa) {
+      await this.showToast('No se pudo cargar la factura completa.', 'danger');
+      return;
+    }
+
+    const alert = await this.alertCtrl.create({
+      header: 'Contabilizar factura',
+      message: `¿Contabilizar la factura ${completa.numFactura} de ${completa.proveedor} por ${this.formatEuros(this.invoicesRepo.totales(completa).total)}? Quedará bloqueada para editar — solo podrá eliminarse (si corresponde) o gestionarse desde analítica/pagos.`,
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        {
+          text: 'Contabilizar',
+          handler: async () => {
+            try {
+              const { id: _id, origenOcr: _ocr, ...resto } = completa;
+              await this.invoicesRepo.actualizar(completa.id, { ...resto, estado: 'revisada' });
+              await this.refresh();
+              await this.showToast('Factura contabilizada.');
+            } catch (e) {
+              await this.showToast(e instanceof Error ? e.message : 'No se pudo contabilizar la factura.', 'danger');
+            }
+          },
+        },
+      ],
+    });
+    await alert.present();
   }
 
   async duplicar(event: Event, f: FacturaRecibida) {

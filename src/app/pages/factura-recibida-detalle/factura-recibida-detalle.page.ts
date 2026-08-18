@@ -321,16 +321,25 @@ export class FacturaRecibidaDetallePage implements OnInit {
     await modal.present();
   }
 
+  // Además de fijar errorMsg (para el aviso rojo fijo bajo la cabecera), lo muestra también
+  // como toast — encontrado en revisión 2026-08-18: si el usuario está desplazado más abajo
+  // (viendo las líneas, por ejemplo) al pulsar "Guardar", el aviso fijo queda fuera de la
+  // vista y pierde el mensaje por completo hasta que vuelve a subir manualmente.
+  private async mostrarError(mensaje: string) {
+    this.errorMsg = mensaje;
+    await this.showToast(mensaje, 'danger');
+  }
+
   async guardar() {
     if (this.guardando) return;
 
     this.errorMsg = '';
     if (!this.working.proveedor.trim() || !this.working.numFactura.trim()) {
-      this.errorMsg = 'Proveedor y número de factura son obligatorios.';
+      await this.mostrarError('Proveedor y número de factura son obligatorios.');
       return;
     }
     if (!this.working.idProveedor) {
-      this.errorMsg = 'Selecciona el proveedor de la lista (o créalo) antes de guardar.';
+      await this.mostrarError('Selecciona el proveedor de la lista (o créalo) antes de guardar.');
       return;
     }
 
@@ -353,7 +362,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
 
       await this.showToast('Factura guardada.');
     } catch (e) {
-      this.errorMsg = e instanceof Error ? e.message : 'No se pudo guardar la factura.';
+      await this.mostrarError(e instanceof Error ? e.message : 'No se pudo guardar la factura.');
     } finally {
       this.guardando = false;
     }
