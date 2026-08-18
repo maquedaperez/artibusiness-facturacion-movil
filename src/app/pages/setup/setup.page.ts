@@ -37,7 +37,7 @@ export class SetupPage {
   });
 
 openLink() {
-  window.open('https://www.artisoftware.com/artibusiness/artibusiness-rrhh/alta-en-el-servicio/', '_system');
+  window.open('https://www.artisoftware.com/alta-en-el-servicio-facturacion', '_system');
 }
 
 async submit() {

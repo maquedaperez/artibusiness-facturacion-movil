@@ -203,9 +203,47 @@ export class FacturasRecibidasPage {
         await this.showToast(`Factura guardada desde "${file.name}": ${nueva.proveedor}.`, 'success');
       }
     } catch (e: any) {
-      await this.showToast(e?.message ?? 'No se pudo guardar la factura. Inténtalo de nuevo.', 'danger');
+      if (this.esErrorRecuperableConBorrador(e?.message)) {
+        await this.intentarBorradorLocal(file, e.message);
+      } else {
+        await this.showToast(e?.message ?? 'No se pudo guardar la factura. Inténtalo de nuevo.', 'danger');
+      }
     } finally {
       this.processing = false;
+    }
+  }
+
+  // BUG crítico corregido 2026-08-18: CrearDesdeDocumento (el guardado automático) rechaza
+  // sin guardar nada si el proveedor no está dado de alta por NIF, o si el NIF/número de
+  // factura no se leyeron bien — antes de la consolidación del 2026-08-17 esos casos SIEMPRE
+  // caían a un borrador local para completar a mano (ver crearDesdeOcr, que sigue existiendo
+  // y funcionando: solo se dejó de llamar desde aquí). Al unificar el flujo se perdió ese
+  // salvavidas: el usuario escaneaba una factura real de un proveedor todavía no dado de
+  // alta y se quedaba sin nada, teniendo que volver a teclear la factura entera a mano. Se
+  // reintroduce el fallback SOLO para estos motivos concretos (datos que de verdad hacen
+  // falta completar a mano) — un fallo total de extracción o una factura duplicada deben
+  // seguir siendo un error claro, no un borrador fantasma que solo confundiría (reintentar
+  // el análisis puro fallaría igual, o el usuario pensaría que puede seguir con una factura
+  // que el backend ya le ha dicho que no).
+  private esErrorRecuperableConBorrador(mensaje?: string): boolean {
+    if (!mensaje) return false;
+    return /no existe ningún proveedor con nif/i.test(mensaje)
+      || /no trae un nif de proveedor legible/i.test(mensaje)
+      || /no trae un número de factura legible/i.test(mensaje);
+  }
+
+  private async intentarBorradorLocal(file: File, motivoOriginal: string) {
+    try {
+      await this.invoicesRepo.crearDesdeOcr(file);
+      await this.refresh();
+      await this.showToast(
+        `${motivoOriginal} Se ha dejado un borrador con los datos extraídos para completarlo a mano.`,
+        'danger',
+      );
+    } catch {
+      // Si ni siquiera el análisis puro consigue nada, no hay borrador que ofrecer — se
+      // muestra el motivo original, que es la información útil que sí tenemos.
+      await this.showToast(motivoOriginal, 'danger');
     }
   }
 

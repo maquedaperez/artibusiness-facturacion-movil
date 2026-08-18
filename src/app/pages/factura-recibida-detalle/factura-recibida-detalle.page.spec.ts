@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { ActivatedRoute } from '@angular/router';
-import { AlertController, ModalController, provideIonicAngular } from '@ionic/angular/standalone';
+import { AlertController, ModalController, ToastController, provideIonicAngular } from '@ionic/angular/standalone';
 import { FacturaRecibidaDetallePage } from './factura-recibida-detalle.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { ApiService } from '../../services/api.service';
@@ -190,6 +190,43 @@ describe('FacturaRecibidaDetallePage', () => {
 
       expect(crearSpy).not.toHaveBeenCalled();
       expect(component.errorMsg).toContain('proveedor');
+    });
+
+    // Encontrado en revisión 2026-08-18: el aviso de "proveedor y número obligatorios" solo
+    // se mostraba como texto fijo bajo la cabecera — si el usuario estaba desplazado hacia
+    // las líneas al pulsar "Guardar", ese texto quedaba fuera de la vista y el aviso pasaba
+    // desapercibido. Ahora también debe saltar como toast rojo.
+    it('los avisos de validación al guardar también saltan como toast rojo, no solo como texto fijo', async () => {
+      const toastCtrl = TestBed.inject(ToastController);
+      const toastSpy = spyOn(toastCtrl, 'create').and.callThrough();
+
+      // proveedor y numFactura vacíos a propósito (valores por defecto del formulario en blanco)
+      await component.guardar();
+
+      expect(component.errorMsg).toContain('obligatorios');
+      expect(toastSpy).toHaveBeenCalledWith(jasmine.objectContaining({
+        message: jasmine.stringContaining('obligatorios'),
+        color: 'danger',
+      }));
+    });
+
+    it('un error real al guardar (rechazo del backend) también salta como toast rojo', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      spyOn(repo, 'crearManual').and.rejectWith(new Error('Ya existe una factura con ese número.'));
+      const toastCtrl = TestBed.inject(ToastController);
+      const toastSpy = spyOn(toastCtrl, 'create').and.callThrough();
+
+      component.working.proveedor = 'Iberdrola';
+      component.working.numFactura = 'F-900';
+      component.working.idProveedor = 7;
+
+      await component.guardar();
+
+      expect(component.errorMsg).toBe('Ya existe una factura con ese número.');
+      expect(toastSpy).toHaveBeenCalledWith(jasmine.objectContaining({
+        message: 'Ya existe una factura con ese número.',
+        color: 'danger',
+      }));
     });
   });
 

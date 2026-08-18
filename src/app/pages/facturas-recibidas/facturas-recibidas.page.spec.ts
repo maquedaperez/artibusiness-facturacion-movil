@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { AlertController } from '@ionic/angular/standalone';
+import { AlertController, ToastController } from '@ionic/angular/standalone';
 import { FacturasRecibidasPage } from './facturas-recibidas.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { FacturaRecibida } from '../../services/mock-facturas.service';
@@ -107,12 +107,68 @@ describe('FacturasRecibidasPage', () => {
     expect(component.processing).toBeFalse();
   });
 
-  it('muestra el error del backend si rechaza (ej. proveedor no reconocido)', async () => {
+  it('muestra el error del backend si rechaza por un motivo no recuperable (ej. error de servidor)', async () => {
     const repo = TestBed.inject(ReceivedInvoicesRepository);
-    spyOn(repo, 'crearDesdeDocumentoDirecto').and.rejectWith(new Error('No existe ningún proveedor con ese NIF.'));
+    spyOn(repo, 'crearDesdeDocumentoDirecto').and.rejectWith(new Error('HTTP 500 - Error interno del servidor.'));
+    const ocrSpy = spyOn(repo, 'crearDesdeOcr');
 
     await expectAsync(component.onFileSelected(eventoConArchivo())).toBeResolved();
     expect(component.processing).toBeFalse();
+    expect(ocrSpy).not.toHaveBeenCalled();
+  });
+
+  // BUG crítico corregido 2026-08-18: antes de la consolidación del 2026-08-17, un proveedor
+  // sin dar de alta (o un NIF/número de factura ilegible) SIEMPRE caía a un borrador local
+  // para completar a mano. Al unificar a un único flujo (CrearDesdeDocumento, que guarda
+  // directo en BBDD) se perdió ese salvavidas: el usuario escaneaba una factura real y, si
+  // el proveedor no estaba dado de alta, se quedaba sin nada. onFileSelected() debe detectar
+  // estos motivos concretos y recurrir a crearDesdeOcr (solo extrae, deja borrador local)
+  // en vez de limitarse a mostrar el error.
+  it('proveedor no reconocido por NIF: cae a un borrador local con los datos extraídos, no se pierde el escaneo', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    spyOn(repo, 'crearDesdeDocumentoDirecto').and.rejectWith(
+      new Error("HTTP 400 - \"No existe ningún proveedor con NIF 'B12345678' para esta empresa. Dalo de alta antes de volver a intentarlo.\"")
+    );
+    const ocrSpy = spyOn(repo, 'crearDesdeOcr').and.resolveTo(facturaDe('Proveedor sin dar de alta', 'Pendiente de revisar'));
+    spyOn(repo, 'listar').and.resolveTo([]);
+    const toastCtrl = TestBed.inject(ToastController);
+    const toastSpy = spyOn(toastCtrl, 'create').and.callThrough();
+
+    await component.onFileSelected(eventoConArchivo());
+
+    expect(ocrSpy).toHaveBeenCalled();
+    expect(toastSpy).toHaveBeenCalledWith(jasmine.objectContaining({
+      message: jasmine.stringContaining('borrador'),
+    }));
+  });
+
+  it('NIF o número de factura ilegibles: también caen a un borrador local en vez de perderse', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    spyOn(repo, 'crearDesdeDocumentoDirecto').and.rejectWith(
+      new Error('HTTP 400 - "El documento no trae un número de factura legible — usa el alta manual para revisarlo antes de guardar."')
+    );
+    const ocrSpy = spyOn(repo, 'crearDesdeOcr').and.resolveTo(facturaDe('Iberdrola', 'Pendiente de revisar'));
+    spyOn(repo, 'listar').and.resolveTo([]);
+
+    await component.onFileSelected(eventoConArchivo());
+
+    expect(ocrSpy).toHaveBeenCalled();
+  });
+
+  it('si ni siquiera el análisis puro (crearDesdeOcr) consigue nada, se muestra el motivo original', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    spyOn(repo, 'crearDesdeDocumentoDirecto').and.rejectWith(
+      new Error("HTTP 400 - \"No existe ningún proveedor con NIF 'B12345678' para esta empresa. Dalo de alta antes de volver a intentarlo.\"")
+    );
+    spyOn(repo, 'crearDesdeOcr').and.rejectWith(new Error('No se pudo extraer información del documento.'));
+    const toastCtrl = TestBed.inject(ToastController);
+    const toastSpy = spyOn(toastCtrl, 'create').and.callThrough();
+
+    await expectAsync(component.onFileSelected(eventoConArchivo())).toBeResolved();
+
+    expect(toastSpy).toHaveBeenCalledWith(jasmine.objectContaining({
+      message: jasmine.stringContaining('No existe ningún proveedor'),
+    }));
   });
 
   function facturaDe(proveedor: string, concepto: string): FacturaRecibida {
@@ -269,6 +325,56 @@ describe('FacturasRecibidasPage', () => {
     await component.duplicar(new Event('click'), filaDeLista);
 
     expect(duplicarSpy).not.toHaveBeenCalled();
+  });
+
+  // Igual que "Copiar": 'f' tal como llega del listado no trae 'lineas', así que
+  // confirmarContabilizar() debe pedir primero el detalle completo (obtenerPorId) y mandar
+  // ESE objeto a actualizar() — no la fila vacía de la lista, que borraría las líneas reales.
+  it('contabilizar desde la lista pide primero el detalle completo y actualiza con estado revisada, sin perder líneas', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    const filaDeLista: FacturaRecibida = {
+      id: 600, proveedor: 'Endesa', numFactura: 'F-600', fecha: '2026-08-01',
+      lineas: [], retencionPct: 0, pagada: false, estado: 'borrador', origenOcr: false,
+    };
+    const detalleCompleto: FacturaRecibida = {
+      ...filaDeLista,
+      lineas: [{ id: 1, origen: 'manual', descripcion: 'Luz', cantidad: 1, precioUnitario: 80, descuentoPct: 0, ivaPct: 21 }],
+    };
+    spyOn(repo, 'obtenerPorId').and.resolveTo(detalleCompleto);
+    const actualizarSpy = spyOn(repo, 'actualizar').and.resolveTo({ ...detalleCompleto, estado: 'revisada', accountingLocked: true });
+    const refreshSpy = spyOn(component, 'refresh').and.resolveTo();
+    const alertCtrl = TestBed.inject(AlertController);
+    spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
+      const boton = opts.buttons.find((b: any) => b.text === 'Contabilizar');
+      await boton.handler();
+      return { present: async () => {} } as any;
+    });
+
+    await component.confirmarContabilizar(new Event('click'), filaDeLista);
+
+    expect(repo.obtenerPorId).toHaveBeenCalledWith(600);
+    expect(actualizarSpy).toHaveBeenCalledWith(600, jasmine.objectContaining({
+      estado: 'revisada',
+      lineas: detalleCompleto.lineas,
+    }));
+    expect(refreshSpy).toHaveBeenCalled();
+  });
+
+  it('si no se puede obtener el detalle completo, no contabiliza (no llega a abrir el diálogo)', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    const filaDeLista: FacturaRecibida = {
+      id: 601, proveedor: 'Endesa', numFactura: 'F-601', fecha: '2026-08-01',
+      lineas: [], retencionPct: 0, pagada: false, estado: 'borrador', origenOcr: false,
+    };
+    spyOn(repo, 'obtenerPorId').and.resolveTo(undefined);
+    const actualizarSpy = spyOn(repo, 'actualizar');
+    const alertCtrl = TestBed.inject(AlertController);
+    const createSpy = spyOn(alertCtrl, 'create');
+
+    await component.confirmarContabilizar(new Event('click'), filaDeLista);
+
+    expect(actualizarSpy).not.toHaveBeenCalled();
+    expect(createSpy).not.toHaveBeenCalled();
   });
 
   // Confirmado con el jefe el mapeo de Estado (131 = borrador, 132 = revisada) — igual que
