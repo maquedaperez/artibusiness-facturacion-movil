@@ -79,7 +79,7 @@
       <ion-select label="Estado" label-placement="start" interface="popover" [(ngModel)]="estadoFiltro" (ionChange)="onFiltroCambia()">
         <ion-select-option value="todos">Todos</ion-select-option>
         <ion-select-option value="borrador">Borrador</ion-select-option>
-        <ion-select-option value="revisada">Revisada</ion-select-option>
+        <ion-select-option value="revisada">Contabilizada</ion-select-option>
       </ion-select>
     </ion-item>
 
@@ -124,7 +124,7 @@
           <span>{{ formatFecha(f.fecha) }} <ng-container *ngIf="f.pagada"> · Pagada</ng-container></span>
           <span class="estado" [class.ok]="f.estado === 'revisada'">
             <ng-container *ngIf="f.esBorradorLocal; else estadoReal">Sin guardar</ng-container>
-            <ng-template #estadoReal>{{ f.estado === 'revisada' ? 'Revisada' : 'Borrador' }}</ng-template>
+            <ng-template #estadoReal>{{ f.estado === 'revisada' ? 'Contabilizada' : 'Borrador' }}</ng-template>
             <ng-container *ngIf="f.origenOcr"> · OCR</ng-container>
           </span>
         </div>

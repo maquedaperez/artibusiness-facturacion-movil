@@ -240,9 +240,15 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
     avisos.push(`Incluye ${formatEuros(dto.suplidos)} en suplidos, ya sumados al total a pagar.`);
   }
   if (bloqueada) {
+    // Terminología corregida 2026-08-18: "revisada"/"repasada" venía de antes de que el
+    // jefe confirmara que 132 es "Contabilizada" de verdad (un estado fiscal real, no un
+    // simple repaso interno) — este aviso se había quedado con el texto viejo mientras el
+    // resto de la pantalla (el campo Estado, el botón Contabilizar) ya usa el término
+    // correcto.
     avisos.push(
-      'Esta factura ya está revisada. Para corregirla, bórrala y créala de nuevo — reeditar ' +
-      'una factura ya repasada podría descuadrar la contabilidad si alguien más ya la dio por buena.'
+      'Esta factura ya está contabilizada. Para corregirla, bórrala y créala de nuevo (o usa ' +
+      'Copiar) — reeditar una factura ya contabilizada podría descuadrar la contabilidad si ' +
+      'alguien más ya la dio por buena.'
     );
   }
 
@@ -267,7 +273,7 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
     estado,
     origenOcr: dto.escaneada,
     accountingLocked: bloqueada,
-    accountingLockReason: bloqueada ? 'Factura ya revisada: bórrala y créala de nuevo si necesitas corregirla.' : undefined,
+    accountingLockReason: bloqueada ? 'Factura ya contabilizada: bórrala y créala de nuevo si necesitas corregirla.' : undefined,
     avisosOcr: avisos.length > 0 ? avisos : undefined,
     totalesReales: {
       base,

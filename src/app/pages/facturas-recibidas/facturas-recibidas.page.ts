@@ -141,7 +141,7 @@ export class FacturasRecibidasPage {
 
   filtrosLabel(): string {
     const partes: string[] = [];
-    if (this.estadoFiltro !== 'todos') partes.push(this.estadoFiltro === 'borrador' ? 'Borrador' : 'Revisada');
+    if (this.estadoFiltro !== 'todos') partes.push(this.estadoFiltro === 'borrador' ? 'Borrador' : 'Contabilizada');
     if (this.pagadaFiltro !== 'todos') partes.push(this.pagadaFiltro === 'si' ? 'Pagada' : 'Pendiente');
     if (this.fechaDesde || this.fechaHasta) partes.push('Fechas');
     return partes.length > 0 ? partes.join(' · ') : 'Filtros';
@@ -242,6 +242,11 @@ export class FacturasRecibidasPage {
       this.alertCtrl.create({
         header: 'Número de la nueva factura',
         message: `Se copiará la factura de ${proveedor} (proveedor, líneas, importes...) y se guardará directamente. El resto de datos se pueden ajustar después.`,
+        // BUG real corregido 2026-08-18: sin esto, tocar fuera del diálogo lo cierra sin
+        // pasar por ningún botón — ni "Cancelar" ni "Copiar y guardar" llegan a ejecutarse,
+        // así que la promesa nunca se resuelve y quien esperaba este resultado (duplicar())
+        // se queda colgado para siempre.
+        backdropDismiss: false,
         inputs: [{ name: 'numFactura', type: 'text', placeholder: 'Número de factura' }],
         buttons: [
           { text: 'Cancelar', role: 'cancel', handler: () => resolve(null) },

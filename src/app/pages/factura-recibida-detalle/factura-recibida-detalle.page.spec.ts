@@ -132,6 +132,28 @@ describe('FacturaRecibidaDetallePage', () => {
       expect(component.errorMsg).toBe('');
     });
 
+    // BUG real corregido 2026-08-18: antes guardar() nunca actualizaba 'working' con la
+    // respuesta del servidor — así que idLineaBackend se quedaba siempre vacío en el
+    // formulario, y un guardado posterior no reconocía las líneas ya existentes (las
+    // borraba y recreaba todas de cero en vez de actualizarlas).
+    it('tras guardar, working se sincroniza con la respuesta real (idLineaBackend incluido)', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      spyOn(repo, 'crearManual').and.resolveTo({
+        ...facturaBorradorReal(),
+        id: 900,
+        lineas: [{ id: 1, origen: 'manual', descripcion: 'Luz', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21, idLineaBackend: 55 }],
+      });
+
+      component.working.proveedor = 'Iberdrola';
+      component.working.numFactura = 'F-900';
+      component.working.idProveedor = 7;
+      component.working.lineas = [{ id: 1, origen: 'manual', descripcion: 'Luz', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 }];
+
+      await component.guardar();
+
+      expect(component.working.lineas[0].idLineaBackend).toBe(55);
+    });
+
     // BUG real corregido 2026-08-14 (guardado duplicado): pulsar "Guardar" una segunda vez
     // sobre la misma factura ya guardada debe llamar a actualizar(id, ...) con el id real
     // que devolvió el primer guardado — nunca a crearManual() otra vez, que crearía una

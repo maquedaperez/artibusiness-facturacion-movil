@@ -103,8 +103,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
 
       this.facturaId = id;
       this.origenOcr = factura.origenOcr;
-      const { id: _id, origenOcr: _ocr, ...resto } = factura;
-      this.working = { ...resto };
+      this.sincronizarWorkingDesde(factura);
     } catch (e: any) {
       this.errorMsg = e?.message ?? 'No se pudo cargar la factura.';
     } finally {
@@ -193,6 +192,11 @@ export class FacturaRecibidaDetallePage implements OnInit {
       this.alertCtrl.create({
         header: 'Número de la nueva factura',
         message: `Se copiará la factura de ${this.working.proveedor} (proveedor, líneas, importes...) y se guardará directamente. El resto de datos se pueden ajustar después.`,
+        // BUG real corregido 2026-08-18: sin esto, tocar fuera del diálogo lo cierra sin
+        // pasar por ningún botón — ni "Cancelar" ni "Copiar y guardar" llegan a ejecutarse,
+        // así que la promesa nunca se resuelve y quien esperaba este resultado (duplicar())
+        // se queda colgado para siempre.
+        backdropDismiss: false,
         inputs: [{ name: 'numFactura', type: 'text', placeholder: 'Número de factura' }],
         buttons: [
           { text: 'Cancelar', role: 'cancel', handler: () => resolve(null) },
@@ -329,6 +333,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
         const creada = await this.invoicesRepo.crearManual(this.working);
         this.facturaId = creada.id;
         this.esNueva = false;
+        this.sincronizarWorkingDesde(creada);
       } else if (this.facturaId != null) {
         // actualizar() puede devolver un id distinto: la primera vez que se guarda de
         // verdad una factura que solo existía como borrador local, siempre hace un INSERT
@@ -336,6 +341,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
         // el id local anterior deja de ser válido.
         const guardada = await this.invoicesRepo.actualizar(this.facturaId, this.working);
         this.facturaId = guardada.id;
+        this.sincronizarWorkingDesde(guardada);
       }
 
       await this.showToast('Factura guardada.');
@@ -344,6 +350,19 @@ export class FacturaRecibidaDetallePage implements OnInit {
     } finally {
       this.guardando = false;
     }
+  }
+
+  // BUG real corregido 2026-08-18: guardar() nunca actualizaba 'working' con la respuesta
+  // real del servidor — así que idLineaBackend, totalesReales y accountingLocked se
+  // quedaban siempre con los valores locales (vacíos/desactualizados). El efecto práctico:
+  // al reguardar una factura tras un primer guardado, ninguna línea llevaba ya su
+  // idLineaBackend real, así que GuardarAsync no las reconocía como "ya existentes" y las
+  // borraba y recreaba todas de cero en cada guardado — no se perdían datos, pero generaba
+  // basura en la base de datos sin necesidad. Mismo patrón que ya usaba ngOnInit() al cargar
+  // una factura existente.
+  private sincronizarWorkingDesde(factura: FacturaRecibida) {
+    const { id: _id, origenOcr: _ocr, ...resto } = factura;
+    this.working = resto;
   }
 
   // Pedido por el jefe en reunión 2026-08-17: "Contabilizar" debe ser una acción propia y
@@ -366,8 +385,8 @@ export class FacturaRecibidaDetallePage implements OnInit {
           handler: async () => {
             try {
               const guardada = await this.invoicesRepo.actualizar(this.facturaId!, { ...this.working, estado: 'revisada' });
-              this.working = guardada;
               this.facturaId = guardada.id;
+              this.sincronizarWorkingDesde(guardada);
               await this.showToast('Factura contabilizada.');
             } catch (e) {
               await this.showToast(e instanceof Error ? e.message : 'No se pudo contabilizar la factura.', 'danger');
