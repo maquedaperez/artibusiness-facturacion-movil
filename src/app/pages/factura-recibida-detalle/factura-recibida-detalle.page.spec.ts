@@ -108,6 +108,14 @@ describe('FacturaRecibidaDetallePage', () => {
       expect(component.pagadaEditable).toBeTrue();
     });
 
+    // BUG real corregido 2026-08-18: el formulario en blanco ponía estado:'revisada' por
+    // defecto — con el desplegable de Estado ya de solo lectura (ver confirmarContabilizar),
+    // eso hacía que CUALQUIER factura manual naciera Contabilizada de verdad en el backend
+    // nada más pulsar Guardar la primera vez, sin que el usuario lo pidiera nunca.
+    it('nace en Borrador, nunca Contabilizada', () => {
+      expect(component.working.estado).toBe('borrador');
+    });
+
     it('crearManual() da de alta la factura y actualiza esNueva/facturaId con la respuesta real', async () => {
       const repo = TestBed.inject(ReceivedInvoicesRepository);
       spyOn(repo, 'crearManual').and.resolveTo({ ...facturaBorradorReal(), id: 900 });

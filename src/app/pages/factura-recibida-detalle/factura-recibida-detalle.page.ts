@@ -133,7 +133,12 @@ export class FacturaRecibidaDetallePage implements OnInit {
       concepto: '', formaPago: '',
       lineas: [],
       retencionPct: 0,
-      pagada: false, estado: 'revisada',
+      // BUG real corregido 2026-08-18: 'revisada' aquí hacía que TODA factura manual nueva
+      // naciera ya Contabilizada de verdad en el backend nada más pulsar Guardar la primera
+      // vez — antes pasaba menos desapercibido porque el desplegable de Estado dejaba
+      // corregirlo a mano; desde que es de solo lectura (botón "Contabilizar" dedicado), ya
+      // no hay forma de evitarlo. Una factura nueva siempre debe nacer en Borrador.
+      pagada: false, estado: 'borrador',
     };
   }
 
