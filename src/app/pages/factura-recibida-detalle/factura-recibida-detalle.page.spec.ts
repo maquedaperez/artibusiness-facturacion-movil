@@ -332,6 +332,14 @@ describe('FacturaRecibidaDetallePage', () => {
       const blobFalso = new Blob(['contenido'], { type: 'application/pdf' });
       const obtenerBlobSpy = spyOn(repo, 'obtenerBlobDocumento').and.resolveTo(blobFalso);
       const fetchSpy = spyOn(window, 'fetch');
+      // BUG real en este mismo test, encontrado 2026-08-19: descargarAdjunto() llama a
+      // descargarBlob() DE VERDAD (no está mockeado en ningún sitio de esta suite) — sin
+      // simular createObjectURL/click, cada ejecución de los tests descargaba de verdad un
+      // "factura.pdf" corrupto (el Blob de prueba solo contiene el texto "contenido", no
+      // bytes reales de PDF) al Downloads real de quien ejecutara los tests.
+      spyOn(URL, 'createObjectURL').and.returnValue('blob:mock-descarga');
+      spyOn(URL, 'revokeObjectURL');
+      spyOn(HTMLAnchorElement.prototype, 'click');
       component.working.documentoUrl = '/api/FacturasRecibidas/900/Documento';
       component.working.documentoNombre = 'factura.pdf';
 
@@ -339,6 +347,45 @@ describe('FacturaRecibidaDetallePage', () => {
 
       expect(obtenerBlobSpy).toHaveBeenCalledWith('/api/FacturasRecibidas/900/Documento');
       expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    // Encontrado en revisión 2026-08-19: VerDocumentoComponent necesita el content-type real
+    // para elegir entre <embed> (PDF) e <img> — antes solo mostraba <img>, rompiendo la
+    // previsualización de cualquier PDF. verDocumento() tiene que resolverlo en los dos casos:
+    // vista previa local (viene ya en la propia Data URL) y documento real (viene del blob).
+    it('verDocumento() con una vista previa local extrae el tipo de la propia Data URL', async () => {
+      const modalCtrl = TestBed.inject(ModalController);
+      const createSpy = spyOn(modalCtrl, 'create').and.resolveTo({
+        present: async () => {},
+        onWillDismiss: async () => ({}) as any,
+      } as any);
+      component.working.documentoUrl = 'data:application/pdf;base64,AAAA';
+
+      await component.verDocumento();
+
+      expect(createSpy).toHaveBeenCalledWith(jasmine.objectContaining({
+        componentProps: jasmine.objectContaining({ tipo: 'application/pdf' }),
+      }));
+    });
+
+    it('verDocumento() con un documento real toma el tipo del blob devuelto por el backend', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      const blobPdf = new Blob(['contenido'], { type: 'application/pdf' });
+      spyOn(repo, 'obtenerBlobDocumento').and.resolveTo(blobPdf);
+      spyOn(URL, 'createObjectURL').and.returnValue('blob:mock-preview');
+      spyOn(URL, 'revokeObjectURL');
+      const modalCtrl = TestBed.inject(ModalController);
+      const createSpy = spyOn(modalCtrl, 'create').and.resolveTo({
+        present: async () => {},
+        onWillDismiss: async () => ({}) as any,
+      } as any);
+      component.working.documentoUrl = '/api/FacturasRecibidas/900/Documento';
+
+      await component.verDocumento();
+
+      expect(createSpy).toHaveBeenCalledWith(jasmine.objectContaining({
+        componentProps: jasmine.objectContaining({ tipo: 'application/pdf', url: 'blob:mock-preview' }),
+      }));
     });
   });
 

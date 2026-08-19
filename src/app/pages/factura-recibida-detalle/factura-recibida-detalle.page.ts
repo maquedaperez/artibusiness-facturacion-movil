@@ -359,17 +359,21 @@ export class FacturaRecibidaDetallePage implements OnInit {
 
     let urlParaMostrar = this.working.documentoUrl;
     let urlTemporal: string | null = null;
+    // 'data:<mime>;base64,...' — el tipo va siempre en la propia URL cuando es una vista
+    // previa local; para el caso real se toma del blob que devuelve el backend.
+    let tipo = urlParaMostrar.startsWith('data:') ? urlParaMostrar.slice(5, urlParaMostrar.indexOf(';')) : '';
 
     try {
       if (!urlParaMostrar.startsWith('data:')) {
         const blob = await this.invoicesRepo.obtenerBlobDocumento(urlParaMostrar);
+        tipo = blob.type;
         urlTemporal = URL.createObjectURL(blob);
         urlParaMostrar = urlTemporal;
       }
 
       const modal = await this.modalCtrl.create({
         component: VerDocumentoComponent,
-        componentProps: { url: urlParaMostrar, nombre: this.working.documentoNombre },
+        componentProps: { url: urlParaMostrar, nombre: this.working.documentoNombre, tipo },
       });
       await modal.present();
       await modal.onWillDismiss();

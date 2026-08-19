@@ -54,4 +54,45 @@ describe('compartirBlob / descargarBlob', () => {
     expect(resultado).toBe('descargado');
     expect(URL.createObjectURL).toHaveBeenCalledWith(blob);
   });
+
+  // Encontrado en revisión 2026-08-19: documentoNombre nunca se reconstruye al leer una
+  // factura ya existente (el backend no lo guarda) — sin añadir la extensión a partir del
+  // content-type real del blob, descargar/compartir el documento de una factura recargada
+  // perdía la extensión por completo.
+  describe('extensión reconstruida a partir del content-type del blob', () => {
+    beforeEach(() => {
+      spyOn(URL, 'createObjectURL').and.returnValue('blob:mock-url-3');
+      spyOn(URL, 'revokeObjectURL');
+    });
+
+    it('sin extensión en el nombre, la añade a partir del content-type', () => {
+      const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click');
+      const pdf = new Blob(['contenido'], { type: 'application/pdf' });
+
+      descargarBlob(pdf, 'documento-adjunto');
+
+      const enlace = clickSpy.calls.mostRecent().object as HTMLAnchorElement;
+      expect(enlace.download).toBe('documento-adjunto.pdf');
+    });
+
+    it('si el nombre ya trae extensión, no la duplica', () => {
+      const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click');
+      const pdf = new Blob(['contenido'], { type: 'application/pdf' });
+
+      descargarBlob(pdf, 'factura-real.pdf');
+
+      const enlace = clickSpy.calls.mostRecent().object as HTMLAnchorElement;
+      expect(enlace.download).toBe('factura-real.pdf');
+    });
+
+    it('con un content-type desconocido, deja el nombre tal cual', () => {
+      const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click');
+      const desconocido = new Blob(['contenido'], { type: 'application/octet-stream' });
+
+      descargarBlob(desconocido, 'documento-adjunto');
+
+      const enlace = clickSpy.calls.mostRecent().object as HTMLAnchorElement;
+      expect(enlace.download).toBe('documento-adjunto');
+    });
+  });
 });
