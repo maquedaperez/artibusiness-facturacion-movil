@@ -268,6 +268,78 @@ describe('FacturaRecibidaDetallePage', () => {
         color: 'danger',
       }));
     });
+
+    function eventoConArchivo(nombre = 'factura.pdf'): Event {
+      const file = new File(['contenido'], nombre, { type: 'application/pdf' });
+      const input = document.createElement('input');
+      Object.defineProperty(input, 'files', { value: [file] });
+      return { target: input } as unknown as Event;
+    }
+
+    // Pedido por el usuario 2026-08-19: antes de que la factura tenga un id real no hay nada
+    // a lo que subir el documento — adjuntarDocumento() (vista previa local, Data URL) es lo
+    // único que se puede hacer, y guardar() sube el fichero de verdad en cuanto exista un id.
+    it('adjuntar antes de guardar usa solo la vista previa local, no sube nada al backend todavía', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      const previewSpy = spyOn(repo, 'adjuntarDocumento').and.resolveTo({ documentoUrl: 'data:application/pdf;base64,AAAA', documentoNombre: 'factura.pdf' });
+      const subidaRealSpy = spyOn(repo, 'adjuntarDocumentoAFactura');
+
+      await component.onFileSelected(eventoConArchivo());
+
+      expect(previewSpy).toHaveBeenCalled();
+      expect(subidaRealSpy).not.toHaveBeenCalled();
+      expect(component.working.documentoUrl).toBe('data:application/pdf;base64,AAAA');
+    });
+
+    it('tras guardar con un fichero pendiente de adjuntar, se sube de verdad y documentoUrl pasa a ser la ruta real', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      spyOn(repo, 'adjuntarDocumento').and.resolveTo({ documentoUrl: 'data:application/pdf;base64,AAAA', documentoNombre: 'factura.pdf' });
+      spyOn(repo, 'crearManual').and.resolveTo({ ...facturaBorradorReal(), id: 900 });
+      const subidaRealSpy = spyOn(repo, 'adjuntarDocumentoAFactura').and.resolveTo({ documentoUrl: '/api/FacturasRecibidas/900/Documento', documentoNombre: 'factura.pdf' });
+
+      await component.onFileSelected(eventoConArchivo());
+
+      component.working.proveedor = 'Iberdrola';
+      component.working.numFactura = 'F-900';
+      component.working.idProveedor = 7;
+      component.working.lineas = [{ id: 1, origen: 'manual', descripcion: 'Luz', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 }];
+
+      await component.guardar();
+
+      expect(subidaRealSpy).toHaveBeenCalledWith(900, jasmine.any(File));
+      expect(component.working.documentoUrl).toBe('/api/FacturasRecibidas/900/Documento');
+    });
+
+    it('adjuntar sobre una factura ya real (facturaId ya asignado) sube directo, sin pasar por la vista previa local', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      const previewSpy = spyOn(repo, 'adjuntarDocumento');
+      const subidaRealSpy = spyOn(repo, 'adjuntarDocumentoAFactura').and.resolveTo({ documentoUrl: '/api/FacturasRecibidas/900/Documento', documentoNombre: 'factura.pdf' });
+      component.facturaId = 900;
+
+      await component.onFileSelected(eventoConArchivo());
+
+      expect(subidaRealSpy).toHaveBeenCalledWith(900, jasmine.any(File));
+      expect(previewSpy).not.toHaveBeenCalled();
+      expect(component.working.documentoUrl).toBe('/api/FacturasRecibidas/900/Documento');
+    });
+
+    // BUG real encontrado en revisión 2026-08-19: descargarAdjunto()/compartirAdjunto()
+    // llamaban a un adjuntoABlob() PROPIO de esta página que seguía haciendo fetch(documentoUrl)
+    // directo sin autenticar — el mismo fix que ya se había aplicado en facturas-recibidas.
+    // page.ts (el listado) se había quedado sin aplicar aquí, en el detalle.
+    it('descargarAdjunto() pide el documento a través de obtenerBlobDocumento(), no con fetch directo', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      const blobFalso = new Blob(['contenido'], { type: 'application/pdf' });
+      const obtenerBlobSpy = spyOn(repo, 'obtenerBlobDocumento').and.resolveTo(blobFalso);
+      const fetchSpy = spyOn(window, 'fetch');
+      component.working.documentoUrl = '/api/FacturasRecibidas/900/Documento';
+      component.working.documentoNombre = 'factura.pdf';
+
+      await component.descargarAdjunto();
+
+      expect(obtenerBlobSpy).toHaveBeenCalledWith('/api/FacturasRecibidas/900/Documento');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('factura real en estado borrador (editable, ya no bloqueada indiscriminadamente)', () => {

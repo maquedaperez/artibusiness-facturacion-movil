@@ -73,6 +73,18 @@ export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return this.mock.adjuntarDocumento(file);
   }
 
+  // Sin backend real detrás en modo mock no hay Blob Storage que subir de verdad — misma
+  // simulación local que adjuntarDocumento(), el 'id' no se usa para nada aquí.
+  adjuntarDocumentoAFactura(_id: number, file: File): Promise<{ documentoUrl: string; documentoNombre: string }> {
+    return this.mock.adjuntarDocumento(file);
+  }
+
+  // En modo mock documentoUrl siempre es una Data URL local — un fetch normal ya la resuelve.
+  async obtenerBlobDocumento(documentoUrl: string): Promise<Blob> {
+    const respuesta = await fetch(documentoUrl);
+    return respuesta.blob();
+  }
+
   accionesPermitidas(factura: FacturaRecibida): AccionesPermitidas {
     return accionesFacturaRecibida(factura);
   }

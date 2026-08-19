@@ -98,6 +98,38 @@ export class ApiService {
     return text as unknown as T;
   }
 
+  // Descarga binaria autenticada — usado hoy solo por el documento adjunto de una factura
+  // recibida (GET /api/FacturasRecibidas/{id}/Documento). A diferencia de get(), aquí el
+  // cuerpo no es JSON, así que no se puede reutilizar tal cual: hace falta pedir
+  // responseType 'blob' explícito en nativo (si no, CapacitorHttp intenta interpretar el
+  // binario como texto/JSON y lo corrompe), y CapacitorHttp con 'blob' devuelve el
+  // contenido en base64 dentro de res.data en vez de como Blob directamente — hay que
+  // decodificarlo a mano.
+  async getBlob(path: string, extraHeaders?: Record<string, string>): Promise<Blob> {
+    const baseUrl = await this.resolveBaseUrl();
+    const url = `${baseUrl}${path}`;
+    const headers = this.buildHeaders(extraHeaders, { defaultJson: false });
+    delete headers['Content-Type'];
+
+    if (Capacitor.isNativePlatform()) {
+      const res = await CapacitorHttp.request({ url, method: 'GET', headers, responseType: 'blob' });
+      if (res.status < 200 || res.status >= 300) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const contentType = res.headers?.['Content-Type'] ?? res.headers?.['content-type'] ?? 'application/octet-stream';
+      const binario = atob(res.data as string);
+      const bytes = new Uint8Array(binario.length);
+      for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+      return new Blob([bytes], { type: contentType });
+    }
+
+    const r = await fetch(url, { method: 'GET', headers, cache: 'no-store', credentials: 'include' });
+    if (!r.ok) {
+      throw new Error(`HTTP ${r.status} - ${r.statusText}`);
+    }
+    return r.blob();
+  }
+
   // DELETE simple, sin body — usado hoy solo por Facturas Recibidas. El backend devuelve
   // 204 No Content en éxito, por eso el manejo de "sin texto" ya cubierto abajo (igual que
   // get()) es el camino normal, no un caso raro.

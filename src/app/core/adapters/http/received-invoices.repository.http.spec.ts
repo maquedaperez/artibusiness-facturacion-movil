@@ -444,7 +444,7 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
   let apiSpy: jasmine.SpyObj<ApiService>;
 
   beforeEach(() => {
-    apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['postMultipart', 'post', 'get', 'delete']);
+    apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['postMultipart', 'post', 'get', 'delete', 'getBlob']);
     apiSpy.post.and.resolveTo([]);
     apiSpy.get.and.rejectWith(new Error('HTTP 404'));
     apiSpy.delete.and.rejectWith(new Error('HTTP 404'));
@@ -637,6 +637,68 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
 
     const factura = await repo.obtenerPorId(501);
     expect(factura?.idMedioPago).toBe(3);
+  });
+
+  // 'escaneada' se reutiliza también como "tiene documento adjunto" (ver MarcarEscaneadaAsync
+  // en el backend) — documentoUrl se construye a partir de ella, apuntando siempre al propio
+  // endpoint de descarga (nunca una URL de blob directa, el contenedor no es público).
+  it('obtenerPorId() construye documentoUrl hacia el endpoint de descarga cuando escaneada=true', async () => {
+    apiSpy.get.and.resolveTo({
+      idFacturaRecibida: 507, numFacRec: 'F-507', idProveedor: 1, nombreProveedor: 'Proveedor',
+      concepto: 'x', total: 100, iva: 21, suplidos: 0, irpf: 0, importe: 121,
+      pagada: false, estado: 131, escaneada: true,
+      fechaFactura: '2026-08-01', fechaVencimiento: '2026-09-01',
+      idMedioPago: null, idTipoFactura: 1, lineas: [],
+    });
+
+    const factura = await repo.obtenerPorId(507);
+    expect(factura?.documentoUrl).toBe('/api/FacturasRecibidas/507/Documento');
+  });
+
+  it('obtenerPorId() deja documentoUrl sin definir cuando escaneada=false', async () => {
+    apiSpy.get.and.resolveTo({
+      idFacturaRecibida: 508, numFacRec: 'F-508', idProveedor: 1, nombreProveedor: 'Proveedor',
+      concepto: 'x', total: 100, iva: 21, suplidos: 0, irpf: 0, importe: 121,
+      pagada: false, estado: 131, escaneada: false,
+      fechaFactura: '2026-08-01', fechaVencimiento: '2026-09-01',
+      idMedioPago: null, idTipoFactura: 1, lineas: [],
+    });
+
+    const factura = await repo.obtenerPorId(508);
+    expect(factura?.documentoUrl).toBeUndefined();
+  });
+
+  describe('adjuntarDocumentoAFactura() / obtenerBlobDocumento()', () => {
+    it('adjuntarDocumentoAFactura() sube al endpoint {id}/Documento y devuelve la ruta de descarga', async () => {
+      apiSpy.postMultipart.and.resolveTo(undefined);
+      const file = new File(['contenido'], 'factura.pdf', { type: 'application/pdf' });
+
+      const resultado = await repo.adjuntarDocumentoAFactura(42, file);
+
+      expect(apiSpy.postMultipart).toHaveBeenCalledWith('/api/FacturasRecibidas/42/Documento', file, 'file');
+      expect(resultado).toEqual({ documentoUrl: '/api/FacturasRecibidas/42/Documento', documentoNombre: 'factura.pdf' });
+    });
+
+    it('obtenerBlobDocumento() con una Data URL no llama al backend (vista previa local)', async () => {
+      const dataUrl = 'data:application/pdf;base64,AAAA';
+      const blobFalso = new Blob(['x']);
+      spyOn(window, 'fetch').and.resolveTo(new Response(blobFalso));
+
+      const resultado = await repo.obtenerBlobDocumento(dataUrl);
+
+      expect(apiSpy.getBlob).not.toHaveBeenCalled();
+      expect(resultado).toBeInstanceOf(Blob);
+    });
+
+    it('obtenerBlobDocumento() con una ruta de API pide de verdad al backend autenticado', async () => {
+      const blobFalso = new Blob(['x']);
+      apiSpy.getBlob.and.resolveTo(blobFalso);
+
+      const resultado = await repo.obtenerBlobDocumento('/api/FacturasRecibidas/42/Documento');
+
+      expect(apiSpy.getBlob).toHaveBeenCalledWith('/api/FacturasRecibidas/42/Documento');
+      expect(resultado).toBe(blobFalso);
+    });
   });
 
   // BUG real corregido 2026-08-14 (auditoría): antes cualquier fallo del GET (no solo un

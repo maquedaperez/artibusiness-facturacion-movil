@@ -57,6 +57,10 @@ export class FacturaRecibidaDetallePage implements OnInit {
   esNueva = false;
   errorMsg = '';
   adjuntando = false;
+  // Solo tiene valor durante la ventana entre "el usuario adjunta un fichero en una factura
+  // TODAVÍA sin guardar" y "guardar() consigue el primer id real" — ver onFileSelected() y
+  // guardar(). Fuera de esa ventana, adjuntar ya sube de verdad al momento (facturaId != null).
+  private archivoPendienteDeAdjuntar: File | null = null;
   guardando = false;
   cargando = false;
   origenOcr = false;
@@ -221,9 +225,12 @@ export class FacturaRecibidaDetallePage implements OnInit {
     });
   }
 
+  // Corregido 2026-08-19: fetch(documentoUrl) directo dejó de valer en cuanto el documento
+  // pasó a vivir en un endpoint protegido (Bearer) en vez de una URL de Blob abierta —
+  // obtenerBlobDocumento() decide él mismo si sigue siendo una vista previa local o hay que
+  // pedirlo de verdad al backend (mismo fix que ya tiene facturas-recibidas.page.ts).
   private async adjuntoABlob(): Promise<Blob> {
-    const respuesta = await fetch(this.working.documentoUrl!);
-    return respuesta.blob();
+    return this.invoicesRepo.obtenerBlobDocumento(this.working.documentoUrl!);
   }
 
   async descargarAdjunto() {
@@ -317,9 +324,21 @@ export class FacturaRecibidaDetallePage implements OnInit {
 
     this.adjuntando = true;
     try {
-      const { documentoUrl, documentoNombre } = await this.invoicesRepo.adjuntarDocumento(file);
-      this.working.documentoUrl = documentoUrl;
-      this.working.documentoNombre = documentoNombre;
+      if (this.facturaId != null) {
+        // Factura ya real (editando una existente, o ya se guardó al menos una vez) —
+        // sube de verdad a Blob Storage, no hace falta esperar a un guardado posterior.
+        const { documentoUrl, documentoNombre } = await this.invoicesRepo.adjuntarDocumentoAFactura(this.facturaId, file);
+        this.working.documentoUrl = documentoUrl;
+        this.working.documentoNombre = documentoNombre;
+        this.archivoPendienteDeAdjuntar = null;
+      } else {
+        // Alta nueva, todavía sin id real — solo vista previa local; guardar() sube el
+        // fichero de verdad en cuanto exista un id.
+        const { documentoUrl, documentoNombre } = await this.invoicesRepo.adjuntarDocumento(file);
+        this.working.documentoUrl = documentoUrl;
+        this.working.documentoNombre = documentoNombre;
+        this.archivoPendienteDeAdjuntar = file;
+      }
     } catch (e: any) {
       // BUG real encontrado en auditoría 2026-08-14: sin este catch, un fichero no legible
       // (corrupto, formato raro) dejaba desaparecer el spinner sin ningún aviso — el usuario
@@ -330,13 +349,37 @@ export class FacturaRecibidaDetallePage implements OnInit {
     }
   }
 
+  // Corregido 2026-08-19: documentoUrl ya no es siempre una URL abierta que un <img> pueda
+  // cargar directamente — para una factura real es la ruta de un endpoint protegido (Bearer).
+  // obtenerBlobDocumento() decide cuál de los dos casos es; aquí solo hace falta convertir el
+  // Blob resultante en un object URL temporal si hizo falta pedirlo de verdad, y liberarlo al
+  // cerrar el modal para no acumular memoria.
   async verDocumento() {
     if (!this.working.documentoUrl) return;
-    const modal = await this.modalCtrl.create({
-      component: VerDocumentoComponent,
-      componentProps: { url: this.working.documentoUrl, nombre: this.working.documentoNombre },
-    });
-    await modal.present();
+
+    let urlParaMostrar = this.working.documentoUrl;
+    let urlTemporal: string | null = null;
+
+    try {
+      if (!urlParaMostrar.startsWith('data:')) {
+        const blob = await this.invoicesRepo.obtenerBlobDocumento(urlParaMostrar);
+        urlTemporal = URL.createObjectURL(blob);
+        urlParaMostrar = urlTemporal;
+      }
+
+      const modal = await this.modalCtrl.create({
+        component: VerDocumentoComponent,
+        componentProps: { url: urlParaMostrar, nombre: this.working.documentoNombre },
+      });
+      await modal.present();
+      await modal.onWillDismiss();
+    } catch {
+      await this.showToast('No se pudo cargar el documento.', 'danger');
+    } finally {
+      // Aunque falle la creación/presentación del modal justo después de haber pedido el
+      // blob, la URL temporal no debe quedar filtrada.
+      if (urlTemporal) URL.revokeObjectURL(urlTemporal);
+    }
   }
 
   // Además de fijar errorMsg (para el aviso rojo fijo bajo la cabecera), lo muestra también
@@ -368,6 +411,22 @@ export class FacturaRecibidaDetallePage implements OnInit {
         this.facturaId = creada.id;
         this.esNueva = false;
         this.sincronizarWorkingDesde(creada);
+
+        // Si se adjuntó un fichero antes de que existiera un id real, es ahora cuando se
+        // sube de verdad — antes solo era una vista previa local (ver onFileSelected()).
+        if (this.archivoPendienteDeAdjuntar) {
+          try {
+            const { documentoUrl, documentoNombre } = await this.invoicesRepo.adjuntarDocumentoAFactura(creada.id, this.archivoPendienteDeAdjuntar);
+            this.working.documentoUrl = documentoUrl;
+            this.working.documentoNombre = documentoNombre;
+          } catch {
+            // La factura ya se guardó bien — no se deshace por esto, solo se avisa: el
+            // documento se queda solo en la vista previa local de esta sesión.
+            await this.showToast('La factura se guardó, pero no se pudo subir el documento adjunto. Vuelve a intentarlo desde aquí.', 'danger');
+          } finally {
+            this.archivoPendienteDeAdjuntar = null;
+          }
+        }
       } else if (this.facturaId != null) {
         // actualizar() puede devolver un id distinto: la primera vez que se guarda de
         // verdad una factura que solo existía como borrador local, siempre hace un INSERT

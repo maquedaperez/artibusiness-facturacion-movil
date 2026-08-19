@@ -365,9 +365,12 @@ export class FacturasRecibidasPage {
     });
   }
 
+  // Corregido 2026-08-19: fetch(f.documentoUrl!) directo dejó de valer en cuanto el
+  // documento pasó a vivir en un endpoint protegido (Bearer) en vez de una URL de Blob
+  // abierta — obtenerBlobDocumento() decide él mismo si sigue siendo una vista previa local
+  // o hay que pedirlo de verdad al backend.
   private async adjuntoABlob(f: FacturaRecibida): Promise<Blob> {
-    const respuesta = await fetch(f.documentoUrl!);
-    return respuesta.blob();
+    return this.invoicesRepo.obtenerBlobDocumento(f.documentoUrl!);
   }
 
   async descargarAdjunto(event: Event, f: FacturaRecibida) {

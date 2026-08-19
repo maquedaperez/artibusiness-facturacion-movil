@@ -126,6 +126,15 @@ function ivaPctDesdeLinea(l: OcrLine): number {
 // System.Text.Json).
 const RECIBIDAS_BASE_PATH = '/api/FacturasRecibidas';
 
+// El backend nunca guarda ninguna URL de documento (la ruta del blob se reconstruye siempre
+// desde idFactura+fecha, ver BlobStorageService) — así que aquí tampoco hay ninguna URL que
+// leer del DTO. En vez de eso, se construye la ruta del propio endpoint de descarga
+// (protegido, requiere el mismo Bearer de siempre) — ObtenerBlobDocumento() de más abajo es
+// quien de verdad la resuelve a bytes cuando hace falta, nunca antes.
+function documentoPathParaFactura(idFacturaRecibida: number): string {
+  return `${RECIBIDAS_BASE_PATH}/${idFacturaRecibida}/Documento`;
+}
+
 // OJO: el controlador se llama "ImpuestoController" (singular) — la ruta resultante es
 // /api/Impuesto, no /api/Impuestos como el resto de catálogos plurales de esta API
 // (Proveedores, MediosPago). Confirmado leyendo el atributo [Route] directamente.
@@ -272,6 +281,10 @@ function mapearCabecera(dto: FacturaRecibidaCabeceraApi): FacturaRecibida {
     pagada: dto.pagada,
     estado,
     origenOcr: dto.escaneada,
+    // 'escaneada' se reutiliza también para "tiene documento adjunto" (ver
+    // MarcarEscaneadaAsync en el backend — se activa igual al adjuntar a mano, no solo al
+    // escanear) — es un compromiso consciente para no pedir una columna nueva en BBDD.
+    documentoUrl: dto.escaneada ? documentoPathParaFactura(dto.idFacturaRecibida) : undefined,
     accountingLocked: bloqueada,
     accountingLockReason: bloqueada ? 'Factura ya contabilizada: no se puede editar ni eliminar. Usa "Copiar" si necesitas corregirla.' : undefined,
     avisosOcr: avisos.length > 0 ? avisos : undefined,
@@ -506,6 +519,27 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
 
   adjuntarDocumento(file: File): Promise<{ documentoUrl: string; documentoNombre: string }> {
     return this.mockAdapter.adjuntarDocumento(file);
+  }
+
+  // Sube de verdad a Blob Storage vía el endpoint nuevo — a diferencia de adjuntarDocumento()
+  // (vista previa local, factura todavía sin guardar), esto exige un id real. El endpoint
+  // devuelve 204 sin cuerpo (ver FacturasRecibidasController.AdjuntarDocumento) — no hay
+  // nada que leer de la respuesta, la URL se construye igual que en mapearCabecera().
+  async adjuntarDocumentoAFactura(id: number, file: File): Promise<{ documentoUrl: string; documentoNombre: string }> {
+    await this.api.postMultipart<void>(`${RECIBIDAS_BASE_PATH}/${id}/Documento`, file, 'file');
+    return { documentoUrl: documentoPathParaFactura(id), documentoNombre: file.name };
+  }
+
+  // Una Data URL (vista previa local, factura todavía sin guardar, o modo mock puro) se
+  // resuelve con un fetch normal — cualquier otra cosa es la ruta de nuestro propio endpoint
+  // de descarga, que exige el mismo Bearer que el resto de la API (por eso no se puede hacer
+  // fetch(documentoUrl) directo, a diferencia de antes: el documento ya no vive en una URL
+  // abierta).
+  async obtenerBlobDocumento(documentoUrl: string): Promise<Blob> {
+    if (documentoUrl.startsWith('data:')) {
+      return this.mockAdapter.obtenerBlobDocumento(documentoUrl);
+    }
+    return this.api.getBlob(documentoUrl);
   }
 
   accionesPermitidas(factura: FacturaRecibida): AccionesPermitidas {

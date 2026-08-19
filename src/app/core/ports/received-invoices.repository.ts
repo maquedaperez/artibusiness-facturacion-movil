@@ -57,7 +57,26 @@ export abstract class ReceivedInvoicesRepository {
   abstract totales(factura: FacturaRecibida): TotalesFactura;
 
   abstract crearDesdeOcr(file: File): Promise<FacturaRecibida>;
+  // Adjunto ANTES de guardar (factura todavía sin id real) — solo genera una vista previa
+  // local (Data URL), nunca sube nada al backend. Ver adjuntarDocumentoAFactura() para el
+  // caso de una factura que ya existe de verdad.
   abstract adjuntarDocumento(file: File): Promise<{ documentoUrl: string; documentoNombre: string }>;
+
+  // Adjuntar un documento a una factura YA GUARDADA de verdad (manual, o un borrador de
+  // escaneo con proveedor sin reconocer ya completado y guardado) — a diferencia de
+  // adjuntarDocumento(), esto sí sube de verdad a Blob Storage vía
+  // POST /api/FacturasRecibidas/{id}/Documento. El documentoUrl que devuelve no es una URL
+  // de blob directa (el contenedor no es público) sino la ruta del propio endpoint de
+  // descarga — ver obtenerBlobDocumento().
+  abstract adjuntarDocumentoAFactura(id: number, file: File): Promise<{ documentoUrl: string; documentoNombre: string }>;
+
+  // Único punto que sabe cómo convertir un documentoUrl en los bytes reales — decide él
+  // mismo si es una vista previa local (Data URL, antes de guardar) o hay que pedirlo de
+  // verdad al backend autenticado (GET /api/FacturasRecibidas/{id}/Documento). Ver/Descargar/
+  // Compartir llaman siempre aquí, nunca hacen fetch(documentoUrl) directo — ese patrón
+  // dejó de funcionar en cuanto el documento pasó a vivir en un endpoint protegido en vez
+  // de una URL abierta.
+  abstract obtenerBlobDocumento(documentoUrl: string): Promise<Blob>;
 
   // "Guardado rápido": pedido por el jefe en reunión 2026-08-14. A diferencia de
   // crearDesdeOcr (que solo extrae los datos y deja un borrador local para revisar antes de
