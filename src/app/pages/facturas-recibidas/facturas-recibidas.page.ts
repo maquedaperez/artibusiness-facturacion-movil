@@ -192,16 +192,21 @@ export class FacturasRecibidasPage {
     this.processing = true;
     try {
       const nueva = await this.invoicesRepo.crearDesdeDocumentoDirecto(file);
-      await this.refresh();
-      // Si hay avisos (ej. el PDF no se pudo subir a Blob Storage, o el total no cuadra),
-      // se muestran como tal — de lo contrario quedarían enterrados: esta pantalla no
-      // navega al detalle tras guardar, así que es la única oportunidad de que el usuario
-      // los vea sin tener que abrir la factura a propósito.
+      // Pedido por el usuario 2026-08-19 (urgente): antes se quedaba en la lista con solo
+      // un toast — el usuario tenía que buscar la factura recién escaneada él mismo. Ahora
+      // se abre directo su detalle, igual que ya hace el fallback de proveedor no reconocido
+      // (intentarBorradorLocal). El toast se mantiene (se muestra igual encima del detalle,
+      // es un overlay global de Ionic, no depende de en qué pantalla se dispare) para que
+      // los avisos (ej. el PDF no se pudo subir a Blob Storage, o el total no cuadra) sigan
+      // siendo visibles sin depender de que el usuario los note dentro del propio detalle.
+      // No hace falta refresh() aquí: se navega fuera de esta pantalla, y la lista ya se
+      // recarga sola al volver a ella (ionViewWillEnter).
       if (nueva.avisosOcr?.length) {
         await this.showToast(`Factura guardada, pero con avisos: ${nueva.avisosOcr[0]}`, 'danger');
       } else {
         await this.showToast(`Factura guardada desde "${file.name}": ${nueva.proveedor}.`, 'success');
       }
+      await this.router.navigate(['/app/recibidas', nueva.id]);
     } catch (e: any) {
       const motivo = this.motivoBorradorLocal(e?.message);
       if (motivo) {

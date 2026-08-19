@@ -97,14 +97,19 @@ describe('FacturasRecibidasPage', () => {
   // componente): escanea, guarda en BBDD y sube el PDF al blob en la misma llamada, sin
   // pantalla de revisión intermedia. Usado tanto por "Escanear con cámara" como por
   // "Adjuntar documento" — ambos botones llaman al mismo método.
-  it('escanear/adjuntar llama a crearDesdeDocumentoDirecto y refresca la lista', async () => {
+  // Pedido por el usuario 2026-08-19 (urgente): antes se quedaba en la lista con solo un
+  // toast — el usuario tenía que buscar la factura recién escaneada él mismo. Ahora se abre
+  // directo su detalle.
+  it('escanear/adjuntar llama a crearDesdeDocumentoDirecto y abre directo el detalle de la factura creada', async () => {
     const repo = TestBed.inject(ReceivedInvoicesRepository);
-    const crearSpy = spyOn(repo, 'crearDesdeDocumentoDirecto').and.resolveTo(facturaDe('Iberdrola', 'Luz'));
-    spyOn(repo, 'listar').and.resolveTo([]);
+    const crearSpy = spyOn(repo, 'crearDesdeDocumentoDirecto').and.resolveTo({ ...facturaDe('Iberdrola', 'Luz'), id: 777 });
+    const router = TestBed.inject(Router);
+    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
 
     await component.onFileSelected(eventoConArchivo());
 
     expect(crearSpy).toHaveBeenCalled();
+    expect(navigateSpy).toHaveBeenCalledWith(['/app/recibidas', 777]);
     expect(component.processing).toBeFalse();
   });
 
