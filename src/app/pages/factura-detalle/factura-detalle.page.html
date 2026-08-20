@@ -83,8 +83,9 @@
         </ion-item>
 
         <ion-item [disabled]="!esEditable">
-          <ion-select label="Forma de pago" labelPlacement="stacked" interface="popover" [(ngModel)]="f.medioPago">
-            <ion-select-option *ngFor="let m of medioPagoOptions" [value]="m">{{ m }}</ion-select-option>
+          <ion-select label="Forma de pago" labelPlacement="stacked" interface="popover"
+            [ngModel]="f.idMedioPago" (ngModelChange)="onMedioPagoChange($event)">
+            <ion-select-option *ngFor="let m of mediosPago" [value]="m.id">{{ m.label }}</ion-select-option>
           </ion-select>
         </ion-item>
       </ion-card-content>

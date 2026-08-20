@@ -20,6 +20,13 @@ const DEBOUNCE_MS = 350;
 
 type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error';
 
+// Fase 4 del plan de integración de Emitidas (2026-08-20): el modal ya no dismiss solo el
+// ClienteMock — 'esNuevo' distingue un cliente real (búsqueda, id de verdad en el backend) de
+// uno recién creado con crearAdHoc (todavía id de mock, no de verdad: Clientes/Crear no existe
+// en el backend, ver customers.repository.http.ts). Guardar necesita esa distinción: solo un
+// idCliente real se puede mandar a Guardar.
+export type SeleccionCliente = { cliente: ClienteMock; esNuevo: boolean };
+
 @Component({
   selector: 'app-cliente-selector',
   standalone: true,
@@ -198,7 +205,8 @@ export class ClienteSelectorComponent implements OnDestroy {
   }
 
   seleccionar(c: ClienteMock) {
-    this.modalCtrl.dismiss(c, 'confirm');
+    const seleccion: SeleccionCliente = { cliente: c, esNuevo: false };
+    this.modalCtrl.dismiss(seleccion, 'confirm');
   }
 
   confirmarNuevo() {
@@ -208,7 +216,8 @@ export class ClienteSelectorComponent implements OnDestroy {
       return;
     }
     const creado = this.customersRepo.crearAdHoc({ ...this.nuevo });
-    this.modalCtrl.dismiss(creado, 'confirm');
+    const seleccion: SeleccionCliente = { cliente: creado, esNuevo: true };
+    this.modalCtrl.dismiss(seleccion, 'confirm');
   }
 
   cancel() {

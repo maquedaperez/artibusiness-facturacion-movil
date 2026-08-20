@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { IssuedInvoicesRepository } from '../../ports/issued-invoices.repository';
+import { DatosGuardarFacturaEmitida, IssuedInvoicesRepository } from '../../ports/issued-invoices.repository';
+import { MedioPagoOpcion } from '../../ports/received-invoices.repository';
 import { MockIssuedInvoicesRepository } from '../mock/issued-invoices.repository.mock';
 import { ApiService } from '../../../services/api.service';
 import {
@@ -136,6 +137,36 @@ type FacturaEmitidaDetalleApi = {
   lineas: FacturaEmitidaLineaApi[];
 };
 
+// Fase 4 del plan de integración (2026-08-20): GET /api/FacturaEmitida/Numeradores —
+// catálogo de solo lectura, ver NumeradorDto.cs.
+const NUMERADORES_PATH = `${EMITIDAS_BASE_PATH}/Numeradores`;
+
+type NumeradorApi = {
+  idNumerador: number;
+  nombre: string | null;
+};
+
+// Body de POST /api/FacturaEmitida/Guardar — ver GuardarFacturaEmitidaRequest.cs. Sin
+// NumFactura ni Estado a propósito: el número lo asigna siempre el Numerador real al crear, y
+// Guardar solo crea/edita borradores (131) — nunca los cambia.
+type GuardarFacturaEmitidaApi = {
+  idFacturaEmitida?: number;
+  idCliente: number;
+  idNumerador: number;
+  concepto: string;
+  fechaFactura: string;
+  fechaVencimiento: string;
+  idMedioPago: number;
+  lineas: {
+    idFacturaLinea?: number;
+    descripcion: string;
+    cantidad: number;
+    precioUnitario: number;
+    descuento: number;
+    idImpuesto: number;
+  }[];
+};
+
 type ImpuestoApi = {
   idImpuesto: number;
   descripcion: string | null;
@@ -165,14 +196,18 @@ function etiquetaMedioPagoPorId(id: number, catalogo: MedioPagoApi[]): string {
 }
 
 /**
- * Fase 2 del plan de integración de Facturas Emitidas (2026-08-20): añade listar/obtenerPorId
- * reales, hablando contra el mismo FacturaEmitidaController que ya existía (creado para la
- * factura de socio de 1 línea) — se le añadió un endpoint Enumerar y se corrigió obtenerPorId
- * para que filtre por empresa (antes leía la factura de CUALQUIER empresa dado el id, fuga
- * real entre tenants). crearBorrador/actualizarBorrador/contabilizar/firmar/eliminar/duplicar/
- * generarDocumento siguen delegados al mock hasta sus propias fases.
+ * Adaptador real de Facturas Emitidas, construido en fases sobre el mismo
+ * FacturaEmitidaController que ya existía (creado para la factura de socio de 1 línea):
+ * - Fase 1: catálogos (obtenerPorcentajesIva/obtenerMediosPago).
+ * - Fase 2: listar/obtenerPorId — se corrigió de paso obtenerPorId, que antes leía la factura
+ *   de CUALQUIER empresa dado el id (fuga real entre tenants).
+ * - Fase 3 (customers.repository.http.ts): buscar cliente real.
+ * - Fase 4 (2026-08-20): guardar (alta/edición real, con líneas) y obtenerNumeradores. guardar
+ *   reutiliza en el backend FacturaEmitidaCabecera.Create() de ARTIBusinessCoreDLL — el mismo
+ *   mecanismo de numeración fiscal secuencial ya usado en producción por la factura de socio.
  *
- * medioPago sigue siendo un string libre (la etiqueta), no { id, label } — igual que Fase 1.
+ * contabilizar/firmar/eliminar/duplicar/generarDocumento siguen delegados al mock — son la
+ * pieza de VeriFactu/FacturaE (Fase 7 del plan), la más grande y legalmente sensible.
  */
 @Injectable()
 export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
@@ -202,9 +237,33 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return porcentajes.sort((a, b) => a - b);
   }
 
-  async obtenerMediosPago(): Promise<string[]> {
+  async obtenerMediosPago(): Promise<MedioPagoOpcion[]> {
     const catalogo = await this.obtenerMediosPagoApi();
-    return (catalogo ?? []).map(etiquetaMedioPago);
+    return (catalogo ?? []).map(m => ({ id: m.idMedioPago, label: etiquetaMedioPago(m) }));
+  }
+
+  // Fase 4 del plan de integración (2026-08-20): catálogo real de series — sustituye los 2
+  // numeradores fijos del mock. Sin caché: a diferencia de Impuestos/MediosPago (catálogos
+  // que no cambian durante la sesión y se piden muchas veces), esto solo se llama una vez por
+  // carga de página (cargarCatalogos()), no hace falta.
+  async obtenerNumeradores(): Promise<Numerador[]> {
+    const catalogo = await this.api.get<NumeradorApi[]>(NUMERADORES_PATH);
+    return (catalogo ?? []).map(n => ({ id: n.idNumerador, nombre: n.nombre?.trim() || `Serie ${n.idNumerador}` }));
+  }
+
+  // Sentido contrario a mapearDetalle (id→%): aquí ivaPct ya es un dato de confianza (elegido
+  // por el usuario), así que basta con encontrar la fila del catálogo con ese porcentaje.
+  // Idéntico a resolverIdImpuesto en received-invoices.repository.http.ts.
+  private async resolverIdImpuesto(ivaPct: number): Promise<number> {
+    const catalogo = await this.obtenerImpuestosApi();
+    const encontrado = catalogo.find(i => i.porcentaje === ivaPct);
+    if (!encontrado) {
+      throw new Error(
+        `No existe en el catálogo de impuestos ningún tipo de IVA al ${ivaPct}%. ` +
+        'Revisa el IVA de esa línea o pide que se añada ese tipo en el catálogo.'
+      );
+    }
+    return encontrado.idImpuesto;
   }
 
   private mapearCabecera(dto: FacturaEmitidaCabeceraApi, mediosPago: MedioPagoApi[]): FacturaEmitida {
@@ -336,6 +395,81 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     // vez de recalcular desde 'lineas' (el listado ni siquiera las trae).
     if (factura.totalesReales) return factura.totalesReales;
     return this.mockAdapter.totales(factura);
+  }
+
+  // Fase 4 del plan de integración (2026-08-20): guarda de verdad contra el backend — mismo
+  // criterio que ReceivedInvoicesRepository.actualizar(): si 'id' todavía existe en el
+  // almacén local (mockAdapter), es la primera vez que se guarda de verdad (alta); si ya no
+  // está, es un id real (se guardó antes en esta sesión, o se leyó de obtenerPorId) y toca
+  // actualizar esa misma fila.
+  async guardar(id: number, cambios: DatosGuardarFacturaEmitida): Promise<FacturaEmitida> {
+    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
+    if (borradorLocal) {
+      const guardada = await this.guardarReal(cambios);
+      this.mockAdapter.eliminar(id);
+      return guardada;
+    }
+    return this.guardarReal(cambios, id);
+  }
+
+  private async guardarReal(data: DatosGuardarFacturaEmitida, idExistente?: number): Promise<FacturaEmitida> {
+    if (!data.idCliente) {
+      throw new Error(
+        'Selecciona el cliente de la lista antes de guardar — no se puede guardar una ' +
+        'factura solo con el nombre en texto.'
+      );
+    }
+    if (!data.idMedioPago) {
+      throw new Error('Selecciona una forma de pago del catálogo antes de guardar.');
+    }
+    if (data.lineas.length === 0) {
+      throw new Error('La factura necesita al menos una línea.');
+    }
+
+    const lineasConImpuesto = await Promise.all(data.lineas.map(async l => ({
+      // Se manda el id real de la línea cuando existe (viene de leer una factura real del
+      // backend) — así Guardar la actualiza en vez de borrarla y crear una nueva. Una línea
+      // añadida a mano en esta sesión no lo tiene: undefined, que JSON.stringify omite, y el
+      // backend la trata como alta.
+      idFacturaLinea: l.idLineaBackend,
+      descripcion: l.descripcion,
+      cantidad: l.cantidad,
+      precioUnitario: l.precioUnitario,
+      descuento: l.descuentoPct,
+      idImpuesto: await this.resolverIdImpuesto(l.ivaPct),
+    })));
+
+    const body: GuardarFacturaEmitidaApi = {
+      idFacturaEmitida: idExistente,
+      idCliente: data.idCliente,
+      idNumerador: data.numeradorId,
+      concepto: data.concepto?.trim() || '',
+      fechaFactura: data.fecha,
+      fechaVencimiento: data.vencimiento || data.fecha,
+      idMedioPago: data.idMedioPago,
+      lineas: lineasConImpuesto,
+    };
+
+    const dto = await this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/Guardar`, body);
+
+    // No pasa por mapearDetalle a propósito (igual que guardarReal en Recibidas): esa función
+    // está pensada para leer una factura ya guardada desde cero (obtenerPorId), y generaría un
+    // id de línea NUEVO para cada línea con this.nuevoIdLinea() — perdiendo la identidad local
+    // que ya tenían (rompe el trackBy del editor de líneas justo después de guardar). Aquí ya
+    // tenemos los datos en 'data' tal cual los eligió el usuario; solo se completa con el id
+    // real de cabecera/línea que acaba de asignar el backend.
+    const lineas = data.lineas.map((l, i) => ({ ...l, idLineaBackend: dto.lineas?.[i]?.idFacturaLinea }));
+
+    return {
+      ...data,
+      lineas,
+      id: dto.idFacturaEmitida,
+      numFactura: dto.numFactura,
+      estado: estadoDesdeApi(dto.estado),
+      estadoAeat: estadoAeatDesdeApi(dto.estadoAeat),
+      operacionId: '',
+      totalesReales: this.totalesDesdeApi(dto.total, dto.iva, dto.irpf, dto.totalFactura),
+    };
   }
 
   // --- Todo lo demás sigue delegado al mock hasta su propia fase del plan ---

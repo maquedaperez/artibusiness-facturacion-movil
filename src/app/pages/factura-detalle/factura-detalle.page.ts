@@ -20,8 +20,8 @@ import {
   AccionesPermitidas, FacturaEmitida, Destinatario, Numerador,
   IVA_RATES, MEDIO_PAGO_OPTIONS,
 } from '../../services/mock-facturas.service';
-import { IssuedInvoicesRepository } from '../../core/ports';
-import { ClienteSelectorComponent } from '../../modals/cliente-selector/cliente-selector.component';
+import { IssuedInvoicesRepository, MedioPagoOpcion } from '../../core/ports';
+import { ClienteSelectorComponent, SeleccionCliente } from '../../modals/cliente-selector/cliente-selector.component';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 import { LineasEditorComponent } from '../../shared/lineas-editor/lineas-editor.component';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
@@ -55,7 +55,11 @@ export class FacturaDetallePage implements OnInit {
   numeradores: Numerador[] = [];
   numeradorSeleccionado: number | null = null;
   ivaRates = IVA_RATES;
-  medioPagoOptions = MEDIO_PAGO_OPTIONS;
+  // Fase 4 del plan de integración (2026-08-20): {id, label} en vez de string[] — Guardar
+  // exige idMedioPago numérico, no basta con la etiqueta. Arranca con el mismo catálogo de
+  // ejemplo que ya usa MockIssuedInvoicesRepository.obtenerMediosPago(), por si cargarCatalogos
+  // tarda o falla.
+  mediosPago: MedioPagoOpcion[] = MEDIO_PAGO_OPTIONS.map((label, i) => ({ id: i + 1, label }));
 
   working: FacturaEmitida | null = null;
   errorMsg = '';
@@ -104,7 +108,11 @@ export class FacturaDetallePage implements OnInit {
   // Fase 1 del plan de integración de Emitidas (2026-08-20): sustituye IVA_RATES/
   // MEDIO_PAGO_OPTIONS hardcodeados por los catálogos reales de la empresa — mismo patrón ya
   // probado en factura-recibida-detalle.page.ts. Si la carga falla, se queda con los valores
-  // fijos con los que ya arrancan ivaRates/medioPagoOptions, no bloquea ver/editar la factura.
+  // fijos con los que ya arrancan ivaRates/mediosPago, no bloquea ver/editar la factura.
+  // Fase 4 (2026-08-20): añade el catálogo real de numeradores — si esNueva y el numerador
+  // preseleccionado (del mock, en ngOnInit) ya no está en la lista real, se reajusta al
+  // primero real; si no, un Guardar real fallaría con "el numerador no existe para esta
+  // empresa" sin que el usuario haya tocado nada.
   private async cargarCatalogos() {
     try {
       const porcentajes = await this.invoicesRepo.obtenerPorcentajesIva();
@@ -114,9 +122,20 @@ export class FacturaDetallePage implements OnInit {
     }
     try {
       const mediosPago = await this.invoicesRepo.obtenerMediosPago();
-      if (mediosPago.length > 0) this.medioPagoOptions = mediosPago;
+      if (mediosPago.length > 0) this.mediosPago = mediosPago;
     } catch {
-      // Se mantiene MEDIO_PAGO_OPTIONS como valor por defecto.
+      // Se mantiene el catálogo de ejemplo como valor por defecto.
+    }
+    try {
+      const numeradores = await this.invoicesRepo.obtenerNumeradores();
+      if (numeradores.length > 0) {
+        this.numeradores = numeradores;
+        if (this.esNueva && !numeradores.some(n => n.id === this.numeradorSeleccionado)) {
+          this.numeradorSeleccionado = numeradores[0].id;
+        }
+      }
+    } catch {
+      // Se mantienen los numeradores de ejemplo del mock.
     }
   }
 
@@ -131,18 +150,35 @@ export class FacturaDetallePage implements OnInit {
     const { data, role } = await modal.onWillDismiss();
     if (role !== 'confirm' || !data) return;
 
-    const destinatario: Destinatario = data;
+    // Fase 4 del plan de integración (2026-08-20): un cliente elegido de la búsqueda real
+    // trae un idCliente de verdad; uno recién creado con "Cliente nuevo" (crearAdHoc, todavía
+    // mock — ver customers.repository.http.ts) no lo trae, y guardar() lo exige. La factura
+    // se puede seguir viendo/editando en local sin problema, solo falla al intentar guardarla
+    // de verdad — el mensaje de error de guardar() ya lo explica.
+    const { cliente, esNuevo } = data as SeleccionCliente;
+    const destinatario: Destinatario = cliente;
+    const idCliente = esNuevo ? undefined : cliente.id;
 
     if (this.esNueva) {
       const numeradorId = this.numeradorSeleccionado ?? this.numeradores[0]?.id;
       if (numeradorId == null) return;
       const creada = this.invoicesRepo.crearBorrador(numeradorId, destinatario);
       this.working = structuredClone(creada);
+      this.working.idCliente = idCliente;
       this.facturaId = creada.id;
       this.esNueva = false;
     } else if (this.working) {
       this.working.destinatario = destinatario;
+      this.working.idCliente = idCliente;
     }
+  }
+
+  // Mantiene medioPago (etiqueta, se sigue mostrando/validando como texto) en sincronía con
+  // idMedioPago (el id real que exige Guardar) — ver <ion-select> en el template.
+  onMedioPagoChange(id: number) {
+    if (!this.working) return;
+    this.working.idMedioPago = id;
+    this.working.medioPago = this.mediosPago.find(m => m.id === id)?.label ?? this.working.medioPago;
   }
 
   generarIdLinea = () => this.invoicesRepo.nuevoIdLinea();
@@ -158,22 +194,38 @@ export class FacturaDetallePage implements OnInit {
     return this.invoicesRepo.totales(this.working);
   }
 
-  async guardar() {
-    if (!this.working || this.facturaId == null || this.guardando) return;
+  // Fase 4 del plan de integración (2026-08-20): guarda de verdad contra el backend (antes
+  // solo mutaba el borrador local) — invoicesRepo.guardar() decide alta vs actualización según
+  // si facturaId sigue siendo un id local sin guardar o ya es uno real (ver
+  // issued-invoices.repository.http.ts). Si falla (cliente sin idCliente real, IVA sin
+  // catálogo, numerador inválido...) el borrador local se queda tal cual: nada se pierde,
+  // solo no se ha podido persistir todavía.
+  // Devuelve si de verdad se guardó — confirmarContabilizar() no debe simular la
+  // contabilización de una factura que en realidad no se ha llegado a persistir.
+  async guardar(): Promise<boolean> {
+    if (!this.working || this.facturaId == null || this.guardando) return false;
 
     this.guardando = true;
     try {
-      this.invoicesRepo.actualizarBorrador(this.facturaId, {
+      const guardada = await this.invoicesRepo.guardar(this.facturaId, {
         fecha: this.working.fecha,
         vencimiento: this.working.vencimiento,
         concepto: this.working.concepto,
         medioPago: this.working.medioPago,
+        idMedioPago: this.working.idMedioPago,
         destinatario: this.working.destinatario,
         lineas: this.working.lineas,
         numeradorId: this.working.numeradorId,
+        idCliente: this.working.idCliente,
       });
 
-      await this.showToast('Borrador guardado.');
+      this.working = structuredClone(guardada);
+      this.facturaId = guardada.id;
+      await this.showToast('Factura guardada.');
+      return true;
+    } catch (e: any) {
+      await this.showToast(e?.message ?? 'No se pudo guardar la factura.', 'danger');
+      return false;
     } finally {
       this.guardando = false;
     }
@@ -198,7 +250,8 @@ export class FacturaDetallePage implements OnInit {
         {
           text: 'Contabilizar',
           handler: async () => {
-            await this.guardar();
+            const guardadoOk = await this.guardar();
+            if (!guardadoOk) return; // guardar() ya mostró el motivo del fallo
             this.invoicesRepo.contabilizar(this.facturaId!);
             await this.showToast('Factura contabilizada (simulado).');
             this.volver();

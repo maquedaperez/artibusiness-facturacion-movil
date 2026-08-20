@@ -147,4 +147,150 @@ describe('HttpIssuedInvoicesRepository — Fase 2 (listar/obtenerPorId reales)',
     expect(totales.total).toBe(116);
     expect(totales.retencion.importe).toBe(5);
   });
+
+  it('obtenerMediosPago() devuelve {id, label}, no string[] (Fase 4)', async () => {
+    const catalogo = await repo.obtenerMediosPago();
+    expect(catalogo).toEqual([{ id: 1, label: 'Transferencia' }]);
+  });
+
+  it('obtenerNumeradores() mapea el catálogo real de series', async () => {
+    apiSpy.get.and.resolveTo([
+      { idNumerador: 1, nombre: 'Facturas' },
+      { idNumerador: 2, nombre: null },
+    ] as any);
+
+    const numeradores = await repo.obtenerNumeradores();
+
+    expect(apiSpy.get).toHaveBeenCalledWith('/api/FacturaEmitida/Numeradores');
+    expect(numeradores).toEqual([
+      { id: 1, nombre: 'Facturas' },
+      { id: 2, nombre: 'Serie 2' },
+    ]);
+  });
+});
+
+describe('HttpIssuedInvoicesRepository.guardar — Fase 4 (alta/edición real)', () => {
+  let repo: HttpIssuedInvoicesRepository;
+  let apiSpy: jasmine.SpyObj<ApiService>;
+
+  const lineaBase = { id: 1, origen: 'manual' as const, descripcion: 'Servicio', cantidad: 2, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 };
+  const destinatario = { nombre: 'Cliente Real SL', nif: 'B12345678', esEmpresa: true };
+
+  function respuestaGuardar(overrides: Partial<Record<string, unknown>> = {}) {
+    return {
+      idFacturaEmitida: 900, numFactura: 'A-2026-090', idEmpresa: 9, idCliente: 3,
+      concepto: 'Servicio', total: 200, iva: 42, suplidos: 0, irpf: 0,
+      cobrada: 0, fechaFactura: '2026-08-20T00:00:00', fechaVencimiento: '2026-09-20T00:00:00',
+      idNumerador: 1, idMedioPago: 1,
+      razonSocialDenominacion: 'Cliente Real SL', razonSocialNif: 'B12345678',
+      estado: 131, estadoAeat: null, totalFactura: 242, esEmpresa: true,
+      lineas: [{ idFacturaLinea: 55, referencia: null, descripcion: 'Servicio', cantidad: 2, precioUnitario: 100, descuento: 0, idImpuesto: 10, esSuplido: false, precioUnitarioBase: 100 }],
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['post', 'get']);
+    apiSpy.post.and.callFake((path: string) => {
+      if (path === '/api/MediosPago/Enumerar') return Promise.resolve(MEDIOS_PAGO_API as any);
+      if (path === '/api/Impuesto/Enumerar') return Promise.resolve(IMPUESTOS_API as any);
+      if (path === '/api/FacturaEmitida/Guardar') return Promise.resolve(respuestaGuardar() as any);
+      throw new Error(`POST no esperado en el test: ${path}`);
+    });
+    apiSpy.get.and.rejectWith(new Error('HTTP 404'));
+
+    TestBed.configureTestingModule({
+      providers: [
+        HttpIssuedInvoicesRepository,
+        MockIssuedInvoicesRepository,
+        MockFacturasService,
+        { provide: ApiService, useValue: apiSpy },
+      ],
+    });
+
+    repo = TestBed.inject(HttpIssuedInvoicesRepository);
+  });
+
+  it('un borrador local (crearBorrador, todavía sin guardar) hace un ALTA — sin idFacturaEmitida en el body', async () => {
+    const local = repo.crearBorrador(1, destinatario);
+
+    const guardada = await repo.guardar(local.id, {
+      fecha: '2026-08-20', vencimiento: '2026-09-20', concepto: 'Servicio',
+      medioPago: 'Transferencia', idMedioPago: 1, destinatario, idCliente: 3,
+      numeradorId: 1, lineas: [lineaBase],
+    });
+
+    expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturaEmitida/Guardar', jasmine.objectContaining({
+      idFacturaEmitida: undefined, idCliente: 3, idNumerador: 1, idMedioPago: 1,
+    }));
+    expect(guardada.id).toBe(900);
+    expect(guardada.numFactura).toBe('A-2026-090'); // el número real lo asigna el backend
+    expect(guardada.estado).toBe('borrador');
+
+    // El borrador local se descarta: ya no hace falta, la factura real lo sustituye.
+    expect(await repo.obtenerPorId(local.id)).toBeUndefined();
+  });
+
+  it('un id que ya no está en el almacén local (factura real leída antes) hace una ACTUALIZACIÓN', async () => {
+    // 501 nunca se creó vía crearBorrador() en este test — simula una factura real ya leída
+    // (obtenerPorId) que el usuario está reeditando.
+    const guardada = await repo.guardar(501, {
+      fecha: '2026-08-20', vencimiento: '2026-09-20', concepto: 'Servicio',
+      medioPago: 'Transferencia', idMedioPago: 1, destinatario, idCliente: 3,
+      numeradorId: 1, lineas: [lineaBase],
+    });
+
+    expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturaEmitida/Guardar', jasmine.objectContaining({
+      idFacturaEmitida: 501,
+    }));
+    expect(guardada.id).toBe(900);
+  });
+
+  it('conserva el idLineaBackend de la línea guardada (posición 0 del array de respuesta)', async () => {
+    const guardada = await repo.guardar(501, {
+      fecha: '2026-08-20', vencimiento: '2026-09-20', concepto: 'Servicio',
+      medioPago: 'Transferencia', idMedioPago: 1, destinatario, idCliente: 3,
+      numeradorId: 1, lineas: [lineaBase],
+    });
+
+    expect(guardada.lineas[0].idLineaBackend).toBe(55);
+    expect(guardada.lineas[0].id).toBe(lineaBase.id); // el id LOCAL de la línea no cambia
+  });
+
+  it('rechaza guardar sin idCliente — no se puede guardar una factura solo con el nombre en texto', async () => {
+    await expectAsync(repo.guardar(501, {
+      fecha: '2026-08-20', vencimiento: '2026-09-20', concepto: 'Servicio',
+      medioPago: 'Transferencia', idMedioPago: 1, destinatario, idCliente: undefined,
+      numeradorId: 1, lineas: [lineaBase],
+    })).toBeRejectedWithError(/Selecciona el cliente/);
+    expect(apiSpy.post).not.toHaveBeenCalledWith('/api/FacturaEmitida/Guardar', jasmine.anything());
+  });
+
+  it('rechaza guardar sin idMedioPago', async () => {
+    await expectAsync(repo.guardar(501, {
+      fecha: '2026-08-20', vencimiento: '2026-09-20', concepto: 'Servicio',
+      medioPago: 'Transferencia', idMedioPago: undefined, destinatario, idCliente: 3,
+      numeradorId: 1, lineas: [lineaBase],
+    })).toBeRejectedWithError(/forma de pago/);
+  });
+
+  it('rechaza guardar sin líneas', async () => {
+    await expectAsync(repo.guardar(501, {
+      fecha: '2026-08-20', vencimiento: '2026-09-20', concepto: 'Servicio',
+      medioPago: 'Transferencia', idMedioPago: 1, destinatario, idCliente: 3,
+      numeradorId: 1, lineas: [],
+    })).toBeRejectedWithError(/al menos una línea/);
+  });
+
+  it('resuelve idImpuesto de cada línea a partir de ivaPct, y lo manda al backend', async () => {
+    await repo.guardar(501, {
+      fecha: '2026-08-20', vencimiento: '2026-09-20', concepto: 'Servicio',
+      medioPago: 'Transferencia', idMedioPago: 1, destinatario, idCliente: 3,
+      numeradorId: 1, lineas: [lineaBase, { ...lineaBase, id: 2, ivaPct: 10 }],
+    });
+
+    const body = apiSpy.post.calls.allArgs().find(([path]) => path === '/api/FacturaEmitida/Guardar')?.[1] as any;
+    expect(body.lineas[0].idImpuesto).toBe(10); // 21% → idImpuesto 10
+    expect(body.lineas[1].idImpuesto).toBe(11); // 10% → idImpuesto 11
+  });
 });

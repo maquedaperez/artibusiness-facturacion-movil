@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { IssuedInvoicesRepository } from '../../ports/issued-invoices.repository';
+import { DatosGuardarFacturaEmitida, IssuedInvoicesRepository } from '../../ports/issued-invoices.repository';
+import { MedioPagoOpcion } from '../../ports/received-invoices.repository';
 import {
   AccionesPermitidas, Destinatario, EstadoAeat, EstadoFactura, FacturaEmitida, IVA_RATES, MEDIO_PAGO_OPTIONS,
   MockFacturasService, Numerador, TotalesFactura, accionesFacturaEmitida,
@@ -10,6 +11,10 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
   private mock = inject(MockFacturasService);
 
   getNumeradores(): Numerador[] {
+    return this.mock.getNumeradores();
+  }
+
+  async obtenerNumeradores(): Promise<Numerador[]> {
     return this.mock.getNumeradores();
   }
 
@@ -48,8 +53,18 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return IVA_RATES;
   }
 
-  async obtenerMediosPago(): Promise<string[]> {
-    return MEDIO_PAGO_OPTIONS;
+  async obtenerMediosPago(): Promise<MedioPagoOpcion[]> {
+    return MEDIO_PAGO_OPTIONS.map((label, i) => ({ id: i + 1, label }));
+  }
+
+  async guardar(id: number, cambios: DatosGuardarFacturaEmitida): Promise<FacturaEmitida> {
+    // Object.assign en actualizarBorrador() copia TODAS las claves propias de 'cambios' sobre
+    // la factura del almacén (incluidas idMedioPago/idCliente, aunque el Pick del mock no las
+    // declare) — no hace falta copiarlas aparte.
+    this.mock.actualizarBorrador(id, cambios);
+    const guardada = this.mock.getFacturaById(id);
+    if (!guardada) throw new Error(`Factura ${id} no encontrada.`);
+    return guardada;
   }
 
   contabilizar(id: number): void {

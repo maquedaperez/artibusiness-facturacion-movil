@@ -118,8 +118,11 @@ export type FacturaEmitida = {
   // Obligatorio para el registro fiscal — el servidor FacturaE rechaza la factura
   // con error AEAT 4102 si va vacío. Confirmado contra un caso real de producción.
   concepto: string;
-  // Obligatorio en el modelo real (IdMedioPago, no admite nulo).
+  // Obligatorio en el modelo real (IdMedioPago, no admite nulo) — 'medioPago' es la etiqueta
+  // para mostrar, 'idMedioPago' (Fase 4, 2026-08-20) es el id real del catálogo de la empresa
+  // que de verdad exige Guardar. Mismo criterio que FacturaRecibida.idMedioPago.
   medioPago: string;
+  idMedioPago?: number;
   destinatario: Destinatario;
   lineas: LineaFactura[];
   estado: EstadoFactura;

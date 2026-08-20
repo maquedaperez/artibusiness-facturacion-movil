@@ -64,6 +64,7 @@ export class FacturasEmitidasPage implements OnInit {
 
   ngOnInit() {
     this.numeradores = this.invoicesRepo.getNumeradores();
+    this.cargarNumeradores();
 
     const estadoParam = this.route.snapshot.queryParamMap.get('estado');
     if (estadoParam === 'borrador' || estadoParam === 'contabilizada' || estadoParam === 'firmada') {
@@ -71,6 +72,18 @@ export class FacturasEmitidasPage implements OnInit {
     }
 
     this.refresh();
+  }
+
+  // Fase 4 del plan de integración (2026-08-20): sustituye los 2 numeradores fijos del mock
+  // por el catálogo real — sin esto, filtrar por serie contra facturas reales no encontraría
+  // nada (los ids del mock no tienen por qué coincidir con los reales de la empresa).
+  private async cargarNumeradores() {
+    try {
+      const numeradores = await this.invoicesRepo.obtenerNumeradores();
+      if (numeradores.length > 0) this.numeradores = numeradores;
+    } catch {
+      // Se mantienen los numeradores de ejemplo del mock.
+    }
   }
 
   ionViewWillEnter() {

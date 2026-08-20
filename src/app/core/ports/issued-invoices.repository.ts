@@ -1,6 +1,15 @@
 import {
   AccionesPermitidas, Destinatario, EstadoAeat, EstadoFactura, FacturaEmitida, Numerador, TotalesFactura,
 } from '../../services/mock-facturas.service';
+import { MedioPagoOpcion } from './received-invoices.repository';
+
+// Fase 4 del plan de integración (2026-08-20): campos que de verdad viajan a Guardar. Un
+// subconjunto de FacturaEmitida — nunca el objeto completo (id/estado/estadoAeat/operacionId
+// los decide el backend, no el cliente).
+export type DatosGuardarFacturaEmitida = Pick<
+  FacturaEmitida,
+  'fecha' | 'vencimiento' | 'concepto' | 'medioPago' | 'idMedioPago' | 'destinatario' | 'lineas' | 'numeradorId' | 'idCliente'
+>;
 
 /**
  * Puerto tipado para Facturas Emitidas. Incluye Numeradores porque hoy solo se consume
@@ -11,12 +20,14 @@ import {
  * El estado AEAT/VeriFactu (`estadoAeatLabel`) es solo lectura de lo que devuelva el
  * servicio externo de FacturaE — este repositorio NUNCA debe calcular ni fabricar ese
  * estado por su cuenta cuando exista el HttpIssuedInvoicesRepository real.
- *
- * Backend real: no existen los endpoints de listar/detalle/editar/contabilizar/firmar
- * todavía — ver docs/SERVICE_CONTRACT_GAPS.md #7, #9, #10, #11, #12, #14.
  */
 export abstract class IssuedInvoicesRepository {
+  // getNumeradores() sigue siendo síncrono y respaldado por el mock (2 series de ejemplo) —
+  // se usa para no bloquear el primer render. obtenerNumeradores() (Fase 4) es el catálogo
+  // real, asíncrono, que sustituye esos valores en cuanto carga — mismo patrón ya usado en
+  // Fase 1 con ivaRates/medioPagoOptions.
   abstract getNumeradores(): Numerador[];
+  abstract obtenerNumeradores(): Promise<Numerador[]>;
   abstract numeradorNombre(id: number): string;
 
   // Fase 2 del plan de integración (2026-08-20): pasan a ser asíncronos porque
@@ -25,22 +36,26 @@ export abstract class IssuedInvoicesRepository {
   abstract listar(estado: EstadoFactura, numeradorId?: number | null): Promise<FacturaEmitida[]>;
   abstract obtenerPorId(id: number): Promise<FacturaEmitida | undefined>;
 
+  // crearBorrador/actualizarBorrador siguen siendo el borrador LOCAL, sin guardar — mismo rol
+  // que crearBorrador en el flujo del mock puro. guardar() (Fase 4) es quien persiste de
+  // verdad contra el backend: recibe el id local o real y decide alta vs actualización, igual
+  // que ReceivedInvoicesRepository.actualizar().
   abstract crearBorrador(numeradorId: number, destinatario: Destinatario): FacturaEmitida;
   abstract actualizarBorrador(
     id: number,
     cambios: Partial<Pick<FacturaEmitida, 'fecha' | 'vencimiento' | 'concepto' | 'medioPago' | 'destinatario' | 'lineas' | 'numeradorId'>>
   ): void;
+  abstract guardar(id: number, cambios: DatosGuardarFacturaEmitida): Promise<FacturaEmitida>;
   abstract nuevoIdLinea(): number;
 
   abstract totales(factura: FacturaEmitida): TotalesFactura;
 
-  // Fase 1 del plan de integración (2026-08-20): los únicos dos catálogos que ya existen en
-  // el backend real y son reutilizables tal cual — mismo ImpuestoController/MediosPagoController
-  // que ya usa Recibidas, solo hay que llamarlos. Sustituyen IVA_RATES/MEDIO_PAGO_OPTIONS
-  // hardcodeados. medioPago sigue siendo un string libre aquí (no idMedioPago numérico como en
-  // Recibidas) — restructurar eso es parte de la fase de Guardar real, no de esta.
+  // Fase 1 del plan de integración (2026-08-20): catálogos reales — mismo
+  // ImpuestoController/MediosPagoController que ya usa Recibidas. obtenerMediosPago pasa a
+  // devolver {id, label} en vez de string[] (Fase 4): Guardar exige idMedioPago numérico, no
+  // basta con la etiqueta.
   abstract obtenerPorcentajesIva(): Promise<number[]>;
-  abstract obtenerMediosPago(): Promise<string[]>;
+  abstract obtenerMediosPago(): Promise<MedioPagoOpcion[]>;
 
   abstract contabilizar(id: number): void;
   abstract firmar(id: number): void;
