@@ -1,4 +1,4 @@
-import { Component, Input, inject } from '@angular/core';
+import { Component, Input, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonButton, IonButtons, IonCard, IonCardContent, IonChip, IonContent, IonHeader,
@@ -206,21 +206,33 @@ function construirSecciones(datos: Record<string, unknown>): SeccionDocumento[] 
     .request-id { margin-top: 18px; font-size: .75rem; overflow-wrap: anywhere; }
   `],
 })
-export class DocumentoBancarioComponent {
+export class DocumentoBancarioComponent implements OnInit {
   private modalCtrl = inject(ModalController);
 
   @Input({ required: true }) documento!: DocumentoBancarioAnalizado;
+
+  // BUG real encontrado en pruebas 2026-08-20 (la app se quedaba congelada al abrir un
+  // documento bancario): 'secciones' era un getter — Angular lo reevalúa en CADA ciclo de
+  // detección de cambios (no solo cuando 'documento' cambia), y como construirSecciones()
+  // devuelve un array NUEVO cada vez, el *ngFor de abajo destruía y reconstruía todas las
+  // tarjetas/DOM en cada ciclo, en vez de reutilizarlas — con un documento bancario con
+  // varios niveles anidados (emisor, importes, movimientos...) eso multiplica el trabajo en
+  // cada tick y puede bloquear el hilo de la UI. Se calcula una sola vez en ngOnInit en vez
+  // de en cada detección de cambios. componentProps del ModalController asigna 'documento'
+  // por asignación directa ANTES de que Angular dispare ngOnInit (a diferencia de un binding
+  // de plantilla), así que aquí ya está disponible con seguridad.
+  secciones: SeccionDocumento[] = [];
 
   constructor() {
     addIcons({ closeOutline, documentTextOutline });
   }
 
-  get confianzaPct(): number {
-    return Math.round((this.documento.confianza ?? 0) * 100);
+  ngOnInit() {
+    this.secciones = construirSecciones(this.documento.datos);
   }
 
-  get secciones(): SeccionDocumento[] {
-    return construirSecciones(this.documento.datos);
+  get confianzaPct(): number {
+    return Math.round((this.documento.confianza ?? 0) * 100);
   }
 
   async verOriginal() {
