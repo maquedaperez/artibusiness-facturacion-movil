@@ -8,7 +8,7 @@ import {
   IonButton, IonIcon, IonCard, IonCardContent,
   IonText, IonSpinner, IonFab, IonFabButton,
   IonSearchbar, IonItem, IonSelect, IonSelectOption, IonInput,
-  ToastController, AlertController,
+  ToastController, AlertController, ModalController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -22,6 +22,8 @@ import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.compon
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
 import { environment } from 'src/environments/environment';
+import { DocumentoBancarioAnalizado, esDocumentoBancarioAnalizado } from '../../core/models/documento-bancario';
+import { DocumentoBancarioComponent } from '../../modals/documento-bancario/documento-bancario.component';
 
 @Component({
   selector: 'app-facturas-recibidas',
@@ -41,6 +43,7 @@ export class FacturasRecibidasPage {
   private invoicesRepo = inject(ReceivedInvoicesRepository);
   private toastCtrl = inject(ToastController);
   private alertCtrl = inject(AlertController);
+  private modalCtrl = inject(ModalController);
   private router = inject(Router);
 
   @ViewChild('fileInputCamera') fileInputCamera?: ElementRef<HTMLInputElement>;
@@ -191,7 +194,15 @@ export class FacturasRecibidasPage {
 
     this.processing = true;
     try {
-      const nueva = await this.invoicesRepo.crearDesdeDocumentoDirecto(file);
+      const resultado = await this.invoicesRepo.crearDesdeDocumentoDirecto(file);
+      // 2026-08-20 (correo de Alex): el lector puede clasificar el fichero como documento
+      // bancario en vez de factura — HTTP 200 válido, no un error. No se crea ninguna
+      // factura recibida ni se navega a ningún detalle: se abre el visor propio.
+      if (esDocumentoBancarioAnalizado(resultado)) {
+        await this.mostrarDocumentoBancario(resultado);
+        return;
+      }
+      const nueva = resultado;
       // Pedido por el usuario 2026-08-19 (urgente): antes se quedaba en la lista con solo
       // un toast — el usuario tenía que buscar la factura recién escaneada él mismo. Ahora
       // se abre directo su detalle, igual que ya hace el fallback de proveedor no reconocido
@@ -263,13 +274,28 @@ export class FacturasRecibidasPage {
     motivo: 'proveedor-no-encontrado' | 'nif-ilegible' | 'numero-ilegible',
   ) {
     try {
-      const borrador = await this.invoicesRepo.crearDesdeOcr(file);
+      const resultado = await this.invoicesRepo.crearDesdeOcr(file);
+      if (esDocumentoBancarioAnalizado(resultado)) {
+        await this.mostrarDocumentoBancario(resultado);
+        return;
+      }
+      const borrador = resultado;
       await this.showToast(this.mensajeBorradorLocal(motivo), 'danger');
       await this.router.navigate(['/app/recibidas', borrador.id]);
     } catch {
       // Si ni siquiera el análisis puro consigue nada, no hay borrador que ofrecer.
       await this.showToast('No se pudo procesar el documento. Inténtalo de nuevo o crea la factura manualmente.', 'danger');
     }
+  }
+
+  // El visor de "Documento bancario" no depende de ninguna factura ni borrador — solo
+  // muestra lo que devolvió el lector. Ver DocumentoBancarioComponent.
+  private async mostrarDocumentoBancario(documento: DocumentoBancarioAnalizado) {
+    const modal = await this.modalCtrl.create({
+      component: DocumentoBancarioComponent,
+      componentProps: { documento },
+    });
+    await modal.present();
   }
 
   accionesPermitidas(f: FacturaRecibida): AccionesPermitidas {

@@ -1,5 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import { FiltrosListarRecibidas, MedioPagoOpcion, ReceivedInvoicesRepository } from '../../ports/received-invoices.repository';
+import {
+  FiltrosListarRecibidas, MedioPagoOpcion, ReceivedInvoicesRepository, ResultadoProcesamientoDocumento,
+} from '../../ports/received-invoices.repository';
 import { MockReceivedInvoicesRepository } from '../mock/received-invoices.repository.mock';
 import { ApiService } from '../../../services/api.service';
 import {
@@ -8,6 +10,7 @@ import {
 } from '../../../services/mock-facturas.service';
 import { formatEuros } from '../../../shared/utils/format-euros';
 import { limpiarNombreProveedor } from '../../../shared/utils/limpiar-nombre-proveedor';
+import { DocumentoBancarioAnalizado } from '../../models/documento-bancario';
 
 // Confirmado contra el código real de WebAPIARTIBusiness (Controllers/DocumentoController.cs
 // + Services/DocumentoService.cs): [Authorize] con el mismo esquema JWT que ya usa el login,
@@ -72,16 +75,70 @@ type OcrInvoice = {
   totals?: OcrTotals | null;
 };
 
+// Ampliado 2026-08-20 (correo de Alex): el lector ya distingue documentos bancarios de
+// facturas — document_type: "bank_document" viaja con HTTP 200 y success: true, con los
+// datos en document.bank_document (invoice viene null). Ver docs/OCR_DOCUMENTOS_BANCARIOS.md.
 type OcrAnalyzeResponse = {
   success: boolean;
+  filename?: string | null;
+  request_id?: string | null;
   document?: {
+    document_type?: 'invoice' | 'bank_document' | string | null;
+    confidence?: number | null;
     invoice?: OcrInvoice | null;
+    bank_document?: Record<string, unknown> | null;
     // Avisos que la propia API de OCR genera sobre su extracción (ej. "no me cuadran
     // los importes internamente") — información real, no algo que debamos descartar.
     warnings?: string[] | null;
   } | null;
   error?: { code: string; message: string };
 };
+
+function esObjeto(valor: unknown): valor is Record<string, unknown> {
+  return typeof valor === 'object' && valor !== null && !Array.isArray(valor);
+}
+
+// document_type manda siempre que venga explícito (incluso si queda un bloque bank_document
+// residual junto a una factura real) — solo cuando falta el discriminante se cae a mirar si
+// hay datos bancarios sin factura, por compatibilidad con una versión intermedia del lector.
+function esDocumentoBancario(documento: OcrAnalyzeResponse['document']): boolean {
+  if (!documento) return false;
+  if (documento.document_type != null) return documento.document_type === 'bank_document';
+  return !documento.invoice && esObjeto(documento.bank_document);
+}
+
+function construirDocumentoBancario(
+  respuesta: OcrAnalyzeResponse,
+  file: File,
+  adjunto?: { documentoUrl: string; documentoNombre: string },
+): DocumentoBancarioAnalizado {
+  const procesado = respuesta.document;
+  if (!procesado || !esObjeto(procesado.bank_document)) {
+    throw new Error(
+      'El lector clasificó el fichero como documento bancario, pero no devolvió ' +
+      'document.bank_document con los datos extraídos.'
+    );
+  }
+
+  const confianza = typeof procesado.confidence === 'number' && Number.isFinite(procesado.confidence)
+    ? procesado.confidence
+    : undefined;
+  const avisos = Array.isArray(procesado.warnings)
+    ? procesado.warnings.filter((aviso): aviso is string => typeof aviso === 'string' && !!aviso.trim())
+    : [];
+  const nombreRespuesta = typeof respuesta.filename === 'string' ? respuesta.filename.trim() : '';
+  const requestId = typeof respuesta.request_id === 'string' ? respuesta.request_id.trim() : '';
+
+  return {
+    tipoDocumento: 'bank_document',
+    datos: procesado.bank_document,
+    confianza,
+    avisos,
+    nombreArchivo: adjunto?.documentoNombre || nombreRespuesta || file.name,
+    documentoUrl: adjunto?.documentoUrl,
+    requestId: requestId || undefined,
+  };
+}
 
 // Los importes/cantidades de la API de OCR llegan como string (para no perder
 // precisión decimal) y pueden venir null cuando no se ha podido leer el dato.
@@ -561,7 +618,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return guardada;
   }
 
-  async crearDesdeOcr(file: File): Promise<FacturaRecibida> {
+  async crearDesdeOcr(file: File): Promise<ResultadoProcesamientoDocumento> {
     const [respuesta, documento] = await Promise.all([
       this.api.postMultipart<OcrAnalyzeResponse>(OCR_ENDPOINT_PATH, file, 'file'),
       // El adjunto se queda igual que en el mock: guardado en local (Data URL) en el
@@ -571,7 +628,19 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       this.mockAdapter.adjuntarDocumento(file),
     ]);
 
-    if (!respuesta?.success || !respuesta.document?.invoice) {
+    if (!respuesta?.success || !respuesta.document) {
+      throw new Error('No se pudo extraer información del documento. Inténtalo de nuevo o crea la factura manualmente.');
+    }
+
+    // 2026-08-20 (correo de Alex): el lector ya clasifica documentos bancarios de forma
+    // explícita — un bank_document es un HTTP 200 válido, no un error ni una factura
+    // incompleta. Se resuelve ANTES de mirar document.invoke (aquí siempre viene null) para
+    // no caer en el error genérico de "no se pudo extraer información".
+    if (esDocumentoBancario(respuesta.document)) {
+      return construirDocumentoBancario(respuesta, file, documento);
+    }
+
+    if (!respuesta.document.invoice) {
       throw new Error('No se pudo extraer información del documento. Inténtalo de nuevo o crea la factura manualmente.');
     }
 
@@ -685,16 +754,31 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   // accountingLocked=true de cualquier factura leída del sistema real. Los avisos propios
   // del endpoint (total que no cuadra, fallo al subir el documento) se añaden a avisosOcr,
   // junto a la explicación habitual de por qué las líneas no traen el IVA real reconstruido.
-  async crearDesdeDocumentoDirecto(file: File): Promise<FacturaRecibida> {
-    const resultado = await this.api.postMultipart<CrearDesdeDocumentoApi>(
+  async crearDesdeDocumentoDirecto(file: File): Promise<ResultadoProcesamientoDocumento> {
+    const resultado = await this.api.postMultipart<CrearDesdeDocumentoApi | OcrAnalyzeResponse>(
       `${RECIBIDAS_BASE_PATH}/CrearDesdeDocumento`, file, 'file',
     );
 
-    const factura = mapearCabecera(resultado.factura);
+    // 2026-08-20 (correo de Alex): cuando el lector clasifica el fichero como bank_document,
+    // CrearDesdeDocumento no guarda ninguna factura — reenvía el mismo sobre OCR que
+    // /api/Documento/analizar (ver docs/OCR_DOCUMENTOS_BANCARIOS.md y el cambio en
+    // FacturaRecibidaDocumentoService.CrearDesdeDocumentoAsync del backend). Se resuelve
+    // ANTES de leer 'factura': una clasificación bancaria es un HTTP 200 válido, nunca una
+    // factura a medias.
+    if (esObjeto(resultado) && 'document' in resultado) {
+      if (esDocumentoBancario((resultado as OcrAnalyzeResponse).document)) {
+        const adjunto = await this.mockAdapter.adjuntarDocumento(file);
+        return construirDocumentoBancario(resultado as OcrAnalyzeResponse, file, adjunto);
+      }
+      throw new Error('El lector no ha podido extraer una factura de este documento.');
+    }
+
+    const resultadoFactura = resultado as CrearDesdeDocumentoApi;
+    const factura = mapearCabecera(resultadoFactura.factura);
     const catalogoImpuestos = await this.obtenerImpuestos();
-    factura.lineas = (resultado.factura.lineas ?? []).map(l => mapearLinea(l, () => this.nuevoIdLinea(), catalogoImpuestos));
-    if (resultado.avisos?.length) {
-      factura.avisosOcr = [...(factura.avisosOcr ?? []), ...resultado.avisos];
+    factura.lineas = (resultadoFactura.factura.lineas ?? []).map(l => mapearLinea(l, () => this.nuevoIdLinea(), catalogoImpuestos));
+    if (resultadoFactura.avisos?.length) {
+      factura.avisosOcr = [...(factura.avisosOcr ?? []), ...resultadoFactura.avisos];
     }
     return factura;
   }

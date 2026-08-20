@@ -1,5 +1,9 @@
 # Integración del lector OCR (Generic Invoice Reader) en el backend
 
+> La clasificación y visualización de documentos bancarios (`document_type: "bank_document"`)
+> se detalla en [`OCR_DOCUMENTOS_BANCARIOS.md`](./OCR_DOCUMENTOS_BANCARIOS.md) — afecta tanto
+> a este endpoint como a `POST /api/FacturasRecibidas/CrearDesdeDocumento`.
+
 Este documento es para quien implemente el endpoint en `WebAPIARTIBusiness`
 (C#/.NET). Resuelve los gaps #13 y #21 de `SERVICE_CONTRACT_GAPS.md`: el
 paquete que nos han entregado (`ARTI-Invoice-Reader-Handoff/`) está pensado
@@ -284,31 +288,20 @@ revise, en vez de mostrar en silencio un número que podría estar mal.
   responde de forma síncrona (aunque puede tardar unos segundos en
   documentos grandes); un `await` normal en el controlador basta.
 
-## Cuando el endpoint esté listo
+## Estado del frontend
 
-**El lado de Angular ya está construido y actualizado con la ruta real**,
-a la espera de activarse:
+**El lado de Angular está construido, activo y actualizado con la ruta real** (desde
+2026-08-17, confirmado por el jefe con el endpoint ya desplegado):
 
 - `ApiService.postMultipart()` — sube el fichero real (multipart/form-data)
   con el token de sesión de la app, tanto en web como en nativo.
 - `HttpReceivedInvoicesRepository` (`src/app/core/adapters/http/received-invoices.repository.http.ts`)
-  — llama a `POST /api/Documento/analizar` y mapea la respuesta a
-  `FacturaRecibida`, con sus tests (`.spec.ts` junto al fichero).
-- Todavía **no está enchufado**: `mock.providers.ts` sigue apuntando al
-  mock por completo, así que la app no cambia de comportamiento hasta que
-  se confirme.
-
-Solo falta confirmar con el jefe:
-
-1. **¿Ya está publicado en Azure** (el sitio
-   `webapiartibusiness-dvh6d7b8a7c9dsfr...`), o de momento solo existe en
-   su copia local? Mientras no esté publicado ahí, ni `ng serve` en local
-   ni Netlify pueden alcanzarlo (ambos apuntan a esa misma URL).
-2. **¿Ya ha puesto el token real** de `InvoiceReaderApi:Token` en la
-   configuración de ese App Service (o en `user-secrets` si prueba en
-   local)? Sin él, `DocumentoService` lanza una excepción al primer intento
-   de análisis.
-
-Con eso confirmado, activar la integración real es cambiar una línea en
-`mock.providers.ts` (`useClass: MockReceivedInvoicesRepository` →
-`useClass: HttpReceivedInvoicesRepository`) — ninguna pantalla se toca.
+  — llama a `POST /api/Documento/analizar` y devuelve un resultado discriminado
+  (`FacturaRecibida` o `DocumentoBancarioAnalizado`, ver
+  [`OCR_DOCUMENTOS_BANCARIOS.md`](./OCR_DOCUMENTOS_BANCARIOS.md)), con sus tests
+  (`.spec.ts` junto al fichero).
+- `mock.providers.ts` ya resuelve `ReceivedInvoicesRepository` con `HttpReceivedInvoicesRepository`.
+- El flujo principal de la pantalla (botones "Escanear"/"Adjuntar documento") usa además
+  `POST /api/FacturasRecibidas/CrearDesdeDocumento` — para `bank_document`, ese endpoint
+  debe preservar la respuesta estructurada del lector tal como explica
+  `OCR_DOCUMENTOS_BANCARIOS.md`, no solo `/api/Documento/analizar`.

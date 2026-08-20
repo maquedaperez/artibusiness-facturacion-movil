@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { AlertController, ToastController } from '@ionic/angular/standalone';
+import { AlertController, ModalController, ToastController, provideIonicAngular } from '@ionic/angular/standalone';
 import { FacturasRecibidasPage } from './facturas-recibidas.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { FacturaRecibida } from '../../services/mock-facturas.service';
@@ -17,7 +17,7 @@ describe('FacturasRecibidasPage', () => {
     // llamaría de verdad a POST api/FacturasRecibidas/Enumerar contra el servidor de Karma.
     const apiStub: Partial<ApiService> = { post: jasmine.createSpy().and.resolveTo([]) };
     TestBed.configureTestingModule({
-      providers: [...MOCK_REPOSITORY_PROVIDERS, { provide: ApiService, useValue: apiStub }],
+      providers: [...MOCK_REPOSITORY_PROVIDERS, provideIonicAngular(), { provide: ApiService, useValue: apiStub }],
     });
     fixture = TestBed.createComponent(FacturasRecibidasPage);
     component = fixture.componentInstance;
@@ -67,7 +67,7 @@ describe('FacturasRecibidasPage', () => {
       const apiStub: Partial<ApiService> = { post: jasmine.createSpy().and.resolveTo([]) };
       TestBed.resetTestingModule();
       TestBed.configureTestingModule({
-        providers: [...MOCK_REPOSITORY_PROVIDERS, { provide: ApiService, useValue: apiStub }],
+        providers: [...MOCK_REPOSITORY_PROVIDERS, provideIonicAngular(), { provide: ApiService, useValue: apiStub }],
       });
       fixtureFlagOff = TestBed.createComponent(FacturasRecibidasPage);
       componentFlagOff = fixtureFlagOff.componentInstance;
@@ -110,6 +110,32 @@ describe('FacturasRecibidasPage', () => {
 
     expect(crearSpy).toHaveBeenCalled();
     expect(navigateSpy).toHaveBeenCalledWith(['/app/recibidas', 777]);
+    expect(component.processing).toBeFalse();
+  });
+
+  // 2026-08-20 (correo de Alex): un bank_document es un HTTP 200 válido, no un error — no
+  // debe navegar a ningún detalle de factura (no se ha creado ninguna) ni mostrar el toast
+  // de "Factura guardada"; se abre el visor propio.
+  it('escanear/adjuntar con un documento bancario abre el visor y no crea ninguna factura', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    const crearSpy = spyOn(repo, 'crearDesdeDocumentoDirecto').and.resolveTo({
+      tipoDocumento: 'bank_document',
+      nombreArchivo: '4QHPJO04H000.pdf',
+      avisos: [],
+      datos: { document_title: 'Abono de remesa de adeudos directos' },
+    });
+    const router = TestBed.inject(Router);
+    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
+    const modalCtrl = TestBed.inject(ModalController);
+    const modalSpy = spyOn(modalCtrl, 'create').and.resolveTo({ present: async () => {} } as any);
+
+    await component.onFileSelected(eventoConArchivo('4QHPJO04H000.pdf'));
+
+    expect(crearSpy).toHaveBeenCalled();
+    expect(modalSpy).toHaveBeenCalledWith(jasmine.objectContaining({
+      componentProps: jasmine.objectContaining({ documento: jasmine.objectContaining({ tipoDocumento: 'bank_document' }) }),
+    }));
+    expect(navigateSpy).not.toHaveBeenCalled();
     expect(component.processing).toBeFalse();
   });
 

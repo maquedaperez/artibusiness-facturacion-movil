@@ -1,4 +1,5 @@
 import { AccionesPermitidas, FacturaRecibida, TotalesFactura } from '../../services/mock-facturas.service';
+import { DocumentoBancarioAnalizado } from '../models/documento-bancario';
 
 /**
  * Puerto tipado para Facturas Recibidas, incluido OCR y documento adjunto — hoy solo se
@@ -33,6 +34,11 @@ export type FiltrosListarRecibidas = {
   estado?: 'borrador' | 'revisada';
 };
 
+// El lector OCR puede clasificar correctamente un documento como bancario en vez de como
+// factura (ver el correo de Alex, 2026-08-19) — es una unión discriminada, no una excepción:
+// document_type: "bank_document" viaja con HTTP 200 y success: true, igual que una factura.
+export type ResultadoProcesamientoDocumento = FacturaRecibida | DocumentoBancarioAnalizado;
+
 export abstract class ReceivedInvoicesRepository {
   // Async a propósito: HttpReceivedInvoicesRepository los resuelve contra
   // POST /api/FacturasRecibidas/Enumerar y GET /api/FacturasRecibidas/{id} (backend real,
@@ -56,7 +62,7 @@ export abstract class ReceivedInvoicesRepository {
   abstract nuevoIdLinea(): number;
   abstract totales(factura: FacturaRecibida): TotalesFactura;
 
-  abstract crearDesdeOcr(file: File): Promise<FacturaRecibida>;
+  abstract crearDesdeOcr(file: File): Promise<ResultadoProcesamientoDocumento>;
   // Adjunto ANTES de guardar (factura todavía sin id real) — solo genera una vista previa
   // local (Data URL), nunca sube nada al backend. Ver adjuntarDocumentoAFactura() para el
   // caso de una factura que ya existe de verdad.
@@ -87,7 +93,7 @@ export abstract class ReceivedInvoicesRepository {
   // guardar algo a medias. La factura que devuelve ya es real (accountingLocked, igual que
   // cualquier otra leída de Enumerar/Obtener) — decisión confirmada: mantener los dos
   // flujos en paralelo, no sustituir el que ya existe (escanear → revisar → Guardar).
-  abstract crearDesdeDocumentoDirecto(file: File): Promise<FacturaRecibida>;
+  abstract crearDesdeDocumentoDirecto(file: File): Promise<ResultadoProcesamientoDocumento>;
 
   // Catálogos de referencia para el formulario de la factura — se resuelven una sola vez
   // por sesión (cacheados como Promise en los adaptadores, no como valor ya resuelto).

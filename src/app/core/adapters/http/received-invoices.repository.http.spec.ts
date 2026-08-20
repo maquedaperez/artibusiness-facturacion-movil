@@ -4,9 +4,22 @@ import { HttpReceivedInvoicesRepository } from './received-invoices.repository.h
 import { MockReceivedInvoicesRepository } from '../mock/received-invoices.repository.mock';
 import { FacturaRecibida, MockFacturasService } from '../../../services/mock-facturas.service';
 import { ApiService } from '../../../services/api.service';
+import { esDocumentoBancarioAnalizado } from '../../models/documento-bancario';
+import { ResultadoProcesamientoDocumento } from '../../ports/received-invoices.repository';
 
 function archivoDePrueba(nombre = 'factura.pdf'): File {
   return new File(['contenido de prueba'], nombre, { type: 'application/pdf' });
+}
+
+// crearDesdeOcr/crearDesdeDocumentoDirecto devuelven una unión (factura o documento
+// bancario, ver docs/OCR_DOCUMENTOS_BANCARIOS.md) — las pruebas de mapeo de factura que ya
+// existían siguen siendo válidas tal cual, solo hace falta estrechar el tipo antes de leer
+// campos que solo tiene FacturaRecibida.
+function exigirFactura(resultado: ResultadoProcesamientoDocumento): FacturaRecibida {
+  if (esDocumentoBancarioAnalizado(resultado)) {
+    throw new Error('La prueba esperaba una factura y recibió un documento bancario.');
+  }
+  return resultado;
 }
 
 describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta de OCR', () => {
@@ -52,7 +65,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
 
     expect(factura.origenOcr).toBeTrue();
     expect(factura.estado).toBe('borrador');
@@ -77,6 +90,59 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
     expect(apiSpy.postMultipart).toHaveBeenCalledWith('/api/Documento/analizar', jasmine.any(File), 'file');
   });
 
+  it('document_type=bank_document usa document.bank_document y no intenta mapear una factura', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      filename: '4QHPJO04H000.pdf',
+      request_id: 'ocr-sabadell-1',
+      document: {
+        document_type: 'bank_document',
+        confidence: 0.98,
+        warnings: ['Revisar la conciliación antes de contabilizar.'],
+        invoice: null,
+        bank_document: {
+          document_title: 'Abono de remesa de adeudos directos',
+          debtor: { name: 'ACERCA PARTNERS SL', iban: 'ES13 0081 0640 6800 0190 0597' },
+          amounts: { nominal: '641.93', net: '640.84' },
+        },
+      },
+    });
+
+    const resultado = await repo.crearDesdeOcr(archivoDePrueba('4QHPJO04H000.pdf'));
+
+    expect(esDocumentoBancarioAnalizado(resultado)).toBeTrue();
+    if (!esDocumentoBancarioAnalizado(resultado)) return;
+    expect(resultado.tipoDocumento).toBe('bank_document');
+    expect(resultado.datos['document_title']).toBe('Abono de remesa de adeudos directos');
+    expect(resultado.confianza).toBe(0.98);
+    expect(resultado.requestId).toBe('ocr-sabadell-1');
+    expect(resultado.avisos).toEqual(['Revisar la conciliación antes de contabilizar.']);
+  });
+
+  it('rechaza una respuesta bank_document sin document.bank_document con un error de contrato claro', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: { document_type: 'bank_document', confidence: 0.9, bank_document: null },
+    });
+
+    await expectAsync(repo.crearDesdeOcr(archivoDePrueba()))
+      .toBeRejectedWithError(/document\.bank_document/);
+  });
+
+  it('respeta document_type como discriminante aunque una respuesta invoice traiga un bloque bancario residual', async () => {
+    apiSpy.postMultipart.and.resolveTo({
+      success: true,
+      document: {
+        document_type: 'invoice',
+        invoice: { invoice_number: 'F-INV-1', lines: [] },
+        bank_document: { residual: true },
+      },
+    });
+
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
+    expect(factura.numFactura).toBe('F-INV-1');
+  });
+
   it('usa el due_date a nivel de factura cuando no hay payment.due_date', async () => {
     apiSpy.postMultipart.and.resolveTo({
       success: true,
@@ -89,7 +155,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     expect(factura.vencimiento).toBe('2026-10-15');
     expect(factura.formaPago).toBeUndefined();
   });
@@ -120,7 +186,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
 
     expect(factura.lineas[0].cantidad).toBe(1);
     expect(factura.lineas[0].precioUnitario).toBe(180.1653);
@@ -137,7 +203,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     expect(factura.lineas[0].cantidad).toBe(1);
     expect(factura.lineas[0].precioUnitario).toBe(42.5);
   });
@@ -150,7 +216,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     expect(factura.lineas[0].cantidad).toBe(1);
     expect(factura.lineas[0].precioUnitario).toBe(29.97);
   });
@@ -163,7 +229,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     expect(factura.lineas[0].cantidad).toBe(3);
     expect(factura.lineas[0].precioUnitario).toBe(10);
   });
@@ -176,7 +242,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     expect(factura.retencionPct).toBe(15); // 15.2 -> tarifa válida más cercana (IRPF_RATES)
   });
 
@@ -191,7 +257,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     expect(factura.retencionPct).toBe(19); // 19/100 = 19% exacto
   });
 
@@ -206,7 +272,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     expect(factura.retencionPct).toBe(0);
   });
 
@@ -225,7 +291,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba('recibo.jpg'));
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba('recibo.jpg')));
 
     expect(factura.proveedor).toBe('Proveedor detectado (recibo.jpg)');
     expect(factura.numFactura).toBe('');
@@ -242,7 +308,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       document: { invoice: { lines: [] } },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     expect(factura.lineas.length).toBe(1);
     expect(factura.lineas[0].descripcion).toBe('Pendiente de revisar');
   });
@@ -269,7 +335,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
     });
 
     const antes = (await repo.listar()).length;
-    const creada = await repo.crearDesdeOcr(archivoDePrueba());
+    const creada = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
 
     expect((await repo.listar()).length).toBe(antes + 1);
     expect((await repo.obtenerPorId(creada.id))?.numFactura).toBe('F-9');
@@ -285,7 +351,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     expect(factura.lineas[0].ivaPct).toBe(0);
   });
 
@@ -297,7 +363,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     expect(factura.lineas[0].ivaPct).toBe(0);
   });
 
@@ -309,7 +375,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     expect(factura.lineas[0].ivaPct).toBe(10);
   });
 
@@ -340,7 +406,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     const totales = repo.totales(factura);
 
     expect(totales.base).toBe(53); // suma de las 9 líneas, sin cambios
@@ -378,7 +444,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     const totales = repo.totales(factura);
 
     expect(totales.base).toBe(23.84); // no 23.83
@@ -401,7 +467,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     expect(factura.avisosOcr).toBeUndefined();
   });
 
@@ -416,7 +482,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     expect(factura.avisosOcr?.length).toBe(1);
     expect(factura.avisosOcr?.[0]).toContain('no coincide');
     expect(factura.avisosOcr?.[0]).toContain('999');
@@ -433,7 +499,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
       },
     });
 
-    const factura = await repo.crearDesdeOcr(archivoDePrueba());
+    const factura = exigirFactura(await repo.crearDesdeOcr(archivoDePrueba()));
     expect(factura.avisosOcr).toBeUndefined();
   });
 });
@@ -1038,7 +1104,7 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
         avisos: [],
       });
 
-      const factura = await repo.crearDesdeDocumentoDirecto(archivoDePrueba());
+      const factura = exigirFactura(await repo.crearDesdeDocumentoDirecto(archivoDePrueba()));
 
       expect(apiSpy.postMultipart).toHaveBeenCalledWith('/api/FacturasRecibidas/CrearDesdeDocumento', jasmine.anything(), 'file');
       expect(factura.id).toBe(700);
@@ -1063,7 +1129,7 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
         avisos: ['La factura se guardó correctamente, pero no se pudo subir el documento original.'],
       });
 
-      const factura = await repo.crearDesdeDocumentoDirecto(archivoDePrueba());
+      const factura = exigirFactura(await repo.crearDesdeDocumentoDirecto(archivoDePrueba()));
 
       expect(factura.avisosOcr).toContain('La factura se guardó correctamente, pero no se pudo subir el documento original.');
     });
@@ -1072,6 +1138,43 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       apiSpy.postMultipart.and.rejectWith(new Error("HTTP 400 - No existe ningún proveedor con NIF 'B00000000' para esta empresa."));
 
       await expectAsync(repo.crearDesdeDocumentoDirecto(archivoDePrueba())).toBeRejectedWithError(/NIF/);
+    });
+
+    // Prueba de aceptación real (correo de Alex, 2026-08-20): 4QHPJO04H000.pdf, un abono de
+    // remesa de adeudos directos de Sabadell — el lector lo clasifica como bank_document, y
+    // CrearDesdeDocumento (el endpoint todo-en-uno) debe reenviar ese sobre OCR tal cual en
+    // vez de intentar guardar una factura o descartar el bloque bank_document.
+    it('document_type=bank_document no crea ninguna factura y conserva document.bank_document', async () => {
+      apiSpy.postMultipart.and.resolveTo({
+        success: true,
+        filename: '4QHPJO04H000.pdf',
+        request_id: 'ocr-sabadell-1',
+        document: {
+          document_type: 'bank_document',
+          confidence: 0.98,
+          warnings: [],
+          invoice: null,
+          bank_document: {
+            document_title: 'Abono de remesa de adeudos directos',
+            issuer: { name: 'ARTI Software Tecnologias de Informacion, S.L.', identification: 'ES36000B84750389' },
+            file_reference: 'B8475038920260717090115',
+            debtor: { name: 'ACERCA PARTNERS SL', iban: 'ES13 0081 0640 6800 0190 0597' },
+            amounts: { nominal: '641.93', commission: '0.90', taxes: '0.19', net: '640.84', currency: 'EUR' },
+            value_date: '2026-07-17',
+          },
+        },
+      });
+
+      const resultado = await repo.crearDesdeDocumentoDirecto(archivoDePrueba('4QHPJO04H000.pdf'));
+
+      expect(esDocumentoBancarioAnalizado(resultado)).toBeTrue();
+      if (!esDocumentoBancarioAnalizado(resultado)) return;
+      expect(resultado.tipoDocumento).toBe('bank_document');
+      expect(resultado.datos['file_reference']).toBe('B8475038920260717090115');
+      expect(resultado.confianza).toBe(0.98);
+      expect(resultado.requestId).toBe('ocr-sabadell-1');
+      expect(resultado.documentoUrl).toContain('data:application/pdf;base64,');
+      expect(apiSpy.post).not.toHaveBeenCalledWith('/api/FacturasRecibidas/Guardar', jasmine.anything());
     });
   });
 });
