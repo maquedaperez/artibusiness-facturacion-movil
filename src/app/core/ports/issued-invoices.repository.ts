@@ -19,8 +19,11 @@ export abstract class IssuedInvoicesRepository {
   abstract getNumeradores(): Numerador[];
   abstract numeradorNombre(id: number): string;
 
-  abstract listar(estado: EstadoFactura, numeradorId?: number | null): FacturaEmitida[];
-  abstract obtenerPorId(id: number): FacturaEmitida | undefined;
+  // Fase 2 del plan de integración (2026-08-20): pasan a ser asíncronos porque
+  // HttpIssuedInvoicesRepository ya habla con el backend real (FacturaEmitidaController) —
+  // mismo cambio que ya sufrió ReceivedInvoicesRepository al conectar Recibidas.
+  abstract listar(estado: EstadoFactura, numeradorId?: number | null): Promise<FacturaEmitida[]>;
+  abstract obtenerPorId(id: number): Promise<FacturaEmitida | undefined>;
 
   abstract crearBorrador(numeradorId: number, destinatario: Destinatario): FacturaEmitida;
   abstract actualizarBorrador(

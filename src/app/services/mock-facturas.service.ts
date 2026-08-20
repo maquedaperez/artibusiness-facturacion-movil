@@ -127,6 +127,18 @@ export type FacturaEmitida = {
   // Campo técnico, no se muestra al usuario: se genera al crear el borrador (no al
   // contabilizar) porque el servidor real lo exige en la petición y lo rechaza sin él.
   operacionId: string;
+  // Fase 2 del plan de integración (2026-08-20), igual que esBorradorLocal/totalesReales en
+  // FacturaRecibida: id real del cliente en el backend (Facturacion$FacturasEmitidasCabecera.
+  // id_cliente) — solo lo rellena HttpIssuedInvoicesRepository al leer una factura real.
+  idCliente?: number;
+  // true mientras la factura solo existe en el almacén local de esta sesión (recién creada
+  // con crearBorrador, todavía sin guardar de verdad, o datos de ejemplo del modo mock puro)
+  // — mismo criterio que FacturaRecibida.esBorradorLocal. Ver listar() en
+  // issued-invoices.repository.http.ts.
+  esBorradorLocal?: boolean;
+  // Totales oficiales tal cual los devuelve el backend real (Facturacion$FacturasEmitidasCabecera:
+  // total/iva/suplidos/irpf ya calculados) — solo lo rellena HttpIssuedInvoicesRepository.
+  totalesReales?: TotalesFactura;
 };
 
 export type DesgloseIva = { pct: number; baseGravada: number; cuota: number };
@@ -647,6 +659,7 @@ export class MockFacturasService {
       lineas: [],
       estado: 'borrador',
       operacionId: this.nuevoOperacionId(),
+      esBorradorLocal: true,
     };
     this.emitidas.unshift(nueva);
     return nueva;

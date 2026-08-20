@@ -3,7 +3,7 @@ import { IssuedInvoicesRepository } from '../../ports/issued-invoices.repository
 import { MockIssuedInvoicesRepository } from '../mock/issued-invoices.repository.mock';
 import { ApiService } from '../../../services/api.service';
 import {
-  AccionesPermitidas, Destinatario, EstadoAeat, EstadoFactura, FacturaEmitida, Numerador, TotalesFactura,
+  AccionesPermitidas, Destinatario, EstadoAeat, EstadoFactura, FacturaEmitida, LineaFactura, Numerador, TotalesFactura,
 } from '../../../services/mock-facturas.service';
 
 // Mismos endpoints que ya usa el adaptador real de Recibidas (ImpuestoController/
@@ -12,6 +12,129 @@ import {
 const IMPUESTOS_BASE_PATH = '/api/Impuesto';
 const MEDIOS_PAGO_BASE_PATH = '/api/MediosPago';
 const TIPO_IMPUESTO_IVA = 'IVA';
+
+// Fase 2 del plan de integración (2026-08-20): FacturaEmitidaController ya existía (creado
+// para la factura de socio de 1 línea) — se reutiliza el mismo controller/ruta para Enumerar/
+// obtenerPorId genéricos, en vez de crear uno nuevo. La ruta resultante es /api/FacturaEmitida
+// (singular, como el nombre del controller), NO /api/FacturasEmitidas.
+const EMITIDAS_BASE_PATH = '/api/FacturaEmitida';
+
+// Confirmado por código (WebAPIARTIBusiness/Models/ARTIBusinessAPIContext.cs y
+// ARTIBusinessCoreDLL/Models/ARTIBusinessCoreDLLContext.cs, idénticos): el backend usa bytes
+// mágicos sin enum. 131=Borrador, 132=Contabilizada, 133=Firmada — mismo catálogo que
+// Recibidas para 131/132, con 133 adicional porque Emitidas sí pasa por VeriFactu/AEAT.
+const ESTADO_BORRADOR_API = 131;
+const ESTADO_CONTABILIZADA_API = 132;
+const ESTADO_FIRMADA_API = 133;
+
+function estadoDesdeApi(valor: number): EstadoFactura {
+  if (valor === ESTADO_BORRADOR_API) return 'borrador';
+  if (valor === ESTADO_FIRMADA_API) return 'firmada';
+  // Cualquier valor que no sea uno de los tres confirmados (incluido 132) cae en
+  // 'contabilizada' — conservador: nunca mostrar como editable ('borrador') ni como ya
+  // firmada/enviada algo que no se sabe con certeza que lo esté.
+  return 'contabilizada';
+}
+
+function estadoHaciaApi(valor: EstadoFactura): number {
+  if (valor === 'borrador') return ESTADO_BORRADOR_API;
+  if (valor === 'firmada') return ESTADO_FIRMADA_API;
+  return ESTADO_CONTABILIZADA_API;
+}
+
+// EstadoAeat en el backend real es un string libre que guarda tal cual lo que devuelve
+// FacturaE ("Correcto"|"AceptadoConErrores"|"Incorrecto", o null si no se ha enviado
+// todavía) — no coincide exactamente con el catálogo que ya usa el mock de Angular
+// (confirmado en docs/AUDITORIA_INTEGRACION_BACKEND.md): "Incorrecto" se mapea a
+// 'RechazadoAeat'. 'PendienteEnvio' no es un valor real del backend (allí es simplemente
+// null/undefined mientras no se ha contabilizado/enviado) — se deja sin mapear a
+// propósito, no hay ninguna cadena real que produzca ese valor.
+function estadoAeatDesdeApi(valor: string | null | undefined): EstadoAeat | undefined {
+  const v = valor?.trim();
+  if (!v) return undefined;
+  if (v === 'Correcto') return 'Correcto';
+  if (v === 'AceptadoConErrores') return 'AceptadoConErrores';
+  if (v === 'Incorrecto') return 'RechazadoAeat';
+  return 'RequiereRevisionManual';
+}
+
+// El listado no trae el dato real de "empresa vs particular" (evitaría un lookup extra por
+// fila) — se infiere del formato del NIF/CIF español: un CIF de empresa empieza siempre por
+// letra, un DNI/NIE de particular por dígito (o X/Y/Z, que igualmente no son dígitos, pero
+// aquí caen del lado "empresa" por simplicidad — casos NIE son minoría y el dato es solo
+// cosmético, ver factura-detalle.page.html). El detalle (obtenerPorId) sí trae el valor real.
+function esEmpresaDesdeNif(nif: string | null | undefined): boolean {
+  return !/^\d/.test((nif ?? '').trim());
+}
+
+// Límite de facturas a traer en el listado — mismo criterio que Recibidas (PAGINA_TAMANO).
+const PAGINA_TAMANO = 50;
+
+function esHttp404(e: unknown): boolean {
+  return e instanceof Error && /^HTTP 404\b/.test(e.message);
+}
+
+// Cabecera devuelta por Enumerar — sin líneas, ver FacturaEmitidaCabeceraModel.cs.
+type FacturaEmitidaCabeceraApi = {
+  idFacturaEmitida: number;
+  numFactura: string;
+  idEmpresa: number;
+  idCliente: number;
+  clienteVisualizacion: string | null;
+  razonSocialNif: string | null;
+  concepto: string | null;
+  total: number;
+  iva: number;
+  suplidos: number;
+  irpf: number;
+  totalFactura: number;
+  cobrada: number;
+  estado: number;
+  estadoAeat: string | null;
+  fechaFactura: string;
+  fechaVencimiento: string;
+  idNumerador: number;
+  idMedioPago: number;
+};
+
+type FacturaEmitidaLineaApi = {
+  idFacturaLinea: number;
+  referencia: string | null;
+  descripcion: string | null;
+  cantidad: number;
+  precioUnitario: number;
+  descuento: number;
+  idImpuesto: number;
+  esSuplido: boolean;
+  precioUnitarioBase: number;
+};
+
+// Detalle devuelto por GET /api/FacturaEmitida/{id} — ver FacturaEmitidaDetalleModel.cs. Usa
+// razonSocialDenominacion (no clienteVisualizacion, a diferencia de la cabecera del listado) y
+// sí trae esEmpresa real (viene de un lookup a Sujeto que Enumerar no hace por fila).
+type FacturaEmitidaDetalleApi = {
+  idFacturaEmitida: number;
+  numFactura: string;
+  idEmpresa: number;
+  idCliente: number;
+  concepto: string | null;
+  total: number;
+  iva: number;
+  suplidos: number;
+  irpf: number;
+  cobrada: number;
+  fechaFactura: string;
+  fechaVencimiento: string;
+  idNumerador: number;
+  idMedioPago: number;
+  razonSocialDenominacion: string | null;
+  razonSocialNif: string | null;
+  estado: number;
+  estadoAeat: string | null;
+  totalFactura: number;
+  esEmpresa: boolean;
+  lineas: FacturaEmitidaLineaApi[];
+};
 
 type ImpuestoApi = {
   idImpuesto: number;
@@ -32,17 +155,24 @@ function etiquetaMedioPago(m: MedioPagoApi): string {
   return partes.length > 0 ? partes.join(' — ') : `Medio de pago ${m.idMedioPago}`;
 }
 
+// medioPago en FacturaEmitida sigue siendo un string libre (ver comentario en el puerto) —
+// se resuelve la etiqueta buscando el id en el catálogo ya cacheado, igual que Recibidas
+// resuelve idImpuesto→% en mapearLinea. Sin la entrada (catálogo desalineado con datos
+// antiguos), se muestra el id tal cual en vez de dejarlo en blanco.
+function etiquetaMedioPagoPorId(id: number, catalogo: MedioPagoApi[]): string {
+  const encontrado = catalogo.find(m => m.idMedioPago === id);
+  return encontrado ? etiquetaMedioPago(encontrado) : `Medio de pago ${id}`;
+}
+
 /**
- * Fase 1 del plan de integración de Facturas Emitidas (2026-08-20): arranca el adaptador HTTP
- * real solo con los dos catálogos que ya existen en el backend y son reutilizables sin
- * cambios — sustituyen IVA_RATES/MEDIO_PAGO_OPTIONS hardcodeados. El resto de acciones
- * (listar, guardar, contabilizar, firmar, eliminar, duplicar, generar documento...) sigue
- * delegado al mock hasta que existan sus propios endpoints reales — ver el plan de fases
- * acordado (listado → cliente → guardar → numerador → CRUD → puente FacturaE/VeriFactu).
+ * Fase 2 del plan de integración de Facturas Emitidas (2026-08-20): añade listar/obtenerPorId
+ * reales, hablando contra el mismo FacturaEmitidaController que ya existía (creado para la
+ * factura de socio de 1 línea) — se le añadió un endpoint Enumerar y se corrigió obtenerPorId
+ * para que filtre por empresa (antes leía la factura de CUALQUIER empresa dado el id, fuga
+ * real entre tenants). crearBorrador/actualizarBorrador/contabilizar/firmar/eliminar/duplicar/
+ * generarDocumento siguen delegados al mock hasta sus propias fases.
  *
- * medioPago sigue devolviéndose como string libre (la etiqueta), no como
- * { id, label } con idMedioPago numérico como en Recibidas — restructurar
- * FacturaEmitida.medioPago para llevar el id real es parte de la fase de Guardar, no de esta.
+ * medioPago sigue siendo un string libre (la etiqueta), no { id, label } — igual que Fase 1.
  */
 @Injectable()
 export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
@@ -77,6 +207,137 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return (catalogo ?? []).map(etiquetaMedioPago);
   }
 
+  private mapearCabecera(dto: FacturaEmitidaCabeceraApi, mediosPago: MedioPagoApi[]): FacturaEmitida {
+    return {
+      id: dto.idFacturaEmitida,
+      numFactura: dto.numFactura,
+      numeradorId: dto.idNumerador,
+      fecha: dto.fechaFactura.slice(0, 10),
+      vencimiento: dto.fechaVencimiento ? dto.fechaVencimiento.slice(0, 10) : '',
+      concepto: dto.concepto?.trim() || '',
+      medioPago: etiquetaMedioPagoPorId(dto.idMedioPago, mediosPago),
+      destinatario: {
+        nombre: dto.clienteVisualizacion?.trim() || 'Cliente no disponible',
+        nif: dto.razonSocialNif?.trim() || '',
+        esEmpresa: esEmpresaDesdeNif(dto.razonSocialNif),
+      },
+      lineas: [],
+      estado: estadoDesdeApi(dto.estado),
+      estadoAeat: estadoAeatDesdeApi(dto.estadoAeat),
+      // No existe todavía como columna real en el backend (ver el puerto) — vacío para
+      // facturas leídas, solo lo rellena crearBorrador() en el mock por ahora.
+      operacionId: '',
+      idCliente: dto.idCliente,
+      totalesReales: this.totalesDesdeApi(dto.total, dto.iva, dto.irpf, dto.totalFactura),
+    };
+  }
+
+  private async mapearDetalle(dto: FacturaEmitidaDetalleApi, mediosPago: MedioPagoApi[]): Promise<FacturaEmitida> {
+    const catalogoImpuestos = await this.obtenerImpuestosApi();
+    const lineas: LineaFactura[] = (dto.lineas ?? []).map(l => {
+      const impuesto = catalogoImpuestos.find(i => i.idImpuesto === l.idImpuesto);
+      return {
+        id: this.nuevoIdLinea(),
+        idLineaBackend: l.idFacturaLinea,
+        origen: 'manual',
+        descripcion: l.descripcion?.trim() || 'Sin descripción',
+        cantidad: l.cantidad,
+        precioUnitario: l.precioUnitario,
+        descuentoPct: l.descuento,
+        // Igual que mapearLinea en Recibidas: si el id_impuesto ya no existe en el catálogo
+        // vigente, se cae a 0% en vez de reventar.
+        ivaPct: impuesto?.porcentaje ?? 0,
+      };
+    });
+
+    return {
+      id: dto.idFacturaEmitida,
+      numFactura: dto.numFactura,
+      numeradorId: dto.idNumerador,
+      fecha: dto.fechaFactura.slice(0, 10),
+      vencimiento: dto.fechaVencimiento ? dto.fechaVencimiento.slice(0, 10) : '',
+      concepto: dto.concepto?.trim() || '',
+      medioPago: etiquetaMedioPagoPorId(dto.idMedioPago, mediosPago),
+      destinatario: {
+        nombre: dto.razonSocialDenominacion?.trim() || 'Cliente no disponible',
+        nif: dto.razonSocialNif?.trim() || '',
+        esEmpresa: dto.esEmpresa,
+      },
+      lineas,
+      estado: estadoDesdeApi(dto.estado),
+      estadoAeat: estadoAeatDesdeApi(dto.estadoAeat),
+      operacionId: '',
+      idCliente: dto.idCliente,
+      totalesReales: this.totalesDesdeApi(dto.total, dto.iva, dto.irpf, dto.totalFactura),
+    };
+  }
+
+  // dto.total (backend) es la BASE IMPONIBLE, igual que en Recibidas — no el importe final.
+  private totalesDesdeApi(total: number, iva: number, irpf: number, totalFactura: number): TotalesFactura {
+    return {
+      base: total,
+      desgloseIva: [],
+      ivaTotal: iva,
+      retencion: {
+        aplicable: irpf > 0,
+        etiqueta: 'IRPF',
+        porcentaje: 0, // el % real no viaja en la cabecera, solo el importe ya calculado — ver gap #12/#248 en SERVICE_CONTRACT_GAPS.md/AUDITORIA
+        base: total,
+        importe: irpf,
+      },
+      total: totalFactura,
+    };
+  }
+
+  async listar(estado: EstadoFactura, numeradorId: number | null = null): Promise<FacturaEmitida[]> {
+    const body: Record<string, unknown> = { top: PAGINA_TAMANO, estado: estadoHaciaApi(estado) };
+    if (numeradorId != null) body['idNumerador'] = numeradorId;
+
+    const [cabeceras, mediosPago, locales] = await Promise.all([
+      this.api.post<FacturaEmitidaCabeceraApi[]>(`${EMITIDAS_BASE_PATH}/Enumerar`, body),
+      this.obtenerMediosPagoApi(),
+      // Mismos filtros que la petición real — un borrador local recién creado con
+      // crearBorrador() ya nace con el numerador elegido por el usuario, así que filtrar
+      // igual no lo oculta salvo que de verdad no encaje con lo que se está mirando.
+      this.mockAdapter.listar(estado, numeradorId),
+    ]);
+
+    const cabecerasRecortadas = (cabeceras ?? []).slice(0, PAGINA_TAMANO);
+    const reales = cabecerasRecortadas.map(c => this.mapearCabecera(c, mediosPago ?? []));
+
+    // Solo los borradores locales de esta sesión (crearBorrador) — nunca los 4 registros de
+    // ejemplo fijos del mock, que son solo demo. Mismo criterio que Recibidas.
+    const borradoresLocales = locales.filter(f => f.esBorradorLocal === true);
+
+    const todas = [...reales, ...borradoresLocales];
+    todas.sort((a, b) => b.fecha.localeCompare(a.fecha));
+    return todas;
+  }
+
+  async obtenerPorId(id: number): Promise<FacturaEmitida | undefined> {
+    try {
+      const [dto, mediosPago] = await Promise.all([
+        this.api.get<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}`),
+        this.obtenerMediosPagoApi(),
+      ]);
+      if (dto) {
+        return await this.mapearDetalle(dto, mediosPago ?? []);
+      }
+    } catch (e) {
+      // Solo un 404 real (no existe para esta empresa, o el id es de un borrador local
+      // todavía sin guardar) cae al almacén local — mismo criterio que Recibidas.
+      if (!esHttp404(e)) throw e;
+    }
+    return this.mockAdapter.obtenerPorId(id);
+  }
+
+  totales(factura: FacturaEmitida): TotalesFactura {
+    // Facturas leídas del backend real ya traen sus totales oficiales — se usan tal cual en
+    // vez de recalcular desde 'lineas' (el listado ni siquiera las trae).
+    if (factura.totalesReales) return factura.totalesReales;
+    return this.mockAdapter.totales(factura);
+  }
+
   // --- Todo lo demás sigue delegado al mock hasta su propia fase del plan ---
 
   getNumeradores(): Numerador[] {
@@ -85,14 +346,6 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
   numeradorNombre(id: number): string {
     return this.mockAdapter.numeradorNombre(id);
-  }
-
-  listar(estado: EstadoFactura, numeradorId: number | null = null): FacturaEmitida[] {
-    return this.mockAdapter.listar(estado, numeradorId);
-  }
-
-  obtenerPorId(id: number): FacturaEmitida | undefined {
-    return this.mockAdapter.obtenerPorId(id);
   }
 
   crearBorrador(numeradorId: number, destinatario: Destinatario): FacturaEmitida {
@@ -108,10 +361,6 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
   nuevoIdLinea(): number {
     return this.mockAdapter.nuevoIdLinea();
-  }
-
-  totales(factura: FacturaEmitida): TotalesFactura {
-    return this.mockAdapter.totales(factura);
   }
 
   contabilizar(id: number): void {

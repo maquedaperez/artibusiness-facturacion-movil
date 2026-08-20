@@ -67,6 +67,7 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
   let customersRepo: CustomersRepository;
   let suppliersRepo: SuppliersRepository;
   let issuedRepo: IssuedInvoicesRepository;
+  let mockIssuedRepo: MockIssuedInvoicesRepository;
   let receivedRepo: ReceivedInvoicesRepository;
 
   beforeEach(() => {
@@ -77,6 +78,7 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     customersRepo = TestBed.inject(CustomersRepository);
     suppliersRepo = TestBed.inject(SuppliersRepository);
     issuedRepo = TestBed.inject(IssuedInvoicesRepository);
+    mockIssuedRepo = TestBed.inject(MockIssuedInvoicesRepository);
     receivedRepo = TestBed.inject(ReceivedInvoicesRepository);
   });
 
@@ -106,8 +108,12 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     expect(corta.items.length).toBe(0);
   });
 
-  it('lista facturas emitidas filtradas por estado', () => {
-    const borradores = issuedRepo.listar('borrador');
+  it('lista facturas emitidas filtradas por estado', async () => {
+    // Contra MockIssuedInvoicesRepository directamente, no issuedRepo (HttpIssuedInvoicesRepository):
+    // el listado real se prueba en issued-invoices.repository.http.spec.ts; aquí solo interesa
+    // el filtrado en memoria sobre los datos de ejemplo, que con el ApiService stubado (post
+    // devuelve []) no llegarían a verse a través del puerto real.
+    const borradores = await mockIssuedRepo.listar('borrador');
     expect(borradores.every(f => f.estado === 'borrador')).toBeTrue();
     expect(borradores.length).toBeGreaterThan(0);
   });
@@ -146,12 +152,12 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     const borrador = issuedRepo.crearBorrador(numerador.id, cliente);
 
     issuedRepo.contabilizar(borrador.id);
-    let actualizada = issuedRepo.obtenerPorId(borrador.id);
+    let actualizada = await issuedRepo.obtenerPorId(borrador.id);
     expect(actualizada?.estado).toBe('contabilizada');
     expect(actualizada?.estadoAeat).toBe('PendienteEnvio');
 
     issuedRepo.firmar(borrador.id);
-    actualizada = issuedRepo.obtenerPorId(borrador.id);
+    actualizada = await issuedRepo.obtenerPorId(borrador.id);
     expect(actualizada?.estado).toBe('firmada');
     expect(actualizada?.estadoAeat).toBe('Correcto');
   });
@@ -379,7 +385,7 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
     issuedRepo.contabilizar(borrador.id);
     issuedRepo.firmar(borrador.id);
 
-    const original = issuedRepo.obtenerPorId(borrador.id)!;
+    const original = (await issuedRepo.obtenerPorId(borrador.id))!;
     const copia = issuedRepo.duplicar(original.id)!;
 
     expect(copia.id).not.toBe(original.id);
@@ -391,13 +397,13 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
     expect(copia.lineas[0].id).not.toBe(original.lineas[0].id); // ids de línea nuevos, no compartidos
   });
 
-  it('solo se puede eliminar una factura emitida en borrador', () => {
+  it('solo se puede eliminar una factura emitida en borrador', async () => {
     const numerador = issuedRepo.getNumeradores()[0];
     const borrador = issuedRepo.crearBorrador(numerador.id, { nombre: 'X', nif: 'B1', esEmpresa: true });
 
     issuedRepo.contabilizar(borrador.id);
     issuedRepo.eliminar(borrador.id); // no debe borrar — ya no es borrador
-    expect(issuedRepo.obtenerPorId(borrador.id)).toBeTruthy();
+    expect(await issuedRepo.obtenerPorId(borrador.id)).toBeTruthy();
   });
 
   it('duplicar una factura recibida no arrastra el documento adjunto del original ni su número de factura', async () => {

@@ -17,11 +17,11 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return this.mock.numeradorNombre(id);
   }
 
-  listar(estado: EstadoFactura, numeradorId: number | null = null): FacturaEmitida[] {
+  async listar(estado: EstadoFactura, numeradorId: number | null = null): Promise<FacturaEmitida[]> {
     return this.mock.getFacturasEmitidas(estado, numeradorId);
   }
 
-  obtenerPorId(id: number): FacturaEmitida | undefined {
+  async obtenerPorId(id: number): Promise<FacturaEmitida | undefined> {
     return this.mock.getFacturaById(id);
   }
 

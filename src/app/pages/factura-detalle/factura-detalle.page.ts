@@ -79,17 +79,26 @@ export class FacturaDetallePage implements OnInit {
       return;
     }
 
-    const id = Number(param);
-    const factura = this.invoicesRepo.obtenerPorId(id);
-    if (!factura) {
-      this.errorMsg = 'Factura no encontrada.';
-      this.cargando = false;
-      return;
-    }
+    this.cargarFactura(Number(param));
+  }
 
-    this.facturaId = id;
-    this.working = structuredClone(factura);
-    this.cargando = false;
+  // Fase 2 del plan de integración de Emitidas (2026-08-20): obtenerPorId ya es asíncrono
+  // (habla con el backend real) — mismo patrón que factura-recibida-detalle.page.ts.
+  private async cargarFactura(id: number) {
+    try {
+      const factura = await this.invoicesRepo.obtenerPorId(id);
+      if (!factura) {
+        this.errorMsg = 'Factura no encontrada.';
+        return;
+      }
+
+      this.facturaId = id;
+      this.working = structuredClone(factura);
+    } catch (e: any) {
+      this.errorMsg = e?.message ?? 'No se pudo cargar la factura.';
+    } finally {
+      this.cargando = false;
+    }
   }
 
   // Fase 1 del plan de integración de Emitidas (2026-08-20): sustituye IVA_RATES/

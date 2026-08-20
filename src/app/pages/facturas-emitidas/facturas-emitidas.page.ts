@@ -53,6 +53,7 @@ export class FacturasEmitidasPage implements OnInit {
   mostrarFiltroSerie = false;
   fechaDesde = '';
   fechaHasta = '';
+  cargando = false;
 
   constructor() {
     addIcons({
@@ -86,8 +87,23 @@ export class FacturasEmitidasPage implements OnInit {
     this.refresh();
   }
 
-  refresh() {
-    this.facturas = this.invoicesRepo.listar(this.estado, this.numeradorId);
+  // Guarda de carrera, mismo criterio que facturas-recibidas.page.ts: si el usuario cambia
+  // de pestaña/serie rápido, una respuesta antigua que llega DESPUÉS de una más reciente no
+  // debe pisar la lista ya actualizada con los resultados nuevos.
+  private peticionListarEnCurso = 0;
+  async refresh() {
+    const idPeticion = ++this.peticionListarEnCurso;
+    this.cargando = true;
+    try {
+      const resultado = await this.invoicesRepo.listar(this.estado, this.numeradorId);
+      if (idPeticion !== this.peticionListarEnCurso) return;
+      this.facturas = resultado;
+    } catch (e: any) {
+      if (idPeticion !== this.peticionListarEnCurso) return;
+      await this.showToast(e?.message ?? 'No se pudo cargar la lista de facturas.', 'danger');
+    } finally {
+      if (idPeticion === this.peticionListarEnCurso) this.cargando = false;
+    }
   }
 
   // Filtro rápido dentro de la lista ya cargada (no es una búsqueda contra el
@@ -176,7 +192,7 @@ export class FacturasEmitidasPage implements OnInit {
     event.stopPropagation();
     const copia = this.invoicesRepo.duplicar(f.id);
     if (!copia) return;
-    this.refresh();
+    await this.refresh();
     await this.showToast(`Borrador ${copia.numFactura} creado a partir de ${f.numFactura}.`);
   }
 
@@ -211,10 +227,10 @@ export class FacturasEmitidasPage implements OnInit {
         {
           text: 'Eliminar',
           role: 'destructive',
-          handler: () => {
+          handler: async () => {
             this.invoicesRepo.eliminar(f.id);
-            this.refresh();
-            this.showToast('Borrador eliminado.');
+            await this.refresh();
+            await this.showToast('Borrador eliminado.');
           },
         },
       ],
@@ -233,7 +249,7 @@ export class FacturasEmitidasPage implements OnInit {
           text: 'Contabilizar',
           handler: async () => {
             this.invoicesRepo.contabilizar(f.id);
-            this.refresh();
+            await this.refresh();
             await this.showToast(`Factura de ${f.destinatario.nombre} contabilizada (simulado).`);
           },
         },
@@ -253,7 +269,7 @@ export class FacturasEmitidasPage implements OnInit {
           text: 'Firmar',
           handler: async () => {
             this.invoicesRepo.firmar(f.id);
-            this.refresh();
+            await this.refresh();
             await this.showToast(`Factura de ${f.destinatario.nombre} firmada (simulado).`);
           },
         },
