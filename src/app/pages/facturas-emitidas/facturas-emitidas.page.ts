@@ -203,10 +203,14 @@ export class FacturasEmitidasPage implements OnInit {
 
   async duplicar(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
-    const copia = this.invoicesRepo.duplicar(f.id);
-    if (!copia) return;
-    await this.refresh();
-    await this.showToast(`Borrador ${copia.numFactura} creado a partir de ${f.numFactura}.`);
+    try {
+      const copia = await this.invoicesRepo.duplicar(f.id);
+      if (!copia) return;
+      await this.refresh();
+      await this.showToast(`Borrador ${copia.numFactura} creado a partir de ${f.numFactura}.`);
+    } catch (e: any) {
+      await this.showToast(e?.message ?? 'No se pudo duplicar la factura.', 'danger');
+    }
   }
 
   async descargar(event: Event, f: FacturaEmitida) {
@@ -241,9 +245,13 @@ export class FacturasEmitidasPage implements OnInit {
           text: 'Eliminar',
           role: 'destructive',
           handler: async () => {
-            this.invoicesRepo.eliminar(f.id);
-            await this.refresh();
-            await this.showToast('Borrador eliminado.');
+            try {
+              await this.invoicesRepo.eliminar(f.id);
+              await this.refresh();
+              await this.showToast('Borrador eliminado.');
+            } catch (e: any) {
+              await this.showToast(e?.message ?? 'No se pudo eliminar la factura.', 'danger');
+            }
           },
         },
       ],

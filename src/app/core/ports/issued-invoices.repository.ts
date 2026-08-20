@@ -64,7 +64,10 @@ export abstract class IssuedInvoicesRepository {
   // Política centralizada — la pantalla nunca decide por su cuenta si puede
   // editar/eliminar/copiar/descargar/compartir. Ver docs/SERVICE_CONTRACT_GAPS.md.
   abstract accionesPermitidas(factura: FacturaEmitida): AccionesPermitidas;
-  abstract eliminar(id: number): void;
-  abstract duplicar(id: number): FacturaEmitida | undefined;
+  // Fase 6 del plan de integración (2026-08-20): pasan a ser asíncronos — HttpIssuedInvoicesRepository
+  // ya habla con el backend real para las dos (DELETE .../{id} y, para duplicar, reutilizando
+  // guardar() con un borrador nuevo). Mismo cambio que ya sufrieron listar/obtenerPorId en Fase 2.
+  abstract eliminar(id: number): Promise<void>;
+  abstract duplicar(id: number): Promise<FacturaEmitida | undefined>;
   abstract generarDocumento(id: number): Promise<{ blob: Blob; nombre: string }>;
 }

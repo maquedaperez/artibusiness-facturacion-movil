@@ -27,6 +27,7 @@ function apiServiceStub(): Partial<ApiService> {
   return {
     post: jasmine.createSpy().and.resolveTo([]),
     get: jasmine.createSpy().and.rejectWith(new Error('HTTP 404')),
+    delete: jasmine.createSpy().and.rejectWith(new Error('HTTP 404')),
     getEmpresaId: jasmine.createSpy().and.returnValue(9),
   };
 }
@@ -397,7 +398,7 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
     issuedRepo.firmar(borrador.id);
 
     const original = (await issuedRepo.obtenerPorId(borrador.id))!;
-    const copia = issuedRepo.duplicar(original.id)!;
+    const copia = (await issuedRepo.duplicar(original.id))!;
 
     expect(copia.id).not.toBe(original.id);
     expect(copia.estado).toBe('borrador');
@@ -413,7 +414,7 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
     const borrador = issuedRepo.crearBorrador(numerador.id, { nombre: 'X', nif: 'B1', esEmpresa: true });
 
     issuedRepo.contabilizar(borrador.id);
-    issuedRepo.eliminar(borrador.id); // no debe borrar — ya no es borrador
+    await issuedRepo.eliminar(borrador.id); // no debe borrar — ya no es borrador
     expect(await issuedRepo.obtenerPorId(borrador.id)).toBeTruthy();
   });
 

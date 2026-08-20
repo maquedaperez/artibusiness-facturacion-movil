@@ -205,8 +205,11 @@ function etiquetaMedioPagoPorId(id: number, catalogo: MedioPagoApi[]): string {
  * - Fase 4 (2026-08-20): guardar (alta/edición real, con líneas) y obtenerNumeradores. guardar
  *   reutiliza en el backend FacturaEmitidaCabecera.Create() de ARTIBusinessCoreDLL — el mismo
  *   mecanismo de numeración fiscal secuencial ya usado en producción por la factura de socio.
+ * - Fase 6 (2026-08-20): eliminar (DELETE real, solo borradores) y duplicar (relee la factura
+ *   completa y reutiliza guardarReal() para el alta — número nuevo real, sin heredar estado
+ *   fiscal ni OperacionId).
  *
- * contabilizar/firmar/eliminar/duplicar/generarDocumento siguen delegados al mock — son la
+ * contabilizar/firmar/generarDocumento siguen delegados al mock — contabilizar/firmar son la
  * pieza de VeriFactu/FacturaE (Fase 7 del plan), la más grande y legalmente sensible.
  */
 @Injectable()
@@ -275,6 +278,11 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       vencimiento: dto.fechaVencimiento ? dto.fechaVencimiento.slice(0, 10) : '',
       concepto: dto.concepto?.trim() || '',
       medioPago: etiquetaMedioPagoPorId(dto.idMedioPago, mediosPago),
+      // Fase 6 (2026-08-20), corrigiendo un hueco real de la Fase 4: faltaba el id numérico
+      // — solo se guardaba la etiqueta. Sin esto, reeditar una factura real sin volver a
+      // tocar el desplegable de forma de pago (o duplicarla) hacía fallar guardar() con
+      // "Selecciona una forma de pago", aunque la factura ya tuviera una asignada de verdad.
+      idMedioPago: dto.idMedioPago,
       destinatario: {
         nombre: dto.clienteVisualizacion?.trim() || 'Cliente no disponible',
         nif: dto.razonSocialNif?.trim() || '',
@@ -317,6 +325,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       vencimiento: dto.fechaVencimiento ? dto.fechaVencimiento.slice(0, 10) : '',
       concepto: dto.concepto?.trim() || '',
       medioPago: etiquetaMedioPagoPorId(dto.idMedioPago, mediosPago),
+      idMedioPago: dto.idMedioPago,
       destinatario: {
         nombre: dto.razonSocialDenominacion?.trim() || 'Cliente no disponible',
         nif: dto.razonSocialNif?.trim() || '',
@@ -472,6 +481,47 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     };
   }
 
+  // Fase 6 del plan de integración (2026-08-20): elimina de verdad — mismo criterio 404→mock
+  // que el resto de métodos reales (id de un borrador local todavía sin guardar).
+  async eliminar(id: number): Promise<void> {
+    try {
+      await this.api.delete(`${EMITIDAS_BASE_PATH}/${id}`);
+      return;
+    } catch (e) {
+      if (!esHttp404(e)) throw e;
+    }
+    this.mockAdapter.eliminar(id);
+  }
+
+  // Fase 6 del plan de integración (2026-08-20): un borrador local (todavía sin guardar de
+  // verdad) se duplica en local, igual que antes — no tiene sentido reservar ya un número real
+  // para una copia de algo que ni siquiera se ha guardado la primera vez. Una factura real
+  // (contabilizada, firmada, o un borrador ya guardado) se duplica de verdad: se relee
+  // completa (con líneas) y se guarda como alta nueva reutilizando guardarReal() — mismo
+  // Numerador real que asigna un número nuevo y limpio, sin heredar estado fiscal ni
+  // OperacionId del original.
+  async duplicar(id: number): Promise<FacturaEmitida | undefined> {
+    const esLocal = await this.mockAdapter.obtenerPorId(id);
+    if (esLocal) {
+      return this.mockAdapter.duplicar(id);
+    }
+
+    const original = await this.obtenerPorId(id);
+    if (!original) return undefined;
+
+    return this.guardarReal({
+      fecha: new Date().toISOString().slice(0, 10),
+      vencimiento: '',
+      concepto: original.concepto,
+      medioPago: original.medioPago,
+      idMedioPago: original.idMedioPago,
+      destinatario: { ...original.destinatario },
+      lineas: original.lineas.map(l => ({ ...l, id: this.nuevoIdLinea(), idLineaBackend: undefined })),
+      numeradorId: original.numeradorId,
+      idCliente: original.idCliente,
+    });
+  }
+
   // --- Todo lo demás sigue delegado al mock hasta su propia fase del plan ---
 
   getNumeradores(): Numerador[] {
@@ -511,14 +561,6 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
   accionesPermitidas(factura: FacturaEmitida): AccionesPermitidas {
     return this.mockAdapter.accionesPermitidas(factura);
-  }
-
-  eliminar(id: number): void {
-    this.mockAdapter.eliminar(id);
-  }
-
-  duplicar(id: number): FacturaEmitida | undefined {
-    return this.mockAdapter.duplicar(id);
   }
 
   generarDocumento(id: number): Promise<{ blob: Blob; nombre: string }> {

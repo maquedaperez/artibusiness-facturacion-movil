@@ -294,3 +294,117 @@ describe('HttpIssuedInvoicesRepository.guardar — Fase 4 (alta/edición real)',
     expect(body.lineas[1].idImpuesto).toBe(11); // 10% → idImpuesto 11
   });
 });
+
+describe('HttpIssuedInvoicesRepository.eliminar/duplicar — Fase 6', () => {
+  let repo: HttpIssuedInvoicesRepository;
+  let apiSpy: jasmine.SpyObj<ApiService>;
+
+  const destinatario = { nombre: 'Cliente Real SL', nif: 'B12345678', esEmpresa: true };
+  const lineaBase = { id: 1, origen: 'manual' as const, descripcion: 'Servicio', cantidad: 2, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 };
+
+  function detalleReal(overrides: Partial<Record<string, unknown>> = {}) {
+    return {
+      idFacturaEmitida: 501, numFactura: 'A-2026-050', idEmpresa: 9, idCliente: 3,
+      concepto: 'Servicio', total: 200, iva: 42, suplidos: 0, irpf: 0,
+      cobrada: 0, fechaFactura: '2026-08-10T00:00:00', fechaVencimiento: '2026-09-10T00:00:00',
+      idNumerador: 1, idMedioPago: 1,
+      razonSocialDenominacion: 'Cliente Real SL', razonSocialNif: 'B12345678',
+      estado: 133, estadoAeat: 'Correcto', totalFactura: 242, esEmpresa: true,
+      lineas: [{ idFacturaLinea: 77, referencia: null, descripcion: 'Servicio', cantidad: 2, precioUnitario: 100, descuento: 0, idImpuesto: 10, esSuplido: false, precioUnitarioBase: 100 }],
+      ...overrides,
+    };
+  }
+
+  function respuestaDuplicar() {
+    return {
+      idFacturaEmitida: 900, numFactura: 'A-2026-090', idEmpresa: 9, idCliente: 3,
+      concepto: 'Servicio', total: 200, iva: 42, suplidos: 0, irpf: 0,
+      cobrada: 0, fechaFactura: '2026-08-20T00:00:00', fechaVencimiento: '2026-08-20T00:00:00',
+      idNumerador: 1, idMedioPago: 1,
+      razonSocialDenominacion: 'Cliente Real SL', razonSocialNif: 'B12345678',
+      estado: 131, estadoAeat: null, totalFactura: 242, esEmpresa: true,
+      lineas: [{ idFacturaLinea: 78, referencia: null, descripcion: 'Servicio', cantidad: 2, precioUnitario: 100, descuento: 0, idImpuesto: 10, esSuplido: false, precioUnitarioBase: 100 }],
+    };
+  }
+
+  beforeEach(() => {
+    apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['post', 'get', 'delete']);
+    apiSpy.post.and.callFake((path: string) => {
+      if (path === '/api/MediosPago/Enumerar') return Promise.resolve(MEDIOS_PAGO_API as any);
+      if (path === '/api/Impuesto/Enumerar') return Promise.resolve(IMPUESTOS_API as any);
+      if (path === '/api/FacturaEmitida/Guardar') return Promise.resolve(respuestaDuplicar() as any);
+      throw new Error(`POST no esperado en el test: ${path}`);
+    });
+    apiSpy.get.and.rejectWith(new Error('HTTP 404'));
+    apiSpy.delete.and.rejectWith(new Error('HTTP 404'));
+
+    TestBed.configureTestingModule({
+      providers: [
+        HttpIssuedInvoicesRepository,
+        MockIssuedInvoicesRepository,
+        MockFacturasService,
+        { provide: ApiService, useValue: apiSpy },
+      ],
+    });
+
+    repo = TestBed.inject(HttpIssuedInvoicesRepository);
+  });
+
+  it('eliminar() llama al DELETE real cuando el backend lo acepta', async () => {
+    apiSpy.delete.and.resolveTo(undefined as any);
+
+    await repo.eliminar(501);
+
+    expect(apiSpy.delete).toHaveBeenCalledWith('/api/FacturaEmitida/501');
+  });
+
+  it('eliminar() cae al almacén local en un 404 real (borrador todavía sin guardar)', async () => {
+    const local = repo.crearBorrador(1, destinatario);
+
+    await repo.eliminar(local.id);
+
+    expect(await repo.obtenerPorId(local.id)).toBeUndefined();
+  });
+
+  it('eliminar() propaga el error del backend (ej. factura ya no está en borrador) sin envolverlo', async () => {
+    apiSpy.delete.and.rejectWith(new Error('HTTP 400 - Solo se puede eliminar una factura en borrador.'));
+
+    await expectAsync(repo.eliminar(501)).toBeRejectedWithError(/borrador/);
+  });
+
+  it('duplicar() sobre un borrador local todavía no lo guarda de verdad — se queda en local', async () => {
+    const local = repo.crearBorrador(1, destinatario);
+    local.lineas.push(lineaBase);
+
+    const copia = await repo.duplicar(local.id);
+
+    expect(copia).toBeTruthy();
+    expect(copia?.estado).toBe('borrador');
+    expect(apiSpy.post).not.toHaveBeenCalledWith('/api/FacturaEmitida/Guardar', jasmine.anything());
+  });
+
+  it('duplicar() sobre una factura real (firmada) relee el detalle y crea un borrador nuevo, sin número/estado/OperacionId heredados', async () => {
+    apiSpy.get.and.resolveTo(detalleReal() as any);
+
+    const copia = await repo.duplicar(501);
+
+    expect(copia?.id).toBe(900);
+    expect(copia?.numFactura).toBe('A-2026-090'); // número nuevo, no el 'A-2026-050' original
+    expect(copia?.estado).toBe('borrador');
+    expect(copia?.estadoAeat).toBeUndefined();
+    expect(copia?.operacionId).toBe('');
+
+    const body = apiSpy.post.calls.allArgs().find(([path]) => path === '/api/FacturaEmitida/Guardar')?.[1] as any;
+    expect(body.idFacturaEmitida).toBeUndefined(); // alta, no actualización
+    expect(body.lineas[0].idFacturaLinea).toBeUndefined(); // línea nueva, no la 77 del original
+  });
+
+  it('duplicar() sobre un id que no existe (ni real ni local) devuelve undefined', async () => {
+    apiSpy.get.and.rejectWith(new Error('HTTP 404'));
+
+    const copia = await repo.duplicar(999999);
+
+    expect(copia).toBeUndefined();
+    expect(apiSpy.post).not.toHaveBeenCalledWith('/api/FacturaEmitida/Guardar', jasmine.anything());
+  });
+});

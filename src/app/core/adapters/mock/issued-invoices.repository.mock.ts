@@ -83,11 +83,11 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return accionesFacturaEmitida(factura);
   }
 
-  eliminar(id: number): void {
+  async eliminar(id: number): Promise<void> {
     this.mock.eliminarEmitida(id);
   }
 
-  duplicar(id: number): FacturaEmitida | undefined {
+  async duplicar(id: number): Promise<FacturaEmitida | undefined> {
     return this.mock.duplicarEmitida(id);
   }
 
