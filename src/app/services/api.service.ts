@@ -26,16 +26,30 @@ export class ApiService {
   }
 
   private async resolveBaseUrl(): Promise<string> {
-    if (!Capacitor.isNativePlatform()) return '';
+    if (Capacitor.isNativePlatform()) {
+      // ⚠️ TEMPORAL: forzamos Development porque DocumentoController (OCR) todavía no está
+      // publicado en Producción. Sin esto, el nativo resolvía el baseUrl real (Producción)
+      // vía la clave de empresa mientras Netlify seguía apuntando a Development — mismo
+      // usuario/clave, dos bases de datos distintas, y el login fallaba solo en el móvil.
+      // Revertir a `(await this.tenant.getTenantConfig())?.baseUrl` en cuanto el jefe
+      // publique OCR en Producción.
+      return (environment.defaultBaseUrl ?? '').replace(/\/$/, '');
+    }
 
-    // ⚠️ TEMPORAL: igual que el redirect de /api/* en netlify.toml, forzamos Development
-    // porque DocumentoController (OCR) todavía no está publicado en Producción. Sin esto,
-    // el nativo resolvía el baseUrl real (Producción) vía la clave de empresa mientras
-    // Netlify seguía apuntando a Development — mismo usuario/clave, dos bases de datos
-    // distintas, y el login fallaba solo en el móvil. Revertir a `(await
-    // this.tenant.getTenantConfig())?.baseUrl` en cuanto el jefe publique OCR en
-    // Producción — a la vez que se revierte netlify.toml.
-    return (environment.defaultBaseUrl ?? '').replace(/\/$/, '');
+    // Web (2026-08-20): resuelve la URL real contra el dispatcher, mismo mecanismo que ya
+    // usa nativo — TenantService.getTenantConfig() ya cachea lo que devolvió
+    // /config-api/configuration para la clave introducida en /setup (Netlify lo proxea sin
+    // CORS, ver netlify.toml). Ya no depende del redirect estático /api/* (retirado):
+    // ahora la llamada va directa, cross-origin, al backend real que haya resuelto la
+    // clave — por eso api.service.ts ya no manda credentials:'include' (no hace falta,
+    // la sesión va por Bearer token, y con AllowAnyOrigin() en el backend un origen
+    // comodín no es compatible con peticiones credenciales).
+    //
+    // Sin clave resuelta todavía (sesión rota, o alguna llamada excepcional antes de pasar
+    // por /setup) cae al mismo fallback fijo que usaba el proxy hasta ahora, para no dejar
+    // la app completamente inutilizable.
+    const config = await this.tenant.getTenantConfig();
+    return (config?.baseUrl ?? environment.defaultBaseUrl ?? '').replace(/\/$/, '');
   }
 
   private buildHeaders(extra?: Record<string, string>, opts?: { defaultJson?: boolean }): Record<string, string> {
@@ -83,7 +97,7 @@ export class ApiService {
       return res.data as T;
     }
 
-    const r = await fetch(url, { method: 'GET', headers, cache: 'no-store', credentials: 'include' });
+    const r = await fetch(url, { method: 'GET', headers, cache: 'no-store' });
     const text = await r.text().catch(() => '');
     if (!r.ok) {
       const ct = r.headers.get('content-type') ?? '';
@@ -123,7 +137,7 @@ export class ApiService {
       return new Blob([bytes], { type: contentType });
     }
 
-    const r = await fetch(url, { method: 'GET', headers, cache: 'no-store', credentials: 'include' });
+    const r = await fetch(url, { method: 'GET', headers, cache: 'no-store' });
     if (!r.ok) {
       throw new Error(`HTTP ${r.status} - ${r.statusText}`);
     }
@@ -147,7 +161,7 @@ export class ApiService {
       return res.data as T;
     }
 
-    const r = await fetch(url, { method: 'DELETE', headers, cache: 'no-store', credentials: 'include' });
+    const r = await fetch(url, { method: 'DELETE', headers, cache: 'no-store' });
     const text = await r.text().catch(() => '');
     if (!r.ok) {
       const ct = r.headers.get('content-type') ?? '';
@@ -193,7 +207,6 @@ export class ApiService {
       headers,
       body: JSON.stringify(body ?? {}),
       cache: 'no-store',
-      credentials: 'include',
     });
 
     const text = await r.text().catch(() => '');
@@ -276,7 +289,6 @@ export class ApiService {
       headers,
       body: form,
       cache: 'no-store',
-      credentials: 'include',
     });
 
     const text = await r.text().catch(() => '');

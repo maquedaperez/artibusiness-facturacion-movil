@@ -5,20 +5,19 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# Proxies server-a-servidor para evitar CORS en el build web (Netlify).
-# La build nativa (Capacitor/CapacitorHttp) no pasa por aquí y no le afecta.
+# Proxy servidor-a-servidor para evitar CORS en el build web (Netlify), solo para el
+# dispatcher — es la única llamada que la propia app hace SIN saber todavía a qué backend
+# tiene que ir (necesita este proxy para averiguarlo). La build nativa (Capacitor/CapacitorHttp)
+# no pasa por aquí y no le afecta.
 #
-# ⚠️ TEMPORAL: apuntando a Development porque DocumentoController (OCR) todavía no está
-# publicado en Producción — ver docs/OCR_BACKEND_INTEGRATION.md. Revertir a
-# https://webapiartibusiness-dvh6d7b8a7c9dsfr.westeurope-01.azurewebsites.net en cuanto el
-# jefe publique ahí. Mientras tanto, el login en Netlify solo funciona con usuarios que
-# existan en la base de datos de Development.
-[[redirects]]
-  from = "/api/*"
-  to = "https://webapiartibusinessdevelopment-e8htgkdhhhfpbeem.westeurope-01.azurewebsites.net/api/:splat"
-  status = 200
-  force = true
-
+# 2026-08-20: se retiró el redirect que había aquí para /api/* (apuntaba fijo a Development).
+# Ya no hace falta: api.service.ts resuelve la URL real del backend contra este mismo
+# dispatcher (TenantService.getTenantConfig(), según la clave introducida en /setup) y llama
+# directo, cross-origin, sin pasar por Netlify — ver el comentario en
+# ApiService.resolveBaseUrl(). El backend (WebAPIARTIBusiness) ya admite CORS de cualquier
+# origen (AllowAnyOrigin/AllowAnyMethod/AllowAnyHeader) y la app ya no manda
+# credentials:'include' (no hace falta, la sesión va por Bearer token) — esa combinación es
+# la que antes habría bloqueado la respuesta por CORS.
 [[redirects]]
   from = "/config-api/configuration"
   to = "https://configurationapidispatcher-h2g0g4amcgdmaddh.westeurope-01.azurewebsites.net/api/configuration"
