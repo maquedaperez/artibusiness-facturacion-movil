@@ -89,6 +89,17 @@ export class FacturaRecibidaDetallePage implements OnInit {
     // (mediosPago) en vez de quedarse colgado.
     this.cargarCatalogos();
 
+    // BUG real corregido 2026-08-20: cuando se llega aquí desde un fallback de OCR (proveedor
+    // no reconocido, o el nuevo borrador desde documento bancario), el fichero real ya existe
+    // en memoria en la pantalla anterior — se pasa por el estado de navegación (history.state,
+    // ver facturas-recibidas.page.ts) para que guardar() lo pueda subir de verdad a Blob
+    // Storage, en vez de quedarse para siempre solo con la vista previa local. history.state
+    // (no ActivatedRoute) porque un File no se puede serializar en la URL ni en route data.
+    const archivoDesdeNavegacion = history.state?.archivoOriginal;
+    if (archivoDesdeNavegacion instanceof File) {
+      this.archivoPendienteDeAdjuntar = archivoDesdeNavegacion;
+    }
+
     const param = this.route.snapshot.paramMap.get('id');
 
     if (param === 'nueva') {
@@ -415,22 +426,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
         this.facturaId = creada.id;
         this.esNueva = false;
         this.sincronizarWorkingDesde(creada);
-
-        // Si se adjuntó un fichero antes de que existiera un id real, es ahora cuando se
-        // sube de verdad — antes solo era una vista previa local (ver onFileSelected()).
-        if (this.archivoPendienteDeAdjuntar) {
-          try {
-            const { documentoUrl, documentoNombre } = await this.invoicesRepo.adjuntarDocumentoAFactura(creada.id, this.archivoPendienteDeAdjuntar);
-            this.working.documentoUrl = documentoUrl;
-            this.working.documentoNombre = documentoNombre;
-          } catch {
-            // La factura ya se guardó bien — no se deshace por esto, solo se avisa: el
-            // documento se queda solo en la vista previa local de esta sesión.
-            await this.showToast('La factura se guardó, pero no se pudo subir el documento adjunto. Vuelve a intentarlo desde aquí.', 'danger');
-          } finally {
-            this.archivoPendienteDeAdjuntar = null;
-          }
-        }
+        await this.subirAdjuntoPendienteSiHaceFalta(creada.id);
       } else if (this.facturaId != null) {
         // actualizar() puede devolver un id distinto: la primera vez que se guarda de
         // verdad una factura que solo existía como borrador local, siempre hace un INSERT
@@ -439,6 +435,13 @@ export class FacturaRecibidaDetallePage implements OnInit {
         const guardada = await this.invoicesRepo.actualizar(this.facturaId, this.working);
         this.facturaId = guardada.id;
         this.sincronizarWorkingDesde(guardada);
+        // BUG real corregido 2026-08-20: este branch (borrador YA con un id local — ej. el
+        // fallback de proveedor no reconocido, o el nuevo borrador desde documento bancario)
+        // nunca subía el adjunto pendiente — solo el branch de "esNueva" lo hacía. El fichero
+        // real llega aquí por el estado de navegación (ver ngOnInit), no por onFileSelected,
+        // así que sin esto se quedaba para siempre como vista previa local aunque la factura
+        // ya se guardara de verdad.
+        await this.subirAdjuntoPendienteSiHaceFalta(guardada.id);
       }
 
       await this.showToast('Factura guardada.');
@@ -446,6 +449,23 @@ export class FacturaRecibidaDetallePage implements OnInit {
       await this.mostrarError(e instanceof Error ? e.message : 'No se pudo guardar la factura.');
     } finally {
       this.guardando = false;
+    }
+  }
+
+  // Compartido por los dos caminos de guardar() que pueden dejar un adjunto pendiente de
+  // verdad (alta nueva, y un borrador que ya tenía id local — ver el comentario en guardar()).
+  private async subirAdjuntoPendienteSiHaceFalta(idFacturaReal: number) {
+    if (!this.archivoPendienteDeAdjuntar) return;
+    try {
+      const { documentoUrl, documentoNombre } = await this.invoicesRepo.adjuntarDocumentoAFactura(idFacturaReal, this.archivoPendienteDeAdjuntar);
+      this.working.documentoUrl = documentoUrl;
+      this.working.documentoNombre = documentoNombre;
+    } catch {
+      // La factura ya se guardó bien — no se deshace por esto, solo se avisa: el documento
+      // se queda solo en la vista previa local de esta sesión.
+      await this.showToast('La factura se guardó, pero no se pudo subir el documento adjunto. Vuelve a intentarlo desde aquí.', 'danger');
+    } finally {
+      this.archivoPendienteDeAdjuntar = null;
     }
   }
 

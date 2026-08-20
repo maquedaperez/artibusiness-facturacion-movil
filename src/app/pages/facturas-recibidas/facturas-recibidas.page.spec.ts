@@ -113,30 +113,69 @@ describe('FacturasRecibidasPage', () => {
     expect(component.processing).toBeFalse();
   });
 
-  // 2026-08-20 (correo de Alex): un bank_document es un HTTP 200 válido, no un error — no
-  // debe navegar a ningún detalle de factura (no se ha creado ninguna) ni mostrar el toast
-  // de "Factura guardada"; se abre el visor propio.
-  it('escanear/adjuntar con un documento bancario abre el visor y no crea ninguna factura', async () => {
+  // 2026-08-20 (correo de Alex + pedido explícito posterior): un bank_document es un HTTP
+  // 200 válido, no un error — no crea directamente ninguna factura recibida real (no hay
+  // proveedor/IVA reales que resolver), pero sí debe dejar un borrador para revisar, con el
+  // mismo criterio "no se pierde en la lista" que el resto de fallbacks: se abre el visor con
+  // los datos crudos, y al cerrarlo se navega directo al borrador ya creado.
+  it('escanear/adjuntar con un documento bancario crea un borrador y navega a él al cerrar el visor', async () => {
     const repo = TestBed.inject(ReceivedInvoicesRepository);
     const crearSpy = spyOn(repo, 'crearDesdeDocumentoDirecto').and.resolveTo({
       tipoDocumento: 'bank_document',
       nombreArchivo: '4QHPJO04H000.pdf',
       avisos: [],
-      datos: { document_title: 'Abono de remesa de adeudos directos' },
+      datos: { document_title: 'Abono de remesa de adeudos directos', bank: 'Sabadell' },
+    });
+    const borradorSpy = spyOn(repo, 'crearBorradorLocal').and.resolveTo({
+      ...facturaDe('Banco Sabadell', 'Abono de remesa de adeudos directos'), id: 888,
     });
     const router = TestBed.inject(Router);
     const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
     const modalCtrl = TestBed.inject(ModalController);
-    const modalSpy = spyOn(modalCtrl, 'create').and.resolveTo({ present: async () => {} } as any);
+    const modalSpy = spyOn(modalCtrl, 'create').and.resolveTo({
+      present: async () => {},
+      onDidDismiss: async () => ({}) as any,
+    } as any);
 
     await component.onFileSelected(eventoConArchivo('4QHPJO04H000.pdf'));
 
     expect(crearSpy).toHaveBeenCalled();
+    expect(borradorSpy).toHaveBeenCalled();
     expect(modalSpy).toHaveBeenCalledWith(jasmine.objectContaining({
       componentProps: jasmine.objectContaining({ documento: jasmine.objectContaining({ tipoDocumento: 'bank_document' }) }),
     }));
-    expect(navigateSpy).not.toHaveBeenCalled();
+    expect(navigateSpy).toHaveBeenCalledWith(['/app/recibidas', 888], jasmine.objectContaining({
+      state: { archivoOriginal: jasmine.any(File) },
+    }));
     expect(component.processing).toBeFalse();
+  });
+
+  it('si no se puede preparar el borrador desde el documento bancario, avisa pero igualmente muestra el visor', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    spyOn(repo, 'crearDesdeDocumentoDirecto').and.resolveTo({
+      tipoDocumento: 'bank_document',
+      nombreArchivo: '4QHPJO04H000.pdf',
+      avisos: [],
+      datos: {},
+    });
+    spyOn(repo, 'crearBorradorLocal').and.rejectWith(new Error('fallo inesperado'));
+    const router = TestBed.inject(Router);
+    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
+    const modalCtrl = TestBed.inject(ModalController);
+    const modalSpy = spyOn(modalCtrl, 'create').and.resolveTo({
+      present: async () => {},
+      onDidDismiss: async () => ({}) as any,
+    } as any);
+    const toastCtrl = TestBed.inject(ToastController);
+    const toastSpy = spyOn(toastCtrl, 'create').and.callThrough();
+
+    await component.onFileSelected(eventoConArchivo('4QHPJO04H000.pdf'));
+
+    expect(toastSpy).toHaveBeenCalledWith(jasmine.objectContaining({
+      message: jasmine.stringContaining('No se pudo preparar un borrador'),
+    }));
+    expect(modalSpy).toHaveBeenCalled();
+    expect(navigateSpy).not.toHaveBeenCalled();
   });
 
   it('muestra el error del backend si rechaza por un motivo no recuperable (ej. error de servidor)', async () => {
@@ -173,7 +212,12 @@ describe('FacturasRecibidasPage', () => {
     expect(toastSpy).toHaveBeenCalledWith(jasmine.objectContaining({
       message: 'Proveedor no encontrado en el sistema. Se ha abierto un borrador: dalo de alta manualmente antes de guardar.',
     }));
-    expect(navigateSpy).toHaveBeenCalledWith(['/app/recibidas', 777]);
+    // 2026-08-20: se pasa el fichero real por el estado de navegación para que la pantalla
+    // de detalle lo pueda subir de verdad a Blob Storage al guardar (ver
+    // factura-recibida-detalle.page.ts, subirAdjuntoPendienteSiHaceFalta).
+    expect(navigateSpy).toHaveBeenCalledWith(['/app/recibidas', 777], jasmine.objectContaining({
+      state: { archivoOriginal: jasmine.any(File) },
+    }));
   });
 
   it('NIF o número de factura ilegibles: también caen a un borrador local en vez de perderse', async () => {

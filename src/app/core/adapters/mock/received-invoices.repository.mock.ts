@@ -62,6 +62,10 @@ export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return this.mock.crearDesdeOcr(file);
   }
 
+  crearBorradorLocal(data: Omit<FacturaRecibida, 'id'>): Promise<FacturaRecibida> {
+    return Promise.resolve(this.mock.registrarRecibidaExtraida(data));
+  }
+
   // Sin backend real detrás en modo mock no hay manera de simular de verdad "guardar sin
   // revisión" (no hay nada que guardar de verdad) — se reutiliza la misma simulación de OCR
   // que crearDesdeOcr, sigue quedando como borrador local editable en este modo.

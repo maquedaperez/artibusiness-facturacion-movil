@@ -63,6 +63,15 @@ export abstract class ReceivedInvoicesRepository {
   abstract totales(factura: FacturaRecibida): TotalesFactura;
 
   abstract crearDesdeOcr(file: File): Promise<ResultadoProcesamientoDocumento>;
+
+  // Crea un borrador SOLO local (nunca llega al backend) a partir de datos ya extraídos por
+  // otra vía — hoy usado para el borrador que se arma desde un documento bancario (ver
+  // crearBorradorDesdeDocumentoBancario en core/models/documento-bancario.ts): ese mapeo es
+  // mucho menos fiable que el de una factura normal (no hay proveedor real que resolver, ni
+  // IVA), así que SIEMPRE se deja como borrador para revisar, nunca se guarda directo en el
+  // backend real. Mismo almacén en memoria que ya usa el fallback de OCR puro
+  // (MockReceivedInvoicesRepository.registrarRecibidaExtraida).
+  abstract crearBorradorLocal(data: Omit<FacturaRecibida, 'id'>): Promise<FacturaRecibida>;
   // Adjunto ANTES de guardar (factura todavía sin id real) — solo genera una vista previa
   // local (Data URL), nunca sube nada al backend. Ver adjuntarDocumentoAFactura() para el
   // caso de una factura que ya existe de verdad.

@@ -748,6 +748,12 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     });
   }
 
+  // Borrador SOLO local, nunca llega al backend — ver el comentario del puerto. Reutiliza el
+  // mismo almacén en memoria que ya usa crearDesdeOcr para su borrador (registrarRecibidaExtraida).
+  async crearBorradorLocal(data: Omit<FacturaRecibida, 'id'>): Promise<FacturaRecibida> {
+    return this.mockAdapter.registrarRecibidaExtraida(data);
+  }
+
   // "Guardado rápido" (pedido por el jefe, reunión 2026-08-14): el backend hace todo de una
   // vez (OCR + guardar + subir el PDF a Blob Storage) y devuelve la factura ya real — se
   // mapea igual que obtenerPorId/listar (mapearCabecera/mapearLinea), con el mismo

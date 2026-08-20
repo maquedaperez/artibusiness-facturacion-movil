@@ -480,4 +480,51 @@ describe('FacturaRecibidaDetallePage', () => {
       expect(eliminarSpy).not.toHaveBeenCalled();
     });
   });
+
+  // BUG real corregido 2026-08-20: un borrador que llega aquí con un id LOCAL ya asignado
+  // (fallback de proveedor no reconocido, o el nuevo borrador de documento bancario — a
+  // diferencia del alta manual, que empieza sin id) nunca subía el fichero real a Blob
+  // Storage al guardar, aunque el usuario lo hubiera escaneado — el objeto File llega por el
+  // estado de navegación (history.state), no por onFileSelected. Ver
+  // subirAdjuntoPendienteSiHaceFalta() y el ngOnInit que lee archivoOriginal.
+  describe('borrador local con un fichero pendiente llegado por el estado de navegación', () => {
+    afterEach(() => {
+      // No contaminar el historial real del navegador de Karma para el resto de specs.
+      history.replaceState(null, '');
+    });
+
+    it('history.state deja el fichero en archivoPendienteDeAdjuntar, y guardar() lo sube tras actualizar()', async () => {
+      const archivoOriginal = new File(['contenido'], '4QHPJO04H000.pdf', { type: 'application/pdf' });
+      history.pushState({ archivoOriginal }, '');
+
+      // apiStub por defecto (get() rechaza 404) hace que obtenerPorId(777) caiga al almacén
+      // local vacío y no encuentre nada — no importa para esta prueba: lo que se comprueba es
+      // que el fichero de history.state sobrevive a ngOnInit y llega a guardar(), no el
+      // resultado de la carga inicial. facturaId/esNueva se fijan a mano para simular que la
+      // factura sí se resolvió (evita tener que mockear todo el flujo real de Guardar).
+      await configurar('777');
+      component.facturaId = 777;
+      component.esNueva = false;
+
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      const actualizarSpy = spyOn(repo, 'actualizar').and.resolveTo({
+        id: 777, proveedor: 'Banco Sabadell', numFactura: '027610026565', fecha: '2026-07-17', vencimiento: '',
+        concepto: 'Abono de remesa de adeudos directos',
+        lineas: [{ id: 1, origen: 'manual', descripcion: 'Abono', cantidad: 1, precioUnitario: 640.84, descuentoPct: 0, ivaPct: 0 }],
+        retencionPct: 0, pagada: false, estado: 'borrador', origenOcr: true, accountingLocked: false,
+      });
+      const subidaRealSpy = spyOn(repo, 'adjuntarDocumentoAFactura').and.resolveTo({
+        documentoUrl: '/api/FacturasRecibidas/777/Documento', documentoNombre: '4QHPJO04H000.pdf',
+      });
+      component.working.proveedor = 'Banco Sabadell';
+      component.working.numFactura = '027610026565';
+      component.working.idProveedor = 40; // completado a mano, como pide el borrador
+
+      await component.guardar();
+
+      expect(actualizarSpy).toHaveBeenCalled();
+      expect(subidaRealSpy).toHaveBeenCalledWith(777, archivoOriginal);
+      expect(component.working.documentoUrl).toBe('/api/FacturasRecibidas/777/Documento');
+    });
+  });
 });

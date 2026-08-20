@@ -22,7 +22,9 @@ import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.compon
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
 import { environment } from 'src/environments/environment';
-import { DocumentoBancarioAnalizado, esDocumentoBancarioAnalizado } from '../../core/models/documento-bancario';
+import {
+  DocumentoBancarioAnalizado, crearBorradorDesdeDocumentoBancario, esDocumentoBancarioAnalizado,
+} from '../../core/models/documento-bancario';
 import { DocumentoBancarioComponent } from '../../modals/documento-bancario/documento-bancario.component';
 
 @Component({
@@ -199,7 +201,7 @@ export class FacturasRecibidasPage {
       // bancario en vez de factura — HTTP 200 válido, no un error. No se crea ninguna
       // factura recibida ni se navega a ningún detalle: se abre el visor propio.
       if (esDocumentoBancarioAnalizado(resultado)) {
-        await this.mostrarDocumentoBancario(resultado);
+        await this.mostrarDocumentoBancario(resultado, file);
         return;
       }
       const nueva = resultado;
@@ -276,26 +278,50 @@ export class FacturasRecibidasPage {
     try {
       const resultado = await this.invoicesRepo.crearDesdeOcr(file);
       if (esDocumentoBancarioAnalizado(resultado)) {
-        await this.mostrarDocumentoBancario(resultado);
+        await this.mostrarDocumentoBancario(resultado, file);
         return;
       }
       const borrador = resultado;
       await this.showToast(this.mensajeBorradorLocal(motivo), 'danger');
-      await this.router.navigate(['/app/recibidas', borrador.id]);
+      // Se pasa el fichero real por el estado de navegación (ver mostrarDocumentoBancario)
+      // para que factura-recibida-detalle.page.ts pueda subirlo de verdad a Blob Storage al
+      // guardar — antes de esto, este borrador se quedaba SOLO con la vista previa local para
+      // siempre, porque el objeto File no sobrevive a la navegación a una pantalla nueva.
+      await this.router.navigate(['/app/recibidas', borrador.id], { state: { archivoOriginal: file } });
     } catch {
       // Si ni siquiera el análisis puro consigue nada, no hay borrador que ofrecer.
       await this.showToast('No se pudo procesar el documento. Inténtalo de nuevo o crea la factura manualmente.', 'danger');
     }
   }
 
-  // El visor de "Documento bancario" no depende de ninguna factura ni borrador — solo
-  // muestra lo que devolvió el lector. Ver DocumentoBancarioComponent.
-  private async mostrarDocumentoBancario(documento: DocumentoBancarioAnalizado) {
+  // 2026-08-20, pedido explícito: un documento bancario también debe generar una Factura
+  // Recibida (borrador para revisar, nunca guardado directo — ver
+  // crearBorradorDesdeDocumentoBancario). Se muestra primero el visor con los datos crudos
+  // extraídos; al cerrarlo, se navega directo al borrador ya creado (no se deja perdido en la
+  // lista, mismo criterio que el resto de fallbacks de esta página). El fichero real se pasa
+  // por el estado de navegación para que se pueda subir de verdad a Blob Storage al guardar.
+  private async mostrarDocumentoBancario(documento: DocumentoBancarioAnalizado, archivoOriginal: File) {
+    let borrador: FacturaRecibida | undefined;
+    try {
+      const datos = crearBorradorDesdeDocumentoBancario(documento, () => this.invoicesRepo.nuevoIdLinea());
+      borrador = await this.invoicesRepo.crearBorradorLocal(datos);
+    } catch {
+      await this.showToast(
+        'No se pudo preparar un borrador de factura a partir del documento bancario. Puedes crearla manualmente.',
+        'danger',
+      );
+    }
+
     const modal = await this.modalCtrl.create({
       component: DocumentoBancarioComponent,
       componentProps: { documento },
     });
     await modal.present();
+    await modal.onDidDismiss();
+
+    if (borrador) {
+      await this.router.navigate(['/app/recibidas', borrador.id], { state: { archivoOriginal } });
+    }
   }
 
   accionesPermitidas(f: FacturaRecibida): AccionesPermitidas {
