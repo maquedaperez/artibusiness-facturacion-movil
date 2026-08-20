@@ -16,6 +16,7 @@ import { MockReceivedInvoicesRepository } from '../adapters/mock/received-invoic
 import { HttpIssuedInvoicesRepository } from '../adapters/http/issued-invoices.repository.http';
 import { HttpReceivedInvoicesRepository } from '../adapters/http/received-invoices.repository.http';
 import { HttpSuppliersRepository } from '../adapters/http/suppliers.repository.http';
+import { HttpCustomersRepository } from '../adapters/http/customers.repository.http';
 
 /**
  * Único punto de la app que decide qué implementación de cada puerto se inyecta.
@@ -34,18 +35,24 @@ import { HttpSuppliersRepository } from '../adapters/http/suppliers.repository.h
  * en el mismo mock por debajo, porque Guardar exige catálogos (Impuestos, Proveedores/Crear)
  * que el backend todavía no expone.
  *
- * SuppliersRepository usa HttpSuppliersRepository: solo buscar() habla con el backend real
- * (POST /api/Proveedores/Enumerar, confirmado 2026-08-13) — crearAdHoc sigue en el mismo
- * mock, porque el backend todavía no tiene un endpoint de alta de proveedores.
+ * SuppliersRepository usa HttpSuppliersRepository: buscar() y crearAdHoc() hablan con el
+ * backend real (POST /api/Proveedores/Enumerar y /Crear, confirmados 2026-08-14).
  *
- * IssuedInvoicesRepository usa HttpIssuedInvoicesRepository (Fase 1, 2026-08-20): solo
- * obtenerPorcentajesIva/obtenerMediosPago hablan con el backend real (mismo Impuesto/
- * MediosPagoController que ya usa Recibidas) — listar/guardar/contabilizar/firmar/etc.
- * siguen delegados al mock hasta sus propias fases del plan de integración de Emitidas.
+ * IssuedInvoicesRepository usa HttpIssuedInvoicesRepository: obtenerPorcentajesIva/
+ * obtenerMediosPago (Fase 1) y listar/obtenerPorId (Fase 2, 2026-08-20, contra
+ * FacturaEmitidaController/Enumerar) hablan con el backend real — guardar/contabilizar/
+ * firmar/eliminar/duplicar siguen delegados al mock hasta sus propias fases.
+ *
+ * CustomersRepository usa HttpCustomersRepository (Fase 3, 2026-08-20): solo buscar() habla
+ * con el backend real (POST /api/Clientes/Enumerar, nuevo, calcado de Proveedores) —
+ * crearAdHoc sigue en el mismo mock: la tabla 'clientes' real tiene columnas obligatorias de
+ * cuenta bancaria/SEPA y Dynamics 365 que no tiene sentido rellenar a ciegas desde un alta
+ * rápida, pendiente de decisión del jefe (ver ClienteService.cs).
  */
 export const MOCK_REPOSITORY_PROVIDERS: Provider[] = [
   { provide: EmisorRepository, useClass: MockEmisorRepository },
-  { provide: CustomersRepository, useClass: MockCustomersRepository },
+  MockCustomersRepository,
+  { provide: CustomersRepository, useClass: HttpCustomersRepository },
   MockSuppliersRepository,
   { provide: SuppliersRepository, useClass: HttpSuppliersRepository },
   { provide: CatalogRepository, useClass: MockCatalogRepository },

@@ -7,6 +7,7 @@ import {
 } from '../ports';
 import { MockEmisorRepository } from '../adapters/mock/emisor.repository.mock';
 import { MockCustomersRepository } from '../adapters/mock/customers.repository.mock';
+import { HttpCustomersRepository } from '../adapters/http/customers.repository.http';
 import { HttpSuppliersRepository } from '../adapters/http/suppliers.repository.http';
 import { MockIssuedInvoicesRepository } from '../adapters/mock/issued-invoices.repository.mock';
 import { HttpIssuedInvoicesRepository } from '../adapters/http/issued-invoices.repository.http';
@@ -39,7 +40,10 @@ describe('MOCK_REPOSITORY_PROVIDERS — selección de provider', () => {
 
   it('resuelve cada puerto a su implementación registrada', () => {
     expect(TestBed.inject(EmisorRepository)).toBeInstanceOf(MockEmisorRepository);
-    expect(TestBed.inject(CustomersRepository)).toBeInstanceOf(MockCustomersRepository);
+    // CustomersRepository ya usa el adaptador HTTP real para buscar() (Fase 3, 2026-08-20,
+    // POST /api/Clientes/Enumerar) — crearAdHoc sigue delegando en el mock, ver
+    // customers.repository.http.ts.
+    expect(TestBed.inject(CustomersRepository)).toBeInstanceOf(HttpCustomersRepository);
     // SuppliersRepository ya usa el adaptador HTTP real (POST /api/Proveedores/Enumerar y
     // /api/Proveedores/Crear), ver suppliers.repository.http.ts.
     expect(TestBed.inject(SuppliersRepository)).toBeInstanceOf(HttpSuppliersRepository);
@@ -75,7 +79,12 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
       providers: [...MOCK_REPOSITORY_PROVIDERS, { provide: ApiService, useValue: apiServiceStub() }],
     });
     emisorRepo = TestBed.inject(EmisorRepository);
-    customersRepo = TestBed.inject(CustomersRepository);
+    // Contra MockCustomersRepository directamente, no CustomersRepository
+    // (HttpCustomersRepository): buscar() real se prueba en customers.repository.http.spec.ts;
+    // aquí solo se usa para tener un cliente de ejemplo con el que montar otras pruebas
+    // (borradores de factura emitida, etc.), y con el ApiService stubado (post devuelve [])
+    // no se vería ningún dato real a través del puerto.
+    customersRepo = TestBed.inject(MockCustomersRepository);
     suppliersRepo = TestBed.inject(SuppliersRepository);
     issuedRepo = TestBed.inject(IssuedInvoicesRepository);
     mockIssuedRepo = TestBed.inject(MockIssuedInvoicesRepository);
@@ -375,7 +384,9 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
     });
     issuedRepo = TestBed.inject(IssuedInvoicesRepository);
     receivedRepo = TestBed.inject(ReceivedInvoicesRepository);
-    customersRepo = TestBed.inject(CustomersRepository);
+    // Mismo criterio que en el describe de arriba: MockCustomersRepository directamente, para
+    // tener un cliente de ejemplo con el que crear el borrador — no se está probando buscar().
+    customersRepo = TestBed.inject(MockCustomersRepository);
   });
 
   it('duplicar una factura emitida firmada crea un borrador sin estado fiscal ni OperacionId anterior', async () => {
@@ -434,7 +445,10 @@ describe('generarDocumento — documento simulado, nunca presentado como fiscal'
   it('el documento generado indica claramente que es una simulación', async () => {
     TestBed.configureTestingModule({ providers: [...MOCK_REPOSITORY_PROVIDERS] });
     const issuedRepo = TestBed.inject(IssuedInvoicesRepository);
-    const customersRepo = TestBed.inject(CustomersRepository);
+    // MockCustomersRepository directamente: sin ApiService stubado en este TestBed,
+    // CustomersRepository (HttpCustomersRepository) llamaría de verdad contra el servidor de
+    // pruebas de Karma solo para obtener un cliente de ejemplo — no es lo que se prueba aquí.
+    const customersRepo = TestBed.inject(MockCustomersRepository);
 
     const cliente = (await customersRepo.buscar('Sonrisas')).items[0];
     const borrador = issuedRepo.crearBorrador(issuedRepo.getNumeradores()[0].id, cliente);
