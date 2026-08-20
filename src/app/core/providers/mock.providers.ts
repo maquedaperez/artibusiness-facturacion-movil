@@ -13,6 +13,7 @@ import { MockCatalogRepository } from '../adapters/mock/catalog.repository.mock'
 import { MockSubscriptionsRepository } from '../adapters/mock/subscriptions.repository.mock';
 import { MockIssuedInvoicesRepository } from '../adapters/mock/issued-invoices.repository.mock';
 import { MockReceivedInvoicesRepository } from '../adapters/mock/received-invoices.repository.mock';
+import { HttpIssuedInvoicesRepository } from '../adapters/http/issued-invoices.repository.http';
 import { HttpReceivedInvoicesRepository } from '../adapters/http/received-invoices.repository.http';
 import { HttpSuppliersRepository } from '../adapters/http/suppliers.repository.http';
 
@@ -36,6 +37,11 @@ import { HttpSuppliersRepository } from '../adapters/http/suppliers.repository.h
  * SuppliersRepository usa HttpSuppliersRepository: solo buscar() habla con el backend real
  * (POST /api/Proveedores/Enumerar, confirmado 2026-08-13) — crearAdHoc sigue en el mismo
  * mock, porque el backend todavía no tiene un endpoint de alta de proveedores.
+ *
+ * IssuedInvoicesRepository usa HttpIssuedInvoicesRepository (Fase 1, 2026-08-20): solo
+ * obtenerPorcentajesIva/obtenerMediosPago hablan con el backend real (mismo Impuesto/
+ * MediosPagoController que ya usa Recibidas) — listar/guardar/contabilizar/firmar/etc.
+ * siguen delegados al mock hasta sus propias fases del plan de integración de Emitidas.
  */
 export const MOCK_REPOSITORY_PROVIDERS: Provider[] = [
   { provide: EmisorRepository, useClass: MockEmisorRepository },
@@ -44,7 +50,8 @@ export const MOCK_REPOSITORY_PROVIDERS: Provider[] = [
   { provide: SuppliersRepository, useClass: HttpSuppliersRepository },
   { provide: CatalogRepository, useClass: MockCatalogRepository },
   { provide: SubscriptionsRepository, useClass: MockSubscriptionsRepository },
-  { provide: IssuedInvoicesRepository, useClass: MockIssuedInvoicesRepository },
+  MockIssuedInvoicesRepository,
+  { provide: IssuedInvoicesRepository, useClass: HttpIssuedInvoicesRepository },
   MockReceivedInvoicesRepository,
   { provide: ReceivedInvoicesRepository, useClass: HttpReceivedInvoicesRepository },
 ];

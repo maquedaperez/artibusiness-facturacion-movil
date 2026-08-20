@@ -31,6 +31,14 @@ export abstract class IssuedInvoicesRepository {
 
   abstract totales(factura: FacturaEmitida): TotalesFactura;
 
+  // Fase 1 del plan de integración (2026-08-20): los únicos dos catálogos que ya existen en
+  // el backend real y son reutilizables tal cual — mismo ImpuestoController/MediosPagoController
+  // que ya usa Recibidas, solo hay que llamarlos. Sustituyen IVA_RATES/MEDIO_PAGO_OPTIONS
+  // hardcodeados. medioPago sigue siendo un string libre aquí (no idMedioPago numérico como en
+  // Recibidas) — restructurar eso es parte de la fase de Guardar real, no de esta.
+  abstract obtenerPorcentajesIva(): Promise<number[]>;
+  abstract obtenerMediosPago(): Promise<string[]>;
+
   abstract contabilizar(id: number): void;
   abstract firmar(id: number): void;
   abstract estadoAeatLabel(estado?: EstadoAeat): string;

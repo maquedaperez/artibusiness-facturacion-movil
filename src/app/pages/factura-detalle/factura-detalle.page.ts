@@ -68,6 +68,7 @@ export class FacturaDetallePage implements OnInit {
   }
 
   ngOnInit() {
+    this.cargarCatalogos();
     this.numeradores = this.invoicesRepo.getNumeradores();
     const param = this.route.snapshot.paramMap.get('id');
 
@@ -89,6 +90,25 @@ export class FacturaDetallePage implements OnInit {
     this.facturaId = id;
     this.working = structuredClone(factura);
     this.cargando = false;
+  }
+
+  // Fase 1 del plan de integración de Emitidas (2026-08-20): sustituye IVA_RATES/
+  // MEDIO_PAGO_OPTIONS hardcodeados por los catálogos reales de la empresa — mismo patrón ya
+  // probado en factura-recibida-detalle.page.ts. Si la carga falla, se queda con los valores
+  // fijos con los que ya arrancan ivaRates/medioPagoOptions, no bloquea ver/editar la factura.
+  private async cargarCatalogos() {
+    try {
+      const porcentajes = await this.invoicesRepo.obtenerPorcentajesIva();
+      if (porcentajes.length > 0) this.ivaRates = porcentajes;
+    } catch {
+      // Se mantiene IVA_RATES como valor por defecto.
+    }
+    try {
+      const mediosPago = await this.invoicesRepo.obtenerMediosPago();
+      if (mediosPago.length > 0) this.medioPagoOptions = mediosPago;
+    } catch {
+      // Se mantiene MEDIO_PAGO_OPTIONS como valor por defecto.
+    }
   }
 
   get esEditable(): boolean {

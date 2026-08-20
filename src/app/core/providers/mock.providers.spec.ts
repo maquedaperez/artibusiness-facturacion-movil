@@ -9,6 +9,7 @@ import { MockEmisorRepository } from '../adapters/mock/emisor.repository.mock';
 import { MockCustomersRepository } from '../adapters/mock/customers.repository.mock';
 import { HttpSuppliersRepository } from '../adapters/http/suppliers.repository.http';
 import { MockIssuedInvoicesRepository } from '../adapters/mock/issued-invoices.repository.mock';
+import { HttpIssuedInvoicesRepository } from '../adapters/http/issued-invoices.repository.http';
 import { MockReceivedInvoicesRepository } from '../adapters/mock/received-invoices.repository.mock';
 import { HttpReceivedInvoicesRepository } from '../adapters/http/received-invoices.repository.http';
 import { ApiService } from '../../services/api.service';
@@ -42,7 +43,10 @@ describe('MOCK_REPOSITORY_PROVIDERS — selección de provider', () => {
     // SuppliersRepository ya usa el adaptador HTTP real (POST /api/Proveedores/Enumerar y
     // /api/Proveedores/Crear), ver suppliers.repository.http.ts.
     expect(TestBed.inject(SuppliersRepository)).toBeInstanceOf(HttpSuppliersRepository);
-    expect(TestBed.inject(IssuedInvoicesRepository)).toBeInstanceOf(MockIssuedInvoicesRepository);
+    // IssuedInvoicesRepository ya usa el adaptador HTTP real para obtenerPorcentajesIva/
+    // obtenerMediosPago (Fase 1, 2026-08-20) — el resto de acciones sigue delegando en el
+    // mock por debajo, ver issued-invoices.repository.http.ts.
+    expect(TestBed.inject(IssuedInvoicesRepository)).toBeInstanceOf(HttpIssuedInvoicesRepository);
     // ReceivedInvoicesRepository ya usa el adaptador HTTP real para listar/obtenerPorId/
     // eliminar/crearManual/actualizar/crearDesdeOcr — solo adjuntarDocumento sigue
     // delegando en el mock (no existe endpoint de subida de blobs todavía), ver
@@ -50,10 +54,11 @@ describe('MOCK_REPOSITORY_PROVIDERS — selección de provider', () => {
     expect(TestBed.inject(ReceivedInvoicesRepository)).toBeInstanceOf(HttpReceivedInvoicesRepository);
   });
 
-  it('las páginas solo dependen del token del puerto, nunca de la clase mock concreta', () => {
-    // Si algún día se registra un HttpIssuedInvoicesRepository en su lugar, este mismo
-    // token sigue resolviendo — es la garantía de que el swap no toca las pantallas.
-    expect(() => TestBed.inject(MockIssuedInvoicesRepository as any)).toThrow();
+  it('MockIssuedInvoicesRepository sigue siendo inyectable por su cuenta (lo usa HttpIssuedInvoicesRepository por debajo)', () => {
+    // Igual que MockSuppliersRepository/MockReceivedInvoicesRepository: el mock concreto
+    // se registra aparte porque el adaptador HTTP lo inyecta para delegar lo que aún no
+    // habla con el backend — no es un descuido, es el mismo patrón ya establecido arriba.
+    expect(TestBed.inject(MockIssuedInvoicesRepository)).toBeTruthy();
   });
 });
 

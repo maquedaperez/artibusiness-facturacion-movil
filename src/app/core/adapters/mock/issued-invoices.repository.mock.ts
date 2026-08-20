@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { IssuedInvoicesRepository } from '../../ports/issued-invoices.repository';
 import {
-  AccionesPermitidas, Destinatario, EstadoAeat, EstadoFactura, FacturaEmitida, MockFacturasService, Numerador, TotalesFactura,
-  accionesFacturaEmitida,
+  AccionesPermitidas, Destinatario, EstadoAeat, EstadoFactura, FacturaEmitida, IVA_RATES, MEDIO_PAGO_OPTIONS,
+  MockFacturasService, Numerador, TotalesFactura, accionesFacturaEmitida,
 } from '../../../services/mock-facturas.service';
 
 @Injectable()
@@ -42,6 +42,14 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
   totales(factura: FacturaEmitida): TotalesFactura {
     return this.mock.totalesFactura(factura);
+  }
+
+  async obtenerPorcentajesIva(): Promise<number[]> {
+    return IVA_RATES;
+  }
+
+  async obtenerMediosPago(): Promise<string[]> {
+    return MEDIO_PAGO_OPTIONS;
   }
 
   contabilizar(id: number): void {
