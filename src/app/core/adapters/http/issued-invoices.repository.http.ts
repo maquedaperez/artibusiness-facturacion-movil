@@ -133,10 +133,22 @@ type FacturaEmitidaDetalleApi = {
   razonSocialNif: string | null;
   estado: number;
   estadoAeat: string | null;
+  // Blindaje Fase 7 (2026-08-21): motivo real cuando estadoAeat no es 'Correcto'.
+  codigoErrorAeat: string | null;
+  descripcionErrorAeat: string | null;
   totalFactura: number;
   esEmpresa: boolean;
   lineas: FacturaEmitidaLineaApi[];
 };
+
+// Combina código + descripción del error/aviso de la AEAT en un único texto listo para
+// mostrar — undefined si no hay nada que avisar (caso normal, EstadoAeat="Correcto").
+function avisoAeatDesdeApi(codigo: string | null, descripcion: string | null): string | undefined {
+  const desc = descripcion?.trim();
+  const cod = codigo?.trim();
+  if (!desc && !cod) return undefined;
+  return cod ? `[${cod}] ${desc ?? ''}`.trim() : desc;
+}
 
 // Fase 4 del plan de integración (2026-08-20): GET /api/FacturaEmitida/Numeradores —
 // catálogo de solo lectura, ver NumeradorDto.cs.
@@ -336,6 +348,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       lineas,
       estado: estadoDesdeApi(dto.estado),
       estadoAeat: estadoAeatDesdeApi(dto.estadoAeat),
+      avisoAeat: avisoAeatDesdeApi(dto.codigoErrorAeat, dto.descripcionErrorAeat),
       operacionId: '',
       idCliente: dto.idCliente,
       totalesReales: this.totalesDesdeApi(dto.total, dto.iva, dto.irpf, dto.totalFactura),

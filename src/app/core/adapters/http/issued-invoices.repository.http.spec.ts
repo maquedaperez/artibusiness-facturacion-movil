@@ -132,6 +132,25 @@ describe('HttpIssuedInvoicesRepository — Fase 2 (listar/obtenerPorId reales)',
     expect(factura?.estadoAeat).toBe('PendienteEnvio');
   });
 
+  // Fase 7 (2026-08-21): blindaje — cuando la AEAT rechaza/avisa, el motivo real (código +
+  // descripción) tiene que llegar hasta el detalle, no solo el estado.
+  it('obtenerPorId() combina codigoErrorAeat + descripcionErrorAeat en avisoAeat', async () => {
+    apiSpy.get.and.resolveTo({
+      idFacturaEmitida: 503, numFactura: 'A-2026-052', idEmpresa: 9, idCliente: 3,
+      concepto: 'Servicio de prueba', total: 100, iva: 21, suplidos: 0, irpf: 0,
+      cobrada: 0, fechaFactura: '2026-08-10T00:00:00', fechaVencimiento: '2026-09-10T00:00:00',
+      idNumerador: 1, idMedioPago: 1,
+      razonSocialDenominacion: 'Cliente Real SL', razonSocialNif: 'B12345678',
+      estado: 132, estadoAeat: 'Incorrecto', totalFactura: 121, esEmpresa: true,
+      codigoErrorAeat: '1117', descripcionErrorAeat: 'El NIF del destinatario no es válido.',
+      lineas: [],
+    } as any);
+
+    const factura = await repo.obtenerPorId(503);
+
+    expect(factura?.avisoAeat).toBe('[1117] El NIF del destinatario no es válido.');
+  });
+
   it('obtenerPorId() cae al almacén local en un 404 real (borrador todavía sin guardar)', async () => {
     const local = repo.crearBorrador(1, { nombre: 'Cliente local', nif: '12345678Z', esEmpresa: false });
 

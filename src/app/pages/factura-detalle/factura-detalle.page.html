@@ -11,7 +11,7 @@
 
 <ion-content class="ion-padding">
 
-  <app-demo-banner detalle="contabilizar/firmar son simulados, no envían nada a AEAT"></app-demo-banner>
+  <app-demo-banner detalle="contabilizar/firmar envían la factura a la AEAT de verdad"></app-demo-banner>
 
   <ion-text color="danger" *ngIf="errorMsg">
     <p>{{ errorMsg }}</p>
@@ -43,6 +43,12 @@
       {{ f.estado === 'borrador' ? 'Borrador' : (f.estado === 'contabilizada' ? 'Contabilizada' : 'Firmada') }}
       <span *ngIf="f.estadoAeat"> · Estado AEAT: {{ estadoAeatLabel() }}</span>
     </ion-badge>
+
+    <!-- Blindaje Fase 7 (2026-08-21): motivo real que da la AEAT cuando el estado no es
+         "Correcto" — antes no había ninguna pista de qué había fallado. -->
+    <ion-text color="danger" *ngIf="f.avisoAeat">
+      <p class="aviso-aeat">Aviso de la AEAT: {{ f.avisoAeat }}</p>
+    </ion-text>
 
     <!-- Cliente -->
     <ion-card>
@@ -158,12 +164,12 @@
       {{ guardando ? 'Guardando...' : 'Guardar borrador' }}
     </ion-button>
 
-    <ion-button *ngIf="f.estado === 'borrador'" expand="block" (click)="confirmarContabilizar()">
-      Contabilizar
+    <ion-button *ngIf="f.estado === 'borrador'" expand="block" [disabled]="procesandoAeat" (click)="confirmarContabilizar()">
+      {{ procesandoAeat ? 'Contabilizando…' : 'Contabilizar' }}
     </ion-button>
 
-    <ion-button *ngIf="f.estado === 'contabilizada'" expand="block" (click)="confirmarFirmar()">
-      Firmar
+    <ion-button *ngIf="f.estado === 'contabilizada'" expand="block" [disabled]="procesandoAeat" (click)="confirmarFirmar()">
+      {{ procesandoAeat ? 'Firmando…' : 'Firmar' }}
     </ion-button>
   </div>
 </ion-footer>

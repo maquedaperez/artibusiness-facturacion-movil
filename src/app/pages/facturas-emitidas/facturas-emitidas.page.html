@@ -14,7 +14,7 @@
 
 <ion-content class="ion-padding">
 
-  <app-demo-banner detalle="contabilizar/firmar son simulados, no envían nada a AEAT"></app-demo-banner>
+  <app-demo-banner detalle="contabilizar/firmar envían la factura a la AEAT de verdad"></app-demo-banner>
 
   <ion-segment [value]="estado" (ionChange)="onEstadoChange($any($event.detail.value))">
     <ion-segment-button value="borrador">
@@ -80,20 +80,22 @@
             *ngIf="f.estado === 'borrador'"
             size="small"
             class="accion-principal"
+            [disabled]="procesandoAeatIds.has(f.id)"
             (click)="confirmarContabilizar($event, f)"
           >
             <ion-icon slot="start" name="checkmark-circle-outline"></ion-icon>
-            Contabilizar
+            {{ procesandoAeatIds.has(f.id) ? 'Contabilizando…' : 'Contabilizar' }}
           </ion-button>
 
           <ion-button
             *ngIf="f.estado === 'contabilizada'"
             size="small"
             class="accion-principal"
+            [disabled]="procesandoAeatIds.has(f.id)"
             (click)="confirmarFirmar($event, f)"
           >
             <ion-icon slot="start" name="ribbon-outline"></ion-icon>
-            Firmar
+            {{ procesandoAeatIds.has(f.id) ? 'Firmando…' : 'Firmar' }}
           </ion-button>
 
           <span class="acciones-secundarias">

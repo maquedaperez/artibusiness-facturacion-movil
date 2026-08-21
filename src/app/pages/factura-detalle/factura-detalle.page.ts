@@ -51,6 +51,10 @@ export class FacturaDetallePage implements OnInit {
   esNueva = false;
   cargando = true;
   guardando = false;
+  // Blindaje Fase 7 (2026-08-21): evita que un doble clic (o una respuesta lenta de la AEAT)
+  // dispare dos veces Contabilizar/Firmar para la misma factura — visto en real en los logs
+  // de producción, dos peticiones casi simultáneas contabilizando la misma factura.
+  procesandoAeat = false;
 
   numeradores: Numerador[] = [];
   numeradorSeleccionado: number | null = null;
@@ -237,7 +241,7 @@ export class FacturaDetallePage implements OnInit {
   // rechazo real de la AEAT), se muestra el motivo y la factura se queda tal cual estaba
   // (el backend no cambia nada si la llamada a FacturaE falla).
   async confirmarContabilizar() {
-    if (!this.working || this.facturaId == null) return;
+    if (!this.working || this.facturaId == null || this.procesandoAeat) return;
 
     // El servidor real rechaza la factura (error AEAT 4102) si el concepto va vacío,
     // y el medio de pago es obligatorio en el modelo — se valida aquí antes de intentarlo.
@@ -255,14 +259,18 @@ export class FacturaDetallePage implements OnInit {
         {
           text: 'Contabilizar',
           handler: async () => {
+            if (this.procesandoAeat) return;
             const guardadoOk = await this.guardar();
             if (!guardadoOk) return; // guardar() ya mostró el motivo del fallo
+            this.procesandoAeat = true;
             try {
               this.working = await this.invoicesRepo.contabilizar(this.facturaId!);
               await this.showToast('Factura contabilizada.');
               this.volver();
             } catch (e: any) {
               await this.showToast(e?.message ?? 'No se pudo contabilizar la factura.', 'danger');
+            } finally {
+              this.procesandoAeat = false;
             }
           },
         },
@@ -272,7 +280,7 @@ export class FacturaDetallePage implements OnInit {
   }
 
   async confirmarFirmar() {
-    if (!this.working || this.facturaId == null) return;
+    if (!this.working || this.facturaId == null || this.procesandoAeat) return;
 
     const alert = await this.alertCtrl.create({
       header: 'Firmar factura',
@@ -282,12 +290,16 @@ export class FacturaDetallePage implements OnInit {
         {
           text: 'Firmar',
           handler: async () => {
+            if (this.procesandoAeat) return;
+            this.procesandoAeat = true;
             try {
               this.working = await this.invoicesRepo.firmar(this.facturaId!);
               await this.showToast('Factura firmada.');
               this.volver();
             } catch (e: any) {
               await this.showToast(e?.message ?? 'No se pudo firmar la factura.', 'danger');
+            } finally {
+              this.procesandoAeat = false;
             }
           },
         },

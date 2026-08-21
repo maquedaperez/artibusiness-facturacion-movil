@@ -142,6 +142,11 @@ export type FacturaEmitida = {
   // Totales oficiales tal cual los devuelve el backend real (Facturacion$FacturasEmitidasCabecera:
   // total/iva/suplidos/irpf ya calculados) — solo lo rellena HttpIssuedInvoicesRepository.
   totalesReales?: TotalesFactura;
+  // Blindaje Fase 7 (2026-08-21): motivo real que da la AEAT cuando estadoAeat no es 'Correcto'
+  // (código + descripción de FacturaE, ya combinados en un texto listo para mostrar) — solo lo
+  // rellena HttpIssuedInvoicesRepository; sin esto, un rechazo real no daba ninguna pista de
+  // qué corregir.
+  avisoAeat?: string;
 };
 
 export type DesgloseIva = { pct: number; baseGravada: number; cuota: number };

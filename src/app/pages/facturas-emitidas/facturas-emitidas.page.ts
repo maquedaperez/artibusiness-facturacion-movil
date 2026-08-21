@@ -54,6 +54,10 @@ export class FacturasEmitidasPage implements OnInit {
   fechaDesde = '';
   fechaHasta = '';
   cargando = false;
+  // Blindaje Fase 7 (2026-08-21): ids de facturas con un Contabilizar/Firmar en curso — evita
+  // doble clic sobre la misma fila mientras la petición sigue en vuelo (visto en real en los
+  // logs: dos peticiones casi simultáneas contabilizando la misma factura).
+  procesandoAeatIds = new Set<number>();
 
   constructor() {
     addIcons({
@@ -264,6 +268,7 @@ export class FacturasEmitidasPage implements OnInit {
   // muestra el motivo y no se refresca (la factura no ha cambiado de estado).
   async confirmarContabilizar(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
+    if (this.procesandoAeatIds.has(f.id)) return;
     const alert = await this.alertCtrl.create({
       header: 'Contabilizar factura',
       message: `¿Contabilizar la factura de ${f.destinatario.nombre} por ${this.formatEuros(this.totalFactura(f))}? Esto envía la factura a Verifactu/AEAT y ya no se podrá editar.`,
@@ -272,12 +277,16 @@ export class FacturasEmitidasPage implements OnInit {
         {
           text: 'Contabilizar',
           handler: async () => {
+            if (this.procesandoAeatIds.has(f.id)) return;
+            this.procesandoAeatIds.add(f.id);
             try {
               await this.invoicesRepo.contabilizar(f.id);
               await this.refresh();
               await this.showToast(`Factura de ${f.destinatario.nombre} contabilizada.`);
             } catch (e: any) {
               await this.showToast(e?.message ?? 'No se pudo contabilizar la factura.', 'danger');
+            } finally {
+              this.procesandoAeatIds.delete(f.id);
             }
           },
         },
@@ -288,6 +297,7 @@ export class FacturasEmitidasPage implements OnInit {
 
   async confirmarFirmar(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
+    if (this.procesandoAeatIds.has(f.id)) return;
     const alert = await this.alertCtrl.create({
       header: 'Firmar factura',
       message: `¿Firmar la factura de ${f.destinatario.nombre}? Esto genera la firma electrónica (XAdES) real del documento ya registrado en VERI*FACTU.`,
@@ -296,12 +306,16 @@ export class FacturasEmitidasPage implements OnInit {
         {
           text: 'Firmar',
           handler: async () => {
+            if (this.procesandoAeatIds.has(f.id)) return;
+            this.procesandoAeatIds.add(f.id);
             try {
               await this.invoicesRepo.firmar(f.id);
               await this.refresh();
               await this.showToast(`Factura de ${f.destinatario.nombre} firmada.`);
             } catch (e: any) {
               await this.showToast(e?.message ?? 'No se pudo firmar la factura.', 'danger');
+            } finally {
+              this.procesandoAeatIds.delete(f.id);
             }
           },
         },
