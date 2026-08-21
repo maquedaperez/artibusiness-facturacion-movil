@@ -44,18 +44,19 @@ function estadoHaciaApi(valor: EstadoFactura): number {
 }
 
 // EstadoAeat en el backend real es un string libre que guarda tal cual lo que devuelve
-// FacturaE ("Correcto"|"AceptadoConErrores"|"Incorrecto", o null si no se ha enviado
-// todavía) — no coincide exactamente con el catálogo que ya usa el mock de Angular
-// (confirmado en docs/AUDITORIA_INTEGRACION_BACKEND.md): "Incorrecto" se mapea a
-// 'RechazadoAeat'. 'PendienteEnvio' no es un valor real del backend (allí es simplemente
-// null/undefined mientras no se ha contabilizado/enviado) — se deja sin mapear a
-// propósito, no hay ninguna cadena real que produzca ese valor.
+// FacturaE. Confirmado en una prueba real (Fase 7, 2026-08-21) que 'PendienteEnvio' SÍ es un
+// valor real (el registro se creó y firmó, pero el despachador de reintentos de FacturaE
+// todavía no ha confirmado el envío a la AEAT) — el comentario anterior que decía lo
+// contrario ("no hay ninguna cadena real que produzca ese valor") estaba equivocado: sin
+// este caso, una factura recién contabilizada/firmada mostraba "Requiere revisión manual"
+// (el 'default' de más abajo), un mensaje engañoso para un estado normal y transitorio.
 function estadoAeatDesdeApi(valor: string | null | undefined): EstadoAeat | undefined {
   const v = valor?.trim();
   if (!v) return undefined;
   if (v === 'Correcto') return 'Correcto';
   if (v === 'AceptadoConErrores') return 'AceptadoConErrores';
   if (v === 'Incorrecto') return 'RechazadoAeat';
+  if (v === 'PendienteEnvio') return 'PendienteEnvio';
   return 'RequiereRevisionManual';
 }
 

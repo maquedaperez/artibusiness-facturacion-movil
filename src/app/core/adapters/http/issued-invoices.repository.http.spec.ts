@@ -113,6 +113,25 @@ describe('HttpIssuedInvoicesRepository — Fase 2 (listar/obtenerPorId reales)',
     expect(factura?.lineas[0].idLineaBackend).toBe(1);
   });
 
+  // Fase 7 (2026-08-21): confirmado en una prueba real que 'PendienteEnvio' SÍ es un valor
+  // real de estadoAeat (factura contabilizada/firmada cuyo envío a la AEAT sigue en cola de
+  // reintento) — antes caía al 'RequiereRevisionManual' por defecto, un mensaje engañoso.
+  it('obtenerPorId() mapea estadoAeat "PendienteEnvio" tal cual, no como RequiereRevisionManual', async () => {
+    apiSpy.get.and.resolveTo({
+      idFacturaEmitida: 502, numFactura: 'A-2026-051', idEmpresa: 9, idCliente: 3,
+      concepto: 'Servicio de prueba', total: 100, iva: 21, suplidos: 0, irpf: 0,
+      cobrada: 0, fechaFactura: '2026-08-10T00:00:00', fechaVencimiento: '2026-09-10T00:00:00',
+      idNumerador: 1, idMedioPago: 1,
+      razonSocialDenominacion: 'Cliente Real SL', razonSocialNif: 'B12345678',
+      estado: 133, estadoAeat: 'PendienteEnvio', totalFactura: 121, esEmpresa: true,
+      lineas: [],
+    } as any);
+
+    const factura = await repo.obtenerPorId(502);
+
+    expect(factura?.estadoAeat).toBe('PendienteEnvio');
+  });
+
   it('obtenerPorId() cae al almacén local en un 404 real (borrador todavía sin guardar)', async () => {
     const local = repo.crearBorrador(1, { nombre: 'Cliente local', nif: '12345678Z', esEmpresa: false });
 
