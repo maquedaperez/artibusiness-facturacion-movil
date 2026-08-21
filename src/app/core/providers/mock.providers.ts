@@ -39,9 +39,11 @@ import { HttpCustomersRepository } from '../adapters/http/customers.repository.h
  * backend real (POST /api/Proveedores/Enumerar y /Crear, confirmados 2026-08-14).
  *
  * IssuedInvoicesRepository usa HttpIssuedInvoicesRepository: obtenerPorcentajesIva/
- * obtenerMediosPago (Fase 1) y listar/obtenerPorId (Fase 2, 2026-08-20, contra
- * FacturaEmitidaController/Enumerar) hablan con el backend real — guardar/contabilizar/
- * firmar/eliminar/duplicar siguen delegados al mock hasta sus propias fases.
+ * obtenerMediosPago (Fase 1), listar/obtenerPorId (Fase 2), guardar/obtenerNumeradores
+ * (Fase 4), eliminar/duplicar (Fase 6) y contabilizar/firmar (Fase 7, 2026-08-21 — llaman a
+ * FacturaEmitidaController.Contabilizar/Firmar, que a su vez llama al microservicio FacturaE
+ * real de AEAT/VERI*FACTU) hablan todas con el backend real. Solo generarDocumento sigue
+ * delegado al mock (genera un PDF de ejemplo, no fiscal).
  *
  * CustomersRepository usa HttpCustomersRepository (Fase 3, 2026-08-20): solo buscar() habla
  * con el backend real (POST /api/Clientes/Enumerar, nuevo, calcado de Proveedores) —

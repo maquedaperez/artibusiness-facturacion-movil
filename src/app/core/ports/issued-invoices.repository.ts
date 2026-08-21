@@ -57,8 +57,12 @@ export abstract class IssuedInvoicesRepository {
   abstract obtenerPorcentajesIva(): Promise<number[]>;
   abstract obtenerMediosPago(): Promise<MedioPagoOpcion[]>;
 
-  abstract contabilizar(id: number): void;
-  abstract firmar(id: number): void;
+  // Fase 7 del plan de integración (2026-08-21): pasan a ser asíncronos —
+  // HttpIssuedInvoicesRepository ya llama de verdad a FacturaEmitidaController.Contabilizar/
+  // Firmar (que a su vez llama a FacturaE/AEAT), y devuelve la factura con el EstadoAeat real
+  // que haya contestado FacturaE, no uno inventado en el cliente.
+  abstract contabilizar(id: number): Promise<FacturaEmitida>;
+  abstract firmar(id: number): Promise<FacturaEmitida>;
   abstract estadoAeatLabel(estado?: EstadoAeat): string;
 
   // Política centralizada — la pantalla nunca decide por su cuenta si puede

@@ -67,12 +67,18 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return guardada;
   }
 
-  contabilizar(id: number): void {
+  async contabilizar(id: number): Promise<FacturaEmitida> {
     this.mock.contabilizar(id);
+    const factura = this.mock.getFacturaById(id);
+    if (!factura) throw new Error(`Factura ${id} no encontrada.`);
+    return factura;
   }
 
-  firmar(id: number): void {
+  async firmar(id: number): Promise<FacturaEmitida> {
     this.mock.firmar(id);
+    const factura = this.mock.getFacturaById(id);
+    if (!factura) throw new Error(`Factura ${id} no encontrada.`);
+    return factura;
   }
 
   estadoAeatLabel(estado?: EstadoAeat): string {

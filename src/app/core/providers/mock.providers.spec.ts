@@ -161,15 +161,30 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     const cliente = (await customersRepo.buscar('Sonrisas')).items[0];
     const borrador = issuedRepo.crearBorrador(numerador.id, cliente);
 
-    issuedRepo.contabilizar(borrador.id);
+    // Fase 7 (2026-08-21): contabilizar()/firmar() del puerto ya llaman de verdad al backend
+    // (FacturaEmitidaController), así que exigen una factura ya guardada ahí — un borrador
+    // local (crearBorrador, sin guardar) no existe todavía en ningún backend real. Se prueba
+    // aquí la mutación simulada directamente contra MockIssuedInvoicesRepository, que es quien
+    // de verdad la implementa; el rechazo del puerto para un borrador local se prueba aparte
+    // más abajo.
+    await mockIssuedRepo.contabilizar(borrador.id);
     let actualizada = await issuedRepo.obtenerPorId(borrador.id);
     expect(actualizada?.estado).toBe('contabilizada');
     expect(actualizada?.estadoAeat).toBe('PendienteEnvio');
 
-    issuedRepo.firmar(borrador.id);
+    await mockIssuedRepo.firmar(borrador.id);
     actualizada = await issuedRepo.obtenerPorId(borrador.id);
     expect(actualizada?.estado).toBe('firmada');
     expect(actualizada?.estadoAeat).toBe('Correcto');
+  });
+
+  it('contabilizar/firmar del puerto real rechazan un borrador local todavía sin guardar', async () => {
+    const numerador = issuedRepo.getNumeradores()[0];
+    const cliente = (await customersRepo.buscar('Sonrisas')).items[0];
+    const borrador = issuedRepo.crearBorrador(numerador.id, cliente);
+
+    await expectAsync(issuedRepo.contabilizar(borrador.id)).toBeRejectedWithError(/Guarda la factura/);
+    await expectAsync(issuedRepo.firmar(borrador.id)).toBeRejectedWithError(/todavía no se ha guardado/);
   });
 
   it('lista, crea y elimina facturas recibidas manuales (a través del adaptador mock puro)', async () => {
@@ -376,6 +391,7 @@ describe('Política de acciones permitidas — accionesFacturaEmitida / acciones
 
 describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', () => {
   let issuedRepo: IssuedInvoicesRepository;
+  let mockIssuedRepo: MockIssuedInvoicesRepository;
   let receivedRepo: ReceivedInvoicesRepository;
   let customersRepo: CustomersRepository;
 
@@ -384,6 +400,11 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
       providers: [...MOCK_REPOSITORY_PROVIDERS, { provide: ApiService, useValue: apiServiceStub() }],
     });
     issuedRepo = TestBed.inject(IssuedInvoicesRepository);
+    // Fase 7 (2026-08-21): contabilizar()/firmar() del puerto real ya exigen una factura
+    // guardada de verdad en el backend — para preparar aquí una factura en estado
+    // contabilizada/firmada (y así probar duplicar/eliminar sobre ella) se usa directamente
+    // MockIssuedInvoicesRepository, que sigue siendo quien de verdad simula esos estados.
+    mockIssuedRepo = TestBed.inject(MockIssuedInvoicesRepository);
     receivedRepo = TestBed.inject(ReceivedInvoicesRepository);
     // Mismo criterio que en el describe de arriba: MockCustomersRepository directamente, para
     // tener un cliente de ejemplo con el que crear el borrador — no se está probando buscar().
@@ -394,8 +415,8 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
     const cliente = (await customersRepo.buscar('Sonrisas')).items[0];
     const borrador = issuedRepo.crearBorrador(issuedRepo.getNumeradores()[0].id, cliente);
     borrador.lineas.push({ id: issuedRepo.nuevoIdLinea(), origen: 'manual', descripcion: 'Servicio', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 });
-    issuedRepo.contabilizar(borrador.id);
-    issuedRepo.firmar(borrador.id);
+    await mockIssuedRepo.contabilizar(borrador.id);
+    await mockIssuedRepo.firmar(borrador.id);
 
     const original = (await issuedRepo.obtenerPorId(borrador.id))!;
     const copia = (await issuedRepo.duplicar(original.id))!;
@@ -413,7 +434,7 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
     const numerador = issuedRepo.getNumeradores()[0];
     const borrador = issuedRepo.crearBorrador(numerador.id, { nombre: 'X', nif: 'B1', esEmpresa: true });
 
-    issuedRepo.contabilizar(borrador.id);
+    await mockIssuedRepo.contabilizar(borrador.id);
     await issuedRepo.eliminar(borrador.id); // no debe borrar — ya no es borrador
     expect(await issuedRepo.obtenerPorId(borrador.id)).toBeTruthy();
   });

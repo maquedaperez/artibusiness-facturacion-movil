@@ -259,19 +259,26 @@ export class FacturasEmitidasPage implements OnInit {
     await alert.present();
   }
 
+  // Fase 7 del plan de integración (2026-08-21): llama de verdad a FacturaE/AEAT — deja de ser
+  // una simulación. Mismo criterio de manejo de errores que confirmarEliminar: si falla, se
+  // muestra el motivo y no se refresca (la factura no ha cambiado de estado).
   async confirmarContabilizar(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
     const alert = await this.alertCtrl.create({
-      header: 'Contabilizar factura (simulado)',
-      message: `¿Contabilizar la factura de ${f.destinatario.nombre} por ${this.formatEuros(this.totalFactura(f))}? En este entorno de demostración esto simula el envío a Verifactu/AEAT — no se realiza ninguna comunicación real con la Agencia Tributaria.`,
+      header: 'Contabilizar factura',
+      message: `¿Contabilizar la factura de ${f.destinatario.nombre} por ${this.formatEuros(this.totalFactura(f))}? Esto envía la factura a Verifactu/AEAT y ya no se podrá editar.`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         {
           text: 'Contabilizar',
           handler: async () => {
-            this.invoicesRepo.contabilizar(f.id);
-            await this.refresh();
-            await this.showToast(`Factura de ${f.destinatario.nombre} contabilizada (simulado).`);
+            try {
+              await this.invoicesRepo.contabilizar(f.id);
+              await this.refresh();
+              await this.showToast(`Factura de ${f.destinatario.nombre} contabilizada.`);
+            } catch (e: any) {
+              await this.showToast(e?.message ?? 'No se pudo contabilizar la factura.', 'danger');
+            }
           },
         },
       ],
@@ -282,16 +289,20 @@ export class FacturasEmitidasPage implements OnInit {
   async confirmarFirmar(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
     const alert = await this.alertCtrl.create({
-      header: 'Firmar factura (simulado)',
-      message: `¿Firmar la factura de ${f.destinatario.nombre}? En este entorno de demostración esto simula el proceso de autofirma — no se genera ninguna firma electrónica real.`,
+      header: 'Firmar factura',
+      message: `¿Firmar la factura de ${f.destinatario.nombre}? Esto genera la firma electrónica (XAdES) real del documento ya registrado en VERI*FACTU.`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         {
           text: 'Firmar',
           handler: async () => {
-            this.invoicesRepo.firmar(f.id);
-            await this.refresh();
-            await this.showToast(`Factura de ${f.destinatario.nombre} firmada (simulado).`);
+            try {
+              await this.invoicesRepo.firmar(f.id);
+              await this.refresh();
+              await this.showToast(`Factura de ${f.destinatario.nombre} firmada.`);
+            } catch (e: any) {
+              await this.showToast(e?.message ?? 'No se pudo firmar la factura.', 'danger');
+            }
           },
         },
       ],

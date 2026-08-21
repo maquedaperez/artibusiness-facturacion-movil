@@ -209,8 +209,9 @@ function etiquetaMedioPagoPorId(id: number, catalogo: MedioPagoApi[]): string {
  *   completa y reutiliza guardarReal() para el alta — número nuevo real, sin heredar estado
  *   fiscal ni OperacionId).
  *
- * contabilizar/firmar/generarDocumento siguen delegados al mock — contabilizar/firmar son la
- * pieza de VeriFactu/FacturaE (Fase 7 del plan), la más grande y legalmente sensible.
+ * - Fase 7 (2026-08-21): contabilizar/firmar llaman de verdad a FacturaEmitidaController, que
+ *   a su vez llama al microservicio FacturaE (AEAT/VERI*FACTU) — dejan de estar delegados al
+ *   mock. generarDocumento sigue delegado al mock (genera un PDF de ejemplo, no fiscal).
  */
 @Injectable()
 export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
@@ -547,12 +548,42 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return this.mockAdapter.nuevoIdLinea();
   }
 
-  contabilizar(id: number): void {
-    this.mockAdapter.contabilizar(id);
+  // Fase 7 del plan de integración (2026-08-21): llaman de verdad a
+  // FacturaEmitidaController.Contabilizar/Firmar (FacturaEmitidaAeatService), que a su vez
+  // llama al microservicio FacturaE (AEAT/VERI*FACTU) y devuelve la factura ya actualizada
+  // (mismo FacturaEmitidaDetalleModel que GET /{id}) — se reutiliza mapearDetalle tal cual.
+  //
+  // Bug real encontrado por los tests existentes al conectar esto: un borrador LOCAL (creado
+  // con crearBorrador(), nunca guardado de verdad) puede aparecer en el listado (listar() ya
+  // mezcla reales + borradoresLocales) — contabilizarlo directamente contra el backend
+  // reventaba, porque esa factura no existe ahí todavía. Mismo criterio que guardar() para
+  // distinguir un id local de uno real: si sigue en el almacén del mock, hay que guardarla
+  // primero (la pantalla de detalle ya lo hace; aquí se deja como error explícito para
+  // cualquier otro punto de entrada, como el botón directo del listado).
+  async contabilizar(id: number): Promise<FacturaEmitida> {
+    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
+    if (borradorLocal) {
+      throw new Error('Guarda la factura antes de contabilizarla.');
+    }
+
+    const [dto, mediosPago] = await Promise.all([
+      this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Contabilizar`, {}),
+      this.obtenerMediosPagoApi(),
+    ]);
+    return this.mapearDetalle(dto, mediosPago ?? []);
   }
 
-  firmar(id: number): void {
-    this.mockAdapter.firmar(id);
+  async firmar(id: number): Promise<FacturaEmitida> {
+    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
+    if (borradorLocal) {
+      throw new Error('Esta factura todavía no se ha guardado ni contabilizado — no se puede firmar.');
+    }
+
+    const [dto, mediosPago] = await Promise.all([
+      this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Firmar`, {}),
+      this.obtenerMediosPagoApi(),
+    ]);
+    return this.mapearDetalle(dto, mediosPago ?? []);
   }
 
   estadoAeatLabel(estado?: EstadoAeat): string {
