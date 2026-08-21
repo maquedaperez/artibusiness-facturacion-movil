@@ -93,6 +93,9 @@ type FacturaEmitidaCabeceraApi = {
   cobrada: number;
   estado: number;
   estadoAeat: string | null;
+  // Blindaje Fase 7 (2026-08-21): mismo motivo real que ya trae el detalle.
+  codigoErrorAeat: string | null;
+  descripcionErrorAeat: string | null;
   fechaFactura: string;
   fechaVencimiento: string;
   idNumerador: number;
@@ -305,6 +308,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       lineas: [],
       estado: estadoDesdeApi(dto.estado),
       estadoAeat: estadoAeatDesdeApi(dto.estadoAeat),
+      avisoAeat: avisoAeatDesdeApi(dto.codigoErrorAeat, dto.descripcionErrorAeat),
       // No existe todavía como columna real en el backend (ver el puerto) — vacío para
       // facturas leídas, solo lo rellena crearBorrador() en el mock por ahora.
       operacionId: '',
