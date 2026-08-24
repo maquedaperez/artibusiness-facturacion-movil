@@ -74,6 +74,7 @@
             {{ estadoLabel(f) }}
           </span>
           <span class="aeat aeat-danger" *ngIf="f.anulada">Anulada</span>
+          <span class="aeat aeat-warning" *ngIf="f.subsanada && !f.anulada">Subsanada</span>
         </div>
 
         <div class="row-actions">

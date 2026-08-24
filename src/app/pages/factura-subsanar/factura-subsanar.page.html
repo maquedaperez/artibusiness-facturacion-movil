@@ -1,0 +1,79 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="volver()">
+        <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title class="title-bold">Subsanar factura</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+
+  <ion-text color="danger" *ngIf="errorMsg">
+    <p>{{ errorMsg }}</p>
+  </ion-text>
+
+  <ng-container *ngIf="factura as f">
+
+    <ion-text color="medium">
+      <p class="ion-no-margin aviso-solo-lectura">
+        Esta pantalla no edita la factura: el cliente, las líneas y los importes no cambian. Solo
+        vuelve a emitir el registro fiscal con los mismos datos ya guardados, dejando constancia
+        del motivo. Si el contenido de la factura está mal, corresponde una rectificativa; si la
+        operación no existió, corresponde anularla.
+      </p>
+    </ion-text>
+
+    <!-- Factura y registro original, solo lectura -->
+    <ion-card>
+      <ion-card-content>
+        <div class="section-title">Factura {{ f.numFactura }}</div>
+        <ion-badge color="medium" class="estado-badge">
+          {{ f.estado === 'contabilizada' ? 'Contabilizada' : 'Firmada' }}
+          <span *ngIf="f.estadoAeat"> · Estado AEAT (Alta original): {{ estadoAeatLabel() }}</span>
+        </ion-badge>
+
+        <p class="ion-no-margin"><strong>{{ f.destinatario.nombre }}</strong></p>
+        <p class="ion-no-margin">{{ f.destinatario.nif }}</p>
+        <p class="ion-no-margin campo-solo-lectura">{{ f.concepto }}</p>
+        <p class="ion-no-margin campo-solo-lectura">Fecha: {{ f.fecha }} · Total: {{ formatEuros(totalFactura()) }}</p>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Subsanación previa, si la hay -->
+    <ion-card *ngIf="f.subsanada">
+      <ion-card-content>
+        <div class="section-title">Última subsanación</div>
+        <ion-badge color="warning" class="estado-badge">{{ estadoSubsanacionLabel() }}</ion-badge>
+        <p class="ion-no-margin" *ngIf="f.fechaSubsanacion">Fecha: {{ f.fechaSubsanacion }}</p>
+        <p class="ion-no-margin campo-solo-lectura" *ngIf="f.motivoSubsanacion">Motivo: {{ f.motivoSubsanacion }}</p>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Motivo de esta subsanación -->
+    <ion-card *ngIf="puedeSubsanar">
+      <ion-card-content>
+        <div class="section-title">Motivo de la subsanación</div>
+        <ion-item lines="none">
+          <ion-textarea
+            placeholder="Explica qué estaba mal en el registro remitido (no en la factura)"
+            autoGrow="true"
+            [(ngModel)]="motivo"
+          ></ion-textarea>
+        </ion-item>
+      </ion-card-content>
+    </ion-card>
+
+  </ng-container>
+
+</ion-content>
+
+<ion-footer *ngIf="factura as f">
+  <div class="footer-actions">
+    <ion-button *ngIf="puedeSubsanar" expand="block" color="warning" [disabled]="procesando" (click)="confirmar()">
+      {{ procesando ? 'Subsanando…' : 'Confirmar subsanación' }}
+    </ion-button>
+  </div>
+</ion-footer>

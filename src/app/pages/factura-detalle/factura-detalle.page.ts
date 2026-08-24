@@ -315,6 +315,12 @@ export class FacturaDetallePage implements OnInit {
     return !!this.working && this.working.estado !== 'borrador' && !this.working.anulada;
   }
 
+  // Fase 7 (Subsanar, 2026-08-24): misma disponibilidad que Anular — ambas exigen un Alta real
+  // (estado != borrador) y que la factura no esté ya anulada.
+  get puedeSubsanar(): boolean {
+    return this.puedeAnular;
+  }
+
   async confirmarAnular() {
     if (!this.working || this.facturaId == null || this.procesandoAeat) return;
 
@@ -342,6 +348,13 @@ export class FacturaDetallePage implements OnInit {
       ],
     });
     await alert.present();
+  }
+
+  // Fase 7 (Subsanar, 2026-08-24): navega a la pantalla dedicada de solo lectura — Subsanar no es
+  // un editor, así que no reutiliza este formulario (ver factura-subsanar.page.ts).
+  irASubsanar() {
+    if (!this.facturaId || !this.puedeSubsanar) return;
+    this.router.navigate(['/app/emitidas', this.facturaId, 'subsanar']);
   }
 
   accionesPermitidas(): AccionesPermitidas {
@@ -420,6 +433,10 @@ export class FacturaDetallePage implements OnInit {
 
   estadoAeatLabel(): string {
     return this.working ? this.invoicesRepo.estadoAeatLabel(this.working.estadoAeat) : '—';
+  }
+
+  estadoSubsanacionLabel(): string {
+    return this.invoicesRepo.estadoSubsanacionLabel(this.working?.estadoSubsanacion);
   }
 
   formatEuros(v: number): string {

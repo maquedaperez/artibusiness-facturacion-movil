@@ -67,7 +67,13 @@ export abstract class IssuedInvoicesRepository {
   // el Alta original nunca se modifica ni se borra. Solo tiene sentido sobre una factura ya
   // contabilizada (con registro VERI*FACTU); el backend rechaza cualquier otro caso.
   abstract anular(id: number): Promise<FacturaEmitida>;
+  // Fase 7 (Subsanar, 2026-08-24): NO es un editor de la factura — cliente/líneas/importes no
+  // cambian (si de verdad están mal, corresponde una rectificativa, no esto). Vuelve a emitir el
+  // registro fiscal a partir de los mismos datos ya guardados, con un motivo obligatorio, y
+  // enlaza siempre con el Alta original — nunca con una subsanación anterior.
+  abstract subsanar(id: number, motivo: string): Promise<FacturaEmitida>;
   abstract estadoAeatLabel(estado?: EstadoAeat): string;
+  abstract estadoSubsanacionLabel(estado?: string): string;
 
   // Política centralizada — la pantalla nunca decide por su cuenta si puede
   // editar/eliminar/copiar/descargar/compartir. Ver docs/SERVICE_CONTRACT_GAPS.md.

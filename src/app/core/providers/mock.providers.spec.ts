@@ -213,6 +213,35 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     await expectAsync(mockIssuedRepo.anular(borrador.id)).toBeRejectedWithError(/ya está anulada/);
   });
 
+  it('subsanar marca la factura simulada como subsanada sin tocar cliente/líneas/importes', async () => {
+    const numerador = issuedRepo.getNumeradores()[0];
+    const cliente = (await customersRepo.buscar('Sonrisas')).items[0];
+    const borrador = issuedRepo.crearBorrador(numerador.id, cliente);
+
+    await mockIssuedRepo.contabilizar(borrador.id);
+    await mockIssuedRepo.subsanar(borrador.id, 'Error en el registro remitido, la factura era correcta');
+
+    const actualizada = await issuedRepo.obtenerPorId(borrador.id);
+    expect(actualizada?.estado).toBe('contabilizada');
+    expect(actualizada?.subsanada).toBeTrue();
+    expect(actualizada?.motivoSubsanacion).toBe('Error en el registro remitido, la factura era correcta');
+    expect(actualizada?.destinatario).toEqual(cliente);
+  });
+
+  it('subsanar exige un motivo y rechaza un borrador sin contabilizar o una factura anulada', async () => {
+    const numerador = issuedRepo.getNumeradores()[0];
+    const cliente = (await customersRepo.buscar('Sonrisas')).items[0];
+    const borrador = issuedRepo.crearBorrador(numerador.id, cliente);
+
+    await expectAsync(mockIssuedRepo.subsanar(borrador.id, 'Motivo')).toBeRejectedWithError(/ya contabilizada/);
+
+    await mockIssuedRepo.contabilizar(borrador.id);
+    await expectAsync(mockIssuedRepo.subsanar(borrador.id, '   ')).toBeRejectedWithError(/motivo/i);
+
+    await mockIssuedRepo.anular(borrador.id);
+    await expectAsync(mockIssuedRepo.subsanar(borrador.id, 'Motivo')).toBeRejectedWithError(/anulada/);
+  });
+
   it('lista, crea y elimina facturas recibidas manuales (a través del adaptador mock puro)', async () => {
     // crearManual/eliminar de ReceivedInvoicesRepository ya son reales (hablan con el
     // backend) — el round-trip de persistencia local se prueba aquí directamente contra

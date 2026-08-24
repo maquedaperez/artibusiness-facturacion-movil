@@ -100,6 +100,10 @@ type FacturaEmitidaCabeceraApi = {
   // esto, una factura anulada se veía en el listado igual que una que no lo está.
   idAnulacionVerifactu: number | null;
   fechaAnulacion: string | null;
+  // Fase 7 (Subsanar, 2026-08-24): mismo criterio — sin motivoSubsanacion, que solo trae el detalle.
+  idSubsanacionVerifactu: number | null;
+  fechaSubsanacion: string | null;
+  estadoSubsanacion: string | null;
   fechaFactura: string;
   fechaVencimiento: string;
   idNumerador: number;
@@ -150,6 +154,11 @@ type FacturaEmitidaDetalleApi = {
   // real en FacturaE/VERI*FACTU — ver FacturaEmitidaDetalleModel.cs.
   idAnulacionVerifactu: number | null;
   fechaAnulacion: string | null;
+  // Fase 7 (Subsanar, 2026-08-24): presentes solo si se ha subsanado.
+  idSubsanacionVerifactu: number | null;
+  fechaSubsanacion: string | null;
+  estadoSubsanacion: string | null;
+  motivoSubsanacion: string | null;
 };
 
 // Combina código + descripción del error/aviso de la AEAT en un único texto listo para
@@ -324,6 +333,9 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       totalesReales: this.totalesDesdeApi(dto.total, dto.iva, dto.irpf, dto.totalFactura),
       anulada: dto.idAnulacionVerifactu != null,
       fechaAnulacion: dto.fechaAnulacion ? dto.fechaAnulacion.slice(0, 10) : undefined,
+      subsanada: dto.idSubsanacionVerifactu != null,
+      fechaSubsanacion: dto.fechaSubsanacion ? dto.fechaSubsanacion.slice(0, 10) : undefined,
+      estadoSubsanacion: dto.estadoSubsanacion ?? undefined,
     };
   }
 
@@ -368,6 +380,10 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       totalesReales: this.totalesDesdeApi(dto.total, dto.iva, dto.irpf, dto.totalFactura),
       anulada: dto.idAnulacionVerifactu != null,
       fechaAnulacion: dto.fechaAnulacion ? dto.fechaAnulacion.slice(0, 10) : undefined,
+      subsanada: dto.idSubsanacionVerifactu != null,
+      fechaSubsanacion: dto.fechaSubsanacion ? dto.fechaSubsanacion.slice(0, 10) : undefined,
+      estadoSubsanacion: dto.estadoSubsanacion ?? undefined,
+      motivoSubsanacion: dto.motivoSubsanacion ?? undefined,
     };
   }
 
@@ -635,8 +651,29 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return this.mapearDetalle(dto, mediosPago ?? []);
   }
 
+  // Fase 7 (Subsanar, 2026-08-24): llama de verdad a FacturaEmitidaController.Subsanar
+  // (FacturaEmitidaAeatService.SubsanarAsync). No manda "campos corregidos": el backend
+  // reconstruye el registro a partir de los mismos datos de la factura ya guardados — solo se
+  // envía el motivo, obligatorio.
+  async subsanar(id: number, motivo: string): Promise<FacturaEmitida> {
+    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
+    if (borradorLocal) {
+      throw new Error('Esta factura todavía no se ha contabilizado — no se puede subsanar.');
+    }
+
+    const [dto, mediosPago] = await Promise.all([
+      this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Subsanar`, { motivo }),
+      this.obtenerMediosPagoApi(),
+    ]);
+    return this.mapearDetalle(dto, mediosPago ?? []);
+  }
+
   estadoAeatLabel(estado?: EstadoAeat): string {
     return this.mockAdapter.estadoAeatLabel(estado);
+  }
+
+  estadoSubsanacionLabel(estado?: string): string {
+    return this.mockAdapter.estadoSubsanacionLabel(estado);
   }
 
   accionesPermitidas(factura: FacturaEmitida): AccionesPermitidas {

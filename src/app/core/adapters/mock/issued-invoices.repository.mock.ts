@@ -88,8 +88,19 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return factura;
   }
 
+  async subsanar(id: number, motivo: string): Promise<FacturaEmitida> {
+    this.mock.subsanar(id, motivo);
+    const factura = this.mock.getFacturaById(id);
+    if (!factura) throw new Error(`Factura ${id} no encontrada.`);
+    return factura;
+  }
+
   estadoAeatLabel(estado?: EstadoAeat): string {
     return this.mock.estadoAeatLabel(estado);
+  }
+
+  estadoSubsanacionLabel(estado?: string): string {
+    return this.mock.estadoSubsanacionLabel(estado);
   }
 
   accionesPermitidas(factura: FacturaEmitida): AccionesPermitidas {

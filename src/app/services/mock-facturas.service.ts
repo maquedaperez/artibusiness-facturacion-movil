@@ -151,6 +151,13 @@ export type FacturaEmitida = {
   // FacturaE/VERI*FACTU — el Alta original sigue intacta, esto es un registro nuevo aparte.
   anulada?: boolean;
   fechaAnulacion?: string;
+  // Fase 7 (Subsanar, 2026-08-24): presente solo si se ha subsanado — estadoSubsanacion es el
+  // valor crudo de FacturaE (Correcto/AceptadoConErrores/Incorrecto/PendienteEnvio) para la
+  // subsanación, no confundir con estadoAeat (el del Alta original, que no cambia al subsanar).
+  subsanada?: boolean;
+  fechaSubsanacion?: string;
+  estadoSubsanacion?: string;
+  motivoSubsanacion?: string;
 };
 
 export type DesgloseIva = { pct: number; baseGravada: number; cuota: number };
@@ -635,6 +642,21 @@ export class MockFacturasService {
     return estado ? ESTADO_AEAT_LABELS[estado] : '—';
   }
 
+  // Fase 7 (Subsanar, 2026-08-24): traduce el valor crudo que guarda el backend (mismo criterio
+  // que estadoAeatLabel) a las etiquetas que pidió el negocio para distinguir un desenlace de
+  // subsanación de un desenlace de Alta normal.
+  estadoSubsanacionLabel(estado?: string): string {
+    switch (estado) {
+      case 'Correcto': return 'Subsanada: aceptada';
+      case 'AceptadoConErrores': return 'Subsanada: aceptada con errores';
+      case 'Incorrecto': return 'Subsanada: rechazada';
+      case 'PendienteEnvio':
+      case 'PendienteReenvioTecnico':
+        return 'Subsanación pendiente de envío';
+      default: return estado ? `Subsanación: ${estado}` : '—';
+    }
+  }
+
   getFacturasEmitidas(estado: EstadoFactura, numeradorId: number | null = null): FacturaEmitida[] {
     return this.emitidas
       .filter(f => f.estado === estado)
@@ -710,6 +732,20 @@ export class MockFacturasService {
     if (f.anulada) throw new Error('Esta factura ya está anulada.');
     f.anulada = true;
     f.fechaAnulacion = new Date().toISOString().slice(0, 10);
+  }
+
+  // Fase 7 (Subsanar, 2026-08-24): simulación equivalente — no toca cliente/líneas/importes,
+  // solo deja constancia de la subsanación, igual que hace el backend real.
+  subsanar(id: number, motivo: string): void {
+    const f = this.emitidas.find(e => e.id === id);
+    if (!f) return;
+    if (f.estado === 'borrador') throw new Error('Solo se puede subsanar una factura ya contabilizada.');
+    if (f.anulada) throw new Error('Esta factura está anulada; no se puede subsanar.');
+    if (!motivo?.trim()) throw new Error('El motivo de la subsanación es obligatorio.');
+    f.subsanada = true;
+    f.fechaSubsanacion = new Date().toISOString().slice(0, 10);
+    f.estadoSubsanacion = 'Correcto';
+    f.motivoSubsanacion = motivo.trim();
   }
 
   // Solo borra borradores — coherente con AccionesPermitidas.eliminar, que nunca es
