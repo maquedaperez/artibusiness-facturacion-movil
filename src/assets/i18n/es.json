@@ -1,0 +1,27 @@
+{
+  "perfil": {
+    "titulo": "Perfil",
+    "email": "Email:",
+    "telefono": "Teléfono:",
+    "idUsuario": "ID usuario:",
+    "empresa": "Empresa:",
+    "sinSesion": "No hay sesión activa.",
+    "datosFiscales": "Datos fiscales",
+    "sinNombre": "Sin nombre todavía",
+    "sinNif": "Sin NIF/CIF",
+    "tipoEmpresa": "Empresa",
+    "tipoAutonomo": "Autónomo",
+    "verDetalle": "Ver detalle",
+    "cerrarSesion": "Cerrar sesión",
+    "cambiarEmpresa": "Cambiar empresa",
+    "alertaCambiarEmpresaMensaje": "Se cerrará la sesión y tendrás que volver a introducir la clave de empresa. ¿Deseas continuar?",
+    "cancelar": "Cancelar",
+    "siContinuar": "Sí, continuar",
+    "idioma": "Idioma"
+  },
+  "idiomas": {
+    "es": "Español",
+    "en": "English",
+    "uk": "Українська"
+  }
+}

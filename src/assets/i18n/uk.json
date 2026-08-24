@@ -1,0 +1,27 @@
+{
+  "perfil": {
+    "titulo": "Профіль",
+    "email": "Електронна пошта:",
+    "telefono": "Телефон:",
+    "idUsuario": "ID користувача:",
+    "empresa": "Компанія:",
+    "sinSesion": "Немає активного сеансу.",
+    "datosFiscales": "Податкові дані",
+    "sinNombre": "Ще немає назви",
+    "sinNif": "Немає ІПН",
+    "tipoEmpresa": "Компанія",
+    "tipoAutonomo": "Самозайнята особа",
+    "verDetalle": "Переглянути деталі",
+    "cerrarSesion": "Вийти",
+    "cambiarEmpresa": "Змінити компанію",
+    "alertaCambiarEmpresaMensaje": "Ви вийдете із сеансу, і вам доведеться знову ввести ключ компанії. Продовжити?",
+    "cancelar": "Скасувати",
+    "siContinuar": "Так, продовжити",
+    "idioma": "Мова"
+  },
+  "idiomas": {
+    "es": "Español",
+    "en": "English",
+    "uk": "Українська"
+  }
+}

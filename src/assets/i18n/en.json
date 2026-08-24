@@ -1,0 +1,27 @@
+{
+  "perfil": {
+    "titulo": "Profile",
+    "email": "Email:",
+    "telefono": "Phone:",
+    "idUsuario": "User ID:",
+    "empresa": "Company:",
+    "sinSesion": "No active session.",
+    "datosFiscales": "Tax details",
+    "sinNombre": "No name yet",
+    "sinNif": "No tax ID",
+    "tipoEmpresa": "Company",
+    "tipoAutonomo": "Self-employed",
+    "verDetalle": "View details",
+    "cerrarSesion": "Log out",
+    "cambiarEmpresa": "Switch company",
+    "alertaCambiarEmpresaMensaje": "This will log you out and you'll need to enter the company key again. Do you want to continue?",
+    "cancelar": "Cancel",
+    "siContinuar": "Yes, continue",
+    "idioma": "Language"
+  },
+  "idiomas": {
+    "es": "Español",
+    "en": "English",
+    "uk": "Українська"
+  }
+}
