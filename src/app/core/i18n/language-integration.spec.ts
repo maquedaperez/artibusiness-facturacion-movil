@@ -38,22 +38,22 @@ describe('Carga real de los 3 idiomas de Perfil (loader + HttpClient + JSON real
   it('es: título de Perfil en español', async () => {
     await transloco.load('es').toPromise();
     transloco.setActiveLang('es');
-    expect(transloco.translate('perfil.titulo')).toBe('Perfil');
-    expect(transloco.translate('perfil.cerrarSesion')).toBe('Cerrar sesión');
+    expect(transloco.translate('profile.title')).toBe('Perfil');
+    expect(transloco.translate('profile.logout')).toBe('Cerrar sesión');
   });
 
   it('en: título de Perfil en inglés', async () => {
     await transloco.load('en').toPromise();
     transloco.setActiveLang('en');
-    expect(transloco.translate('perfil.titulo')).toBe('Profile');
-    expect(transloco.translate('perfil.cerrarSesion')).toBe('Log out');
+    expect(transloco.translate('profile.title')).toBe('Profile');
+    expect(transloco.translate('profile.logout')).toBe('Log out');
   });
 
   it('uk: título de Perfil en ucraniano', async () => {
     await transloco.load('uk').toPromise();
     transloco.setActiveLang('uk');
-    expect(transloco.translate('perfil.titulo')).toBe('Профіль');
-    expect(transloco.translate('perfil.cerrarSesion')).toBe('Вийти');
+    expect(transloco.translate('profile.title')).toBe('Профіль');
+    expect(transloco.translate('profile.logout')).toBe('Вийти');
   });
 
   it('el selector de idioma muestra el nombre de cada idioma en su propio idioma (autónimo), igual en los tres JSON', async () => {
@@ -61,9 +61,9 @@ describe('Carga real de los 3 idiomas de Perfil (loader + HttpClient + JSON real
 
     for (const idioma of ['es', 'en', 'uk'] as const) {
       transloco.setActiveLang(idioma);
-      expect(transloco.translate('idiomas.es')).toBe('Español');
-      expect(transloco.translate('idiomas.en')).toBe('English');
-      expect(transloco.translate('idiomas.uk')).toBe('Українська');
+      expect(transloco.translate('common.languages.es')).toBe('Español');
+      expect(transloco.translate('common.languages.en')).toBe('English');
+      expect(transloco.translate('common.languages.uk')).toBe('Українська');
     }
   });
 });

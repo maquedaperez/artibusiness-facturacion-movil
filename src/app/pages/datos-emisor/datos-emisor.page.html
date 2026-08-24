@@ -5,7 +5,7 @@
         <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
-    <ion-title class="title-bold">Datos fiscales de la empresa</ion-title>
+    <ion-title class="title-bold">{{ 'profile.emisor.title' | transloco }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -15,44 +15,43 @@
 
   <ion-text color="medium">
     <p class="ion-no-margin ion-padding-bottom">
-      Estos son los datos que aparecen como emisor en tus facturas. Ninguno se
-      puede editar desde la app — proceden del alta de tu empresa.
+      {{ 'profile.emisor.description' | transloco }}
     </p>
   </ion-text>
 
   <ion-card class="compact-card">
     <ion-card-header>
-      <ion-card-title>Identidad fiscal</ion-card-title>
+      <ion-card-title>{{ 'profile.emisor.fiscalIdentity' | transloco }}</ion-card-title>
     </ion-card-header>
     <ion-card-content>
-      <p class="ion-no-margin"><strong>Tipo:</strong><br>{{ emisor.esEmpresa ? 'Empresa' : 'Autónomo' }}</p>
-      <p class="ion-no-margin"><strong>{{ emisor.esEmpresa ? 'Razón social' : 'Nombre y apellidos' }}:</strong><br>{{ emisor.nombre }}</p>
-      <p class="ion-no-margin"><strong>{{ emisor.esEmpresa ? 'CIF' : 'NIF' }}:</strong><br>{{ emisor.nif }}</p>
+      <p class="ion-no-margin"><strong>{{ 'profile.emisor.type' | transloco }}</strong><br>{{ emisor.esEmpresa ? ('profile.typeCompany' | transloco) : ('profile.typeSelfEmployed' | transloco) }}</p>
+      <p class="ion-no-margin"><strong>{{ (emisor.esEmpresa ? 'profile.emisor.companyName' : 'profile.emisor.fullName') | transloco }}</strong><br>{{ emisor.nombre }}</p>
+      <p class="ion-no-margin"><strong>{{ (emisor.esEmpresa ? 'profile.emisor.cif' : 'profile.emisor.nif') | transloco }}</strong><br>{{ emisor.nif }}</p>
     </ion-card-content>
   </ion-card>
 
   <ion-card class="compact-card">
     <ion-card-header>
-      <ion-card-title>Dirección y contacto</ion-card-title>
+      <ion-card-title>{{ 'profile.emisor.addressContact' | transloco }}</ion-card-title>
     </ion-card-header>
     <ion-card-content>
-      <p class="ion-no-margin"><strong>Dirección:</strong><br>{{ emisor.direccion }}</p>
-      <p class="ion-no-margin"><strong>Población:</strong><br>{{ emisor.poblacion }}</p>
-      <p class="ion-no-margin"><strong>Código postal:</strong><br>{{ emisor.cp }}</p>
-      <p class="ion-no-margin"><strong>Provincia:</strong><br>{{ emisor.provincia }}</p>
-      <p class="ion-no-margin" *ngIf="emisor.telefono"><strong>Teléfono:</strong><br>{{ emisor.telefono }}</p>
+      <p class="ion-no-margin"><strong>{{ 'profile.emisor.address' | transloco }}</strong><br>{{ emisor.direccion }}</p>
+      <p class="ion-no-margin"><strong>{{ 'profile.emisor.city' | transloco }}</strong><br>{{ emisor.poblacion }}</p>
+      <p class="ion-no-margin"><strong>{{ 'profile.emisor.postalCode' | transloco }}</strong><br>{{ emisor.cp }}</p>
+      <p class="ion-no-margin"><strong>{{ 'profile.emisor.province' | transloco }}</strong><br>{{ emisor.provincia }}</p>
+      <p class="ion-no-margin" *ngIf="emisor.telefono"><strong>{{ 'profile.phone' | transloco }}</strong><br>{{ emisor.telefono }}</p>
     </ion-card-content>
   </ion-card>
 
   <ion-card class="compact-card" *ngIf="emisor.esEmpresa && (emisor.registroMercantil || emisor.cnae || emisor.iban || emisor.swift)">
     <ion-card-header>
-      <ion-card-title>Datos adicionales</ion-card-title>
+      <ion-card-title>{{ 'profile.emisor.additionalData' | transloco }}</ion-card-title>
     </ion-card-header>
     <ion-card-content>
-      <p class="ion-no-margin" *ngIf="emisor.registroMercantil"><strong>Registro mercantil:</strong><br>{{ emisor.registroMercantil }}</p>
-      <p class="ion-no-margin" *ngIf="emisor.cnae"><strong>CNAE:</strong><br>{{ emisor.cnae }}</p>
-      <p class="ion-no-margin" *ngIf="emisor.iban"><strong>IBAN:</strong><br>{{ emisor.iban }}</p>
-      <p class="ion-no-margin" *ngIf="emisor.swift"><strong>SWIFT:</strong><br>{{ emisor.swift }}</p>
+      <p class="ion-no-margin" *ngIf="emisor.registroMercantil"><strong>{{ 'profile.emisor.commercialRegistry' | transloco }}</strong><br>{{ emisor.registroMercantil }}</p>
+      <p class="ion-no-margin" *ngIf="emisor.cnae"><strong>{{ 'profile.emisor.cnae' | transloco }}</strong><br>{{ emisor.cnae }}</p>
+      <p class="ion-no-margin" *ngIf="emisor.iban"><strong>{{ 'profile.emisor.iban' | transloco }}</strong><br>{{ emisor.iban }}</p>
+      <p class="ion-no-margin" *ngIf="emisor.swift"><strong>{{ 'profile.emisor.swift' | transloco }}</strong><br>{{ emisor.swift }}</p>
     </ion-card-content>
   </ion-card>
 

@@ -3,6 +3,7 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { DatosEmisorPage } from './datos-emisor.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { EmisorRepository } from '../../core/ports';
+import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 
 describe('DatosEmisorPage', () => {
   let component: DatosEmisorPage;
@@ -11,7 +12,7 @@ describe('DatosEmisorPage', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [DatosEmisorPage, RouterTestingModule],
-      providers: [...MOCK_REPOSITORY_PROVIDERS],
+      providers: [...MOCK_REPOSITORY_PROVIDERS, ...provideTranslocoTesting()],
     });
     fixture = TestBed.createComponent(DatosEmisorPage);
     component = fixture.componentInstance;

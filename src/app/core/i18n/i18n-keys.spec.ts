@@ -100,7 +100,7 @@ describe('Comportamiento de Transloco ante una clave inexistente', () => {
     const transloco = TestBed.inject(TranslocoService);
 
     let resultado: unknown;
-    expect(() => { resultado = transloco.translate('perfil.claveQueNoExiste'); }).not.toThrow();
+    expect(() => { resultado = transloco.translate('profile.claveQueNoExiste'); }).not.toThrow();
     expect(resultado).not.toBeUndefined();
     expect(resultado).not.toBeNull();
   });

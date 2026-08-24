@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent,
@@ -20,6 +21,7 @@ import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.compon
   standalone: true,
   imports: [
     CommonModule,
+    TranslocoPipe,
     IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent,
     IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonText,
     DemoBannerComponent,

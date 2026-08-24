@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import { AuthService } from '../../services/auth.service';
 import { TenantService } from '../../services/tenant.service';
@@ -21,6 +22,7 @@ import {
     CommonModule,
     ReactiveFormsModule,
     RouterLink,
+    TranslocoPipe,
 
     IonContent,
     IonItem,
@@ -36,6 +38,7 @@ export class ForgotPasswordPage {
   private auth = inject(AuthService);
   private tenant = inject(TenantService);
   private router = inject(Router);
+  private transloco = inject(TranslocoService);
 
   submitted = false;
 
@@ -58,9 +61,9 @@ export class ForgotPasswordPage {
 
       await this.auth.forgotPassword(tenantKey, identifier);
 
-      alert('Si el usuario existe, se enviarán las instrucciones.');
+      alert(this.transloco.translate('auth.forgotPassword.successAlert'));
     } catch {
-      alert('No se pudo enviar la solicitud.');
+      alert(this.transloco.translate('auth.forgotPassword.errorAlert'));
     }
   }
 }

@@ -102,14 +102,14 @@ export class PerfilPage {
   async changeTenant() {
     // Los textos del alert se resuelven con transloco.translate() (no un pipe: no hay
     // template Angular dentro de las opciones de AlertController) — mismo namespace
-    // 'perfil.*' que ya usa el resto de la pantalla, sin duplicar claves.
+    // 'profile.*'/'common.actions.*' que ya usa el resto de la app, sin duplicar claves.
     const alert = await this.alertCtrl.create({
-      header: this.transloco.translate('perfil.cambiarEmpresa'),
-      message: this.transloco.translate('perfil.alertaCambiarEmpresaMensaje'),
+      header: this.transloco.translate('profile.changeCompany'),
+      message: this.transloco.translate('profile.changeCompanyConfirm'),
       buttons: [
-        { text: this.transloco.translate('perfil.cancelar'), role: 'cancel' },
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
         {
-          text: this.transloco.translate('perfil.siContinuar'),
+          text: this.transloco.translate('common.actions.yesContinue'),
           role: 'destructive',
           handler: async () => {
             await this.tenant.clearTenantKey();

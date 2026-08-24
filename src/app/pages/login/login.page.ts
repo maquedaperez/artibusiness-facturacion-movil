@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import { AuthService } from '../../services/auth.service';
 import { TenantService } from '../../services/tenant.service';
@@ -20,6 +21,7 @@ const SAVED_PASSWORD_KEY = 'saved_password';
     CommonModule,
     ReactiveFormsModule,
     RouterLink,
+    TranslocoPipe,
     IonContent,
     IonItem,
     IonInput,
@@ -34,6 +36,7 @@ export class LoginPage implements OnInit {
   private auth = inject(AuthService);
   private tenant = inject(TenantService);
   private router = inject(Router);
+  private transloco = inject(TranslocoService);
 
   submitted = false;
   tenantKeyLabel = '';
@@ -96,8 +99,8 @@ async ngOnInit() {
   private async loginWithBiometrics(username: string, password: string) {
     try {
       await BiometricAuth.authenticate({
-        reason: 'Accede con Face ID',
-        cancelTitle: 'Cancelar',
+        reason: this.transloco.translate('auth.login.biometricReason'),
+        cancelTitle: this.transloco.translate('common.actions.cancel'),
         allowDeviceCredential: true,
       });
 
@@ -165,13 +168,13 @@ async ngOnInit() {
       console.error('[LOGIN] ERROR', e);
       const msg = String(e?.message ?? '');
       if (msg.includes('401')) {
-        this.errorMsg = 'Credenciales inválidas. Comprueba tu usuario y contraseña.';
+        this.errorMsg = this.transloco.translate('auth.login.errorInvalidCredentials');
       } else if (msg.includes('400')) {
-        this.errorMsg = 'Datos incorrectos. Revisa los campos.';
+        this.errorMsg = this.transloco.translate('auth.login.errorBadRequest');
       } else if (msg.includes('500')) {
-        this.errorMsg = 'Error del servidor. Inténtalo más tarde.';
+        this.errorMsg = this.transloco.translate('auth.login.errorServer');
       } else {
-        this.errorMsg = 'Error al iniciar sesión. Inténtalo de nuevo.';
+        this.errorMsg = this.transloco.translate('auth.login.errorGeneric');
       }
     }
   }

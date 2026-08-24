@@ -11,27 +11,27 @@
         <ion-item>
           <ion-input
             formControlName="username"
-            label="Usuario"
+            [label]="'auth.login.usernameLabel' | transloco"
             label-placement="stacked"
-            placeholder="usuario@empresa.com">
+            [placeholder]="'auth.login.usernamePlaceholder' | transloco">
           </ion-input>
         </ion-item>
 
         <ion-text color="danger" *ngIf="submitted && form.controls.username.invalid">
-          <small>El usuario es obligatorio.</small>
+          <small>{{ 'auth.login.usernameRequired' | transloco }}</small>
         </ion-text>
 
         <ion-item>
           <ion-input
             formControlName="password"
-            label="Contraseña"
+            [label]="'auth.login.passwordLabel' | transloco"
             label-placement="stacked"
             type="password">
           </ion-input>
         </ion-item>
 
         <ion-text color="danger" *ngIf="submitted && form.controls.password.invalid">
-          <small>Contraseña incorrecta.</small>
+          <small>{{ 'auth.login.passwordInvalid' | transloco }}</small>
         </ion-text>
 
         <ion-text color="danger" *ngIf="errorMsg">
@@ -39,7 +39,7 @@
         </ion-text>
 
         <ion-button type="submit" expand="block" class="ion-margin-top">
-          Entrar
+          {{ 'auth.login.submit' | transloco }}
         </ion-button>
 
         <ion-button
@@ -49,12 +49,12 @@
           routerLink="/forgot-password"
           type="button"
         >
-          ¿Has olvidado tu contraseña?
+          {{ 'auth.login.forgotPassword' | transloco }}
         </ion-button>
 
         <div class="ion-text-center ion-margin-top">
           <a (click)="goToSetup()" style="color: #007aff; cursor: pointer; font-size: 13px;">
-            Cambiar clave de acceso
+            {{ 'auth.login.changeAccessKey' | transloco }}
           </a>
         </div>
 

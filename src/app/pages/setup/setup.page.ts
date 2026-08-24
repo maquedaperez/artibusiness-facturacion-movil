@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import {
   IonContent, IonHeader, IonTitle, IonToolbar,
@@ -16,6 +17,7 @@ import { TenantService } from '../../services/tenant.service';
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    TranslocoPipe,
     IonContent, IonHeader, IonTitle, IonToolbar,
     IonItem, IonInput, IonButton, IonText
   ],
@@ -26,6 +28,7 @@ export class SetupPage {
   private fb = inject(FormBuilder);
   private tenant = inject(TenantService);
   private router = inject(Router);
+  private transloco = inject(TranslocoService);
 
   submitted = false;
   invalidTenant = false;
@@ -59,7 +62,7 @@ async submit() {
     await this.tenant.setTenantKey(key);
     await this.router.navigateByUrl('/login', { replaceUrl: true });
   } catch (e: any) {
-    this.errorMsg = e?.message ?? 'Error al conectar con el servidor.';
+    this.errorMsg = e?.message ?? this.transloco.translate('auth.setup.errorServer');
   } finally {
     this.loading = false;
   }

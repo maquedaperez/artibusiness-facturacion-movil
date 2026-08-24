@@ -1,6 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title class="title-bold">Configuración inicial</ion-title>
+    <ion-title class="title-bold">{{ 'auth.setup.title' | transloco }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -15,16 +15,14 @@
 
       <!-- TEXTO -->
       <ion-text color="medium">
-        <p class="ion-no-margin">
-          Introduce tu <strong>clave de acceso</strong>
-        </p>
+        <p class="ion-no-margin">{{ 'auth.setup.instructions' | transloco }}</p>
       </ion-text>
 
       <!-- FORM -->
       <form [formGroup]="form" (ngSubmit)="submit()">
         <ion-item class="ion-margin-top">
           <ion-input
-            label="Clave"
+            [label]="'auth.setup.keyLabel' | transloco"
             label-placement="stacked"
             formControlName="tenantKey"
             autocapitalize="off"
@@ -36,20 +34,20 @@
           color="danger"
           *ngIf="submitted && form.controls.tenantKey.invalid"
         >
-          <small>La clave es obligatoria (mín. 3 caracteres).</small>
+          <small>{{ 'auth.setup.keyRequired' | transloco }}</small>
         </ion-text>
 
         <ion-text color="danger" *ngIf="submitted && invalidTenant">
-          <small>La clave no es válida. Revisa la clave y prueba de nuevo.</small>
+          <small>{{ 'auth.setup.keyInvalid' | transloco }}</small>
         </ion-text>
 
         <ion-button expand="block" class="ion-margin-top" type="submit">
-          Continuar
+          {{ 'auth.setup.submit' | transloco }}
         </ion-button>
 
         <div class="ion-text-center ion-margin-top">
           <a (click)="openLink()" style="color: #007aff; cursor: pointer; font-size: 14px;">
-            Solicitar acceso
+            {{ 'auth.setup.requestAccess' | transloco }}
           </a>
         </div>
       </form>

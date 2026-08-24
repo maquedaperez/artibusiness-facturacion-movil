@@ -2,6 +2,7 @@ import { Component, OnDestroy, NgZone, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import { AuthService } from '../../services/auth.service';
 
@@ -10,7 +11,7 @@ import { IonContent, IonItem, IonInput, IonButton, IonText } from '@ionic/angula
 @Component({
   selector: 'app-mfa',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, IonContent, IonItem, IonInput, IonButton, IonText],
+  imports: [CommonModule, ReactiveFormsModule, TranslocoPipe, IonContent, IonItem, IonInput, IonButton, IonText],
   templateUrl: './mfa.page.html',
   styleUrls: ['./mfa.page.scss'],
 })
@@ -20,6 +21,7 @@ export class MfaPage implements OnDestroy {
   private auth = inject(AuthService);
   private router = inject(Router);
   private zone = inject(NgZone);
+  private transloco = inject(TranslocoService);
 
   submitted = false;
   errorMsg = '';
@@ -90,7 +92,7 @@ export class MfaPage implements OnDestroy {
       await this.auth.verifyMfaCode(this.challengeId, this.form.value.code!, this.username);
       await this.router.navigateByUrl('/app', { replaceUrl: true });
     } catch (e: any) {
-      this.errorMsg = 'Código incorrecto o expirado. Inténtalo de nuevo.';
+      this.errorMsg = this.transloco.translate('auth.mfa.errorInvalidOrExpired');
     }
   }
 
@@ -101,9 +103,9 @@ export class MfaPage implements OnDestroy {
       const result = await this.auth.resendMfaCode(this.username);
       this.expiresAt = result.expiresAt ?? Date.now() + 5 * 60_000;
       this.startTimer();
-      this.successMsg = 'Código reenviado correctamente.';
+      this.successMsg = this.transloco.translate('auth.mfa.resendSuccess');
     } catch (e: any) {
-      this.errorMsg = 'No se pudo reenviar el código. Inténtalo de nuevo.';
+      this.errorMsg = this.transloco.translate('auth.mfa.resendError');
     }
   }
 

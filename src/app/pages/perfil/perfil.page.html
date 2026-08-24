@@ -1,6 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title class="title-bold">{{ 'perfil.titulo' | transloco }}</ion-title>
+    <ion-title class="title-bold">{{ 'profile.title' | transloco }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -13,16 +13,16 @@
 
     <ion-card-content>
       <p class="ion-no-margin" *ngIf="u.email">
-        <strong>{{ 'perfil.email' | transloco }}</strong><br> {{ u.email }}
+        <strong>{{ 'profile.email' | transloco }}</strong><br> {{ u.email }}
       </p>
       <p class="ion-no-margin" *ngIf="u.phone">
-        <strong>{{ 'perfil.telefono' | transloco }}</strong><br> {{ u.phone }}
+        <strong>{{ 'profile.phone' | transloco }}</strong><br> {{ u.phone }}
       </p>
       <p class="ion-no-margin">
-        <strong>{{ 'perfil.idUsuario' | transloco }}</strong><br>{{ u.id }}
+        <strong>{{ 'profile.userId' | transloco }}</strong><br>{{ u.id }}
       </p>
       <p class="ion-no-margin" *ngIf="u.empresaNombre || u.tenantKey">
-        <strong>{{ 'perfil.empresa' | transloco }}</strong><br>{{ u.empresaNombre || u.tenantKey }}
+        <strong>{{ 'profile.company' | transloco }}</strong><br>{{ u.empresaNombre || u.tenantKey }}
       </p>
     </ion-card-content>
   </ion-card>
@@ -30,24 +30,24 @@
   <ion-card *ngIf="!user">
     <ion-card-content>
       <ion-text color="medium">
-        <p class="ion-no-margin">{{ 'perfil.sinSesion' | transloco }}</p>
+        <p class="ion-no-margin">{{ 'profile.noSession' | transloco }}</p>
       </ion-text>
     </ion-card-content>
   </ion-card>
 
   <ion-card class="compact-card" button (click)="irADatosEmisor()" *ngIf="emisor as e">
     <ion-card-header>
-      <ion-card-title>{{ 'perfil.datosFiscales' | transloco }}</ion-card-title>
+      <ion-card-title>{{ 'profile.fiscalData' | transloco }}</ion-card-title>
     </ion-card-header>
     <ion-card-content>
-      <p class="ion-no-margin"><strong>{{ e.nombre || ('perfil.sinNombre' | transloco) }}</strong></p>
-      <p class="ion-no-margin">{{ e.nif || ('perfil.sinNif' | transloco) }} · {{ e.esEmpresa ? ('perfil.tipoEmpresa' | transloco) : ('perfil.tipoAutonomo' | transloco) }}</p>
+      <p class="ion-no-margin"><strong>{{ e.nombre || ('profile.noName' | transloco) }}</strong></p>
+      <p class="ion-no-margin">{{ e.nif || ('profile.noNif' | transloco) }} · {{ e.esEmpresa ? ('profile.typeCompany' | transloco) : ('profile.typeSelfEmployed' | transloco) }}</p>
       <p class="ion-no-margin" *ngIf="e.direccion">
         {{ e.direccion }}, {{ e.cp }} {{ e.poblacion }} ({{ e.provincia }})
       </p>
       <div class="editar-datos">
         <ion-icon name="chevron-forward-outline"></ion-icon>
-        {{ 'perfil.verDetalle' | transloco }}
+        {{ 'profile.viewDetail' | transloco }}
       </div>
     </ion-card-content>
   </ion-card>
@@ -56,14 +56,14 @@
     <ion-card-content>
       <ion-item lines="none">
         <ion-select
-          [label]="'perfil.idioma' | transloco"
+          [label]="'profile.language' | transloco"
           labelPlacement="stacked"
           interface="popover"
           [ngModel]="idiomaActual"
           (ngModelChange)="cambiarIdioma($event)"
         >
           <ion-select-option *ngFor="let idioma of idiomasSoportados" [value]="idioma">
-            {{ 'idiomas.' + idioma | transloco }}
+            {{ 'common.languages.' + idioma | transloco }}
           </ion-select-option>
         </ion-select>
       </ion-item>
@@ -79,7 +79,7 @@
       color="danger"
       (click)="logout()"
     >
-      {{ 'perfil.cerrarSesion' | transloco }}
+      {{ 'profile.logout' | transloco }}
     </ion-button>
 
     <ion-button
@@ -88,7 +88,7 @@
       style="margin-top: 8px;"
       (click)="changeTenant()"
     >
-      {{ 'perfil.cambiarEmpresa' | transloco }}
+      {{ 'profile.changeCompany' | transloco }}
     </ion-button>
   </div>
 </ion-footer>

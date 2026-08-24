@@ -4,13 +4,13 @@
 
       <ion-text color="medium">
         <p class="ion-no-margin">
-          Hemos enviado un código de seguridad a:
+          {{ 'auth.mfa.codeSentTo' | transloco }}
           <br />
-          <strong>{{ maskedEmail || 'tu correo' }}</strong>
+          <strong>{{ maskedEmail || ('auth.mfa.yourEmailFallback' | transloco) }}</strong>
         </p>
 
         <p class="ion-no-margin ion-margin-top">
-          Tiempo restante: <strong>{{ minutesLeftLabel }}</strong>
+          {{ 'auth.mfa.timeRemaining' | transloco }} <strong>{{ minutesLeftLabel }}</strong>
         </p>
       </ion-text>
 
@@ -18,7 +18,7 @@
 
         <ion-item class="ion-margin-top">
           <ion-input
-            label="Código de validación"
+            [label]="'auth.mfa.codeLabel' | transloco"
             label-placement="stacked"
             placeholder="123456"
             inputmode="numeric"
@@ -27,7 +27,7 @@
         </ion-item>
 
         <ion-text color="danger" *ngIf="submitted && form.controls.code.invalid">
-          <small>Introduce un código válido de 6 dígitos.</small>
+          <small>{{ 'auth.mfa.codeInvalid' | transloco }}</small>
         </ion-text>
 
         <ion-text color="danger" *ngIf="errorMsg">
@@ -39,15 +39,15 @@
         </ion-text>
 
         <ion-button expand="block" class="ion-margin-top" type="submit">
-          Validar
+          {{ 'auth.mfa.submit' | transloco }}
         </ion-button>
 
         <ion-button expand="block" fill="clear" type="button" (click)="resend()">
-          Reenviar código
+          {{ 'auth.mfa.resend' | transloco }}
         </ion-button>
 
         <ion-button expand="block" fill="clear" type="button" (click)="backToLogin()">
-          Volver al login
+          {{ 'auth.mfa.backToLogin' | transloco }}
         </ion-button>
 
       </form>

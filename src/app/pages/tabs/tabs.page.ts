@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { TranslocoPipe } from '@jsverse/transloco';
 import { IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { documentTextOutline, receiptOutline, personOutline } from 'ionicons/icons';
@@ -9,7 +10,7 @@ import { documentTextOutline, receiptOutline, personOutline } from 'ionicons/ico
   selector: 'app-tabs',
   templateUrl: 'tabs.page.html',
   standalone: true,
-  imports: [CommonModule, RouterLink, IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel],
+  imports: [CommonModule, RouterLink, TranslocoPipe, IonTabs, IonTabBar, IonTabButton, IonIcon, IonLabel],
 })
 export class TabsPage implements OnInit, OnDestroy {
   private observer?: MutationObserver;

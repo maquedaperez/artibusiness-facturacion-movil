@@ -14,7 +14,7 @@ describe('PerfilPage', () => {
       providers: [
         ...MOCK_REPOSITORY_PROVIDERS,
         ...provideTranslocoTesting({
-          es: { perfil: { titulo: 'Perfil', idioma: 'Idioma' }, idiomas: { es: 'Español', en: 'English', uk: 'Українська' } },
+          es: { profile: { title: 'Perfil', language: 'Idioma' }, common: { languages: { es: 'Español', en: 'English', uk: 'Українська' } } },
         }),
       ],
     });
