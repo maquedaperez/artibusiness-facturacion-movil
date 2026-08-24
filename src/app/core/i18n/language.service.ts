@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { TranslocoService } from '@jsverse/transloco';
 import { Preferences } from '@capacitor/preferences';
 
@@ -46,12 +47,25 @@ export class LanguageService {
     return this.normalizar(this.idiomaDelNavegador());
   }
 
-  // Envuelto en métodos propios (en vez de llamar a Preferences.get/navigator.language
-  // directamente desde resolverIdiomaInicial) a propósito: Preferences es un Proxy dinámico
-  // (registerPlugin() de @capacitor/core, ver node_modules/@capacitor/preferences/dist/esm/
-  // index.js) — Jasmine spyOn() no puede interceptar sus métodos de forma fiable a través del
-  // Proxy. Aislarlo en un método propio de la clase sí es espiable con spyOn(service, '...').
+  // Nunca deja escapar una excepción: si Preferences.get() falla (plugin no listo, error nativo
+  // puntual...) se trata igual que "sin preferencia guardada" y se sigue con navigator.language ->
+  // español, en vez de tumbar el arranque de toda la aplicación.
   private async leerPreferenciaGuardada(): Promise<string | null> {
+    try {
+      return await this.obtenerPreferenciaCruda();
+    } catch (error) {
+      console.warn('[LanguageService] No se pudo leer la preferencia de idioma guardada; se usará el idioma del dispositivo.', error);
+      return null;
+    }
+  }
+
+  // Envuelto en su propio método (en vez de llamar a Preferences.get directamente desde
+  // leerPreferenciaGuardada) a propósito: Preferences es un Proxy dinámico (registerPlugin() de
+  // @capacitor/core, ver node_modules/@capacitor/core/dist/index.js — "new Proxy({}, {get...})")
+  // — Jasmine spyOn() no puede interceptar sus métodos de forma fiable a través del Proxy.
+  // Aislar la llamada cruda en un método propio de la clase sí es espiable con
+  // spyOn(service, '...'), y separa "hacer la llamada nativa" de "tolerar que falle".
+  private async obtenerPreferenciaCruda(): Promise<string | null> {
     const { value } = await Preferences.get({ key: CLAVE_PREFERENCIA_IDIOMA });
     return value;
   }
@@ -60,21 +74,66 @@ export class LanguageService {
     return navigator.language;
   }
 
-  // Llamado una única vez, desde el inicializador de arranque (ver main.ts) — resuelve el
-  // idioma ANTES de que Angular renderice el primer componente, así nunca se ve un flash de
-  // claves de traducción sin resolver ni del idioma equivocado.
+  // Único punto de arranque: resuelve qué idioma tocaba, ESPERA de verdad a que su traducción
+  // esté disponible (o a que Transloco haya agotado su propio fallback a español), y solo entonces
+  // aplica el idioma que de verdad ha quedado activo y termina — nunca aplica a ciegas el idioma
+  // pedido sin comprobar cuál cargó realmente, y nunca deja una excepción sin capturar que
+  // bloquee el arranque de la app.
   async inicializar(): Promise<void> {
-    const idioma = await this.resolverIdiomaInicial();
-    this.aplicar(idioma);
+    const idiomaDeseado = await this.resolverIdiomaInicial();
+    const idiomaEfectivo = await this.cargarConTolerancia(idiomaDeseado);
+    this.aplicar(idiomaEfectivo);
   }
 
-  // Cambio en caliente (selector de Perfil): persiste la elección y la aplica sin recargar.
-  async cambiarIdioma(idioma: IdiomaSoportado): Promise<void> {
-    await this.guardarPreferencia(idioma);
-    this.aplicar(idioma);
+  // Cambio en caliente (selector de Perfil): espera la carga antes de dar el cambio por
+  // completado, y solo persiste el idioma que de verdad ha quedado activo — si uk.json fallara y
+  // Transloco cayera a español, se guarda 'es', no 'uk' (evita dejar guardada una preferencia que
+  // luego nunca se puede honrar).
+  async cambiarIdioma(idiomaSolicitado: IdiomaSoportado): Promise<void> {
+    const idiomaEfectivo = await this.cargarConTolerancia(idiomaSolicitado);
+    await this.guardarPreferencia(idiomaEfectivo);
+    this.aplicar(idiomaEfectivo);
   }
 
+  // firstValueFrom() de rxjs, no toPromise() (deprecado): espera de verdad a que termine
+  // this.transloco.load(idioma). Si el idioma pedido falla, Transloco reintenta internamente con
+  // el fallbackLang configurado ('es', ver main.ts) y esta misma promesa resuelve igual pero con
+  // el contenido de 'es' cacheado bajo la clave 'es', no bajo la del idioma pedido — por eso NO
+  // basta con asumir "resolvió = cargó lo pedido": idiomaRealmenteCargado() comprueba
+  // getTranslation(idiomaPedido) para saber si de verdad quedó cacheado ese idioma en concreto.
+  // Solo si TAMBIÉN falla el fallback (es.json) rechaza load() — caso extremo real, cubierto aquí
+  // sin bloquear el arranque ni el cambio de idioma: se acepta que puedan verse claves sin
+  // traducir en vez de tumbar la app.
+  private async cargarConTolerancia(idioma: IdiomaSoportado): Promise<IdiomaSoportado> {
+    try {
+      await firstValueFrom(this.transloco.load(idioma));
+    } catch (error) {
+      console.warn('[LanguageService] No se pudo cargar ninguna traducción (ni el idioma pedido ni el idioma de reserva). Se usará "es" como idioma lógico.', error);
+      return IDIOMA_POR_DEFECTO;
+    }
+    return this.idiomaRealmenteCargado(idioma);
+  }
+
+  private idiomaRealmenteCargado(idiomaPedido: IdiomaSoportado): IdiomaSoportado {
+    const traduccion = this.transloco.getTranslation(idiomaPedido);
+    const cargoDeVerdad = !!traduccion && Object.keys(traduccion).length > 0;
+    return cargoDeVerdad ? idiomaPedido : IDIOMA_POR_DEFECTO;
+  }
+
+  // Nunca deja escapar una excepción: si Preferences.set() falla, el cambio de idioma ya se ha
+  // aplicado igualmente (ver cambiarIdioma) — solo se pierde que sobreviva a un reinicio de la
+  // app, no la funcionalidad de la sesión actual.
   private async guardarPreferencia(idioma: IdiomaSoportado): Promise<void> {
+    try {
+      await this.establecerPreferenciaCruda(idioma);
+    } catch (error) {
+      console.warn('[LanguageService] No se pudo guardar la preferencia de idioma; el cambio se aplica igual para esta sesión.', error);
+    }
+  }
+
+  // Misma razón que obtenerPreferenciaCruda(): aísla la llamada al Proxy de Capacitor en su
+  // propio método espiable, separado de la tolerancia a fallos.
+  private async establecerPreferenciaCruda(idioma: IdiomaSoportado): Promise<void> {
     await Preferences.set({ key: CLAVE_PREFERENCIA_IDIOMA, value: idioma });
   }
 
