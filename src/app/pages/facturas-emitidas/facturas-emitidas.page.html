@@ -73,6 +73,7 @@
           <span class="aeat" [ngClass]="'aeat-' + estadoAeatColor(f)">
             {{ estadoLabel(f) }}
           </span>
+          <span class="aeat aeat-danger" *ngIf="f.anulada">Anulada</span>
         </div>
 
         <div class="row-actions">

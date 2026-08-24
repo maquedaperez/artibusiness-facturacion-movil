@@ -96,6 +96,10 @@ type FacturaEmitidaCabeceraApi = {
   // Blindaje Fase 7 (2026-08-21): mismo motivo real que ya trae el detalle.
   codigoErrorAeat: string | null;
   descripcionErrorAeat: string | null;
+  // Fase 7 (Anular, 2026-08-22): mismo criterio que codigoErrorAeat/descripcionErrorAeat — sin
+  // esto, una factura anulada se veía en el listado igual que una que no lo está.
+  idAnulacionVerifactu: number | null;
+  fechaAnulacion: string | null;
   fechaFactura: string;
   fechaVencimiento: string;
   idNumerador: number;
@@ -318,6 +322,8 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       operacionId: '',
       idCliente: dto.idCliente,
       totalesReales: this.totalesDesdeApi(dto.total, dto.iva, dto.irpf, dto.totalFactura),
+      anulada: dto.idAnulacionVerifactu != null,
+      fechaAnulacion: dto.fechaAnulacion ? dto.fechaAnulacion.slice(0, 10) : undefined,
     };
   }
 
