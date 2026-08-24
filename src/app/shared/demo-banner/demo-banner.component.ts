@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { IonChip, IonIcon, IonLabel } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { informationCircleOutline } from 'ionicons/icons';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 // Indicador único y reutilizable del entorno de esta demo: por defecto avisa de que los
 // datos son simulados (la mayoría de módulos todavía lo son), pero el texto es
@@ -13,11 +14,11 @@ import { informationCircleOutline } from 'ionicons/icons';
 @Component({
   selector: 'app-demo-banner',
   standalone: true,
-  imports: [CommonModule, IonChip, IonIcon, IonLabel],
+  imports: [CommonModule, TranslocoPipe, IonChip, IonIcon, IonLabel],
   template: `
     <ion-chip color="medium" class="demo-banner">
       <ion-icon name="information-circle-outline"></ion-icon>
-      <ion-label>{{ titulo }}<ng-container *ngIf="detalle">, {{ detalle }}</ng-container></ion-label>
+      <ion-label>{{ titulo || ('common.demoBanner.default' | transloco) }}<ng-container *ngIf="detalle">, {{ detalle }}</ng-container></ion-label>
     </ion-chip>
   `,
   styles: [`
@@ -37,7 +38,7 @@ export class DemoBannerComponent {
   // estados distintos a la vez (Recibidas ya habla con el backend real de Development;
   // otros siguen siendo mock puro) — cada página sabe la verdad sobre sus propios datos,
   // así que decide su propio texto en vez de una comprobación repartida por toda la app.
-  @Input() titulo = 'Modo demo — datos simulados';
+  @Input() titulo?: string;
   @Input() detalle?: string;
 
   constructor() {

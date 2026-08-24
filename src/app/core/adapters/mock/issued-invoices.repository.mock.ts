@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { TranslocoService } from '@jsverse/transloco';
 import { DatosGuardarFacturaEmitida, IssuedInvoicesRepository, PrevisualizacionSubsanacion } from '../../ports/issued-invoices.repository';
 import { MedioPagoOpcion } from '../../ports/received-invoices.repository';
 import {
@@ -9,6 +10,7 @@ import {
 @Injectable()
 export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
   private mock = inject(MockFacturasService);
+  private transloco = inject(TranslocoService);
 
   getNumeradores(): Numerador[] {
     return this.mock.getNumeradores();
@@ -108,14 +110,14 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
   // poder probar el flujo completo en modo demo.
   async previsualizarSubsanacion(id: number): Promise<PrevisualizacionSubsanacion> {
     const f = this.mock.getFacturaById(id);
-    if (!f) throw new Error(`Factura ${id} no encontrada.`);
-    if (f.estado === 'borrador') throw new Error('Solo se puede subsanar una factura ya contabilizada.');
-    if (f.anulada) throw new Error('Esta factura está anulada; no se puede subsanar.');
+    if (!f) throw new Error(this.transloco.translate('invoices.issued.errors.notFoundWithId', { id }));
+    if (f.estado === 'borrador') throw new Error(this.transloco.translate('verifactu.errors.subsanarBorrador'));
+    if (f.anulada) throw new Error(this.transloco.translate('verifactu.errors.subsanarAnulada'));
     if (f.subsanada) return { hayDiferencias: false, diferencias: [] };
     return {
       hayDiferencias: true,
       diferencias: [
-        { campo: 'Descripción de la operación (simulado)', valorAnterior: f.concepto, valorNuevo: `${f.concepto} (corregido)` },
+        { campo: this.transloco.translate('invoices.issued.correct.simulatedFieldLabel'), valorAnterior: f.concepto, valorNuevo: `${f.concepto} (corregido)` },
       ],
     };
   }

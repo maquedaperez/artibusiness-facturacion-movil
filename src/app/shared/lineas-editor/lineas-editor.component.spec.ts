@@ -4,6 +4,13 @@ import { LineasEditorComponent } from './lineas-editor.component';
 import { LineaFactura, ProductoCatalogo, Suscripcion } from '../../services/mock-facturas.service';
 import { CatalogoSelectorComponent } from '../../modals/catalogo-selector/catalogo-selector.component';
 import { SuscripcionSelectorComponent } from '../../modals/suscripcion-selector/suscripcion-selector.component';
+import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
+
+const TRADUCCIONES_TEST = {
+  common: {
+    linesEditor: { originManual: 'Manual', originCatalog: 'Catálogo', originSubscription: 'Suscripción' },
+  },
+};
 
 describe('LineasEditorComponent', () => {
   let component: LineasEditorComponent;
@@ -33,6 +40,7 @@ describe('LineasEditorComponent', () => {
       imports: [LineasEditorComponent],
       providers: [
         provideIonicAngular(),
+        ...provideTranslocoTesting(TRADUCCIONES_TEST),
         { provide: ModalController, useValue: modalCtrlSpy },
       ],
     });

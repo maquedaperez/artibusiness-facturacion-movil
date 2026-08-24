@@ -1,6 +1,7 @@
 import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
@@ -12,11 +13,11 @@ import { closeOutline } from 'ionicons/icons';
 @Component({
   selector: 'app-ver-documento',
   standalone: true,
-  imports: [CommonModule, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon],
+  imports: [CommonModule, TranslocoPipe, IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon],
   template: `
     <ion-header>
       <ion-toolbar>
-        <ion-title>{{ nombre || 'Documento' }}</ion-title>
+        <ion-title>{{ nombre || ('common.documentViewer.defaultTitle' | transloco) }}</ion-title>
         <ion-buttons slot="end">
           <ion-button (click)="cerrar()">
             <ion-icon slot="icon-only" name="close-outline"></ion-icon>
@@ -32,7 +33,7 @@ import { closeOutline } from 'ionicons/icons';
            correcto en vez de asumir siempre imagen. -->
       <embed *ngIf="tipo === 'application/pdf'; else imagen" [src]="urlSegura" type="application/pdf" class="documento-pdf" />
       <ng-template #imagen>
-        <img [src]="url" [alt]="nombre || 'Documento adjunto'" class="documento-img" />
+        <img [src]="url" [alt]="nombre || altPorDefecto" class="documento-img" />
       </ng-template>
     </ion-content>
   `,
@@ -55,10 +56,15 @@ import { closeOutline } from 'ionicons/icons';
 export class VerDocumentoComponent {
   private modalCtrl = inject(ModalController);
   private sanitizer = inject(DomSanitizer);
+  private transloco = inject(TranslocoService);
 
   @Input() url = '';
   @Input() nombre = '';
   @Input() tipo = '';
+
+  get altPorDefecto(): string {
+    return this.transloco.translate('common.documentViewer.defaultAlt');
+  }
 
   // El binding [src] de <embed> es un contexto RESOURCE_URL para Angular (igual que
   // <iframe>/<object>) — a diferencia de <img src>, lo bloquea con NG0904 salvo que se

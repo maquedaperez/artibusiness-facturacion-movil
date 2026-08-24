@@ -6,6 +6,20 @@ import { FacturaRecibida, MockFacturasService } from '../../../services/mock-fac
 import { ApiService } from '../../../services/api.service';
 import { esDocumentoBancarioAnalizado } from '../../models/documento-bancario';
 import { ResultadoProcesamientoDocumento } from '../../ports/received-invoices.repository';
+import { provideTranslocoTesting } from '../../i18n/testing/transloco-testing.providers';
+
+const TRADUCCIONES_TEST = {
+  ocr: { extractionError: 'No se pudo extraer información del documento. Inténtalo de nuevo o crea la factura manualmente.' },
+  invoices: {
+    received: {
+      errors: {
+        supplierRequired: 'Selecciona el proveedor de la lista (o créalo) antes de guardar — no se puede guardar una factura solo con el nombre en texto.',
+        invoiceNumberRequired: 'El número de factura es obligatorio.',
+        lineRequired: 'La factura necesita al menos una línea.',
+      },
+    },
+  },
+};
 
 function archivoDePrueba(nombre = 'factura.pdf'): File {
   return new File(['contenido de prueba'], nombre, { type: 'application/pdf' });
@@ -36,6 +50,7 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
 
     TestBed.configureTestingModule({
       providers: [
+        ...provideTranslocoTesting(TRADUCCIONES_TEST),
         HttpReceivedInvoicesRepository,
         MockReceivedInvoicesRepository,
         MockFacturasService,
@@ -516,6 +531,7 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
     apiSpy.delete.and.rejectWith(new Error('HTTP 404'));
     TestBed.configureTestingModule({
       providers: [
+        ...provideTranslocoTesting(TRADUCCIONES_TEST),
         HttpReceivedInvoicesRepository,
         MockReceivedInvoicesRepository,
         MockFacturasService,

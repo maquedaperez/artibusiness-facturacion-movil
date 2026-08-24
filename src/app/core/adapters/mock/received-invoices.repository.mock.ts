@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { TranslocoService } from '@jsverse/transloco';
 import { FiltrosListarRecibidas, MedioPagoOpcion, ReceivedInvoicesRepository } from '../../ports/received-invoices.repository';
 import {
   AccionesPermitidas, FacturaRecibida, IVA_RATES, MEDIO_PAGO_OPTIONS, MockFacturasService, TotalesFactura,
@@ -8,6 +9,7 @@ import {
 @Injectable()
 export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   private mock = inject(MockFacturasService);
+  private transloco = inject(TranslocoService);
 
   // Replica en memoria el mismo filtrado que hace Enumerar en el backend real (por
   // proveedor, pagada y estado) — así el comportamiento no cambia al pasar de mock a real.
@@ -42,7 +44,7 @@ export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
 
   async actualizar(id: number, data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): Promise<FacturaRecibida> {
     const actualizada = this.mock.actualizarRecibida(id, data);
-    if (!actualizada) throw new Error(`No se pudo actualizar la factura ${id}: no existe o está bloqueada.`);
+    if (!actualizada) throw new Error(this.transloco.translate('invoices.received.errors.updateNotFoundOrLocked', { id }));
     return actualizada;
   }
 

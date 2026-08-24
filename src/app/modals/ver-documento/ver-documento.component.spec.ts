@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideIonicAngular } from '@ionic/angular/standalone';
 import { VerDocumentoComponent } from './ver-documento.component';
+import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 
 // Encontrado en revisión 2026-08-19: <img> nunca ha podido mostrar un PDF (el tipo más
 // habitual en una factura) — mostraba un icono de imagen rota. 'tipo' decide si se usa
@@ -11,7 +12,7 @@ describe('VerDocumentoComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [VerDocumentoComponent],
-      providers: [provideIonicAngular()],
+      providers: [provideIonicAngular(), ...provideTranslocoTesting()],
     });
     fixture = TestBed.createComponent(VerDocumentoComponent);
   });

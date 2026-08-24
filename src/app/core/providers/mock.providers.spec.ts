@@ -19,6 +19,28 @@ import {
   accionesFacturaEmitida, accionesFacturaRecibida, FacturaEmitida, FacturaRecibida,
   MockFacturasService,
 } from '../../services/mock-facturas.service';
+import { provideTranslocoTesting } from '../i18n/testing/transloco-testing.providers';
+
+const TRADUCCIONES_TEST = {
+  verifactu: {
+    errors: {
+      anularBorrador: 'Esta factura todavía no se ha contabilizado — no se puede anular.',
+      yaAnulada: 'Esta factura ya está anulada.',
+      firmarBorrador: 'Esta factura todavía no se ha guardado ni contabilizado — no se puede firmar.',
+      subsanarBorrador: 'Solo se puede subsanar una factura ya contabilizada.',
+      subsanarAnulada: 'Esta factura está anulada; no se puede subsanar.',
+      motivoObligatorio: 'El motivo de la subsanación es obligatorio.',
+      sinCambiosFiscales: 'El contenido fiscal no ha cambiado desde la última subsanación — no hay nada que corregir.',
+      guardarAntesDeContabilizar: 'Guarda la factura antes de contabilizarla.',
+    },
+  },
+  invoices: {
+    issued: {
+      errors: { notFoundWithId: 'Factura {{id}} no encontrada.' },
+      correct: { simulatedFieldLabel: 'Descripción de la operación (simulado)' },
+    },
+  },
+};
 
 // ReceivedInvoicesRepository y SuppliersRepository resuelven a sus adaptadores HTTP reales
 // (ver arriba), cuyos métodos ya llaman a la API de verdad — sin mockear ApiService aquí,
@@ -35,7 +57,7 @@ function apiServiceStub(): Partial<ApiService> {
 describe('MOCK_REPOSITORY_PROVIDERS — selección de provider', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [...MOCK_REPOSITORY_PROVIDERS],
+      providers: [...MOCK_REPOSITORY_PROVIDERS, ...provideTranslocoTesting(TRADUCCIONES_TEST)],
     });
   });
 
@@ -77,7 +99,7 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [...MOCK_REPOSITORY_PROVIDERS, { provide: ApiService, useValue: apiServiceStub() }],
+      providers: [...MOCK_REPOSITORY_PROVIDERS, ...provideTranslocoTesting(TRADUCCIONES_TEST), { provide: ApiService, useValue: apiServiceStub() }],
     });
     emisorRepo = TestBed.inject(EmisorRepository);
     // Contra MockCustomersRepository directamente, no CustomersRepository
@@ -473,7 +495,7 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [...MOCK_REPOSITORY_PROVIDERS, { provide: ApiService, useValue: apiServiceStub() }],
+      providers: [...MOCK_REPOSITORY_PROVIDERS, ...provideTranslocoTesting(TRADUCCIONES_TEST), { provide: ApiService, useValue: apiServiceStub() }],
     });
     issuedRepo = TestBed.inject(IssuedInvoicesRepository);
     // Fase 7 (2026-08-21): contabilizar()/firmar() del puerto real ya exigen una factura
@@ -541,7 +563,7 @@ describe('Copiar/duplicar factura — siempre crea un borrador nuevo y limpio', 
 
 describe('generarDocumento — documento simulado, nunca presentado como fiscal', () => {
   it('el documento generado indica claramente que es una simulación', async () => {
-    TestBed.configureTestingModule({ providers: [...MOCK_REPOSITORY_PROVIDERS] });
+    TestBed.configureTestingModule({ providers: [...MOCK_REPOSITORY_PROVIDERS, ...provideTranslocoTesting(TRADUCCIONES_TEST)] });
     const issuedRepo = TestBed.inject(IssuedInvoicesRepository);
     // MockCustomersRepository directamente: sin ApiService stubado en este TestBed,
     // CustomersRepository (HttpCustomersRepository) llamaría de verdad contra el servidor de
@@ -568,7 +590,7 @@ describe('Recibidas revisadas — siguen editables, bloqueo real solo con accoun
   let mock: MockFacturasService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [] });
+    TestBed.configureTestingModule({ providers: [...provideTranslocoTesting(TRADUCCIONES_TEST)] });
     mock = TestBed.inject(MockFacturasService);
   });
 

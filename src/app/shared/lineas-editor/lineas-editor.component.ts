@@ -2,6 +2,7 @@ import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { formatEuros as formatEurosUtil } from '../utils/format-euros';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import {
   IonCard, IonCardContent, IonItem, IonInput, IonSelect, IonSelectOption,
@@ -23,7 +24,7 @@ import { SuscripcionSelectorComponent } from '../../modals/suscripcion-selector/
   selector: 'app-lineas-editor',
   standalone: true,
   imports: [
-    CommonModule, FormsModule,
+    CommonModule, FormsModule, TranslocoPipe,
     IonCard, IonCardContent, IonItem, IonInput, IonSelect, IonSelectOption,
     IonButton, IonIcon, IonText, IonChip, IonLabel,
   ],
@@ -33,6 +34,7 @@ import { SuscripcionSelectorComponent } from '../../modals/suscripcion-selector/
 export class LineasEditorComponent {
   private actionSheetCtrl = inject(ActionSheetController);
   private modalCtrl = inject(ModalController);
+  private transloco = inject(TranslocoService);
 
   @Input({ required: true }) lineas: LineaFactura[] = [];
   @Input() editable = true;
@@ -57,15 +59,15 @@ export class LineasEditorComponent {
 
     const buttons: any[] = [];
     if (this.permitirCatalogo) {
-      buttons.push({ text: 'Producto/servicio de catálogo', handler: () => this.agregarDesdeCatalogo() });
+      buttons.push({ text: this.transloco.translate('common.linesEditor.fromCatalog'), handler: () => this.agregarDesdeCatalogo() });
     }
     if (this.permitirSuscripcion) {
-      buttons.push({ text: 'Suscripción', handler: () => this.agregarDesdeSuscripcion() });
+      buttons.push({ text: this.transloco.translate('common.linesEditor.subscription'), handler: () => this.agregarDesdeSuscripcion() });
     }
-    buttons.push({ text: 'Fuera de catálogo', handler: () => this.agregarManual() });
-    buttons.push({ text: 'Cancelar', role: 'cancel' });
+    buttons.push({ text: this.transloco.translate('common.linesEditor.outsideCatalog'), handler: () => this.agregarManual() });
+    buttons.push({ text: this.transloco.translate('common.actions.cancel'), role: 'cancel' });
 
-    const sheet = await this.actionSheetCtrl.create({ header: 'Añadir línea', buttons });
+    const sheet = await this.actionSheetCtrl.create({ header: this.transloco.translate('common.linesEditor.addLine'), buttons });
     await sheet.present();
   }
 
@@ -128,9 +130,9 @@ export class LineasEditorComponent {
 
   origenLabel(linea: LineaFactura): string {
     switch (linea.origen) {
-      case 'catalogo': return 'Catálogo';
-      case 'suscripcion': return 'Suscripción';
-      default: return 'Manual';
+      case 'catalogo': return this.transloco.translate('common.linesEditor.originCatalog');
+      case 'suscripcion': return this.transloco.translate('common.linesEditor.originSubscription');
+      default: return this.transloco.translate('common.linesEditor.originManual');
     }
   }
 

@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { TranslocoService } from '@jsverse/transloco';
 import { PaginaResultado } from '../shared/types/pagination';
 
 export type EstadoFactura = 'borrador' | 'contabilizada' | 'firmada';
@@ -343,12 +344,16 @@ export type FacturaRecibida = {
   totalesReales?: TotalesFactura;
 };
 
-const ESTADO_AEAT_LABELS: Record<EstadoAeat, string> = {
-  PendienteEnvio: 'Pendiente de envío',
-  Correcto: 'Correcto',
-  AceptadoConErrores: 'Aceptado con errores',
-  RechazadoAeat: 'Rechazado por AEAT',
-  RequiereRevisionManual: 'Requiere revisión manual',
+// Claves de traducción (namespace verifactu.estados/verifactu.subsanacion, ver
+// src/assets/i18n/*.json) — el valor crudo de EstadoAeat es el código que devuelve el
+// backend/AEAT y NUNCA se traduce ni se altera; solo la ETIQUETA visible que lo explica
+// al usuario pasa por Transloco.
+const ESTADO_AEAT_LABEL_KEYS: Record<EstadoAeat, string> = {
+  PendienteEnvio: 'verifactu.estados.pendienteEnvio',
+  Correcto: 'verifactu.estados.correcto',
+  AceptadoConErrores: 'verifactu.estados.aceptadoConErrores',
+  RechazadoAeat: 'verifactu.estados.rechazadoAeat',
+  RequiereRevisionManual: 'verifactu.estados.requiereRevisionManual',
 };
 
 // Política única y centralizada de acciones — ninguna pantalla decide por su cuenta
@@ -424,6 +429,8 @@ let nextProveedorId = 100;
 
 @Injectable({ providedIn: 'root' })
 export class MockFacturasService {
+  private transloco = inject(TranslocoService);
+
   private emisor: EmisorFiscal = {
     esEmpresa: true,
     nombre: 'Mi Empresa de Ejemplo S.L.',
@@ -642,21 +649,23 @@ export class MockFacturasService {
   // ---------- Facturas emitidas ----------
 
   estadoAeatLabel(estado?: EstadoAeat): string {
-    return estado ? ESTADO_AEAT_LABELS[estado] : '—';
+    return estado ? this.transloco.translate(ESTADO_AEAT_LABEL_KEYS[estado]) : this.transloco.translate('verifactu.estados.sinDatos');
   }
 
   // Fase 7 (Subsanar, 2026-08-24): traduce el valor crudo que guarda el backend (mismo criterio
   // que estadoAeatLabel) a las etiquetas que pidió el negocio para distinguir un desenlace de
-  // subsanación de un desenlace de Alta normal.
+  // subsanación de un desenlace de Alta normal. El código crudo (`estado`) es el que devuelve
+  // el backend/AEAT y nunca se traduce; solo aparece interpolado dentro de la frase genérica
+  // del caso por defecto, nunca sustituido por texto traducido.
   estadoSubsanacionLabel(estado?: string): string {
     switch (estado) {
-      case 'Correcto': return 'Subsanada: aceptada';
-      case 'AceptadoConErrores': return 'Subsanada: aceptada con errores';
-      case 'Incorrecto': return 'Subsanada: rechazada';
+      case 'Correcto': return this.transloco.translate('verifactu.subsanacion.aceptada');
+      case 'AceptadoConErrores': return this.transloco.translate('verifactu.subsanacion.aceptadaConErrores');
+      case 'Incorrecto': return this.transloco.translate('verifactu.subsanacion.rechazada');
       case 'PendienteEnvio':
       case 'PendienteReenvioTecnico':
-        return 'Subsanación pendiente de envío';
-      default: return estado ? `Subsanación: ${estado}` : '—';
+        return this.transloco.translate('verifactu.subsanacion.pendienteEnvio');
+      default: return estado ? this.transloco.translate('verifactu.subsanacion.prefijoGenerico', { estado }) : this.transloco.translate('verifactu.estados.sinDatos');
     }
   }
 
@@ -731,8 +740,8 @@ export class MockFacturasService {
   anular(id: number): void {
     const f = this.emitidas.find(e => e.id === id);
     if (!f) return;
-    if (f.estado === 'borrador') throw new Error('Esta factura todavía no se ha contabilizado — no se puede anular.');
-    if (f.anulada) throw new Error('Esta factura ya está anulada.');
+    if (f.estado === 'borrador') throw new Error(this.transloco.translate('verifactu.errors.anularBorrador'));
+    if (f.anulada) throw new Error(this.transloco.translate('verifactu.errors.yaAnulada'));
     f.anulada = true;
     f.fechaAnulacion = new Date().toISOString().slice(0, 10);
   }
@@ -742,12 +751,12 @@ export class MockFacturasService {
   subsanar(id: number, motivo: string): void {
     const f = this.emitidas.find(e => e.id === id);
     if (!f) return;
-    if (f.estado === 'borrador') throw new Error('Solo se puede subsanar una factura ya contabilizada.');
-    if (f.anulada) throw new Error('Esta factura está anulada; no se puede subsanar.');
-    if (!motivo?.trim()) throw new Error('El motivo de la subsanación es obligatorio.');
+    if (f.estado === 'borrador') throw new Error(this.transloco.translate('verifactu.errors.subsanarBorrador'));
+    if (f.anulada) throw new Error(this.transloco.translate('verifactu.errors.subsanarAnulada'));
+    if (!motivo?.trim()) throw new Error(this.transloco.translate('verifactu.errors.motivoObligatorio'));
     // Blindaje 2026-08-24 (simulación): mismo criterio que el backend real — sin ningún cambio
     // fiscal real desde la última corrección, no hay nada que subsanar.
-    if (f.subsanada) throw new Error('El contenido fiscal no ha cambiado desde la última subsanación — no hay nada que corregir.');
+    if (f.subsanada) throw new Error(this.transloco.translate('verifactu.errors.sinCambiosFiscales'));
     f.subsanada = true;
     f.fechaSubsanacion = new Date().toISOString().slice(0, 10);
     f.estadoSubsanacion = 'Correcto';
@@ -982,7 +991,7 @@ ${filas}
     const cfg: ConfiguracionRetencion = {
       aplicable: f.retencionPct > 0,
       tipoCodigo: 'recibida',
-      etiqueta: 'Retención',
+      etiqueta: this.transloco.translate('common.withholdingLabel'),
       porcentaje: f.retencionPct,
     };
     return calcularTotalesLineas(f.lineas, cfg);

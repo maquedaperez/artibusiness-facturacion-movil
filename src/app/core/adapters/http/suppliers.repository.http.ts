@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { TranslocoService } from '@jsverse/transloco';
 import { SuppliersRepository } from '../../ports/suppliers.repository';
 import { ApiService } from '../../../services/api.service';
 import { ProveedorMock } from '../../../services/mock-facturas.service';
@@ -82,6 +83,7 @@ function mapearProveedor(dto: ProveedorApi): ProveedorMock {
 @Injectable()
 export class HttpSuppliersRepository extends SuppliersRepository {
   private api = inject(ApiService);
+  private transloco = inject(TranslocoService);
 
   async buscar(query: string, page = 1, pageSize = 20): Promise<PaginaResultado<ProveedorMock>> {
     const q = query.trim();
@@ -96,7 +98,7 @@ export class HttpSuppliersRepository extends SuppliersRepository {
     // realidad no se llegó a buscar nada — inconsistente además con crearAdHoc(), que sí
     // deja que este mismo caso falle con el error real del backend.
     if (idEmpresa == null) {
-      throw new Error('No se ha podido identificar la empresa de tu sesión. Vuelve a iniciar sesión e inténtalo de nuevo.');
+      throw new Error(this.transloco.translate('errors.sessionCompanyNotFound'));
     }
 
     // El placeholder del selector promete "nombre o NIF" — Enumerar admite los dos, pero
@@ -120,12 +122,12 @@ export class HttpSuppliersRepository extends SuppliersRepository {
 
   async crearAdHoc(data: Omit<ProveedorMock, 'id'>): Promise<ProveedorMock> {
     if (!data.nombre?.trim() || !data.nif?.trim()) {
-      throw new Error('Nombre y NIF son obligatorios.');
+      throw new Error(this.transloco.translate('invoices.received.supplierSelector.nameNifRequired'));
     }
     // El backend exige también dirección/CP/población/provincia (400 si falta alguno) —
     // se comprueba aquí para dar un mensaje claro en vez de esperar al rechazo del backend.
     if (!data.direccion?.trim() || !data.cp?.trim() || !data.poblacion?.trim() || !data.provincia?.trim()) {
-      throw new Error('Dirección, código postal, población y provincia son obligatorios.');
+      throw new Error(this.transloco.translate('invoices.received.supplierSelector.addressRequired'));
     }
 
     const body = {

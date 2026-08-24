@@ -4,6 +4,7 @@ import { HttpCustomersRepository } from './customers.repository.http';
 import { MockCustomersRepository } from '../mock/customers.repository.mock';
 import { MockFacturasService } from '../../../services/mock-facturas.service';
 import { ApiService } from '../../../services/api.service';
+import { provideTranslocoTesting } from '../../i18n/testing/transloco-testing.providers';
 
 describe('HttpCustomersRepository', () => {
   let repo: HttpCustomersRepository;
@@ -15,6 +16,7 @@ describe('HttpCustomersRepository', () => {
 
     TestBed.configureTestingModule({
       providers: [
+        ...provideTranslocoTesting(),
         HttpCustomersRepository,
         MockCustomersRepository,
         MockFacturasService,

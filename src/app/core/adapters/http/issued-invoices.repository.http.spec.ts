@@ -4,6 +4,26 @@ import { HttpIssuedInvoicesRepository } from './issued-invoices.repository.http'
 import { MockIssuedInvoicesRepository } from '../mock/issued-invoices.repository.mock';
 import { MockFacturasService } from '../../../services/mock-facturas.service';
 import { ApiService } from '../../../services/api.service';
+import { provideTranslocoTesting } from '../../i18n/testing/transloco-testing.providers';
+
+const TRADUCCIONES_TEST = {
+  invoices: {
+    issued: {
+      errors: {
+        clientRequired: 'Selecciona el cliente de la lista antes de guardar — no se puede guardar una factura solo con el nombre en texto.',
+        paymentMethodRequired: 'Selecciona una forma de pago del catálogo antes de guardar.',
+        lineRequired: 'La factura necesita al menos una línea.',
+      },
+    },
+  },
+  verifactu: {
+    errors: {
+      anularBorrador: 'Esta factura todavía no se ha contabilizado — no se puede anular.',
+      firmarBorrador: 'Esta factura todavía no se ha guardado ni contabilizado — no se puede firmar.',
+      subsanarBorrador: 'Esta factura todavía no se ha contabilizado — no se puede subsanar.',
+    },
+  },
+};
 
 const MEDIOS_PAGO_API = [
   { idMedioPago: 1, descFormaPago: 'Transferencia', descripcion: null },
@@ -30,6 +50,7 @@ describe('HttpIssuedInvoicesRepository — Fase 2 (listar/obtenerPorId reales)',
 
     TestBed.configureTestingModule({
       providers: [
+        ...provideTranslocoTesting(TRADUCCIONES_TEST),
         HttpIssuedInvoicesRepository,
         MockIssuedInvoicesRepository,
         MockFacturasService,
@@ -239,6 +260,7 @@ describe('HttpIssuedInvoicesRepository.guardar — Fase 4 (alta/edición real)',
 
     TestBed.configureTestingModule({
       providers: [
+        ...provideTranslocoTesting(TRADUCCIONES_TEST),
         HttpIssuedInvoicesRepository,
         MockIssuedInvoicesRepository,
         MockFacturasService,
@@ -378,6 +400,7 @@ describe('HttpIssuedInvoicesRepository.eliminar/duplicar — Fase 6', () => {
 
     TestBed.configureTestingModule({
       providers: [
+        ...provideTranslocoTesting(TRADUCCIONES_TEST),
         HttpIssuedInvoicesRepository,
         MockIssuedInvoicesRepository,
         MockFacturasService,

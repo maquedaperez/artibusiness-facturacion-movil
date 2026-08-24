@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { TranslocoService } from '@jsverse/transloco';
 import { DatosGuardarFacturaEmitida, IssuedInvoicesRepository, PrevisualizacionSubsanacion } from '../../ports/issued-invoices.repository';
 import { MedioPagoOpcion } from '../../ports/received-invoices.repository';
 import { MockIssuedInvoicesRepository } from '../mock/issued-invoices.repository.mock';
@@ -255,6 +256,7 @@ function etiquetaMedioPagoPorId(id: number, catalogo: MedioPagoApi[]): string {
 export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   private mockAdapter = inject(MockIssuedInvoicesRepository);
   private api = inject(ApiService);
+  private transloco = inject(TranslocoService);
 
   private impuestosCache: Promise<ImpuestoApi[]> | null = null;
   private mediosPagoCache: Promise<MedioPagoApi[]> | null = null;
@@ -475,16 +477,13 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
   private async guardarReal(data: DatosGuardarFacturaEmitida, idExistente?: number): Promise<FacturaEmitida> {
     if (!data.idCliente) {
-      throw new Error(
-        'Selecciona el cliente de la lista antes de guardar — no se puede guardar una ' +
-        'factura solo con el nombre en texto.'
-      );
+      throw new Error(this.transloco.translate('invoices.issued.errors.clientRequired'));
     }
     if (!data.idMedioPago) {
-      throw new Error('Selecciona una forma de pago del catálogo antes de guardar.');
+      throw new Error(this.transloco.translate('invoices.issued.errors.paymentMethodRequired'));
     }
     if (data.lineas.length === 0) {
-      throw new Error('La factura necesita al menos una línea.');
+      throw new Error(this.transloco.translate('invoices.issued.errors.lineRequired'));
     }
 
     const lineasConImpuesto = await Promise.all(data.lineas.map(async l => ({
@@ -614,7 +613,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   async contabilizar(id: number): Promise<FacturaEmitida> {
     const borradorLocal = await this.mockAdapter.obtenerPorId(id);
     if (borradorLocal) {
-      throw new Error('Guarda la factura antes de contabilizarla.');
+      throw new Error(this.transloco.translate('verifactu.errors.guardarAntesDeContabilizar'));
     }
 
     const [dto, mediosPago] = await Promise.all([
@@ -627,7 +626,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   async firmar(id: number): Promise<FacturaEmitida> {
     const borradorLocal = await this.mockAdapter.obtenerPorId(id);
     if (borradorLocal) {
-      throw new Error('Esta factura todavía no se ha guardado ni contabilizado — no se puede firmar.');
+      throw new Error(this.transloco.translate('verifactu.errors.firmarBorrador'));
     }
 
     const [dto, mediosPago] = await Promise.all([
@@ -646,7 +645,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   async anular(id: number): Promise<FacturaEmitida> {
     const borradorLocal = await this.mockAdapter.obtenerPorId(id);
     if (borradorLocal) {
-      throw new Error('Esta factura todavía no se ha contabilizado — no se puede anular.');
+      throw new Error(this.transloco.translate('verifactu.errors.anularBorrador'));
     }
 
     const [dto, mediosPago] = await Promise.all([
@@ -663,7 +662,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   async subsanar(id: number, motivo: string): Promise<FacturaEmitida> {
     const borradorLocal = await this.mockAdapter.obtenerPorId(id);
     if (borradorLocal) {
-      throw new Error('Esta factura todavía no se ha contabilizado — no se puede subsanar.');
+      throw new Error(this.transloco.translate('verifactu.errors.subsanarBorrador'));
     }
 
     const [dto, mediosPago] = await Promise.all([
@@ -684,7 +683,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   async previsualizarSubsanacion(id: number): Promise<PrevisualizacionSubsanacion> {
     const borradorLocal = await this.mockAdapter.obtenerPorId(id);
     if (borradorLocal) {
-      throw new Error('Esta factura todavía no se ha contabilizado — no se puede subsanar.');
+      throw new Error(this.transloco.translate('verifactu.errors.subsanarBorrador'));
     }
     return this.api.get<PrevisualizarSubsanacionApi>(`${EMITIDAS_BASE_PATH}/${id}/Subsanar/Previsualizar`);
   }

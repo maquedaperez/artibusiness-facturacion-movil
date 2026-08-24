@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { TranslocoService } from '@jsverse/transloco';
 import {
   FiltrosListarRecibidas, MedioPagoOpcion, ReceivedInvoicesRepository, ResultadoProcesamientoDocumento,
 } from '../../ports/received-invoices.repository';
@@ -431,6 +432,7 @@ function etiquetaMedioPago(m: MedioPagoApi): string {
 export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   private mockAdapter = inject(MockReceivedInvoicesRepository);
   private api = inject(ApiService);
+  private transloco = inject(TranslocoService);
 
   // Catálogos de referencia (Impuestos, TipoFactura): se resuelven una sola vez por sesión
   // — no cambian sin cerrar sesión, así que no tiene sentido pedirlos antes de cada línea o
@@ -629,7 +631,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     ]);
 
     if (!respuesta?.success || !respuesta.document) {
-      throw new Error('No se pudo extraer información del documento. Inténtalo de nuevo o crea la factura manualmente.');
+      throw new Error(this.transloco.translate('ocr.extractionError'));
     }
 
     // 2026-08-20 (correo de Alex): el lector ya clasifica documentos bancarios de forma
@@ -641,7 +643,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     }
 
     if (!respuesta.document.invoice) {
-      throw new Error('No se pudo extraer información del documento. Inténtalo de nuevo o crea la factura manualmente.');
+      throw new Error(this.transloco.translate('ocr.extractionError'));
     }
 
     const inv = respuesta.document.invoice;
@@ -881,16 +883,13 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   // (GuardarAsync: esNueva = !IdFacturaRecibida.HasValue).
   private async guardarReal(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>, idExistente?: number): Promise<FacturaRecibida> {
     if (!data.idProveedor) {
-      throw new Error(
-        'Selecciona el proveedor de la lista (o créalo) antes de guardar — no se puede ' +
-        'guardar una factura solo con el nombre en texto.'
-      );
+      throw new Error(this.transloco.translate('invoices.received.errors.supplierRequired'));
     }
     if (!data.numFactura?.trim()) {
-      throw new Error('El número de factura es obligatorio.');
+      throw new Error(this.transloco.translate('invoices.received.errors.invoiceNumberRequired'));
     }
     if (data.lineas.length === 0) {
-      throw new Error('La factura necesita al menos una línea.');
+      throw new Error(this.transloco.translate('invoices.received.errors.lineRequired'));
     }
 
     const [tipoFactura, lineasConImpuesto] = await Promise.all([
