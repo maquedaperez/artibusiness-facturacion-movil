@@ -6,14 +6,14 @@ import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/
 
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
-  IonSearchbar, IonList, IonItem, IonLabel, IonCheckbox, IonInput, IonText, IonSpinner,
+  IonSearchbar, IonList, IonItem, IonLabel, IonCheckbox, IonInput, IonSelect, IonSelectOption, IonText, IonSpinner,
   ModalController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { closeOutline, personAddOutline } from 'ionicons/icons';
 
 import { ClienteMock, Destinatario } from '../../services/mock-facturas.service';
-import { CustomersRepository } from '../../core/ports';
+import { CustomersRepository, IssuedInvoicesRepository, MedioPagoOpcion } from '../../core/ports';
 
 const MIN_CARACTERES_BUSQUEDA = 2;
 const DEBOUNCE_MS = 350;
@@ -33,7 +33,7 @@ export type SeleccionCliente = { cliente: ClienteMock; esNuevo: boolean };
   imports: [
     CommonModule, FormsModule,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
-    IonSearchbar, IonList, IonItem, IonLabel, IonCheckbox, IonInput, IonText, IonSpinner,
+    IonSearchbar, IonList, IonItem, IonLabel, IonCheckbox, IonInput, IonSelect, IonSelectOption, IonText, IonSpinner,
   ],
   template: `
     <ion-header>
@@ -116,13 +116,21 @@ export type SeleccionCliente = { cliente: ClienteMock; esNuevo: boolean };
           <ion-input label="Provincia" labelPlacement="stacked" [(ngModel)]="nuevo.provincia"></ion-input>
         </ion-item>
 
+        <ion-item>
+          <ion-select label="Forma de pago" labelPlacement="stacked" interface="popover" [(ngModel)]="idMedioPago">
+            <ion-select-option *ngFor="let m of mediosPago" [value]="m.id">{{ m.label }}</ion-select-option>
+          </ion-select>
+        </ion-item>
+
         <ion-text color="danger" *ngIf="errorMsg">
           <p class="ion-padding-top">{{ errorMsg }}</p>
         </ion-text>
 
         <div class="botones">
           <ion-button expand="block" fill="outline" (click)="modoNuevo = false">Volver a buscar</ion-button>
-          <ion-button expand="block" (click)="confirmarNuevo()">Usar este cliente</ion-button>
+          <ion-button expand="block" [disabled]="guardando" (click)="confirmarNuevo()">
+            {{ guardando ? 'Creando…' : 'Usar este cliente' }}
+          </ion-button>
         </div>
       </ng-container>
     </ion-content>
@@ -145,6 +153,7 @@ export type SeleccionCliente = { cliente: ClienteMock; esNuevo: boolean };
 })
 export class ClienteSelectorComponent implements OnDestroy {
   private customersRepo = inject(CustomersRepository);
+  private invoicesRepo = inject(IssuedInvoicesRepository);
   private modalCtrl = inject(ModalController);
 
   private querySubject = new Subject<string>();
@@ -155,13 +164,20 @@ export class ClienteSelectorComponent implements OnDestroy {
   estado: EstadoBusqueda = 'inicial';
   modoNuevo = false;
   errorMsg = '';
+  guardando = false;
 
   nuevo: Destinatario = {
     nombre: '', nif: '', esEmpresa: false, direccion: '', poblacion: '', cp: '', provincia: '',
   };
 
+  // Blindaje 2026-08-24: obligatorio para Clientes/Crear (única columna NOT NULL de `clientes`
+  // que decide algo real del negocio) — ver customers.repository.http.ts.
+  mediosPago: MedioPagoOpcion[] = [];
+  idMedioPago: number | null = null;
+
   constructor() {
     addIcons({ closeOutline, personAddOutline });
+    this.cargarMediosPago();
 
     // switchMap cancela la búsqueda anterior en cuanto llega una query nueva —
     // funciona igual con el mock (resuelve al instante) que con un futuro adapter
@@ -209,15 +225,36 @@ export class ClienteSelectorComponent implements OnDestroy {
     this.modalCtrl.dismiss(seleccion, 'confirm');
   }
 
-  confirmarNuevo() {
+  private async cargarMediosPago() {
+    try {
+      this.mediosPago = await this.invoicesRepo.obtenerMediosPago();
+      if (this.mediosPago.length > 0) this.idMedioPago = this.mediosPago[0].id;
+    } catch {
+      // Sin catálogo, el select queda vacío — confirmarNuevo() ya exige elegir uno.
+    }
+  }
+
+  async confirmarNuevo() {
     this.errorMsg = '';
     if (!this.nuevo.nombre.trim() || !this.nuevo.nif.trim()) {
       this.errorMsg = 'Nombre y NIF/CIF son obligatorios.';
       return;
     }
-    const creado = this.customersRepo.crearAdHoc({ ...this.nuevo });
-    const seleccion: SeleccionCliente = { cliente: creado, esNuevo: true };
-    this.modalCtrl.dismiss(seleccion, 'confirm');
+    if (!this.idMedioPago) {
+      this.errorMsg = 'Selecciona una forma de pago para el cliente.';
+      return;
+    }
+    if (this.guardando) return;
+    this.guardando = true;
+    try {
+      const creado = await this.customersRepo.crearAdHoc({ ...this.nuevo }, this.idMedioPago);
+      const seleccion: SeleccionCliente = { cliente: creado, esNuevo: true };
+      this.modalCtrl.dismiss(seleccion, 'confirm');
+    } catch (e: any) {
+      this.errorMsg = e?.message ?? 'No se pudo crear el cliente. Inténtalo de nuevo.';
+    } finally {
+      this.guardando = false;
+    }
   }
 
   cancel() {

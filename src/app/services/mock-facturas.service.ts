@@ -611,7 +611,10 @@ export class MockFacturasService {
     return { items: todos.slice(inicio, inicio + pageSize), total: todos.length, page, pageSize };
   }
 
-  crearClienteAdHoc(data: Destinatario): ClienteMock {
+  // idMedioPago no se modela en ClienteMock (solo lo necesita el backend real, ver
+  // ClienteService.CrearAsync) — se acepta aquí solo para mantener la misma firma que el
+  // puerto/adaptador HTTP.
+  crearClienteAdHoc(data: Destinatario, _idMedioPago: number): ClienteMock {
     const nuevo: ClienteMock = { id: nextClienteId++, ...data };
     this.clientes.push(nuevo);
     return nuevo;

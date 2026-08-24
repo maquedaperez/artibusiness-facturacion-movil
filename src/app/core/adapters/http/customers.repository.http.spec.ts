@@ -76,14 +76,25 @@ describe('HttpCustomersRepository', () => {
     expect(resultado.items[0].esEmpresa).toBeFalse();
   });
 
-  it('crearAdHoc sigue delegando en el mock en memoria — no llama al backend', () => {
-    const mockAdapter = TestBed.inject(MockCustomersRepository);
-    spyOn(mockAdapter, 'crearAdHoc').and.callThrough();
+  it('crearAdHoc llama de verdad a POST /api/Clientes/Crear con idMedioPago', async () => {
+    apiSpy.post.and.resolveTo({
+      idCliente: 55, idEmpresa: 9, idSujeto: 200,
+      nombre: 'Cliente Nuevo', apellido1: null, apellido2: null,
+      nombreCompleto: 'Cliente Nuevo', dni: 'B00000000',
+      direccionFacturacion: null,
+    });
 
-    const creado = repo.crearAdHoc({ nombre: 'Cliente Nuevo', nif: 'B00000000', esEmpresa: true });
+    const creado = await repo.crearAdHoc(
+      { nombre: 'Cliente Nuevo', nif: 'B00000000', esEmpresa: true, direccion: 'Calle 1', poblacion: 'Madrid', cp: '28001', provincia: 'Madrid' },
+      3
+    );
 
-    expect(mockAdapter.crearAdHoc).toHaveBeenCalled();
+    expect(apiSpy.post).toHaveBeenCalledWith('/api/Clientes/Crear', {
+      nombre: 'Cliente Nuevo', nif: 'B00000000',
+      direccion: 'Calle 1', codigoPostal: '28001', poblacion: 'Madrid', provincia: 'Madrid',
+      idMedioPago: 3,
+    });
+    expect(creado.id).toBe(55);
     expect(creado.nombre).toBe('Cliente Nuevo');
-    expect(apiSpy.post).not.toHaveBeenCalled();
   });
 });

@@ -154,14 +154,14 @@ export class FacturaDetallePage implements OnInit {
     const { data, role } = await modal.onWillDismiss();
     if (role !== 'confirm' || !data) return;
 
-    // Fase 4 del plan de integración (2026-08-20): un cliente elegido de la búsqueda real
-    // trae un idCliente de verdad; uno recién creado con "Cliente nuevo" (crearAdHoc, todavía
-    // mock — ver customers.repository.http.ts) no lo trae, y guardar() lo exige. La factura
-    // se puede seguir viendo/editando en local sin problema, solo falla al intentar guardarla
-    // de verdad — el mensaje de error de guardar() ya lo explica.
-    const { cliente, esNuevo } = data as SeleccionCliente;
+    // Blindaje 2026-08-24: crearAdHoc ya crea el cliente de verdad contra el backend
+    // (POST /api/Clientes/Crear) — un cliente "nuevo" trae un idCliente REAL igual que uno
+    // elegido de la búsqueda, ya no hace falta distinguirlos aquí (antes 'esNuevo' dejaba
+    // idCliente en undefined y guardar() lo rechazaba con "no se puede guardar solo con el
+    // nombre en texto" — bug real reportado en producción).
+    const { cliente } = data as SeleccionCliente;
     const destinatario: Destinatario = cliente;
-    const idCliente = esNuevo ? undefined : cliente.id;
+    const idCliente = cliente.id;
 
     if (this.esNueva) {
       const numeradorId = this.numeradorSeleccionado ?? this.numeradores[0]?.id;

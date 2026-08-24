@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { provideIonicAngular } from '@ionic/angular/standalone';
+import { ModalController, provideIonicAngular } from '@ionic/angular/standalone';
 import { ClienteSelectorComponent } from './cliente-selector.component';
-import { CustomersRepository } from '../../core/ports';
+import { CustomersRepository, IssuedInvoicesRepository } from '../../core/ports';
 import { ClienteMock } from '../../services/mock-facturas.service';
 import { PaginaResultado } from '../../shared/types/pagination';
 
@@ -9,6 +9,7 @@ describe('ClienteSelectorComponent — búsqueda bajo demanda', () => {
   let component: ClienteSelectorComponent;
   let fixture: ComponentFixture<ClienteSelectorComponent>;
   let customersRepoSpy: jasmine.SpyObj<CustomersRepository>;
+  let issuedRepoSpy: jasmine.SpyObj<IssuedInvoicesRepository>;
 
   const paginaVacia: PaginaResultado<ClienteMock> = { items: [], total: 0, page: 1, pageSize: 20 };
   const cliente: ClienteMock = { id: 1, nif: 'B10000001', nombre: 'Cliente Uno', esEmpresa: true };
@@ -18,11 +19,17 @@ describe('ClienteSelectorComponent — búsqueda bajo demanda', () => {
     customersRepoSpy = jasmine.createSpyObj('CustomersRepository', ['buscar', 'crearAdHoc']);
     customersRepoSpy.buscar.and.returnValue(Promise.resolve(paginaVacia));
 
+    // Blindaje 2026-08-24: "Cliente nuevo" exige elegir una forma de pago — el selector carga
+    // el mismo catálogo que ya usa el detalle de la factura.
+    issuedRepoSpy = jasmine.createSpyObj('IssuedInvoicesRepository', ['obtenerMediosPago']);
+    issuedRepoSpy.obtenerMediosPago.and.resolveTo([{ id: 1, label: 'Transferencia' }]);
+
     TestBed.configureTestingModule({
       imports: [ClienteSelectorComponent],
       providers: [
         provideIonicAngular(),
         { provide: CustomersRepository, useValue: customersRepoSpy },
+        { provide: IssuedInvoicesRepository, useValue: issuedRepoSpy },
       ],
     });
     fixture = TestBed.createComponent(ClienteSelectorComponent);
@@ -120,5 +127,87 @@ describe('ClienteSelectorComponent — búsqueda bajo demanda', () => {
     expect(component.estado).toBe('error');
     component.modoNuevo = true;
     expect(component.modoNuevo).toBeTrue();
+  }));
+});
+
+describe('ClienteSelectorComponent — alta rápida ("Cliente nuevo")', () => {
+  let component: ClienteSelectorComponent;
+  let fixture: ComponentFixture<ClienteSelectorComponent>;
+  let customersRepoSpy: jasmine.SpyObj<CustomersRepository>;
+  let issuedRepoSpy: jasmine.SpyObj<IssuedInvoicesRepository>;
+  let modalCtrlSpy: jasmine.SpyObj<ModalController>;
+
+  const clienteCreado: ClienteMock = { id: 99, nif: 'B00000000', nombre: 'Cliente Nuevo', esEmpresa: true };
+
+  // fakeAsync también en el beforeEach: el catálogo de medios de pago se carga en el
+  // constructor (promesa real) — si se resuelve fuera de la zona fakeAsync del propio it(),
+  // tick() dentro del it() no la ve y los campos se quedan en sus valores iniciales ([]/null).
+  beforeEach(fakeAsync(() => {
+    customersRepoSpy = jasmine.createSpyObj('CustomersRepository', ['buscar', 'crearAdHoc']);
+    customersRepoSpy.buscar.and.resolveTo({ items: [], total: 0, page: 1, pageSize: 20 });
+    customersRepoSpy.crearAdHoc.and.resolveTo(clienteCreado);
+
+    issuedRepoSpy = jasmine.createSpyObj('IssuedInvoicesRepository', ['obtenerMediosPago']);
+    issuedRepoSpy.obtenerMediosPago.and.resolveTo([{ id: 3, label: 'Transferencia' }, { id: 4, label: 'Domiciliación' }]);
+
+    modalCtrlSpy = jasmine.createSpyObj('ModalController', ['dismiss']);
+
+    TestBed.configureTestingModule({
+      imports: [ClienteSelectorComponent],
+      providers: [
+        provideIonicAngular(),
+        { provide: CustomersRepository, useValue: customersRepoSpy },
+        { provide: IssuedInvoicesRepository, useValue: issuedRepoSpy },
+        { provide: ModalController, useValue: modalCtrlSpy },
+      ],
+    });
+    fixture = TestBed.createComponent(ClienteSelectorComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    tick();
+  }));
+
+  it('precarga el catálogo de medios de pago y preselecciona el primero', fakeAsync(() => {
+    tick();
+    expect(component.mediosPago.length).toBe(2);
+    expect(component.idMedioPago).toBe(3);
+  }));
+
+  it('exige elegir forma de pago antes de crear el cliente', fakeAsync(() => {
+    tick();
+    component.modoNuevo = true;
+    component.nuevo = { nombre: 'Cliente Nuevo', nif: 'B00000000', esEmpresa: true, direccion: '', poblacion: '', cp: '', provincia: '' };
+    component.idMedioPago = null;
+
+    component.confirmarNuevo();
+    tick();
+
+    expect(component.errorMsg).toContain('forma de pago');
+    expect(customersRepoSpy.crearAdHoc).not.toHaveBeenCalled();
+  }));
+
+  it('crea el cliente real (con idMedioPago) y cierra el modal devolviéndolo', fakeAsync(() => {
+    tick();
+    component.modoNuevo = true;
+    component.nuevo = { nombre: 'Cliente Nuevo', nif: 'B00000000', esEmpresa: true, direccion: '', poblacion: '', cp: '', provincia: '' };
+
+    component.confirmarNuevo();
+    tick();
+
+    expect(customersRepoSpy.crearAdHoc).toHaveBeenCalledWith(jasmine.objectContaining({ nombre: 'Cliente Nuevo' }), 3);
+    expect(modalCtrlSpy.dismiss).toHaveBeenCalledWith({ cliente: clienteCreado, esNuevo: true }, 'confirm');
+  }));
+
+  it('si crearAdHoc falla (p. ej. NIF duplicado), muestra el error y no cierra el modal', fakeAsync(() => {
+    tick();
+    customersRepoSpy.crearAdHoc.and.rejectWith(new Error('Ya existe un cliente con NIF B00000000.'));
+    component.modoNuevo = true;
+    component.nuevo = { nombre: 'Cliente Nuevo', nif: 'B00000000', esEmpresa: true, direccion: '', poblacion: '', cp: '', provincia: '' };
+
+    component.confirmarNuevo();
+    tick();
+
+    expect(component.errorMsg).toBe('Ya existe un cliente con NIF B00000000.');
+    expect(modalCtrlSpy.dismiss).not.toHaveBeenCalled();
   }));
 });

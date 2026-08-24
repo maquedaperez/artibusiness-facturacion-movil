@@ -14,5 +14,10 @@ import { PaginaResultado } from '../../shared/types/pagination';
  */
 export abstract class CustomersRepository {
   abstract buscar(query: string, page?: number, pageSize?: number): Promise<PaginaResultado<ClienteMock>>;
-  abstract crearAdHoc(data: Destinatario): ClienteMock;
+  // Blindaje 2026-08-24: pasa a ser async y exige idMedioPago — WebAPIARTIBusiness/Clientes/Crear
+  // ya existe de verdad (POST /api/Clientes/Crear), así que un cliente "nuevo" desde el
+  // selector ya obtiene un idCliente REAL, no uno de mock. idMedioPago es obligatorio porque es
+  // la única columna NOT NULL de la tabla `clientes` que decide algo real del negocio (con qué
+  // se le cobra) — nunca se asume un valor por defecto, lo elige el usuario en el formulario.
+  abstract crearAdHoc(data: Destinatario, idMedioPago: number): Promise<ClienteMock>;
 }

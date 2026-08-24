@@ -1,6 +1,5 @@
 import { Injectable, inject } from '@angular/core';
 import { CustomersRepository } from '../../ports/customers.repository';
-import { MockCustomersRepository } from '../mock/customers.repository.mock';
 import { ApiService } from '../../../services/api.service';
 import { ClienteMock, Destinatario } from '../../../services/mock-facturas.service';
 import { PaginaResultado } from '../../../shared/types/pagination';
@@ -55,17 +54,33 @@ function mapearCliente(dto: ClienteApi): ClienteMock {
   };
 }
 
+// Blindaje 2026-08-24: body de POST /api/Clientes/Crear — ver CrearClienteRequest.cs.
+type CrearClienteApi = {
+  idEmpresa?: number;
+  nombre: string;
+  apellido1?: string;
+  apellido2?: string;
+  nif: string;
+  direccion: string;
+  codigoPostal: string;
+  poblacion: string;
+  provincia: string;
+  idMedioPago: number;
+};
+
 /**
- * Fase 3 del plan de integración de Emitidas (2026-08-20): solo `buscar()` habla con el
- * backend real (POST /api/Clientes/Enumerar) — `crearAdHoc()` sigue delegado al mismo mock en
- * memoria que usa MockCustomersRepository, porque la tabla `clientes` real tiene columnas
- * obligatorias de cuenta bancaria/SEPA y sincronización Dynamics 365 (ver ClienteService.cs)
- * que no hace sentido rellenar a ciegas desde un alta rápida en el selector — pendiente de
- * decisión del jefe sobre qué valores por defecto son seguros.
+ * Fase 3 del plan de integración de Emitidas (2026-08-20): `buscar()` habla con el backend real
+ * (POST /api/Clientes/Enumerar).
+ *
+ * Blindaje 2026-08-24: `crearAdHoc()` deja de estar delegado al mock — POST /api/Clientes/Crear
+ * ya existe de verdad (bug real reportado en producción: un cliente "nuevo" se quedaba con un
+ * id de mock, y Guardar rechazaba la factura con "no se puede guardar solo con el nombre en
+ * texto"). idMedioPago es obligatorio porque es la única columna NOT NULL de `clientes` que
+ * decide algo real del negocio — lo elige el usuario en el propio selector, ver
+ * cliente-selector.component.ts.
  */
 @Injectable()
 export class HttpCustomersRepository extends CustomersRepository {
-  private mockAdapter = inject(MockCustomersRepository);
   private api = inject(ApiService);
 
   async buscar(query: string, page = 1, pageSize = 20): Promise<PaginaResultado<ClienteMock>> {
@@ -87,7 +102,17 @@ export class HttpCustomersRepository extends CustomersRepository {
     return { items, total: items.length, page, pageSize };
   }
 
-  crearAdHoc(data: Destinatario): ClienteMock {
-    return this.mockAdapter.crearAdHoc(data);
+  async crearAdHoc(data: Destinatario, idMedioPago: number): Promise<ClienteMock> {
+    const body: CrearClienteApi = {
+      nombre: data.nombre,
+      nif: data.nif,
+      direccion: data.direccion ?? '',
+      codigoPostal: data.cp ?? '',
+      poblacion: data.poblacion ?? '',
+      provincia: data.provincia ?? '',
+      idMedioPago,
+    };
+    const dto = await this.api.post<ClienteApi>(`${CLIENTES_BASE_PATH}/Crear`, body);
+    return mapearCliente(dto);
   }
 }

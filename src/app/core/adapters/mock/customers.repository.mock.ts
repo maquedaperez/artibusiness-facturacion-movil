@@ -11,7 +11,7 @@ export class MockCustomersRepository extends CustomersRepository {
     return this.mock.buscarClientesPaginado(query, page, pageSize);
   }
 
-  crearAdHoc(data: Destinatario): ClienteMock {
-    return this.mock.crearClienteAdHoc(data);
+  async crearAdHoc(data: Destinatario, idMedioPago: number): Promise<ClienteMock> {
+    return this.mock.crearClienteAdHoc(data, idMedioPago);
   }
 }
