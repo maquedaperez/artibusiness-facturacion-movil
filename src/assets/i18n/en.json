@@ -16,8 +16,8 @@
     },
     "demoBanner": {
       "default": "Demo mode — simulated data",
-      "aeatRealSend": "post/sign send the invoice to the AEAT for real",
-      "recibidasTitulo": "Demo environment connected to the Development backend",
+      "aeatRealSend": "posting sends the invoice record to the AEAT; signing generates the XAdES electronic signature",
+      "recibidasTitulo": "Demo environment connected to the test environment",
       "recibidasDetalle": "the rest of the app's modules may use simulated data"
     },
     "yes": "Yes",
@@ -109,7 +109,7 @@
     "userId": "User ID:",
     "company": "Company:",
     "noSession": "There is no active session.",
-    "fiscalData": "Fiscal data",
+    "fiscalData": "Tax details",
     "noName": "No name yet",
     "noNif": "No tax ID",
     "typeCompany": "Company",
@@ -120,9 +120,9 @@
     "changeCompanyConfirm": "You will be logged out and will need to enter the company key again. Do you want to continue?",
     "language": "Language",
     "emisor": {
-      "title": "Company fiscal data",
-      "description": "This is the data that appears as the issuer on your invoices. None of it can be edited from the app — it comes from your company's registration.",
-      "fiscalIdentity": "Fiscal identity",
+      "title": "Issuer tax details",
+      "description": "These are the issuer details shown on your invoices. They cannot be edited in the app; they come from the account's tax settings.",
+      "fiscalIdentity": "Tax identification",
       "type": "Type:",
       "companyName": "Legal name:",
       "fullName": "Full name:",
@@ -134,7 +134,7 @@
       "postalCode": "Postal code:",
       "province": "Province:",
       "additionalData": "Additional data",
-      "commercialRegistry": "Companies registry:",
+      "commercialRegistry": "Commercial Register:",
       "cnae": "Activity code (CNAE):",
       "iban": "IBAN:",
       "swift": "SWIFT:"
@@ -143,7 +143,7 @@
   "invoices": {
     "issued": {
       "title": "Issued invoices",
-      "searchPlaceholder": "Search by client or concept",
+      "searchPlaceholder": "Search by customer or description",
       "tabs": {
         "draft": "Drafts",
         "draftSingular": "Draft",
@@ -161,7 +161,7 @@
       },
       "card": {
         "noNameFallback": "Client not available",
-        "noConceptFallback": "No concept"
+        "noConceptFallback": "No description"
       },
       "badges": {
         "cancelled": "Cancelled",
@@ -178,7 +178,7 @@
         "deleteAria": "Delete draft"
       },
       "empty": {
-        "noneInState": "There are no invoices in state",
+        "noneInState": "There are no invoices with status",
         "noResultsFor": "No results for \"{{query}}\".",
         "noResultsFiltered": "No results with the applied filters."
       },
@@ -193,13 +193,13 @@
       },
       "post": {
         "header": "Post invoice",
-        "message": "Post the invoice for {{cliente}} for {{importe}}? This sends the invoice to Verifactu/AEAT and it will no longer be editable.",
+        "message": "Post the invoice for {{cliente}} for {{importe}}? This will send its invoice record to VERI*FACTU/AEAT, and the invoice will no longer be editable.",
         "success": "Invoice for {{cliente}} posted.",
         "error": "Could not post the invoice."
       },
       "sign": {
         "header": "Sign invoice",
-        "message": "Sign the invoice for {{cliente}}? This generates the real electronic signature (XAdES) of the document already registered with VERI*FACTU.",
+        "message": "Sign the invoice for {{cliente}}? This generates the XAdES electronic signature for the document already registered in VERI*FACTU.",
         "success": "Invoice for {{cliente}} signed.",
         "error": "Could not sign the invoice."
       },
@@ -208,7 +208,7 @@
         "error": "Could not duplicate the invoice."
       },
       "download": {
-        "success": "Document downloaded (simulated, not fiscally valid).",
+        "success": "Document downloaded (simulated; not valid for tax purposes).",
         "error": "Could not generate the document. Try again."
       },
       "share": {
@@ -226,7 +226,7 @@
         "changeClient": "Change client",
         "dateLabel": "Date",
         "dueDateLabel": "Due date",
-        "conceptLabel": "Concept / description of the operation",
+        "conceptLabel": "Description of the transaction",
         "paymentMethodLabel": "Payment method",
         "totals": "Totals",
         "taxableBase": "Taxable base",
@@ -244,13 +244,13 @@
         "loadError": "Could not load the invoice.",
         "saveSuccess": "Invoice saved.",
         "saveError": "Could not save the invoice.",
-        "postValidationError": "Concept and payment method are required to post the invoice.",
-        "postConfirmMessage": "Post the invoice for {{cliente}} for {{importe}}? This sends the invoice to Verifactu/AEAT and it will no longer be editable. Pending changes will be saved first.",
+        "postValidationError": "Description and payment method are required to post the invoice.",
+        "postConfirmMessage": "Post the invoice for {{cliente}} for {{importe}}? This will send its invoice record to VERI*FACTU/AEAT, and the invoice will no longer be editable. Pending changes will be saved first.",
         "postedSuccess": "Invoice posted.",
-        "signConfirmMessage": "Sign this invoice? This generates the real electronic signature (XAdES) of the document already registered with VERI*FACTU.",
+        "signConfirmMessage": "Sign this invoice? This generates the XAdES electronic signature for the document already registered in VERI*FACTU.",
         "signedSuccess": "Invoice signed.",
         "cancelHeader": "Cancel invoice",
-        "cancelConfirmMessage": "Cancel invoice {{num}}? This creates a real cancellation record in VERI*FACTU/AEAT. The original invoice is not deleted or modified, but it is marked as cancelled.",
+        "cancelConfirmMessage": "Cancel invoice {{num}}? This creates a cancellation record in VERI*FACTU/AEAT. The original invoice is not deleted or modified, but it is marked as cancelled.",
         "cancelledSuccess": "Invoice cancelled.",
         "cancelError": "Could not cancel the invoice."
       },
@@ -337,7 +337,7 @@
       "limitNotice": "Last 50 invoices. Use the search box to find an older one.",
       "card": {
         "noSupplierFallback": "Supplier not available",
-        "noConceptFallback": "No concept",
+        "noConceptFallback": "No description",
         "paidSuffix": "Paid",
         "unsaved": "Unsaved",
         "posted": "Posted",
@@ -360,7 +360,7 @@
       },
       "post": {
         "header": "Post invoice",
-        "message": "Post invoice {{num}} from {{proveedor}} for {{importe}}? It will be locked for editing — it can only be deleted (if applicable) or managed from analytics/payments.",
+        "message": "Post invoice {{num}} from {{proveedor}} for {{importe}}? It will be locked against editing and deletion; afterwards, it can only be managed through analytics/payments.",
         "success": "Invoice posted.",
         "error": "Could not post the invoice."
       },
@@ -398,7 +398,7 @@
         "numberLabel": "Number",
         "dateLabel": "Date",
         "dueDateLabel": "Due date",
-        "conceptLabel": "Concept",
+        "conceptLabel": "Description",
         "paymentMethodLabel": "Payment method",
         "paymentMethodPlaceholder": "Select payment method",
         "statusLabel": "Status",
@@ -461,7 +461,7 @@
   "verifactu": {
     "estados": {
       "pendienteEnvio": "Pending submission",
-      "correcto": "Correct",
+      "correcto": "Accepted",
       "aceptadoConErrores": "Accepted with errors",
       "rechazadoAeat": "Rejected by the AEAT",
       "requiereRevisionManual": "Requires manual review",

@@ -16,8 +16,8 @@
     },
     "demoBanner": {
       "default": "Modo demo — datos simulados",
-      "aeatRealSend": "contabilizar/firmar envían la factura a la AEAT de verdad",
-      "recibidasTitulo": "Entorno de demostración conectado al backend de Development",
+      "aeatRealSend": "contabilizar envía el registro de facturación a la AEAT; firmar genera la firma electrónica XAdES",
+      "recibidasTitulo": "Entorno de demostración conectado al entorno de pruebas",
       "recibidasDetalle": "el resto de módulos de la app puede usar datos simulados"
     },
     "yes": "Sí",
@@ -106,7 +106,7 @@
     "title": "Perfil",
     "email": "Email:",
     "phone": "Teléfono:",
-    "userId": "ID usuario:",
+    "userId": "ID de usuario:",
     "company": "Empresa:",
     "noSession": "No hay sesión activa.",
     "fiscalData": "Datos fiscales",
@@ -120,8 +120,8 @@
     "changeCompanyConfirm": "Se cerrará la sesión y tendrás que volver a introducir la clave de empresa. ¿Deseas continuar?",
     "language": "Idioma",
     "emisor": {
-      "title": "Datos fiscales de la empresa",
-      "description": "Estos son los datos que aparecen como emisor en tus facturas. Ninguno se puede editar desde la app — proceden del alta de tu empresa.",
+      "title": "Datos fiscales del emisor",
+      "description": "Estos son los datos del emisor que aparecen en tus facturas. No se pueden editar desde la app: proceden de la configuración fiscal de la cuenta.",
       "fiscalIdentity": "Identidad fiscal",
       "type": "Tipo:",
       "companyName": "Razón social:",
@@ -178,7 +178,7 @@
         "deleteAria": "Eliminar borrador"
       },
       "empty": {
-        "noneInState": "No hay facturas en estado",
+        "noneInState": "No hay facturas con el estado",
         "noResultsFor": "Sin resultados para \"{{query}}\".",
         "noResultsFiltered": "Sin resultados con los filtros aplicados."
       },
@@ -193,13 +193,13 @@
       },
       "post": {
         "header": "Contabilizar factura",
-        "message": "¿Contabilizar la factura de {{cliente}} por {{importe}}? Esto envía la factura a Verifactu/AEAT y ya no se podrá editar.",
+        "message": "¿Contabilizar la factura de {{cliente}} por {{importe}}? Esto enviará su registro de facturación a VERI*FACTU/AEAT y la factura ya no se podrá editar.",
         "success": "Factura de {{cliente}} contabilizada.",
         "error": "No se pudo contabilizar la factura."
       },
       "sign": {
         "header": "Firmar factura",
-        "message": "¿Firmar la factura de {{cliente}}? Esto genera la firma electrónica (XAdES) real del documento ya registrado en VERI*FACTU.",
+        "message": "¿Firmar la factura de {{cliente}}? Esto genera la firma electrónica XAdES del documento ya registrado en VERI*FACTU.",
         "success": "Factura de {{cliente}} firmada.",
         "error": "No se pudo firmar la factura."
       },
@@ -245,12 +245,12 @@
         "saveSuccess": "Factura guardada.",
         "saveError": "No se pudo guardar la factura.",
         "postValidationError": "Concepto y forma de pago son obligatorios para contabilizar.",
-        "postConfirmMessage": "¿Contabilizar la factura de {{cliente}} por {{importe}}? Esto envía la factura a Verifactu/AEAT y ya no se podrá editar. Se guardarán antes los cambios pendientes.",
+        "postConfirmMessage": "¿Contabilizar la factura de {{cliente}} por {{importe}}? Esto enviará su registro de facturación a VERI*FACTU/AEAT y la factura ya no se podrá editar. Se guardarán antes los cambios pendientes.",
         "postedSuccess": "Factura contabilizada.",
-        "signConfirmMessage": "¿Firmar esta factura? Esto genera la firma electrónica (XAdES) real del documento ya registrado en VERI*FACTU.",
+        "signConfirmMessage": "¿Firmar esta factura? Esto genera la firma electrónica XAdES del documento ya registrado en VERI*FACTU.",
         "signedSuccess": "Factura firmada.",
         "cancelHeader": "Anular factura",
-        "cancelConfirmMessage": "¿Anular la factura {{num}}? Esto crea un registro de anulación real en VERI*FACTU/AEAT. La factura original no se borra ni se modifica, pero queda marcada como anulada.",
+        "cancelConfirmMessage": "¿Anular la factura {{num}}? Esto crea un registro de anulación en VERI*FACTU/AEAT. La factura original no se borra ni se modifica, pero queda marcada como anulada.",
         "cancelledSuccess": "Factura anulada.",
         "cancelError": "No se pudo anular la factura."
       },
@@ -360,7 +360,7 @@
       },
       "post": {
         "header": "Contabilizar factura",
-        "message": "¿Contabilizar la factura {{num}} de {{proveedor}} por {{importe}}? Quedará bloqueada para editar — solo podrá eliminarse (si corresponde) o gestionarse desde analítica/pagos.",
+        "message": "¿Contabilizar la factura {{num}} de {{proveedor}} por {{importe}}? Quedará bloqueada para editar y eliminar; después solo podrá gestionarse desde analítica/pagos.",
         "success": "Factura contabilizada.",
         "error": "No se pudo contabilizar la factura."
       },
@@ -533,7 +533,7 @@
       "amount": "Importe",
       "nominalAmount": "Nominal",
       "commission": "Comisión",
-      "mailFee": "Correo",
+      "mailFee": "Gastos de correo",
       "taxes": "Impuestos",
       "netAmount": "Líquido",
       "dueDate": "Vencimiento",
