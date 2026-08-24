@@ -142,6 +142,10 @@ type FacturaEmitidaDetalleApi = {
   totalFactura: number;
   esEmpresa: boolean;
   lineas: FacturaEmitidaLineaApi[];
+  // Fase 7 (Anular, 2026-08-22): presentes solo si la factura tiene un registro de anulación
+  // real en FacturaE/VERI*FACTU — ver FacturaEmitidaDetalleModel.cs.
+  idAnulacionVerifactu: number | null;
+  fechaAnulacion: string | null;
 };
 
 // Combina código + descripción del error/aviso de la AEAT en un único texto listo para
@@ -356,6 +360,8 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       operacionId: '',
       idCliente: dto.idCliente,
       totalesReales: this.totalesDesdeApi(dto.total, dto.iva, dto.irpf, dto.totalFactura),
+      anulada: dto.idAnulacionVerifactu != null,
+      fechaAnulacion: dto.fechaAnulacion ? dto.fechaAnulacion.slice(0, 10) : undefined,
     };
   }
 
@@ -599,6 +605,25 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
     const [dto, mediosPago] = await Promise.all([
       this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Firmar`, {}),
+      this.obtenerMediosPagoApi(),
+    ]);
+    return this.mapearDetalle(dto, mediosPago ?? []);
+  }
+
+  // Fase 7 (Anular, 2026-08-22): llama de verdad a FacturaEmitidaController.Anular
+  // (FacturaEmitidaAeatService.AnularAsync), que crea un RegistroAnulacion nuevo en
+  // FacturaE/VERI*FACTU — el Alta original (IdFacturaVerifactu) no se toca. Mismas guardas de
+  // borrador local que contabilizar/firmar; las guardas de negocio (factura nunca contabilizada,
+  // ya anulada) las hace el backend y llegan aquí como HTTP 400 (ver BadRequest en el
+  // controller), que ApiService ya convierte en Error con el mensaje real.
+  async anular(id: number): Promise<FacturaEmitida> {
+    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
+    if (borradorLocal) {
+      throw new Error('Esta factura todavía no se ha contabilizado — no se puede anular.');
+    }
+
+    const [dto, mediosPago] = await Promise.all([
+      this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Anular`, {}),
       this.obtenerMediosPagoApi(),
     ]);
     return this.mapearDetalle(dto, mediosPago ?? []);

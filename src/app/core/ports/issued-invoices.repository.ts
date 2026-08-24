@@ -63,6 +63,10 @@ export abstract class IssuedInvoicesRepository {
   // que haya contestado FacturaE, no uno inventado en el cliente.
   abstract contabilizar(id: number): Promise<FacturaEmitida>;
   abstract firmar(id: number): Promise<FacturaEmitida>;
+  // Fase 7 (Anular, 2026-08-22): crea un registro de anulación real en FacturaE/VERI*FACTU —
+  // el Alta original nunca se modifica ni se borra. Solo tiene sentido sobre una factura ya
+  // contabilizada (con registro VERI*FACTU); el backend rechaza cualquier otro caso.
+  abstract anular(id: number): Promise<FacturaEmitida>;
   abstract estadoAeatLabel(estado?: EstadoAeat): string;
 
   // Política centralizada — la pantalla nunca decide por su cuenta si puede

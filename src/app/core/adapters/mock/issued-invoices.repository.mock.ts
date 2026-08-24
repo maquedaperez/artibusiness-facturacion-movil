@@ -81,6 +81,13 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return factura;
   }
 
+  async anular(id: number): Promise<FacturaEmitida> {
+    this.mock.anular(id);
+    const factura = this.mock.getFacturaById(id);
+    if (!factura) throw new Error(`Factura ${id} no encontrada.`);
+    return factura;
+  }
+
   estadoAeatLabel(estado?: EstadoAeat): string {
     return this.mock.estadoAeatLabel(estado);
   }

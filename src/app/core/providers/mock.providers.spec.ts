@@ -187,6 +187,32 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     await expectAsync(issuedRepo.firmar(borrador.id)).toBeRejectedWithError(/todavía no se ha guardado/);
   });
 
+  it('anular marca la factura simulada como anulada sin tocar su estado ni estadoAeat', async () => {
+    const numerador = issuedRepo.getNumeradores()[0];
+    const cliente = (await customersRepo.buscar('Sonrisas')).items[0];
+    const borrador = issuedRepo.crearBorrador(numerador.id, cliente);
+
+    await mockIssuedRepo.contabilizar(borrador.id);
+    await mockIssuedRepo.anular(borrador.id);
+
+    const actualizada = await issuedRepo.obtenerPorId(borrador.id);
+    expect(actualizada?.estado).toBe('contabilizada');
+    expect(actualizada?.anulada).toBeTrue();
+    expect(actualizada?.fechaAnulacion).toBeTruthy();
+  });
+
+  it('anular rechaza un borrador todavía no contabilizado y una factura ya anulada', async () => {
+    const numerador = issuedRepo.getNumeradores()[0];
+    const cliente = (await customersRepo.buscar('Sonrisas')).items[0];
+    const borrador = issuedRepo.crearBorrador(numerador.id, cliente);
+
+    await expectAsync(mockIssuedRepo.anular(borrador.id)).toBeRejectedWithError(/no se ha contabilizado/);
+
+    await mockIssuedRepo.contabilizar(borrador.id);
+    await mockIssuedRepo.anular(borrador.id);
+    await expectAsync(mockIssuedRepo.anular(borrador.id)).toBeRejectedWithError(/ya está anulada/);
+  });
+
   it('lista, crea y elimina facturas recibidas manuales (a través del adaptador mock puro)', async () => {
     // crearManual/eliminar de ReceivedInvoicesRepository ya son reales (hablan con el
     // backend) — el round-trip de persistencia local se prueba aquí directamente contra

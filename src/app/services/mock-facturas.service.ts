@@ -147,6 +147,10 @@ export type FacturaEmitida = {
   // rellena HttpIssuedInvoicesRepository; sin esto, un rechazo real no daba ninguna pista de
   // qué corregir.
   avisoAeat?: string;
+  // Fase 7 (Anular, 2026-08-22): presente solo si la factura se ha anulado de verdad contra
+  // FacturaE/VERI*FACTU — el Alta original sigue intacta, esto es un registro nuevo aparte.
+  anulada?: boolean;
+  fechaAnulacion?: string;
 };
 
 export type DesgloseIva = { pct: number; baseGravada: number; cuota: number };
@@ -695,6 +699,17 @@ export class MockFacturasService {
     if (!f) return;
     f.estado = 'firmada';
     f.estadoAeat = 'Correcto';
+  }
+
+  // Fase 7 (Anular, 2026-08-22): simulación equivalente a contabilizar/firmar — el estado
+  // fiscal (estado/estadoAeat) no cambia, igual que en el backend real, solo se marca 'anulada'.
+  anular(id: number): void {
+    const f = this.emitidas.find(e => e.id === id);
+    if (!f) return;
+    if (f.estado === 'borrador') throw new Error('Esta factura todavía no se ha contabilizado — no se puede anular.');
+    if (f.anulada) throw new Error('Esta factura ya está anulada.');
+    f.anulada = true;
+    f.fechaAnulacion = new Date().toISOString().slice(0, 10);
   }
 
   // Solo borra borradores — coherente con AccionesPermitidas.eliminar, que nunca es

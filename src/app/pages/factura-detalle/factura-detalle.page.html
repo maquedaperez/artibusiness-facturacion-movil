@@ -43,6 +43,7 @@
       {{ f.estado === 'borrador' ? 'Borrador' : (f.estado === 'contabilizada' ? 'Contabilizada' : 'Firmada') }}
       <span *ngIf="f.estadoAeat"> · Estado AEAT: {{ estadoAeatLabel() }}</span>
     </ion-badge>
+    <ion-badge color="danger" class="estado-badge" *ngIf="f.anulada">Anulada{{ f.fechaAnulacion ? (' · ' + f.fechaAnulacion) : '' }}</ion-badge>
 
     <!-- Blindaje Fase 7 (2026-08-21): motivo real que da la AEAT cuando el estado no es
          "Correcto" — antes no había ninguna pista de qué había fallado. -->
@@ -170,6 +171,10 @@
 
     <ion-button *ngIf="f.estado === 'contabilizada'" expand="block" [disabled]="procesandoAeat" (click)="confirmarFirmar()">
       {{ procesandoAeat ? 'Firmando…' : 'Firmar' }}
+    </ion-button>
+
+    <ion-button *ngIf="puedeAnular" expand="block" fill="outline" color="danger" [disabled]="procesandoAeat" (click)="confirmarAnular()">
+      {{ procesandoAeat ? 'Anulando…' : 'Anular factura' }}
     </ion-button>
   </div>
 </ion-footer>

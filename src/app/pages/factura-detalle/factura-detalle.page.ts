@@ -308,6 +308,42 @@ export class FacturaDetallePage implements OnInit {
     await alert.present();
   }
 
+  // Fase 7 (Anular, 2026-08-22): solo tiene sentido sobre una factura ya contabilizada/firmada
+  // (con registro real en VERI*FACTU) y que no esté ya anulada — el backend es quien de verdad
+  // decide (ver AnularAsync), esto es solo para no mostrar el botón en casos obviamente inválidos.
+  get puedeAnular(): boolean {
+    return !!this.working && this.working.estado !== 'borrador' && !this.working.anulada;
+  }
+
+  async confirmarAnular() {
+    if (!this.working || this.facturaId == null || this.procesandoAeat) return;
+
+    const alert = await this.alertCtrl.create({
+      header: 'Anular factura',
+      message: `¿Anular la factura ${this.working.numFactura}? Esto crea un registro de anulación real en VERI*FACTU/AEAT. La factura original no se borra ni se modifica, pero queda marcada como anulada.`,
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        {
+          text: 'Anular',
+          role: 'destructive',
+          handler: async () => {
+            if (this.procesandoAeat) return;
+            this.procesandoAeat = true;
+            try {
+              this.working = await this.invoicesRepo.anular(this.facturaId!);
+              await this.showToast('Factura anulada.');
+            } catch (e: any) {
+              await this.showToast(e?.message ?? 'No se pudo anular la factura.', 'danger');
+            } finally {
+              this.procesandoAeat = false;
+            }
+          },
+        },
+      ],
+    });
+    await alert.present();
+  }
+
   accionesPermitidas(): AccionesPermitidas {
     if (!this.working) return { editar: false, eliminar: false, copiar: false, descargar: false, compartir: false };
     return this.invoicesRepo.accionesPermitidas(this.working);
