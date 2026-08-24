@@ -742,6 +742,9 @@ export class MockFacturasService {
     if (f.estado === 'borrador') throw new Error('Solo se puede subsanar una factura ya contabilizada.');
     if (f.anulada) throw new Error('Esta factura está anulada; no se puede subsanar.');
     if (!motivo?.trim()) throw new Error('El motivo de la subsanación es obligatorio.');
+    // Blindaje 2026-08-24 (simulación): mismo criterio que el backend real — sin ningún cambio
+    // fiscal real desde la última corrección, no hay nada que subsanar.
+    if (f.subsanada) throw new Error('El contenido fiscal no ha cambiado desde la última subsanación — no hay nada que corregir.');
     f.subsanada = true;
     f.fechaSubsanacion = new Date().toISOString().slice(0, 10);
     f.estadoSubsanacion = 'Correcto';

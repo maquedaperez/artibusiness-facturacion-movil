@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { DatosGuardarFacturaEmitida, IssuedInvoicesRepository } from '../../ports/issued-invoices.repository';
+import { DatosGuardarFacturaEmitida, IssuedInvoicesRepository, PrevisualizacionSubsanacion } from '../../ports/issued-invoices.repository';
 import { MedioPagoOpcion } from '../../ports/received-invoices.repository';
 import { MockIssuedInvoicesRepository } from '../mock/issued-invoices.repository.mock';
 import { ApiService } from '../../../services/api.service';
@@ -169,6 +169,11 @@ function avisoAeatDesdeApi(codigo: string | null, descripcion: string | null): s
   if (!desc && !cod) return undefined;
   return cod ? `[${cod}] ${desc ?? ''}`.trim() : desc;
 }
+
+// Fase 7 (Subsanar, blindaje 2026-08-24): GET /api/FacturaEmitida/{id}/Subsanar/Previsualizar —
+// ver PrevisualizarSubsanacionResultadoDto.cs. ASP.NET serializa en camelCase por defecto, así
+// que coincide campo a campo con PrevisualizacionSubsanacion del puerto sin necesidad de mapeo.
+type PrevisualizarSubsanacionApi = PrevisualizacionSubsanacion;
 
 // Fase 4 del plan de integración (2026-08-20): GET /api/FacturaEmitida/Numeradores —
 // catálogo de solo lectura, ver NumeradorDto.cs.
@@ -674,6 +679,14 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
   estadoSubsanacionLabel(estado?: string): string {
     return this.mockAdapter.estadoSubsanacionLabel(estado);
+  }
+
+  async previsualizarSubsanacion(id: number): Promise<PrevisualizacionSubsanacion> {
+    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
+    if (borradorLocal) {
+      throw new Error('Esta factura todavía no se ha contabilizado — no se puede subsanar.');
+    }
+    return this.api.get<PrevisualizarSubsanacionApi>(`${EMITIDAS_BASE_PATH}/${id}/Subsanar/Previsualizar`);
   }
 
   accionesPermitidas(factura: FacturaEmitida): AccionesPermitidas {

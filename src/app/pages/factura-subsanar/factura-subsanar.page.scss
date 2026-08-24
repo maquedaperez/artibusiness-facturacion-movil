@@ -23,6 +23,40 @@
   color: var(--texto-secundario);
 }
 
+.tabla-diferencias-scroll {
+  overflow-x: auto;
+}
+
+.tabla-diferencias {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  td {
+    padding: 6px 4px;
+    vertical-align: top;
+  }
+
+  .campo {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .valor-anterior {
+    color: var(--ion-color-danger);
+    text-decoration: line-through;
+  }
+
+  .flecha {
+    color: var(--texto-secundario);
+  }
+
+  .valor-nuevo {
+    color: var(--ion-color-success);
+    font-weight: 500;
+  }
+}
+
 .footer-actions {
   display: flex;
   flex-direction: column;

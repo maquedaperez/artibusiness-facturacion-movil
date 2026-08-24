@@ -3,7 +3,7 @@ export { CustomersRepository } from './customers.repository';
 export { SuppliersRepository } from './suppliers.repository';
 export { CatalogRepository } from './catalog.repository';
 export { SubscriptionsRepository } from './subscriptions.repository';
-export { IssuedInvoicesRepository } from './issued-invoices.repository';
+export { IssuedInvoicesRepository, DatosGuardarFacturaEmitida, DiferenciaCampoFiscal, PrevisualizacionSubsanacion } from './issued-invoices.repository';
 export {
   ReceivedInvoicesRepository, FiltrosListarRecibidas, MedioPagoOpcion, ResultadoProcesamientoDocumento,
 } from './received-invoices.repository';

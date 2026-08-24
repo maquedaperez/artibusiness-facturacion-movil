@@ -11,6 +11,21 @@ export type DatosGuardarFacturaEmitida = Pick<
   'fecha' | 'vencimiento' | 'concepto' | 'medioPago' | 'idMedioPago' | 'destinatario' | 'lineas' | 'numeradorId' | 'idCliente'
 >;
 
+// Fase 7 (Subsanar, blindaje 2026-08-24): campo a campo del contenido fiscal (Desglose/Cuota/
+// Importe/Destinatario/Descripción) que cambiaría respecto al último registro confirmado —
+// ver FacturaEmitidaAeatService.ExtraerCamposFiscales en el backend. Sin diferencias, subsanar()
+// no tiene nada real que corregir y el backend lo rechaza.
+export type DiferenciaCampoFiscal = {
+  campo: string;
+  valorAnterior: string;
+  valorNuevo: string;
+};
+
+export type PrevisualizacionSubsanacion = {
+  hayDiferencias: boolean;
+  diferencias: DiferenciaCampoFiscal[];
+};
+
 /**
  * Puerto tipado para Facturas Emitidas. Incluye Numeradores porque hoy solo se consume
  * desde aquí (selector de serie) — si en el futuro se confirma un endpoint propio de
@@ -72,6 +87,10 @@ export abstract class IssuedInvoicesRepository {
   // registro fiscal a partir de los mismos datos ya guardados, con un motivo obligatorio, y
   // enlaza siempre con el Alta original — nunca con una subsanación anterior.
   abstract subsanar(id: number, motivo: string): Promise<FacturaEmitida>;
+  // Blindaje (2026-08-24): recalcula el contenido fiscal SIN llamar a FacturaE ni cambiar nada —
+  // deja ver qué campos van a cambiar antes de confirmar, y si no hay ninguno, subsanar() lo
+  // rechazará igualmente (esto es solo para no hacer descubrir el rechazo tras confirmar).
+  abstract previsualizarSubsanacion(id: number): Promise<PrevisualizacionSubsanacion>;
   abstract estadoAeatLabel(estado?: EstadoAeat): string;
   abstract estadoSubsanacionLabel(estado?: string): string;
 

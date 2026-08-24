@@ -52,10 +52,45 @@
       </ion-card-content>
     </ion-card>
 
-    <!-- Motivo de esta subsanación -->
+    <!-- Blindaje 2026-08-24: qué va a cambiar de verdad respecto al último registro confirmado
+         (Alta o subsanación anterior) — el backend hace la MISMA comprobación justo antes de
+         enviar y rechaza una subsanación sin ningún cambio real. -->
     <ion-card *ngIf="puedeSubsanar">
       <ion-card-content>
+        <div class="section-title">Qué cambiaría en el registro fiscal</div>
+
+        <p class="ion-no-margin campo-solo-lectura" *ngIf="cargandoPrevisualizacion">Calculando…</p>
+
+        <ion-text color="medium" *ngIf="!cargandoPrevisualizacion && !hayDiferencias">
+          <p class="ion-no-margin aviso-solo-lectura">
+            El contenido fiscal que se volvería a emitir es idéntico al del último registro — no
+            hay ningún dato que corregir. Si la factura necesita cambiar cliente, líneas, importes
+            o IVA, corresponde una factura rectificativa, no una subsanación.
+          </p>
+        </ion-text>
+
+        <div class="tabla-diferencias-scroll" *ngIf="!cargandoPrevisualizacion && hayDiferencias">
+          <table class="tabla-diferencias">
+            <tr *ngFor="let d of diferencias">
+              <td class="campo">{{ d.campo }}</td>
+              <td class="valor-anterior">{{ d.valorAnterior }}</td>
+              <td class="flecha">→</td>
+              <td class="valor-nuevo">{{ d.valorNuevo }}</td>
+            </tr>
+          </table>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Motivo de esta subsanación -->
+    <ion-card *ngIf="puedeSubsanar && hayDiferencias">
+      <ion-card-content>
         <div class="section-title">Motivo de la subsanación</div>
+        <ion-text color="medium">
+          <p class="ion-no-margin aviso-solo-lectura">
+            Es trazabilidad interna — no se envía a la AEAT ni forma parte del registro corregido.
+          </p>
+        </ion-text>
         <ion-item lines="none">
           <ion-textarea
             placeholder="Explica qué estaba mal en el registro remitido (no en la factura)"
@@ -72,7 +107,13 @@
 
 <ion-footer *ngIf="factura as f">
   <div class="footer-actions">
-    <ion-button *ngIf="puedeSubsanar" expand="block" color="warning" [disabled]="procesando" (click)="confirmar()">
+    <ion-button
+      *ngIf="puedeSubsanar"
+      expand="block"
+      color="warning"
+      [disabled]="procesando || cargandoPrevisualizacion || !hayDiferencias"
+      (click)="confirmar()"
+    >
       {{ procesando ? 'Subsanando…' : 'Confirmar subsanación' }}
     </ion-button>
   </div>

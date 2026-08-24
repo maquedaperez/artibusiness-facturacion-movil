@@ -13,7 +13,7 @@ import { arrowBackOutline } from 'ionicons/icons';
 
 import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
 import { FacturaEmitida } from '../../services/mock-facturas.service';
-import { IssuedInvoicesRepository } from '../../core/ports';
+import { DiferenciaCampoFiscal, IssuedInvoicesRepository } from '../../core/ports';
 
 // Fase 7 (Subsanar, 2026-08-24): pantalla DEDICADA y de solo lectura para la factura y el
 // registro original — Subsanar no es un editor (ver issued-invoices.repository.ts), así que a
@@ -44,6 +44,13 @@ export class FacturaSubsanarPage implements OnInit {
   errorMsg = '';
   motivo = '';
 
+  // Blindaje 2026-08-24: previsualización de las diferencias fiscales reales — el backend hace
+  // la MISMA comprobación justo antes de enviar, esto es solo para que el usuario la vea ANTES
+  // de confirmar y no descubra el rechazo después.
+  cargandoPrevisualizacion = true;
+  diferencias: DiferenciaCampoFiscal[] = [];
+  hayDiferencias = false;
+
   constructor() {
     addIcons({ arrowBackOutline });
   }
@@ -61,11 +68,26 @@ export class FacturaSubsanarPage implements OnInit {
         this.errorMsg = this.factura.anulada
           ? 'Esta factura está anulada; no se puede subsanar.'
           : 'Solo se puede subsanar una factura ya contabilizada.';
+        return;
       }
+      await this.cargarPrevisualizacion();
     } catch (e: any) {
       this.errorMsg = e?.message ?? 'No se pudo cargar la factura.';
     } finally {
       this.cargando = false;
+    }
+  }
+
+  private async cargarPrevisualizacion() {
+    this.cargandoPrevisualizacion = true;
+    try {
+      const previsualizacion = await this.invoicesRepo.previsualizarSubsanacion(this.facturaId);
+      this.hayDiferencias = previsualizacion.hayDiferencias;
+      this.diferencias = previsualizacion.diferencias;
+    } catch (e: any) {
+      this.errorMsg = e?.message ?? 'No se pudo calcular qué cambiaría al subsanar.';
+    } finally {
+      this.cargandoPrevisualizacion = false;
     }
   }
 
@@ -86,7 +108,7 @@ export class FacturaSubsanarPage implements OnInit {
   }
 
   async confirmar() {
-    if (!this.factura || this.procesando || !this.puedeSubsanar) return;
+    if (!this.factura || this.procesando || !this.puedeSubsanar || !this.hayDiferencias) return;
     if (!this.motivo.trim()) {
       this.errorMsg = 'Indica el motivo de la subsanación.';
       return;

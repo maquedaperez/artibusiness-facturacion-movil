@@ -242,6 +242,27 @@ describe('Flujos principales del modo mock a través de los puertos', () => {
     await expectAsync(mockIssuedRepo.subsanar(borrador.id, 'Motivo')).toBeRejectedWithError(/anulada/);
   });
 
+  it('previsualizarSubsanacion indica diferencias antes de subsanar y ninguna después (blindaje)', async () => {
+    const numerador = issuedRepo.getNumeradores()[0];
+    const cliente = (await customersRepo.buscar('Sonrisas')).items[0];
+    const borrador = issuedRepo.crearBorrador(numerador.id, cliente);
+    await mockIssuedRepo.contabilizar(borrador.id);
+
+    const antes = await mockIssuedRepo.previsualizarSubsanacion(borrador.id);
+    expect(antes.hayDiferencias).toBeTrue();
+    expect(antes.diferencias.length).toBeGreaterThan(0);
+
+    await mockIssuedRepo.subsanar(borrador.id, 'Corrección de prueba');
+
+    const despues = await mockIssuedRepo.previsualizarSubsanacion(borrador.id);
+    expect(despues.hayDiferencias).toBeFalse();
+    expect(despues.diferencias).toEqual([]);
+
+    // Blindaje: sin ningún cambio real desde la última subsanación, una segunda subsanación se
+    // rechaza — mismo criterio que aplica el backend real.
+    await expectAsync(mockIssuedRepo.subsanar(borrador.id, 'Otro intento')).toBeRejectedWithError(/no ha cambiado/);
+  });
+
   it('lista, crea y elimina facturas recibidas manuales (a través del adaptador mock puro)', async () => {
     // crearManual/eliminar de ReceivedInvoicesRepository ya son reales (hablan con el
     // backend) — el round-trip de persistencia local se prueba aquí directamente contra
