@@ -22,22 +22,24 @@ import {
 import { provideTranslocoTesting } from '../i18n/testing/transloco-testing.providers';
 
 const TRADUCCIONES_TEST = {
-  verifactu: {
-    errors: {
-      anularBorrador: 'Esta factura todavía no se ha contabilizado — no se puede anular.',
-      yaAnulada: 'Esta factura ya está anulada.',
-      firmarBorrador: 'Esta factura todavía no se ha guardado ni contabilizado — no se puede firmar.',
-      subsanarBorrador: 'Solo se puede subsanar una factura ya contabilizada.',
-      subsanarAnulada: 'Esta factura está anulada; no se puede subsanar.',
-      motivoObligatorio: 'El motivo de la subsanación es obligatorio.',
-      sinCambiosFiscales: 'El contenido fiscal no ha cambiado desde la última subsanación — no hay nada que corregir.',
-      guardarAntesDeContabilizar: 'Guarda la factura antes de contabilizarla.',
+  es: {
+    verifactu: {
+      errors: {
+        anularBorrador: 'Esta factura todavía no se ha contabilizado — no se puede anular.',
+        yaAnulada: 'Esta factura ya está anulada.',
+        firmarBorrador: 'Esta factura todavía no se ha guardado ni contabilizado — no se puede firmar.',
+        subsanarBorrador: 'Solo se puede subsanar una factura ya contabilizada.',
+        subsanarAnulada: 'Esta factura está anulada; no se puede subsanar.',
+        motivoObligatorio: 'El motivo de la subsanación es obligatorio.',
+        sinCambiosFiscales: 'El contenido fiscal no ha cambiado desde la última subsanación — no hay nada que corregir.',
+        guardarAntesDeContabilizar: 'Guarda la factura antes de contabilizarla.',
+      },
     },
-  },
-  invoices: {
-    issued: {
-      errors: { notFoundWithId: 'Factura {{id}} no encontrada.' },
-      correct: { simulatedFieldLabel: 'Descripción de la operación (simulado)' },
+    invoices: {
+      issued: {
+        errors: { notFoundWithId: 'Factura {{id}} no encontrada.' },
+        correct: { simulatedFieldLabel: 'Descripción de la operación (simulado)' },
+      },
     },
   },
 };

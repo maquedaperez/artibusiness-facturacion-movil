@@ -7,8 +7,10 @@ import { SuscripcionSelectorComponent } from '../../modals/suscripcion-selector/
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 
 const TRADUCCIONES_TEST = {
-  common: {
-    linesEditor: { originManual: 'Manual', originCatalog: 'Catálogo', originSubscription: 'Suscripción' },
+  es: {
+    common: {
+      linesEditor: { originManual: 'Manual', originCatalog: 'Catálogo', originSubscription: 'Suscripción' },
+    },
   },
 };
 

@@ -10,12 +10,58 @@ import { environment } from 'src/environments/environment';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 
 const TRADUCCIONES_TEST = {
-  ocr: {
-    bankDocDraftError: 'No se pudo preparar un borrador de factura a partir del documento bancario. Puedes crearla manualmente.',
-    supplierNotFoundDraft: 'Proveedor no encontrado en el sistema. Se ha abierto un borrador: dalo de alta manualmente antes de guardar.',
-    nifUnreadableDraft: 'No se ha podido leer el NIF del proveedor. Se ha abierto un borrador: complétalo o da de alta el proveedor manualmente.',
-    numberUnreadableDraft: 'No se ha podido leer el número de factura. Se ha abierto un borrador para completarlo a mano.',
-    processDocumentError: 'No se pudo procesar el documento. Inténtalo de nuevo o crea la factura manualmente.',
+  es: {
+    common: {
+      actions: { cancel: 'Cancelar', delete: 'Eliminar' },
+    },
+    ocr: {
+      bankDocDraftError: 'No se pudo preparar un borrador de factura a partir del documento bancario. Puedes crearla manualmente.',
+      supplierNotFoundDraft: 'Proveedor no encontrado en el sistema. Se ha abierto un borrador: dalo de alta manualmente antes de guardar.',
+      nifUnreadableDraft: 'No se ha podido leer el NIF del proveedor. Se ha abierto un borrador: complétalo o da de alta el proveedor manualmente.',
+      numberUnreadableDraft: 'No se ha podido leer el número de factura. Se ha abierto un borrador para completarlo a mano.',
+      processDocumentError: 'No se pudo procesar el documento. Inténtalo de nuevo o crea la factura manualmente.',
+    },
+    invoices: {
+      received: {
+        actions: { post: 'Contabilizar' },
+        attachment: {
+          downloadError: 'No se pudo descargar el documento.',
+          downloadSuccess: 'Documento descargado.',
+          shareError: 'No se pudo compartir el documento.',
+        },
+        card: {
+          noConceptFallback: 'Sin concepto',
+          noSupplierFallback: 'Proveedor no disponible',
+        },
+        delete: {
+          error: 'No se pudo eliminar la factura.',
+          header: 'Eliminar factura',
+          lockedError: 'No se puede eliminar una factura ya contabilizada.',
+          message: '¿Eliminar la factura de {{proveedor}}? Esta acción no se puede deshacer.',
+          paidError: 'No se puede eliminar una factura marcada como pagada.',
+          success: 'Factura eliminada.',
+        },
+        duplicate: {
+          confirmButton: 'Copiar y guardar',
+          error: 'No se pudo copiar la factura.',
+          numberDialogHeader: 'Número de la nueva factura',
+          numberDialogMessage: 'Se copiará la factura de {{proveedor}} (proveedor, líneas, importes...) y se guardará directamente. El resto de datos se pueden ajustar después.',
+          numberPlaceholder: 'Número de factura',
+          success: 'Copia guardada a partir de la factura de {{proveedor}}.',
+        },
+        filters: { dates: 'Fechas', placeholder: 'Filtros' },
+        list: {
+          loadError: 'No se pudo cargar la lista de facturas.',
+          loadFullError: 'No se pudo cargar la factura completa.',
+        },
+        post: {
+          error: 'No se pudo contabilizar la factura.',
+          header: 'Contabilizar factura',
+          message: '¿Contabilizar la factura {{num}} de {{proveedor}} por {{importe}}? Quedará bloqueada para editar y eliminar; después solo podrá gestionarse desde analítica/pagos.',
+          success: 'Factura contabilizada.',
+        },
+      },
+    },
   },
 };
 
@@ -28,7 +74,7 @@ describe('FacturasRecibidasPage', () => {
     // llamaría de verdad a POST api/FacturasRecibidas/Enumerar contra el servidor de Karma.
     const apiStub: Partial<ApiService> = { post: jasmine.createSpy().and.resolveTo([]) };
     TestBed.configureTestingModule({
-      providers: [...MOCK_REPOSITORY_PROVIDERS, provideIonicAngular(), { provide: ApiService, useValue: apiStub }],
+      providers: [...MOCK_REPOSITORY_PROVIDERS, ...provideTranslocoTesting(TRADUCCIONES_TEST), provideIonicAngular(), { provide: ApiService, useValue: apiStub }],
     });
     fixture = TestBed.createComponent(FacturasRecibidasPage);
     component = fixture.componentInstance;

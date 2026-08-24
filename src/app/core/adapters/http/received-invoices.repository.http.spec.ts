@@ -9,13 +9,15 @@ import { ResultadoProcesamientoDocumento } from '../../ports/received-invoices.r
 import { provideTranslocoTesting } from '../../i18n/testing/transloco-testing.providers';
 
 const TRADUCCIONES_TEST = {
-  ocr: { extractionError: 'No se pudo extraer información del documento. Inténtalo de nuevo o crea la factura manualmente.' },
-  invoices: {
-    received: {
-      errors: {
-        supplierRequired: 'Selecciona el proveedor de la lista (o créalo) antes de guardar — no se puede guardar una factura solo con el nombre en texto.',
-        invoiceNumberRequired: 'El número de factura es obligatorio.',
-        lineRequired: 'La factura necesita al menos una línea.',
+  es: {
+    ocr: { extractionError: 'No se pudo extraer información del documento. Inténtalo de nuevo o crea la factura manualmente.' },
+    invoices: {
+      received: {
+        errors: {
+          supplierRequired: 'Selecciona el proveedor de la lista (o créalo) antes de guardar — no se puede guardar una factura solo con el nombre en texto.',
+          invoiceNumberRequired: 'El número de factura es obligatorio.',
+          lineRequired: 'La factura necesita al menos una línea.',
+        },
       },
     },
   },

@@ -6,9 +6,11 @@ import { FacturaEmitida } from '../../services/mock-facturas.service';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 
 const TRADUCCIONES_TEST = {
-  invoices: {
-    issued: {
-      card: { noNameFallback: 'Cliente no disponible', noConceptFallback: 'Sin concepto' },
+  es: {
+    invoices: {
+      issued: {
+        card: { noNameFallback: 'Cliente no disponible', noConceptFallback: 'Sin concepto' },
+      },
     },
   },
 };

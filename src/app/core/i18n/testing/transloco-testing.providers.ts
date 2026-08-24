@@ -1,5 +1,5 @@
-import { Provider } from '@angular/core';
-import { provideTransloco, Translation, TranslocoLoader, TRANSLOCO_LOADER } from '@jsverse/transloco';
+import { ENVIRONMENT_INITIALIZER, Provider, inject } from '@angular/core';
+import { provideTransloco, Translation, TranslocoLoader, TranslocoService, TRANSLOCO_LOADER } from '@jsverse/transloco';
 import { IDIOMAS_SOPORTADOS, IDIOMA_POR_DEFECTO } from '../language.service';
 
 // Loader de prueba: no llama a HttpClient ni a los JSON reales de assets/ — devuelve las
@@ -43,5 +43,21 @@ export function provideTranslocoTesting(
       },
     }),
     { provide: TRANSLOCO_LOADER, useValue: new TranslocoTestingLoader(traducciones, idiomasQueFallan) },
+    // TranslocoTestingLoader.getTranslation() siempre resuelve de forma asíncrona (Promise),
+    // igual que el loader HTTP real — así que un test que llama a translate() sin esperar
+    // antes a que termine el .load() del idioma por defecto se encuentra la caché vacía y
+    // recibe la clave sin traducir. setTranslation() (a diferencia de load()) escribe en la
+    // caché de forma síncrona, y ENVIRONMENT_INITIALIZER se ejecuta en cuanto se crea el
+    // injector de pruebas (antes de que se construya ningún componente), así que aquí se deja
+    // precargado el idioma por defecto para que cualquier translate() síncrono en un test ya
+    // encuentre la traducción — sin tener que tocar cada spec para awaitear el load().
+    {
+      provide: ENVIRONMENT_INITIALIZER,
+      multi: true,
+      useValue: () => {
+        if (idiomasQueFallan.includes(IDIOMA_POR_DEFECTO)) return;
+        inject(TranslocoService).setTranslation(traducciones[IDIOMA_POR_DEFECTO] ?? {}, IDIOMA_POR_DEFECTO, { emitChange: false });
+      },
+    },
   ];
 }

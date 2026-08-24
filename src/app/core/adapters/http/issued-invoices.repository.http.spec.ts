@@ -7,20 +7,22 @@ import { ApiService } from '../../../services/api.service';
 import { provideTranslocoTesting } from '../../i18n/testing/transloco-testing.providers';
 
 const TRADUCCIONES_TEST = {
-  invoices: {
-    issued: {
-      errors: {
-        clientRequired: 'Selecciona el cliente de la lista antes de guardar — no se puede guardar una factura solo con el nombre en texto.',
-        paymentMethodRequired: 'Selecciona una forma de pago del catálogo antes de guardar.',
-        lineRequired: 'La factura necesita al menos una línea.',
+  es: {
+    invoices: {
+      issued: {
+        errors: {
+          clientRequired: 'Selecciona el cliente de la lista antes de guardar — no se puede guardar una factura solo con el nombre en texto.',
+          paymentMethodRequired: 'Selecciona una forma de pago del catálogo antes de guardar.',
+          lineRequired: 'La factura necesita al menos una línea.',
+        },
       },
     },
-  },
-  verifactu: {
-    errors: {
-      anularBorrador: 'Esta factura todavía no se ha contabilizado — no se puede anular.',
-      firmarBorrador: 'Esta factura todavía no se ha guardado ni contabilizado — no se puede firmar.',
-      subsanarBorrador: 'Esta factura todavía no se ha contabilizado — no se puede subsanar.',
+    verifactu: {
+      errors: {
+        anularBorrador: 'Esta factura todavía no se ha contabilizado — no se puede anular.',
+        firmarBorrador: 'Esta factura todavía no se ha guardado ni contabilizado — no se puede firmar.',
+        subsanarBorrador: 'Esta factura todavía no se ha contabilizado — no se puede subsanar.',
+      },
     },
   },
 };

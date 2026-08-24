@@ -43,7 +43,7 @@ describe('ClienteSelectorComponent — búsqueda bajo demanda', () => {
       imports: [ClienteSelectorComponent],
       providers: [
         provideIonicAngular(),
-        ...provideTranslocoTesting(TRADUCCIONES_TEST.es),
+        ...provideTranslocoTesting(TRADUCCIONES_TEST),
         { provide: CustomersRepository, useValue: customersRepoSpy },
         { provide: IssuedInvoicesRepository, useValue: issuedRepoSpy },
       ],
@@ -172,7 +172,7 @@ describe('ClienteSelectorComponent — alta rápida ("Cliente nuevo")', () => {
       imports: [ClienteSelectorComponent],
       providers: [
         provideIonicAngular(),
-        ...provideTranslocoTesting(TRADUCCIONES_TEST.es),
+        ...provideTranslocoTesting(TRADUCCIONES_TEST),
         { provide: CustomersRepository, useValue: customersRepoSpy },
         { provide: IssuedInvoicesRepository, useValue: issuedRepoSpy },
         { provide: ModalController, useValue: modalCtrlSpy },

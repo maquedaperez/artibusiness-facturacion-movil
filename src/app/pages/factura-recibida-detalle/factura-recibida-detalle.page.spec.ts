@@ -10,11 +10,23 @@ import { FacturaRecibida } from '../../services/mock-facturas.service';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 
 const TRADUCCIONES_TEST = {
-  invoices: {
-    received: {
-      detail: {
-        validationRequired: 'Proveedor y número de factura son obligatorios.',
-        validationSupplier: 'Selecciona el proveedor de la lista (o créalo) antes de guardar.',
+  es: {
+    common: {
+      actions: { cancel: 'Cancelar' },
+    },
+    invoices: {
+      received: {
+        actions: { post: 'Contabilizar' },
+        detail: {
+          validationRequired: 'Proveedor y número de factura son obligatorios.',
+          validationSupplier: 'Selecciona el proveedor de la lista (o créalo) antes de guardar.',
+        },
+        post: {
+          header: 'Contabilizar factura',
+          message: '¿Contabilizar la factura {{num}} de {{proveedor}} por {{importe}}? Quedará bloqueada para editar y eliminar; después solo podrá gestionarse desde analítica/pagos.',
+          success: 'Factura contabilizada.',
+          error: 'No se pudo contabilizar la factura.',
+        },
       },
     },
   },

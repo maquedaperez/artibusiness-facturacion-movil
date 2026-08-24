@@ -7,12 +7,14 @@ import { ApiService } from '../../../services/api.service';
 import { provideTranslocoTesting } from '../../i18n/testing/transloco-testing.providers';
 
 const TRADUCCIONES_TEST = {
-  errors: { sessionCompanyNotFound: 'No se ha podido identificar la empresa de tu sesión. Vuelve a iniciar sesión e inténtalo de nuevo.' },
-  invoices: {
-    received: {
-      supplierSelector: {
-        nameNifRequired: 'Nombre y NIF son obligatorios.',
-        addressRequired: 'Dirección, código postal, población y provincia son obligatorios.',
+  es: {
+    errors: { sessionCompanyNotFound: 'No se ha podido identificar la empresa de tu sesión. Vuelve a iniciar sesión e inténtalo de nuevo.' },
+    invoices: {
+      received: {
+        supplierSelector: {
+          nameNifRequired: 'Nombre y NIF son obligatorios.',
+          addressRequired: 'Dirección, código postal, población y provincia son obligatorios.',
+        },
       },
     },
   },
