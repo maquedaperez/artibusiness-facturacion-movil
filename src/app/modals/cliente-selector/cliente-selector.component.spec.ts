@@ -4,6 +4,21 @@ import { ClienteSelectorComponent } from './cliente-selector.component';
 import { CustomersRepository, IssuedInvoicesRepository } from '../../core/ports';
 import { ClienteMock } from '../../services/mock-facturas.service';
 import { PaginaResultado } from '../../shared/types/pagination';
+import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
+
+const TRADUCCIONES_TEST = {
+  es: {
+    invoices: {
+      issued: {
+        clientSelector: {
+          nameNifRequired: 'Nombre y NIF/CIF son obligatorios.',
+          paymentMethodRequired: 'Selecciona una forma de pago para el cliente.',
+          createError: 'No se pudo crear el cliente. Inténtalo de nuevo.',
+        },
+      },
+    },
+  },
+};
 
 describe('ClienteSelectorComponent — búsqueda bajo demanda', () => {
   let component: ClienteSelectorComponent;
@@ -28,6 +43,7 @@ describe('ClienteSelectorComponent — búsqueda bajo demanda', () => {
       imports: [ClienteSelectorComponent],
       providers: [
         provideIonicAngular(),
+        ...provideTranslocoTesting(TRADUCCIONES_TEST.es),
         { provide: CustomersRepository, useValue: customersRepoSpy },
         { provide: IssuedInvoicesRepository, useValue: issuedRepoSpy },
       ],
@@ -156,6 +172,7 @@ describe('ClienteSelectorComponent — alta rápida ("Cliente nuevo")', () => {
       imports: [ClienteSelectorComponent],
       providers: [
         provideIonicAngular(),
+        ...provideTranslocoTesting(TRADUCCIONES_TEST.es),
         { provide: CustomersRepository, useValue: customersRepoSpy },
         { provide: IssuedInvoicesRepository, useValue: issuedRepoSpy },
         { provide: ModalController, useValue: modalCtrlSpy },

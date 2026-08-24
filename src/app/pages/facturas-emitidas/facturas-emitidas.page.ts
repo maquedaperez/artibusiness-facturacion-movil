@@ -1,8 +1,9 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
+import { formatEuros as formatEurosUtil, formatFecha as formatFechaUtil } from '../../shared/utils/format-euros';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonContent,
@@ -29,7 +30,7 @@ import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-docum
   styleUrls: ['./facturas-emitidas.page.scss'],
   standalone: true,
   imports: [
-    CommonModule, FormsModule,
+    CommonModule, FormsModule, TranslocoPipe,
     IonHeader, IonToolbar, IonTitle, IonContent,
     IonSegment, IonSegmentButton, IonLabel,
     IonSelect, IonSelectOption, IonSearchbar, IonItem, IonInput,
@@ -44,6 +45,7 @@ export class FacturasEmitidasPage implements OnInit {
   private route = inject(ActivatedRoute);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
+  private transloco = inject(TranslocoService);
 
   estado: EstadoFactura = 'borrador';
   numeradorId: number | null = null;
@@ -117,7 +119,7 @@ export class FacturasEmitidasPage implements OnInit {
       this.facturas = resultado;
     } catch (e: any) {
       if (idPeticion !== this.peticionListarEnCurso) return;
-      await this.showToast(e?.message ?? 'No se pudo cargar la lista de facturas.', 'danger');
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.list.loadError'), 'danger');
     } finally {
       if (idPeticion === this.peticionListarEnCurso) this.cargando = false;
     }
@@ -148,9 +150,9 @@ export class FacturasEmitidasPage implements OnInit {
 
   filtrosLabel(): string {
     const partes: string[] = [];
-    if (this.numeradorId != null) partes.push('Serie: ' + this.numeradorSeleccionadoNombre());
-    if (this.fechaDesde || this.fechaHasta) partes.push('Fechas');
-    return partes.length > 0 ? partes.join(' · ') : 'Filtrar por serie o fecha';
+    if (this.numeradorId != null) partes.push(this.transloco.translate('invoices.issued.filters.seriesPrefix') + ' ' + this.numeradorSeleccionadoNombre());
+    if (this.fechaDesde || this.fechaHasta) partes.push(this.transloco.translate('invoices.issued.filters.dates'));
+    return partes.length > 0 ? partes.join(' · ') : this.transloco.translate('invoices.issued.filters.placeholder');
   }
 
   abrir(f: FacturaEmitida) {
@@ -162,11 +164,11 @@ export class FacturasEmitidasPage implements OnInit {
   }
 
   clienteNombre(f: FacturaEmitida): string {
-    return f.destinatario.nombre?.trim() || 'Cliente no disponible';
+    return f.destinatario.nombre?.trim() || this.transloco.translate('invoices.issued.card.noNameFallback');
   }
 
   conceptoResumen(f: FacturaEmitida): string {
-    return f.concepto?.trim() || 'Sin concepto';
+    return f.concepto?.trim() || this.transloco.translate('invoices.issued.card.noConceptFallback');
   }
 
   totalFactura(f: FacturaEmitida): number {
@@ -187,8 +189,18 @@ export class FacturasEmitidasPage implements OnInit {
   // AEAT todavía, así que se muestra el propio estado interno ("Borrador") en vez de
   // dejar la tarjeta sin ninguna indicación — igual que ya hace Recibidas.
   estadoLabel(f: FacturaEmitida): string {
-    if (f.estado === 'borrador') return 'Borrador';
+    if (f.estado === 'borrador') return this.transloco.translate('invoices.issued.tabs.draftSingular');
     return this.estadoAeatLabel(f);
+  }
+
+  // Para el estado vacío ("No hay facturas en estado X"): usa la etiqueta ya traducida de
+  // la pestaña activa en vez del código interno crudo ('borrador'/'contabilizada'/'firmada').
+  estadoActualLabel(): string {
+    switch (this.estado) {
+      case 'borrador': return this.transloco.translate('invoices.issued.tabs.draft');
+      case 'contabilizada': return this.transloco.translate('invoices.issued.tabs.posted');
+      case 'firmada': return this.transloco.translate('invoices.issued.tabs.signed');
+    }
   }
 
   estadoAeatColor(f: FacturaEmitida): string {
@@ -211,9 +223,9 @@ export class FacturasEmitidasPage implements OnInit {
       const copia = await this.invoicesRepo.duplicar(f.id);
       if (!copia) return;
       await this.refresh();
-      await this.showToast(`Borrador ${copia.numFactura} creado a partir de ${f.numFactura}.`);
+      await this.showToast(this.transloco.translate('invoices.issued.duplicate.success', { nuevo: copia.numFactura, original: f.numFactura }));
     } catch (e: any) {
-      await this.showToast(e?.message ?? 'No se pudo duplicar la factura.', 'danger');
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.duplicate.error'), 'danger');
     }
   }
 
@@ -222,9 +234,9 @@ export class FacturasEmitidasPage implements OnInit {
     try {
       const { blob, nombre } = await this.invoicesRepo.generarDocumento(f.id);
       descargarBlob(blob, nombre);
-      await this.showToast('Documento descargado (simulado, no válido fiscalmente).');
+      await this.showToast(this.transloco.translate('invoices.issued.download.success'));
     } catch {
-      await this.showToast('No se pudo generar el documento. Inténtalo de nuevo.', 'danger');
+      await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
     }
   }
 
@@ -234,27 +246,27 @@ export class FacturasEmitidasPage implements OnInit {
       const { blob, nombre } = await this.invoicesRepo.generarDocumento(f.id);
       await compartirBlob(blob, nombre);
     } catch {
-      await this.showToast('No se pudo compartir el documento. Inténtalo de nuevo.', 'danger');
+      await this.showToast(this.transloco.translate('invoices.issued.share.error'), 'danger');
     }
   }
 
   async confirmarEliminar(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
     const alert = await this.alertCtrl.create({
-      header: 'Eliminar borrador',
-      message: `¿Eliminar el borrador ${f.numFactura} de ${f.destinatario.nombre}? Esta acción no se puede deshacer.`,
+      header: this.transloco.translate('invoices.issued.deleteDraft.header'),
+      message: this.transloco.translate('invoices.issued.deleteDraft.message', { num: f.numFactura, cliente: f.destinatario.nombre }),
       buttons: [
-        { text: 'Cancelar', role: 'cancel' },
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
         {
-          text: 'Eliminar',
+          text: this.transloco.translate('common.actions.delete'),
           role: 'destructive',
           handler: async () => {
             try {
               await this.invoicesRepo.eliminar(f.id);
               await this.refresh();
-              await this.showToast('Borrador eliminado.');
+              await this.showToast(this.transloco.translate('invoices.issued.deleteDraft.success'));
             } catch (e: any) {
-              await this.showToast(e?.message ?? 'No se pudo eliminar la factura.', 'danger');
+              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.deleteDraft.error'), 'danger');
             }
           },
         },
@@ -270,21 +282,21 @@ export class FacturasEmitidasPage implements OnInit {
     event.stopPropagation();
     if (this.procesandoAeatIds.has(f.id)) return;
     const alert = await this.alertCtrl.create({
-      header: 'Contabilizar factura',
-      message: `¿Contabilizar la factura de ${f.destinatario.nombre} por ${this.formatEuros(this.totalFactura(f))}? Esto envía la factura a Verifactu/AEAT y ya no se podrá editar.`,
+      header: this.transloco.translate('invoices.issued.post.header'),
+      message: this.transloco.translate('invoices.issued.post.message', { cliente: f.destinatario.nombre, importe: this.formatEuros(this.totalFactura(f)) }),
       buttons: [
-        { text: 'Cancelar', role: 'cancel' },
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
         {
-          text: 'Contabilizar',
+          text: this.transloco.translate('invoices.issued.actions.post'),
           handler: async () => {
             if (this.procesandoAeatIds.has(f.id)) return;
             this.procesandoAeatIds.add(f.id);
             try {
               await this.invoicesRepo.contabilizar(f.id);
               await this.refresh();
-              await this.showToast(`Factura de ${f.destinatario.nombre} contabilizada.`);
+              await this.showToast(this.transloco.translate('invoices.issued.post.success', { cliente: f.destinatario.nombre }));
             } catch (e: any) {
-              await this.showToast(e?.message ?? 'No se pudo contabilizar la factura.', 'danger');
+              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.post.error'), 'danger');
             } finally {
               this.procesandoAeatIds.delete(f.id);
             }
@@ -299,21 +311,21 @@ export class FacturasEmitidasPage implements OnInit {
     event.stopPropagation();
     if (this.procesandoAeatIds.has(f.id)) return;
     const alert = await this.alertCtrl.create({
-      header: 'Firmar factura',
-      message: `¿Firmar la factura de ${f.destinatario.nombre}? Esto genera la firma electrónica (XAdES) real del documento ya registrado en VERI*FACTU.`,
+      header: this.transloco.translate('invoices.issued.sign.header'),
+      message: this.transloco.translate('invoices.issued.sign.message', { cliente: f.destinatario.nombre }),
       buttons: [
-        { text: 'Cancelar', role: 'cancel' },
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
         {
-          text: 'Firmar',
+          text: this.transloco.translate('invoices.issued.actions.sign'),
           handler: async () => {
             if (this.procesandoAeatIds.has(f.id)) return;
             this.procesandoAeatIds.add(f.id);
             try {
               await this.invoicesRepo.firmar(f.id);
               await this.refresh();
-              await this.showToast(`Factura de ${f.destinatario.nombre} firmada.`);
+              await this.showToast(this.transloco.translate('invoices.issued.sign.success', { cliente: f.destinatario.nombre }));
             } catch (e: any) {
-              await this.showToast(e?.message ?? 'No se pudo firmar la factura.', 'danger');
+              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.sign.error'), 'danger');
             } finally {
               this.procesandoAeatIds.delete(f.id);
             }
@@ -334,7 +346,6 @@ export class FacturasEmitidasPage implements OnInit {
   }
 
   formatFecha(f: string): string {
-    const d = new Date(`${f}T00:00:00`);
-    return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d);
+    return formatFechaUtil(f);
   }
 }

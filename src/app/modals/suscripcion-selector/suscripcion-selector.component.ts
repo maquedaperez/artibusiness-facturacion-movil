@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
 import { Subject, Subscription, from, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
@@ -27,14 +28,14 @@ type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error'
   selector: 'app-suscripcion-selector',
   standalone: true,
   imports: [
-    CommonModule, FormsModule,
+    CommonModule, FormsModule, TranslocoPipe,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonSearchbar, IonList, IonItem, IonLabel, IonText, IonSpinner,
   ],
   template: `
     <ion-header>
       <ion-toolbar>
-        <ion-title>Suscripción / servicio recurrente</ion-title>
+        <ion-title>{{ 'invoices.issued.subscriptionSelector.title' | transloco }}</ion-title>
         <ion-buttons slot="end">
           <ion-button (click)="cancel()">
             <ion-icon slot="icon-only" name="close-outline"></ion-icon>
@@ -45,34 +46,34 @@ type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error'
 
     <ion-content class="ion-padding">
       <ion-searchbar
-        placeholder="Buscar por nombre (mínimo 2 caracteres)"
+        [placeholder]="'invoices.issued.subscriptionSelector.searchPlaceholder' | transloco"
         [(ngModel)]="query"
         (ionInput)="onQueryChange()"
       ></ion-searchbar>
 
       <ion-text color="medium" *ngIf="estado === 'inicial'">
-        <p class="ion-padding-top">Escribe al menos 2 caracteres para buscar.</p>
+        <p class="ion-padding-top">{{ 'invoices.issued.clientSelector.typeToSearch' | transloco }}</p>
       </ion-text>
 
       <div class="estado-buscando" *ngIf="estado === 'buscando'">
         <ion-spinner name="dots"></ion-spinner>
-        <ion-text color="medium"><p class="ion-no-margin">Buscando...</p></ion-text>
+        <ion-text color="medium"><p class="ion-no-margin">{{ 'invoices.issued.clientSelector.searching' | transloco }}</p></ion-text>
       </div>
 
       <ion-text color="medium" *ngIf="estado === 'sin-resultados'">
-        <p class="ion-padding-top">Sin resultados para "{{ query }}".</p>
+        <p class="ion-padding-top">{{ 'invoices.issued.clientSelector.noResultsFor' | transloco: { query } }}</p>
       </ion-text>
 
       <ion-text color="danger" *ngIf="estado === 'error'">
-        <p class="ion-padding-top">No se pudo completar la búsqueda. Inténtalo de nuevo.</p>
+        <p class="ion-padding-top">{{ 'invoices.issued.clientSelector.searchError' | transloco }}</p>
       </ion-text>
 
       <ion-list *ngIf="estado === 'ok'">
         <ion-item *ngFor="let s of resultados" button [disabled]="s.estado !== 'activa'" (click)="seleccionar(s)">
           <ion-label>
             <h2>{{ s.nombre }}</h2>
-            <p>{{ s.periodicidad }} · {{ formatEuros(s.precio) }} · IVA {{ s.ivaPct }}%
-              <ng-container *ngIf="s.estado !== 'activa'"> · {{ s.estado === 'pausada' ? 'Pausada' : 'Cancelada' }}</ng-container>
+            <p>{{ s.periodicidad }} · {{ formatEuros(s.precio) }} · {{ 'invoices.issued.detail.vat' | transloco }} {{ s.ivaPct }}%
+              <ng-container *ngIf="s.estado !== 'activa'"> · {{ (s.estado === 'pausada' ? 'invoices.issued.subscriptionSelector.paused' : 'invoices.issued.subscriptionSelector.cancelled') | transloco }}</ng-container>
             </p>
           </ion-label>
         </ion-item>

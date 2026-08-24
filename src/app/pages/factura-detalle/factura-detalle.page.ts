@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
@@ -32,7 +33,7 @@ import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-docum
   styleUrls: ['./factura-detalle.page.scss'],
   standalone: true,
   imports: [
-    CommonModule, FormsModule,
+    CommonModule, FormsModule, TranslocoPipe,
     IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
     IonItem, IonInput, IonSelect, IonSelectOption, IonText, IonBadge,
     IonCard, IonCardContent, IonSpinner,
@@ -46,6 +47,7 @@ export class FacturaDetallePage implements OnInit {
   private modalCtrl = inject(ModalController);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
+  private transloco = inject(TranslocoService);
 
   facturaId: number | null = null;
   esNueva = false;
@@ -96,14 +98,14 @@ export class FacturaDetallePage implements OnInit {
     try {
       const factura = await this.invoicesRepo.obtenerPorId(id);
       if (!factura) {
-        this.errorMsg = 'Factura no encontrada.';
+        this.errorMsg = this.transloco.translate('invoices.issued.detail.notFound');
         return;
       }
 
       this.facturaId = id;
       this.working = structuredClone(factura);
     } catch (e: any) {
-      this.errorMsg = e?.message ?? 'No se pudo cargar la factura.';
+      this.errorMsg = e?.message ?? this.transloco.translate('invoices.issued.detail.loadError');
     } finally {
       this.cargando = false;
     }
@@ -225,10 +227,10 @@ export class FacturaDetallePage implements OnInit {
 
       this.working = structuredClone(guardada);
       this.facturaId = guardada.id;
-      await this.showToast('Factura guardada.');
+      await this.showToast(this.transloco.translate('invoices.issued.detail.saveSuccess'));
       return true;
     } catch (e: any) {
-      await this.showToast(e?.message ?? 'No se pudo guardar la factura.', 'danger');
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.detail.saveError'), 'danger');
       return false;
     } finally {
       this.guardando = false;
@@ -246,18 +248,18 @@ export class FacturaDetallePage implements OnInit {
     // El servidor real rechaza la factura (error AEAT 4102) si el concepto va vacío,
     // y el medio de pago es obligatorio en el modelo — se valida aquí antes de intentarlo.
     if (!this.working.concepto?.trim() || !this.working.medioPago?.trim()) {
-      this.errorMsg = 'Concepto y forma de pago son obligatorios para contabilizar.';
+      this.errorMsg = this.transloco.translate('invoices.issued.detail.postValidationError');
       return;
     }
     this.errorMsg = '';
 
     const alert = await this.alertCtrl.create({
-      header: 'Contabilizar factura',
-      message: `¿Contabilizar la factura de ${this.working.destinatario.nombre} por ${this.formatEuros(this.totales().total)}? Esto envía la factura a Verifactu/AEAT y ya no se podrá editar. Se guardarán antes los cambios pendientes.`,
+      header: this.transloco.translate('invoices.issued.post.header'),
+      message: this.transloco.translate('invoices.issued.detail.postConfirmMessage', { cliente: this.working.destinatario.nombre, importe: this.formatEuros(this.totales().total) }),
       buttons: [
-        { text: 'Cancelar', role: 'cancel' },
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
         {
-          text: 'Contabilizar',
+          text: this.transloco.translate('invoices.issued.actions.post'),
           handler: async () => {
             if (this.procesandoAeat) return;
             const guardadoOk = await this.guardar();
@@ -265,10 +267,10 @@ export class FacturaDetallePage implements OnInit {
             this.procesandoAeat = true;
             try {
               this.working = await this.invoicesRepo.contabilizar(this.facturaId!);
-              await this.showToast('Factura contabilizada.');
+              await this.showToast(this.transloco.translate('invoices.issued.detail.postedSuccess'));
               this.volver();
             } catch (e: any) {
-              await this.showToast(e?.message ?? 'No se pudo contabilizar la factura.', 'danger');
+              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.post.error'), 'danger');
             } finally {
               this.procesandoAeat = false;
             }
@@ -283,21 +285,21 @@ export class FacturaDetallePage implements OnInit {
     if (!this.working || this.facturaId == null || this.procesandoAeat) return;
 
     const alert = await this.alertCtrl.create({
-      header: 'Firmar factura',
-      message: `¿Firmar esta factura? Esto genera la firma electrónica (XAdES) real del documento ya registrado en VERI*FACTU.`,
+      header: this.transloco.translate('invoices.issued.sign.header'),
+      message: this.transloco.translate('invoices.issued.detail.signConfirmMessage'),
       buttons: [
-        { text: 'Cancelar', role: 'cancel' },
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
         {
-          text: 'Firmar',
+          text: this.transloco.translate('invoices.issued.actions.sign'),
           handler: async () => {
             if (this.procesandoAeat) return;
             this.procesandoAeat = true;
             try {
               this.working = await this.invoicesRepo.firmar(this.facturaId!);
-              await this.showToast('Factura firmada.');
+              await this.showToast(this.transloco.translate('invoices.issued.detail.signedSuccess'));
               this.volver();
             } catch (e: any) {
-              await this.showToast(e?.message ?? 'No se pudo firmar la factura.', 'danger');
+              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.sign.error'), 'danger');
             } finally {
               this.procesandoAeat = false;
             }
@@ -325,21 +327,21 @@ export class FacturaDetallePage implements OnInit {
     if (!this.working || this.facturaId == null || this.procesandoAeat) return;
 
     const alert = await this.alertCtrl.create({
-      header: 'Anular factura',
-      message: `¿Anular la factura ${this.working.numFactura}? Esto crea un registro de anulación real en VERI*FACTU/AEAT. La factura original no se borra ni se modifica, pero queda marcada como anulada.`,
+      header: this.transloco.translate('invoices.issued.detail.cancelHeader'),
+      message: this.transloco.translate('invoices.issued.detail.cancelConfirmMessage', { num: this.working.numFactura }),
       buttons: [
-        { text: 'Cancelar', role: 'cancel' },
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
         {
-          text: 'Anular',
+          text: this.transloco.translate('invoices.issued.detail.cancelInvoice'),
           role: 'destructive',
           handler: async () => {
             if (this.procesandoAeat) return;
             this.procesandoAeat = true;
             try {
               this.working = await this.invoicesRepo.anular(this.facturaId!);
-              await this.showToast('Factura anulada.');
+              await this.showToast(this.transloco.translate('invoices.issued.detail.cancelledSuccess'));
             } catch (e: any) {
-              await this.showToast(e?.message ?? 'No se pudo anular la factura.', 'danger');
+              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.detail.cancelError'), 'danger');
             } finally {
               this.procesandoAeat = false;
             }
@@ -367,10 +369,10 @@ export class FacturaDetallePage implements OnInit {
     try {
       const copia = await this.invoicesRepo.duplicar(this.working.id);
       if (!copia) return;
-      await this.showToast(`Borrador ${copia.numFactura} creado a partir de ${this.working.numFactura}.`);
+      await this.showToast(this.transloco.translate('invoices.issued.duplicate.success', { nuevo: copia.numFactura, original: this.working.numFactura }));
       this.router.navigate(['/app/emitidas', copia.id], { replaceUrl: true });
     } catch (e: any) {
-      await this.showToast(e?.message ?? 'No se pudo duplicar la factura.', 'danger');
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.duplicate.error'), 'danger');
     }
   }
 
@@ -379,9 +381,9 @@ export class FacturaDetallePage implements OnInit {
     try {
       const { blob, nombre } = await this.invoicesRepo.generarDocumento(this.working.id);
       descargarBlob(blob, nombre);
-      await this.showToast('Documento descargado (simulado, no válido fiscalmente).');
+      await this.showToast(this.transloco.translate('invoices.issued.download.success'));
     } catch {
-      await this.showToast('No se pudo generar el documento. Inténtalo de nuevo.', 'danger');
+      await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
     }
   }
 
@@ -391,7 +393,7 @@ export class FacturaDetallePage implements OnInit {
       const { blob, nombre } = await this.invoicesRepo.generarDocumento(this.working.id);
       await compartirBlob(blob, nombre);
     } catch {
-      await this.showToast('No se pudo compartir el documento. Inténtalo de nuevo.', 'danger');
+      await this.showToast(this.transloco.translate('invoices.issued.share.error'), 'danger');
     }
   }
 
@@ -399,20 +401,20 @@ export class FacturaDetallePage implements OnInit {
     if (!this.working) return;
     const f = this.working;
     const alert = await this.alertCtrl.create({
-      header: 'Eliminar borrador',
-      message: `¿Eliminar el borrador ${f.numFactura} de ${f.destinatario.nombre}? Esta acción no se puede deshacer.`,
+      header: this.transloco.translate('invoices.issued.deleteDraft.header'),
+      message: this.transloco.translate('invoices.issued.deleteDraft.message', { num: f.numFactura, cliente: f.destinatario.nombre }),
       buttons: [
-        { text: 'Cancelar', role: 'cancel' },
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
         {
-          text: 'Eliminar',
+          text: this.transloco.translate('common.actions.delete'),
           role: 'destructive',
           handler: async () => {
             try {
               await this.invoicesRepo.eliminar(f.id);
-              await this.showToast('Borrador eliminado.');
+              await this.showToast(this.transloco.translate('invoices.issued.deleteDraft.success'));
               this.volver();
             } catch (e: any) {
-              await this.showToast(e?.message ?? 'No se pudo eliminar la factura.', 'danger');
+              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.deleteDraft.error'), 'danger');
             }
           },
         },

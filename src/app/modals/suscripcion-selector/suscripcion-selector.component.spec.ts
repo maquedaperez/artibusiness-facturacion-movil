@@ -4,6 +4,7 @@ import { SuscripcionSelectorComponent } from './suscripcion-selector.component';
 import { SubscriptionsRepository } from '../../core/ports';
 import { Suscripcion } from '../../services/mock-facturas.service';
 import { PaginaResultado } from '../../shared/types/pagination';
+import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 
 describe('SuscripcionSelectorComponent — búsqueda bajo demanda', () => {
   let component: SuscripcionSelectorComponent;
@@ -24,6 +25,7 @@ describe('SuscripcionSelectorComponent — búsqueda bajo demanda', () => {
       imports: [SuscripcionSelectorComponent],
       providers: [
         provideIonicAngular(),
+        ...provideTranslocoTesting(),
         { provide: SubscriptionsRepository, useValue: subscriptionsRepoSpy },
         { provide: ModalController, useValue: modalCtrlSpy },
       ],

@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
@@ -25,7 +26,7 @@ import { DiferenciaCampoFiscal, IssuedInvoicesRepository } from '../../core/port
   styleUrls: ['./factura-subsanar.page.scss'],
   standalone: true,
   imports: [
-    CommonModule, FormsModule,
+    CommonModule, FormsModule, TranslocoPipe,
     IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
     IonItem, IonTextarea, IonText, IonBadge, IonCard, IonCardContent,
   ],
@@ -36,6 +37,7 @@ export class FacturaSubsanarPage implements OnInit {
   private invoicesRepo = inject(IssuedInvoicesRepository);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
+  private transloco = inject(TranslocoService);
 
   facturaId!: number;
   factura: FacturaEmitida | null = null;
@@ -60,19 +62,19 @@ export class FacturaSubsanarPage implements OnInit {
     try {
       const factura = await this.invoicesRepo.obtenerPorId(this.facturaId);
       if (!factura) {
-        this.errorMsg = 'Factura no encontrada.';
+        this.errorMsg = this.transloco.translate('invoices.issued.detail.notFound');
         return;
       }
       this.factura = factura;
       if (!this.puedeSubsanar) {
         this.errorMsg = this.factura.anulada
-          ? 'Esta factura está anulada; no se puede subsanar.'
-          : 'Solo se puede subsanar una factura ya contabilizada.';
+          ? this.transloco.translate('verifactu.errors.subsanarAnulada')
+          : this.transloco.translate('verifactu.errors.subsanarBorrador');
         return;
       }
       await this.cargarPrevisualizacion();
     } catch (e: any) {
-      this.errorMsg = e?.message ?? 'No se pudo cargar la factura.';
+      this.errorMsg = e?.message ?? this.transloco.translate('invoices.issued.detail.loadError');
     } finally {
       this.cargando = false;
     }
@@ -85,7 +87,7 @@ export class FacturaSubsanarPage implements OnInit {
       this.hayDiferencias = previsualizacion.hayDiferencias;
       this.diferencias = previsualizacion.diferencias;
     } catch (e: any) {
-      this.errorMsg = e?.message ?? 'No se pudo calcular qué cambiaría al subsanar.';
+      this.errorMsg = e?.message ?? this.transloco.translate('invoices.issued.correct.previewError');
     } finally {
       this.cargandoPrevisualizacion = false;
     }
@@ -110,27 +112,27 @@ export class FacturaSubsanarPage implements OnInit {
   async confirmar() {
     if (!this.factura || this.procesando || !this.puedeSubsanar || !this.hayDiferencias) return;
     if (!this.motivo.trim()) {
-      this.errorMsg = 'Indica el motivo de la subsanación.';
+      this.errorMsg = this.transloco.translate('invoices.issued.correct.reasonRequired');
       return;
     }
     this.errorMsg = '';
 
     const alert = await this.alertCtrl.create({
-      header: 'Subsanar factura',
-      message: `¿Confirmar la subsanación de la factura ${this.factura.numFactura}? Esto genera un registro nuevo en VERI*FACTU (la factura y el Alta original no se modifican). Esta acción no se puede deshacer.`,
+      header: this.transloco.translate('invoices.issued.correct.title'),
+      message: this.transloco.translate('invoices.issued.correct.confirmMessage', { num: this.factura.numFactura }),
       buttons: [
-        { text: 'Cancelar', role: 'cancel' },
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
         {
-          text: 'Subsanar',
+          text: this.transloco.translate('invoices.issued.correct.confirm'),
           handler: async () => {
             if (this.procesando) return;
             this.procesando = true;
             try {
               this.factura = await this.invoicesRepo.subsanar(this.facturaId, this.motivo.trim());
-              await this.showToast('Subsanación registrada.');
+              await this.showToast(this.transloco.translate('invoices.issued.correct.registeredSuccess'));
               this.router.navigate(['/app/emitidas', this.facturaId], { replaceUrl: true });
             } catch (e: any) {
-              await this.showToast(e?.message ?? 'No se pudo subsanar la factura.', 'danger');
+              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.correct.error'), 'danger');
             } finally {
               this.procesando = false;
             }

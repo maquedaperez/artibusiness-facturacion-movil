@@ -3,6 +3,15 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { FacturasEmitidasPage } from './facturas-emitidas.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { FacturaEmitida } from '../../services/mock-facturas.service';
+import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
+
+const TRADUCCIONES_TEST = {
+  invoices: {
+    issued: {
+      card: { noNameFallback: 'Cliente no disponible', noConceptFallback: 'Sin concepto' },
+    },
+  },
+};
 
 describe('FacturasEmitidasPage', () => {
   let component: FacturasEmitidasPage;
@@ -11,7 +20,7 @@ describe('FacturasEmitidasPage', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [RouterTestingModule],
-      providers: [...MOCK_REPOSITORY_PROVIDERS],
+      providers: [...MOCK_REPOSITORY_PROVIDERS, ...provideTranslocoTesting(TRADUCCIONES_TEST)],
     });
     fixture = TestBed.createComponent(FacturasEmitidasPage);
     component = fixture.componentInstance;

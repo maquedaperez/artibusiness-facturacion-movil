@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription, from, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
@@ -31,14 +32,14 @@ export type SeleccionCliente = { cliente: ClienteMock; esNuevo: boolean };
   selector: 'app-cliente-selector',
   standalone: true,
   imports: [
-    CommonModule, FormsModule,
+    CommonModule, FormsModule, TranslocoPipe,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonSearchbar, IonList, IonItem, IonLabel, IonCheckbox, IonInput, IonSelect, IonSelectOption, IonText, IonSpinner,
   ],
   template: `
     <ion-header>
       <ion-toolbar>
-        <ion-title>Seleccionar cliente</ion-title>
+        <ion-title>{{ 'invoices.issued.clientSelector.title' | transloco }}</ion-title>
         <ion-buttons slot="end">
           <ion-button (click)="cancel()">
             <ion-icon slot="icon-only" name="close-outline"></ion-icon>
@@ -50,74 +51,74 @@ export type SeleccionCliente = { cliente: ClienteMock; esNuevo: boolean };
     <ion-content class="ion-padding">
       <ng-container *ngIf="!modoNuevo">
         <ion-searchbar
-          placeholder="Buscar por nombre o NIF (mínimo 2 caracteres)"
+          [placeholder]="'invoices.issued.clientSelector.searchPlaceholder' | transloco"
           [(ngModel)]="query"
           (ionInput)="onQueryChange()"
         ></ion-searchbar>
 
         <ion-text color="medium" *ngIf="estado === 'inicial'">
-          <p class="ion-padding-top">Escribe al menos 2 caracteres para buscar.</p>
+          <p class="ion-padding-top">{{ 'invoices.issued.clientSelector.typeToSearch' | transloco }}</p>
         </ion-text>
 
         <div class="estado-buscando" *ngIf="estado === 'buscando'">
           <ion-spinner name="dots"></ion-spinner>
-          <ion-text color="medium"><p class="ion-no-margin">Buscando...</p></ion-text>
+          <ion-text color="medium"><p class="ion-no-margin">{{ 'invoices.issued.clientSelector.searching' | transloco }}</p></ion-text>
         </div>
 
         <ion-text color="medium" *ngIf="estado === 'sin-resultados'">
-          <p class="ion-padding-top">Sin resultados para "{{ query }}".</p>
+          <p class="ion-padding-top">{{ 'invoices.issued.clientSelector.noResultsFor' | transloco: { query } }}</p>
         </ion-text>
 
         <ion-text color="danger" *ngIf="estado === 'error'">
-          <p class="ion-padding-top">No se pudo completar la búsqueda. Inténtalo de nuevo.</p>
+          <p class="ion-padding-top">{{ 'invoices.issued.clientSelector.searchError' | transloco }}</p>
         </ion-text>
 
         <ion-list *ngIf="estado === 'ok'">
           <ion-item *ngFor="let c of resultados" button (click)="seleccionar(c)">
             <ion-label>
               <h2>{{ c.nombre }}</h2>
-              <p>{{ c.nif }} · {{ c.esEmpresa ? 'Empresa' : 'Particular' }}</p>
+              <p>{{ c.nif }} · {{ (c.esEmpresa ? 'profile.typeCompany' : 'invoices.issued.detail.individual') | transloco }}</p>
             </ion-label>
           </ion-item>
         </ion-list>
 
         <ion-button expand="block" fill="outline" class="ion-margin-top" (click)="modoNuevo = true">
           <ion-icon slot="start" name="person-add-outline"></ion-icon>
-          Cliente nuevo
+          {{ 'invoices.issued.clientSelector.newClient' | transloco }}
         </ion-button>
       </ng-container>
 
       <ng-container *ngIf="modoNuevo">
         <ion-item>
-          <ion-checkbox [(ngModel)]="nuevo.esEmpresa">¿Empresa?</ion-checkbox>
+          <ion-checkbox [(ngModel)]="nuevo.esEmpresa">{{ 'invoices.issued.clientSelector.isCompany' | transloco }}</ion-checkbox>
         </ion-item>
 
         <ion-item>
-          <ion-input label="Nombre / Razón social" labelPlacement="stacked" [(ngModel)]="nuevo.nombre"></ion-input>
+          <ion-input [label]="'invoices.issued.clientSelector.nameLabel' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.nombre"></ion-input>
         </ion-item>
 
         <ion-item>
-          <ion-input [label]="nuevo.esEmpresa ? 'CIF' : 'NIF'" labelPlacement="stacked" [(ngModel)]="nuevo.nif"></ion-input>
+          <ion-input [label]="(nuevo.esEmpresa ? 'invoices.issued.clientSelector.cif' : 'invoices.issued.clientSelector.nif') | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.nif"></ion-input>
         </ion-item>
 
         <ion-item>
-          <ion-input label="Dirección" labelPlacement="stacked" [(ngModel)]="nuevo.direccion"></ion-input>
+          <ion-input [label]="'invoices.issued.clientSelector.address' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.direccion"></ion-input>
         </ion-item>
 
         <ion-item>
-          <ion-input label="Población" labelPlacement="stacked" [(ngModel)]="nuevo.poblacion"></ion-input>
+          <ion-input [label]="'invoices.issued.clientSelector.city' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.poblacion"></ion-input>
         </ion-item>
 
         <ion-item>
-          <ion-input label="Código postal" labelPlacement="stacked" [(ngModel)]="nuevo.cp"></ion-input>
+          <ion-input [label]="'invoices.issued.clientSelector.postalCode' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.cp"></ion-input>
         </ion-item>
 
         <ion-item>
-          <ion-input label="Provincia" labelPlacement="stacked" [(ngModel)]="nuevo.provincia"></ion-input>
+          <ion-input [label]="'invoices.issued.clientSelector.province' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.provincia"></ion-input>
         </ion-item>
 
         <ion-item>
-          <ion-select label="Forma de pago" labelPlacement="stacked" interface="popover" [(ngModel)]="idMedioPago">
+          <ion-select [label]="'invoices.issued.clientSelector.paymentMethod' | transloco" labelPlacement="stacked" interface="popover" [(ngModel)]="idMedioPago">
             <ion-select-option *ngFor="let m of mediosPago" [value]="m.id">{{ m.label }}</ion-select-option>
           </ion-select>
         </ion-item>
@@ -127,9 +128,9 @@ export type SeleccionCliente = { cliente: ClienteMock; esNuevo: boolean };
         </ion-text>
 
         <div class="botones">
-          <ion-button expand="block" fill="outline" (click)="modoNuevo = false">Volver a buscar</ion-button>
+          <ion-button expand="block" fill="outline" (click)="modoNuevo = false">{{ 'invoices.issued.clientSelector.backToSearch' | transloco }}</ion-button>
           <ion-button expand="block" [disabled]="guardando" (click)="confirmarNuevo()">
-            {{ guardando ? 'Creando…' : 'Usar este cliente' }}
+            {{ (guardando ? 'invoices.issued.clientSelector.creating' : 'invoices.issued.clientSelector.useThisClient') | transloco }}
           </ion-button>
         </div>
       </ng-container>
@@ -155,6 +156,7 @@ export class ClienteSelectorComponent implements OnDestroy {
   private customersRepo = inject(CustomersRepository);
   private invoicesRepo = inject(IssuedInvoicesRepository);
   private modalCtrl = inject(ModalController);
+  private transloco = inject(TranslocoService);
 
   private querySubject = new Subject<string>();
   private busquedaSub: Subscription;
@@ -237,11 +239,11 @@ export class ClienteSelectorComponent implements OnDestroy {
   async confirmarNuevo() {
     this.errorMsg = '';
     if (!this.nuevo.nombre.trim() || !this.nuevo.nif.trim()) {
-      this.errorMsg = 'Nombre y NIF/CIF son obligatorios.';
+      this.errorMsg = this.transloco.translate('invoices.issued.clientSelector.nameNifRequired');
       return;
     }
     if (!this.idMedioPago) {
-      this.errorMsg = 'Selecciona una forma de pago para el cliente.';
+      this.errorMsg = this.transloco.translate('invoices.issued.clientSelector.paymentMethodRequired');
       return;
     }
     if (this.guardando) return;
@@ -251,7 +253,7 @@ export class ClienteSelectorComponent implements OnDestroy {
       const seleccion: SeleccionCliente = { cliente: creado, esNuevo: true };
       this.modalCtrl.dismiss(seleccion, 'confirm');
     } catch (e: any) {
-      this.errorMsg = e?.message ?? 'No se pudo crear el cliente. Inténtalo de nuevo.';
+      this.errorMsg = e?.message ?? this.transloco.translate('invoices.issued.clientSelector.createError');
     } finally {
       this.guardando = false;
     }

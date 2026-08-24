@@ -4,6 +4,7 @@ import { CatalogoSelectorComponent } from './catalogo-selector.component';
 import { CatalogRepository } from '../../core/ports';
 import { ProductoCatalogo } from '../../services/mock-facturas.service';
 import { PaginaResultado } from '../../shared/types/pagination';
+import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 
 describe('CatalogoSelectorComponent — búsqueda bajo demanda', () => {
   let component: CatalogoSelectorComponent;
@@ -22,6 +23,7 @@ describe('CatalogoSelectorComponent — búsqueda bajo demanda', () => {
       imports: [CatalogoSelectorComponent],
       providers: [
         provideIonicAngular(),
+        ...provideTranslocoTesting(),
         { provide: CatalogRepository, useValue: catalogRepoSpy },
       ],
     });

@@ -5,7 +5,7 @@
         <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
-    <ion-title class="title-bold">Subsanar factura</ion-title>
+    <ion-title class="title-bold">{{ 'invoices.issued.correct.title' | transloco }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -19,36 +19,33 @@
 
     <ion-text color="medium">
       <p class="ion-no-margin aviso-solo-lectura">
-        Esta pantalla no edita la factura: el cliente, las líneas y los importes no cambian. Solo
-        vuelve a emitir el registro fiscal con los mismos datos ya guardados, dejando constancia
-        del motivo. Si el contenido de la factura está mal, corresponde una rectificativa; si la
-        operación no existió, corresponde anularla.
+        {{ 'invoices.issued.correct.readOnlyNotice' | transloco }}
       </p>
     </ion-text>
 
     <!-- Factura y registro original, solo lectura -->
     <ion-card>
       <ion-card-content>
-        <div class="section-title">Factura {{ f.numFactura }}</div>
+        <div class="section-title">{{ 'invoices.issued.correct.invoiceTitle' | transloco: { num: f.numFactura } }}</div>
         <ion-badge color="medium" class="estado-badge">
-          {{ f.estado === 'contabilizada' ? 'Contabilizada' : 'Firmada' }}
-          <span *ngIf="f.estadoAeat"> · Estado AEAT (Alta original): {{ estadoAeatLabel() }}</span>
+          {{ (f.estado === 'contabilizada' ? 'invoices.issued.detail.statusPosted' : 'invoices.issued.detail.statusSigned') | transloco }}
+          <span *ngIf="f.estadoAeat"> · {{ 'invoices.issued.correct.aeatStatusOriginal' | transloco }} {{ estadoAeatLabel() }}</span>
         </ion-badge>
 
         <p class="ion-no-margin"><strong>{{ f.destinatario.nombre }}</strong></p>
         <p class="ion-no-margin">{{ f.destinatario.nif }}</p>
         <p class="ion-no-margin campo-solo-lectura">{{ f.concepto }}</p>
-        <p class="ion-no-margin campo-solo-lectura">Fecha: {{ f.fecha }} · Total: {{ formatEuros(totalFactura()) }}</p>
+        <p class="ion-no-margin campo-solo-lectura">{{ 'invoices.issued.detail.dateLabel' | transloco }}: {{ f.fecha }} · {{ 'invoices.issued.correct.total' | transloco }}: {{ formatEuros(totalFactura()) }}</p>
       </ion-card-content>
     </ion-card>
 
     <!-- Subsanación previa, si la hay -->
     <ion-card *ngIf="f.subsanada">
       <ion-card-content>
-        <div class="section-title">Última subsanación</div>
+        <div class="section-title">{{ 'invoices.issued.correct.lastCorrection' | transloco }}</div>
         <ion-badge color="warning" class="estado-badge">{{ estadoSubsanacionLabel() }}</ion-badge>
-        <p class="ion-no-margin" *ngIf="f.fechaSubsanacion">Fecha: {{ f.fechaSubsanacion }}</p>
-        <p class="ion-no-margin campo-solo-lectura" *ngIf="f.motivoSubsanacion">Motivo: {{ f.motivoSubsanacion }}</p>
+        <p class="ion-no-margin" *ngIf="f.fechaSubsanacion">{{ 'invoices.issued.detail.dateLabel' | transloco }}: {{ f.fechaSubsanacion }}</p>
+        <p class="ion-no-margin campo-solo-lectura" *ngIf="f.motivoSubsanacion">{{ 'invoices.issued.correct.reason' | transloco }}: {{ f.motivoSubsanacion }}</p>
       </ion-card-content>
     </ion-card>
 
@@ -57,15 +54,13 @@
          enviar y rechaza una subsanación sin ningún cambio real. -->
     <ion-card *ngIf="puedeSubsanar">
       <ion-card-content>
-        <div class="section-title">Qué cambiaría en el registro fiscal</div>
+        <div class="section-title">{{ 'invoices.issued.correct.whatWouldChange' | transloco }}</div>
 
-        <p class="ion-no-margin campo-solo-lectura" *ngIf="cargandoPrevisualizacion">Calculando…</p>
+        <p class="ion-no-margin campo-solo-lectura" *ngIf="cargandoPrevisualizacion">{{ 'common.states.calculating' | transloco }}</p>
 
         <ion-text color="medium" *ngIf="!cargandoPrevisualizacion && !hayDiferencias">
           <p class="ion-no-margin aviso-solo-lectura">
-            El contenido fiscal que se volvería a emitir es idéntico al del último registro — no
-            hay ningún dato que corregir. Si la factura necesita cambiar cliente, líneas, importes
-            o IVA, corresponde una factura rectificativa, no una subsanación.
+            {{ 'invoices.issued.correct.noDifferences' | transloco }}
           </p>
         </ion-text>
 
@@ -85,15 +80,15 @@
     <!-- Motivo de esta subsanación -->
     <ion-card *ngIf="puedeSubsanar && hayDiferencias">
       <ion-card-content>
-        <div class="section-title">Motivo de la subsanación</div>
+        <div class="section-title">{{ 'invoices.issued.correct.reasonTitle' | transloco }}</div>
         <ion-text color="medium">
           <p class="ion-no-margin aviso-solo-lectura">
-            Es trazabilidad interna — no se envía a la AEAT ni forma parte del registro corregido.
+            {{ 'invoices.issued.correct.reasonNotice' | transloco }}
           </p>
         </ion-text>
         <ion-item lines="none">
           <ion-textarea
-            placeholder="Explica qué estaba mal en el registro remitido (no en la factura)"
+            [placeholder]="'invoices.issued.correct.reasonPlaceholder' | transloco"
             autoGrow="true"
             [(ngModel)]="motivo"
           ></ion-textarea>
@@ -114,7 +109,7 @@
       [disabled]="procesando || cargandoPrevisualizacion || !hayDiferencias"
       (click)="confirmar()"
     >
-      {{ procesando ? 'Subsanando…' : 'Confirmar subsanación' }}
+      {{ (procesando ? 'invoices.issued.correct.correcting' : 'invoices.issued.correct.confirm') | transloco }}
     </ion-button>
   </div>
 </ion-footer>

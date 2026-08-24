@@ -5,13 +5,13 @@
         <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
-    <ion-title class="title-bold">{{ working?.numFactura || 'Nueva factura' }}</ion-title>
+    <ion-title class="title-bold">{{ working?.numFactura || ('invoices.issued.detail.newInvoice' | transloco) }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
 
-  <app-demo-banner detalle="contabilizar/firmar envían la factura a la AEAT de verdad"></app-demo-banner>
+  <app-demo-banner [detalle]="'common.demoBanner.aeatRealSend' | transloco"></app-demo-banner>
 
   <ion-text color="danger" *ngIf="errorMsg">
     <p>{{ errorMsg }}</p>
@@ -22,7 +22,7 @@
     <ion-card-content>
       <ion-item>
         <ion-select
-          label="Numerador / Serie"
+          [label]="'invoices.issued.detail.seriesLabel' | transloco"
           interface="popover"
           [(ngModel)]="numeradorSeleccionado"
         >
@@ -32,7 +32,7 @@
 
       <ion-button expand="block" class="ion-margin-top" (click)="elegirCliente()">
         <ion-icon slot="start" name="person-circle-outline"></ion-icon>
-        Elegir cliente y empezar
+        {{ 'invoices.issued.detail.chooseClientAndStart' | transloco }}
       </ion-button>
     </ion-card-content>
   </ion-card>
@@ -40,30 +40,30 @@
   <ng-container *ngIf="working as f">
 
     <ion-badge color="medium" class="estado-badge">
-      {{ f.estado === 'borrador' ? 'Borrador' : (f.estado === 'contabilizada' ? 'Contabilizada' : 'Firmada') }}
-      <span *ngIf="f.estadoAeat"> · Estado AEAT: {{ estadoAeatLabel() }}</span>
+      {{ (f.estado === 'borrador' ? 'invoices.issued.tabs.draftSingular' : (f.estado === 'contabilizada' ? 'invoices.issued.detail.statusPosted' : 'invoices.issued.detail.statusSigned')) | transloco }}
+      <span *ngIf="f.estadoAeat"> · {{ 'invoices.issued.detail.aeatStatus' | transloco }} {{ estadoAeatLabel() }}</span>
     </ion-badge>
-    <ion-badge color="danger" class="estado-badge" *ngIf="f.anulada">Anulada{{ f.fechaAnulacion ? (' · ' + f.fechaAnulacion) : '' }}</ion-badge>
+    <ion-badge color="danger" class="estado-badge" *ngIf="f.anulada">{{ 'invoices.issued.badges.cancelled' | transloco }}{{ f.fechaAnulacion ? (' · ' + f.fechaAnulacion) : '' }}</ion-badge>
     <ion-badge color="warning" class="estado-badge" *ngIf="f.subsanada">{{ estadoSubsanacionLabel() }}</ion-badge>
 
     <!-- Blindaje Fase 7 (2026-08-21): motivo real que da la AEAT cuando el estado no es
          "Correcto" — antes no había ninguna pista de qué había fallado. -->
     <ion-text color="danger" *ngIf="f.avisoAeat">
-      <p class="aviso-aeat">Aviso de la AEAT: {{ f.avisoAeat }}</p>
+      <p class="aviso-aeat">{{ 'verifactu.aeatWarningPrefix' | transloco }} {{ f.avisoAeat }}</p>
     </ion-text>
 
     <!-- Cliente -->
     <ion-card>
       <ion-card-content>
-        <div class="section-title">Cliente</div>
+        <div class="section-title">{{ 'invoices.issued.detail.client' | transloco }}</div>
         <p class="ion-no-margin"><strong>{{ f.destinatario.nombre }}</strong></p>
-        <p class="ion-no-margin">{{ f.destinatario.nif }} · {{ f.destinatario.esEmpresa ? 'Empresa' : 'Particular' }}</p>
+        <p class="ion-no-margin">{{ f.destinatario.nif }} · {{ (f.destinatario.esEmpresa ? 'profile.typeCompany' : 'invoices.issued.detail.individual') | transloco }}</p>
         <p class="ion-no-margin" *ngIf="f.destinatario.direccion">
           {{ f.destinatario.direccion }}, {{ f.destinatario.cp }} {{ f.destinatario.poblacion }} ({{ f.destinatario.provincia }})
         </p>
 
         <ion-button *ngIf="esEditable" size="small" fill="outline" class="ion-margin-top" (click)="elegirCliente()">
-          Cambiar cliente
+          {{ 'invoices.issued.detail.changeClient' | transloco }}
         </ion-button>
       </ion-card-content>
     </ion-card>
@@ -72,26 +72,26 @@
     <ion-card>
       <ion-card-content>
         <ion-item [disabled]="!esEditable">
-          <ion-select label="Numerador / Serie" interface="popover" [(ngModel)]="f.numeradorId">
+          <ion-select [label]="'invoices.issued.detail.seriesLabel' | transloco" interface="popover" [(ngModel)]="f.numeradorId">
             <ion-select-option *ngFor="let n of numeradores" [value]="n.id">{{ n.nombre }}</ion-select-option>
           </ion-select>
         </ion-item>
 
         <div class="linea-grid">
           <ion-item [disabled]="!esEditable">
-            <ion-input label="Fecha" labelPlacement="stacked" type="date" [(ngModel)]="f.fecha"></ion-input>
+            <ion-input [label]="'invoices.issued.detail.dateLabel' | transloco" labelPlacement="stacked" type="date" [(ngModel)]="f.fecha"></ion-input>
           </ion-item>
           <ion-item [disabled]="!esEditable">
-            <ion-input label="Vencimiento" labelPlacement="stacked" type="date" [(ngModel)]="f.vencimiento"></ion-input>
+            <ion-input [label]="'invoices.issued.detail.dueDateLabel' | transloco" labelPlacement="stacked" type="date" [(ngModel)]="f.vencimiento"></ion-input>
           </ion-item>
         </div>
 
         <ion-item [disabled]="!esEditable">
-          <ion-input label="Concepto / descripción de la operación" labelPlacement="stacked" [(ngModel)]="f.concepto"></ion-input>
+          <ion-input [label]="'invoices.issued.detail.conceptLabel' | transloco" labelPlacement="stacked" [(ngModel)]="f.concepto"></ion-input>
         </ion-item>
 
         <ion-item [disabled]="!esEditable">
-          <ion-select label="Forma de pago" labelPlacement="stacked" interface="popover"
+          <ion-select [label]="'invoices.issued.detail.paymentMethodLabel' | transloco" labelPlacement="stacked" interface="popover"
             [ngModel]="f.idMedioPago" (ngModelChange)="onMedioPagoChange($event)">
             <ion-select-option *ngFor="let m of mediosPago" [value]="m.id">{{ m.label }}</ion-select-option>
           </ion-select>
@@ -112,15 +112,15 @@
     <!-- Totales -->
     <ion-card class="totales-card">
       <ion-card-content>
-        <div class="section-title">Totales</div>
+        <div class="section-title">{{ 'invoices.issued.detail.totals' | transloco }}</div>
 
         <div class="totales-tabla">
           <div class="fila">
-            <span class="etiqueta">Base imponible</span>
+            <span class="etiqueta">{{ 'invoices.issued.detail.taxableBase' | transloco }}</span>
             <span class="importe">{{ formatEuros(totales().base) }}</span>
           </div>
           <div class="fila" *ngFor="let d of totales().desgloseIva">
-            <span class="etiqueta">IVA {{ d.pct }}% · Base {{ formatEuros(d.baseGravada) }}</span>
+            <span class="etiqueta">{{ 'invoices.issued.detail.vat' | transloco }} {{ d.pct }}% · {{ 'invoices.issued.detail.base' | transloco }} {{ formatEuros(d.baseGravada) }}</span>
             <span class="importe importe-positivo">+{{ formatEuros(d.cuota) }}</span>
           </div>
           <div class="fila" *ngIf="totales().retencion.aplicable">
@@ -128,13 +128,13 @@
             <span class="importe importe-negativo">−{{ formatEuros(totales().retencion.importe) }}</span>
           </div>
           <div class="fila" *ngIf="!totales().retencion.aplicable">
-            <span class="etiqueta">Retención</span>
-            <span class="importe importe-neutro">No aplica</span>
+            <span class="etiqueta">{{ 'invoices.issued.detail.withholding' | transloco }}</span>
+            <span class="importe importe-neutro">{{ 'invoices.issued.detail.notApplicable' | transloco }}</span>
           </div>
         </div>
 
         <div class="fila-total">
-          <span class="etiqueta-total">Total a pagar</span>
+          <span class="etiqueta-total">{{ 'invoices.issued.detail.totalDue' | transloco }}</span>
           <span class="importe-total">{{ formatEuros(totales().total) }}</span>
         </div>
       </ion-card-content>
@@ -147,39 +147,39 @@
 <ion-footer *ngIf="working as f">
   <div class="footer-actions">
     <div class="acciones-secundarias">
-      <ion-button *ngIf="accionesPermitidas().copiar" fill="clear" size="small" aria-label="Copiar / Duplicar" (click)="duplicar()">
+      <ion-button *ngIf="accionesPermitidas().copiar" fill="clear" size="small" [attr.aria-label]="'invoices.issued.actions.copyAria' | transloco" (click)="duplicar()">
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
-      <ion-button *ngIf="accionesPermitidas().descargar" fill="clear" size="small" aria-label="Descargar documento" (click)="descargar()">
+      <ion-button *ngIf="accionesPermitidas().descargar" fill="clear" size="small" [attr.aria-label]="'invoices.issued.actions.downloadAria' | transloco" (click)="descargar()">
         <ion-icon slot="icon-only" name="download-outline"></ion-icon>
       </ion-button>
-      <ion-button *ngIf="accionesPermitidas().compartir" fill="clear" size="small" aria-label="Compartir documento" (click)="compartir()">
+      <ion-button *ngIf="accionesPermitidas().compartir" fill="clear" size="small" [attr.aria-label]="'invoices.issued.actions.shareAria' | transloco" (click)="compartir()">
         <ion-icon slot="icon-only" name="share-social-outline"></ion-icon>
       </ion-button>
-      <ion-button *ngIf="accionesPermitidas().eliminar" fill="clear" size="small" color="danger" aria-label="Eliminar borrador" (click)="confirmarEliminar()">
+      <ion-button *ngIf="accionesPermitidas().eliminar" fill="clear" size="small" color="danger" [attr.aria-label]="'invoices.issued.actions.deleteAria' | transloco" (click)="confirmarEliminar()">
         <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
       </ion-button>
     </div>
 
     <ion-button *ngIf="esEditable" expand="block" fill="outline" [disabled]="guardando" (click)="guardar()">
       <ion-spinner *ngIf="guardando" slot="start" name="dots"></ion-spinner>
-      {{ guardando ? 'Guardando...' : 'Guardar borrador' }}
+      {{ (guardando ? 'invoices.issued.detail.saving' : 'invoices.issued.detail.saveDraft') | transloco }}
     </ion-button>
 
     <ion-button *ngIf="f.estado === 'borrador'" expand="block" [disabled]="procesandoAeat" (click)="confirmarContabilizar()">
-      {{ procesandoAeat ? 'Contabilizando…' : 'Contabilizar' }}
+      {{ (procesandoAeat ? 'invoices.issued.actions.posting' : 'invoices.issued.actions.post') | transloco }}
     </ion-button>
 
     <ion-button *ngIf="f.estado === 'contabilizada'" expand="block" [disabled]="procesandoAeat" (click)="confirmarFirmar()">
-      {{ procesandoAeat ? 'Firmando…' : 'Firmar' }}
+      {{ (procesandoAeat ? 'invoices.issued.actions.signing' : 'invoices.issued.actions.sign') | transloco }}
     </ion-button>
 
     <ion-button *ngIf="puedeSubsanar" expand="block" fill="outline" color="warning" [disabled]="procesandoAeat" (click)="irASubsanar()">
-      Subsanar factura
+      {{ 'invoices.issued.detail.correctInvoice' | transloco }}
     </ion-button>
 
     <ion-button *ngIf="puedeAnular" expand="block" fill="outline" color="danger" [disabled]="procesandoAeat" (click)="confirmarAnular()">
-      {{ procesandoAeat ? 'Anulando…' : 'Anular factura' }}
+      {{ (procesandoAeat ? 'invoices.issued.detail.cancelling' : 'invoices.issued.detail.cancelInvoice') | transloco }}
     </ion-button>
   </div>
 </ion-footer>
