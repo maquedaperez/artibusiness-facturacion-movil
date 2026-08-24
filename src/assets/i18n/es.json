@@ -1,27 +1,557 @@
 {
-  "perfil": {
-    "titulo": "Perfil",
-    "email": "Email:",
-    "telefono": "Teléfono:",
-    "idUsuario": "ID usuario:",
-    "empresa": "Empresa:",
-    "sinSesion": "No hay sesión activa.",
-    "datosFiscales": "Datos fiscales",
-    "sinNombre": "Sin nombre todavía",
-    "sinNif": "Sin NIF/CIF",
-    "tipoEmpresa": "Empresa",
-    "tipoAutonomo": "Autónomo",
-    "verDetalle": "Ver detalle",
-    "cerrarSesion": "Cerrar sesión",
-    "cambiarEmpresa": "Cambiar empresa",
-    "alertaCambiarEmpresaMensaje": "Se cerrará la sesión y tendrás que volver a introducir la clave de empresa. ¿Deseas continuar?",
-    "cancelar": "Cancelar",
-    "siContinuar": "Sí, continuar",
-    "idioma": "Idioma"
+  "common": {
+    "actions": {
+      "cancel": "Cancelar",
+      "close": "Cerrar",
+      "delete": "Eliminar",
+      "yesContinue": "Sí, continuar"
+    },
+    "states": {
+      "calculating": "Calculando…"
+    },
+    "languages": {
+      "es": "Español",
+      "en": "English",
+      "uk": "Українська"
+    },
+    "demoBanner": {
+      "default": "Modo demo — datos simulados",
+      "aeatRealSend": "contabilizar/firmar envían la factura a la AEAT de verdad",
+      "recibidasTitulo": "Entorno de demostración conectado al backend de Development",
+      "recibidasDetalle": "el resto de módulos de la app puede usar datos simulados"
+    },
+    "yes": "Sí",
+    "no": "No",
+    "withholdingLabel": "Retención",
+    "documentViewer": {
+      "defaultTitle": "Documento",
+      "defaultAlt": "Documento adjunto"
+    },
+    "linesEditor": {
+      "title": "Líneas",
+      "descriptionLabel": "Descripción",
+      "quantityLabel": "Cantidad",
+      "unitPriceLabel": "Precio unitario",
+      "discountLabel": "% Dto",
+      "vatLabel": "% IVA",
+      "lineTotal": "Total línea:",
+      "deleteLine": "Eliminar línea",
+      "discountAbbr": "Dto",
+      "addLine": "Añadir línea",
+      "noLines": "Todavía no hay líneas.",
+      "fromCatalog": "Producto/servicio de catálogo",
+      "subscription": "Suscripción",
+      "outsideCatalog": "Fuera de catálogo",
+      "originCatalog": "Catálogo",
+      "originSubscription": "Suscripción",
+      "originManual": "Manual"
+    }
   },
-  "idiomas": {
-    "es": "Español",
-    "en": "English",
-    "uk": "Українська"
+  "navigation": {
+    "tabs": {
+      "issued": "Emitidas",
+      "received": "Recibidas",
+      "profile": "Perfil"
+    }
+  },
+  "auth": {
+    "login": {
+      "usernameLabel": "Usuario",
+      "usernamePlaceholder": "usuario@empresa.com",
+      "usernameRequired": "El usuario es obligatorio.",
+      "passwordLabel": "Contraseña",
+      "passwordInvalid": "Contraseña incorrecta.",
+      "submit": "Entrar",
+      "forgotPassword": "¿Has olvidado tu contraseña?",
+      "changeAccessKey": "Cambiar clave de acceso",
+      "biometricReason": "Accede con Face ID",
+      "errorInvalidCredentials": "Credenciales inválidas. Comprueba tu usuario y contraseña.",
+      "errorBadRequest": "Datos incorrectos. Revisa los campos.",
+      "errorServer": "Error del servidor. Inténtalo más tarde.",
+      "errorGeneric": "Error al iniciar sesión. Inténtalo de nuevo."
+    },
+    "mfa": {
+      "codeSentTo": "Hemos enviado un código de seguridad a:",
+      "yourEmailFallback": "tu correo",
+      "timeRemaining": "Tiempo restante:",
+      "codeLabel": "Código de validación",
+      "codeInvalid": "Introduce un código válido de 6 dígitos.",
+      "submit": "Validar",
+      "resend": "Reenviar código",
+      "backToLogin": "Volver al login",
+      "errorInvalidOrExpired": "Código incorrecto o expirado. Inténtalo de nuevo.",
+      "resendSuccess": "Código reenviado correctamente.",
+      "resendError": "No se pudo reenviar el código. Inténtalo de nuevo."
+    },
+    "forgotPassword": {
+      "instructions": "Introduce tu usuario o email y te enviaremos las instrucciones para recuperar el acceso.",
+      "identifierLabel": "Usuario o email",
+      "submit": "Enviar",
+      "backToLogin": "Volver al login",
+      "successAlert": "Si el usuario existe, se enviarán las instrucciones.",
+      "errorAlert": "No se pudo enviar la solicitud."
+    },
+    "setup": {
+      "title": "Configuración inicial",
+      "instructions": "Introduce tu clave de acceso",
+      "keyLabel": "Clave",
+      "keyRequired": "La clave es obligatoria (mín. 3 caracteres).",
+      "keyInvalid": "La clave no es válida. Revisa la clave y prueba de nuevo.",
+      "submit": "Continuar",
+      "requestAccess": "Solicitar acceso",
+      "errorServer": "Error al conectar con el servidor."
+    }
+  },
+  "profile": {
+    "title": "Perfil",
+    "email": "Email:",
+    "phone": "Teléfono:",
+    "userId": "ID usuario:",
+    "company": "Empresa:",
+    "noSession": "No hay sesión activa.",
+    "fiscalData": "Datos fiscales",
+    "noName": "Sin nombre todavía",
+    "noNif": "Sin NIF/CIF",
+    "typeCompany": "Empresa",
+    "typeSelfEmployed": "Autónomo",
+    "viewDetail": "Ver detalle",
+    "logout": "Cerrar sesión",
+    "changeCompany": "Cambiar empresa",
+    "changeCompanyConfirm": "Se cerrará la sesión y tendrás que volver a introducir la clave de empresa. ¿Deseas continuar?",
+    "language": "Idioma",
+    "emisor": {
+      "title": "Datos fiscales de la empresa",
+      "description": "Estos son los datos que aparecen como emisor en tus facturas. Ninguno se puede editar desde la app — proceden del alta de tu empresa.",
+      "fiscalIdentity": "Identidad fiscal",
+      "type": "Tipo:",
+      "companyName": "Razón social:",
+      "fullName": "Nombre y apellidos:",
+      "cif": "CIF:",
+      "nif": "NIF:",
+      "addressContact": "Dirección y contacto",
+      "address": "Dirección:",
+      "city": "Población:",
+      "postalCode": "Código postal:",
+      "province": "Provincia:",
+      "additionalData": "Datos adicionales",
+      "commercialRegistry": "Registro mercantil:",
+      "cnae": "CNAE:",
+      "iban": "IBAN:",
+      "swift": "SWIFT:"
+    }
+  },
+  "invoices": {
+    "issued": {
+      "title": "Facturas emitidas",
+      "searchPlaceholder": "Buscar por cliente o concepto",
+      "tabs": {
+        "draft": "Borradores",
+        "draftSingular": "Borrador",
+        "posted": "Contabilizadas",
+        "signed": "Firmadas"
+      },
+      "filters": {
+        "seriesPrefix": "Serie:",
+        "dates": "Fechas",
+        "placeholder": "Filtrar por serie o fecha",
+        "seriesLabel": "Serie",
+        "all": "Todas",
+        "dateFrom": "Desde",
+        "dateTo": "Hasta"
+      },
+      "card": {
+        "noNameFallback": "Cliente no disponible",
+        "noConceptFallback": "Sin concepto"
+      },
+      "badges": {
+        "cancelled": "Anulada",
+        "corrected": "Subsanada"
+      },
+      "actions": {
+        "posting": "Contabilizando…",
+        "post": "Contabilizar",
+        "signing": "Firmando…",
+        "sign": "Firmar",
+        "copyAria": "Copiar / Duplicar",
+        "downloadAria": "Descargar documento",
+        "shareAria": "Compartir documento",
+        "deleteAria": "Eliminar borrador"
+      },
+      "empty": {
+        "noneInState": "No hay facturas en estado",
+        "noResultsFor": "Sin resultados para \"{{query}}\".",
+        "noResultsFiltered": "Sin resultados con los filtros aplicados."
+      },
+      "list": {
+        "loadError": "No se pudo cargar la lista de facturas."
+      },
+      "deleteDraft": {
+        "header": "Eliminar borrador",
+        "message": "¿Eliminar el borrador {{num}} de {{cliente}}? Esta acción no se puede deshacer.",
+        "success": "Borrador eliminado.",
+        "error": "No se pudo eliminar la factura."
+      },
+      "post": {
+        "header": "Contabilizar factura",
+        "message": "¿Contabilizar la factura de {{cliente}} por {{importe}}? Esto envía la factura a Verifactu/AEAT y ya no se podrá editar.",
+        "success": "Factura de {{cliente}} contabilizada.",
+        "error": "No se pudo contabilizar la factura."
+      },
+      "sign": {
+        "header": "Firmar factura",
+        "message": "¿Firmar la factura de {{cliente}}? Esto genera la firma electrónica (XAdES) real del documento ya registrado en VERI*FACTU.",
+        "success": "Factura de {{cliente}} firmada.",
+        "error": "No se pudo firmar la factura."
+      },
+      "duplicate": {
+        "success": "Borrador {{nuevo}} creado a partir de {{original}}.",
+        "error": "No se pudo duplicar la factura."
+      },
+      "download": {
+        "success": "Documento descargado (simulado, no válido fiscalmente).",
+        "error": "No se pudo generar el documento. Inténtalo de nuevo."
+      },
+      "share": {
+        "error": "No se pudo compartir el documento. Inténtalo de nuevo."
+      },
+      "detail": {
+        "newInvoice": "Nueva factura",
+        "seriesLabel": "Numerador / Serie",
+        "chooseClientAndStart": "Elegir cliente y empezar",
+        "statusPosted": "Contabilizada",
+        "statusSigned": "Firmada",
+        "aeatStatus": "Estado AEAT:",
+        "client": "Cliente",
+        "individual": "Particular",
+        "changeClient": "Cambiar cliente",
+        "dateLabel": "Fecha",
+        "dueDateLabel": "Vencimiento",
+        "conceptLabel": "Concepto / descripción de la operación",
+        "paymentMethodLabel": "Forma de pago",
+        "totals": "Totales",
+        "taxableBase": "Base imponible",
+        "vat": "IVA",
+        "base": "Base",
+        "withholding": "Retención",
+        "notApplicable": "No aplica",
+        "totalDue": "Total a pagar",
+        "saving": "Guardando...",
+        "saveDraft": "Guardar borrador",
+        "correctInvoice": "Subsanar factura",
+        "cancelling": "Anulando…",
+        "cancelInvoice": "Anular factura",
+        "notFound": "Factura no encontrada.",
+        "loadError": "No se pudo cargar la factura.",
+        "saveSuccess": "Factura guardada.",
+        "saveError": "No se pudo guardar la factura.",
+        "postValidationError": "Concepto y forma de pago son obligatorios para contabilizar.",
+        "postConfirmMessage": "¿Contabilizar la factura de {{cliente}} por {{importe}}? Esto envía la factura a Verifactu/AEAT y ya no se podrá editar. Se guardarán antes los cambios pendientes.",
+        "postedSuccess": "Factura contabilizada.",
+        "signConfirmMessage": "¿Firmar esta factura? Esto genera la firma electrónica (XAdES) real del documento ya registrado en VERI*FACTU.",
+        "signedSuccess": "Factura firmada.",
+        "cancelHeader": "Anular factura",
+        "cancelConfirmMessage": "¿Anular la factura {{num}}? Esto crea un registro de anulación real en VERI*FACTU/AEAT. La factura original no se borra ni se modifica, pero queda marcada como anulada.",
+        "cancelledSuccess": "Factura anulada.",
+        "cancelError": "No se pudo anular la factura."
+      },
+      "correct": {
+        "title": "Subsanar factura",
+        "readOnlyNotice": "Esta pantalla no edita la factura: el cliente, las líneas y los importes no cambian. Solo vuelve a emitir el registro fiscal con los mismos datos ya guardados, dejando constancia del motivo. Si el contenido de la factura está mal, corresponde una rectificativa; si la operación no existió, corresponde anularla.",
+        "invoiceTitle": "Factura {{num}}",
+        "aeatStatusOriginal": "Estado AEAT (Alta original):",
+        "total": "Total",
+        "lastCorrection": "Última subsanación",
+        "reason": "Motivo",
+        "whatWouldChange": "Qué cambiaría en el registro fiscal",
+        "noDifferences": "El contenido fiscal que se volvería a emitir es idéntico al del último registro — no hay ningún dato que corregir. Si la factura necesita cambiar cliente, líneas, importes o IVA, corresponde una factura rectificativa, no una subsanación.",
+        "reasonTitle": "Motivo de la subsanación",
+        "reasonNotice": "Es trazabilidad interna — no se envía a la AEAT ni forma parte del registro corregido.",
+        "reasonPlaceholder": "Explica qué estaba mal en el registro remitido (no en la factura)",
+        "correcting": "Subsanando…",
+        "confirm": "Confirmar subsanación",
+        "previewError": "No se pudo calcular qué cambiaría al subsanar.",
+        "reasonRequired": "Indica el motivo de la subsanación.",
+        "confirmMessage": "¿Confirmar la subsanación de la factura {{num}}? Esto genera un registro nuevo en VERI*FACTU (la factura y el Alta original no se modifican). Esta acción no se puede deshacer.",
+        "registeredSuccess": "Subsanación registrada.",
+        "error": "No se pudo subsanar la factura.",
+        "simulatedFieldLabel": "Descripción de la operación (simulado)"
+      },
+      "clientSelector": {
+        "title": "Seleccionar cliente",
+        "searchPlaceholder": "Buscar por nombre o NIF (mínimo 2 caracteres)",
+        "typeToSearch": "Escribe al menos 2 caracteres para buscar.",
+        "searching": "Buscando...",
+        "noResultsFor": "Sin resultados para \"{{query}}\".",
+        "searchError": "No se pudo completar la búsqueda. Inténtalo de nuevo.",
+        "newClient": "Cliente nuevo",
+        "isCompany": "¿Empresa?",
+        "nameLabel": "Nombre / Razón social",
+        "cif": "CIF",
+        "nif": "NIF",
+        "address": "Dirección",
+        "city": "Población",
+        "postalCode": "Código postal",
+        "province": "Provincia",
+        "paymentMethod": "Forma de pago",
+        "backToSearch": "Volver a buscar",
+        "creating": "Creando…",
+        "useThisClient": "Usar este cliente",
+        "nameNifRequired": "Nombre y NIF/CIF son obligatorios.",
+        "paymentMethodRequired": "Selecciona una forma de pago para el cliente.",
+        "createError": "No se pudo crear el cliente. Inténtalo de nuevo."
+      },
+      "catalogSelector": {
+        "title": "Producto / servicio de catálogo",
+        "searchPlaceholder": "Buscar por nombre o referencia (mínimo 2 caracteres)"
+      },
+      "subscriptionSelector": {
+        "title": "Suscripción / servicio recurrente",
+        "searchPlaceholder": "Buscar por nombre (mínimo 2 caracteres)",
+        "paused": "Pausada",
+        "cancelled": "Cancelada"
+      },
+      "errors": {
+        "clientRequired": "Selecciona el cliente de la lista antes de guardar — no se puede guardar una factura solo con el nombre en texto.",
+        "paymentMethodRequired": "Selecciona una forma de pago del catálogo antes de guardar.",
+        "lineRequired": "La factura necesita al menos una línea.",
+        "notFoundWithId": "Factura {{id}} no encontrada."
+      }
+    },
+    "received": {
+      "title": "Facturas recibidas",
+      "searchPlaceholder": "Buscar por proveedor",
+      "filters": {
+        "status": "Estado",
+        "all": "Todos",
+        "draft": "Borrador",
+        "posted": "Contabilizada",
+        "payment": "Pago",
+        "paid": "Pagada",
+        "pending": "Pendiente",
+        "dateFrom": "Desde",
+        "dateTo": "Hasta",
+        "dates": "Fechas",
+        "placeholder": "Filtros"
+      },
+      "loading": "Cargando facturas...",
+      "limitNotice": "Últimas 50 facturas. Usa el buscador para encontrar una más antigua.",
+      "card": {
+        "noSupplierFallback": "Proveedor no disponible",
+        "noConceptFallback": "Sin concepto",
+        "paidSuffix": "Pagada",
+        "unsaved": "Sin guardar",
+        "posted": "Contabilizada",
+        "draft": "Borrador"
+      },
+      "actions": {
+        "post": "Contabilizar",
+        "copyAria": "Copiar / Duplicar",
+        "downloadAria": "Descargar documento adjunto",
+        "shareAria": "Compartir documento adjunto",
+        "deleteAria": "Eliminar factura"
+      },
+      "empty": {
+        "none": "Todavía no hay facturas recibidas.",
+        "noResults": "Sin resultados con la búsqueda o los filtros aplicados."
+      },
+      "list": {
+        "loadError": "No se pudo cargar la lista de facturas.",
+        "loadFullError": "No se pudo cargar la factura completa."
+      },
+      "post": {
+        "header": "Contabilizar factura",
+        "message": "¿Contabilizar la factura {{num}} de {{proveedor}} por {{importe}}? Quedará bloqueada para editar — solo podrá eliminarse (si corresponde) o gestionarse desde analítica/pagos.",
+        "success": "Factura contabilizada.",
+        "error": "No se pudo contabilizar la factura."
+      },
+      "duplicate": {
+        "numberDialogHeader": "Número de la nueva factura",
+        "numberDialogMessage": "Se copiará la factura de {{proveedor}} (proveedor, líneas, importes...) y se guardará directamente. El resto de datos se pueden ajustar después.",
+        "numberPlaceholder": "Número de factura",
+        "confirmButton": "Copiar y guardar",
+        "success": "Copia guardada a partir de la factura de {{proveedor}}.",
+        "error": "No se pudo copiar la factura."
+      },
+      "attachment": {
+        "downloadSuccess": "Documento descargado.",
+        "downloadError": "No se pudo descargar el documento.",
+        "shareError": "No se pudo compartir el documento."
+      },
+      "delete": {
+        "paidError": "No se puede eliminar una factura marcada como pagada.",
+        "lockedError": "No se puede eliminar una factura ya contabilizada.",
+        "header": "Eliminar factura",
+        "message": "¿Eliminar la factura de {{proveedor}}? Esta acción no se puede deshacer.",
+        "success": "Factura eliminada.",
+        "error": "No se pudo eliminar la factura.",
+        "messageWithNumber": "¿Eliminar la factura {{num}} de {{proveedor}}? Esta acción no se puede deshacer."
+      },
+      "detail": {
+        "newInvoice": "Nueva factura recibida",
+        "fallbackTitle": "Factura recibida",
+        "ocrChip": "Creada desde OCR",
+        "loading": "Cargando factura...",
+        "supplierSection": "Proveedor",
+        "changeSupplier": "Cambiar proveedor",
+        "selectSupplier": "Seleccionar proveedor",
+        "invoiceDataSection": "Datos de la factura",
+        "numberLabel": "Número",
+        "dateLabel": "Fecha",
+        "dueDateLabel": "Vencimiento",
+        "conceptLabel": "Concepto",
+        "paymentMethodLabel": "Forma de pago",
+        "paymentMethodPlaceholder": "Selecciona forma de pago",
+        "statusLabel": "Estado",
+        "statusPosted": "Contabilizada",
+        "statusDraft": "Borrador",
+        "paidLabel": "Pagada",
+        "totalsSection": "Totales",
+        "taxableBase": "Base imponible",
+        "vat": "IVA",
+        "base": "Base",
+        "withholdingLabel": "% Retención (según la factura del proveedor)",
+        "withholding": "Retención",
+        "notApplicable": "No aplica",
+        "totalDue": "Total a pagar",
+        "attachmentSection": "Documento adjunto",
+        "noAttachment": "Sin documento adjunto.",
+        "changeDocument": "Cambiar documento",
+        "attachDocument": "Adjuntar documento",
+        "viewDocument": "Ver documento",
+        "saving": "Guardando...",
+        "save": "Guardar",
+        "notFound": "Factura no encontrada.",
+        "loadError": "No se pudo cargar la factura.",
+        "attachError": "No se pudo adjuntar el documento. Inténtalo de nuevo.",
+        "viewDocumentError": "No se pudo cargar el documento.",
+        "validationRequired": "Proveedor y número de factura son obligatorios.",
+        "validationSupplier": "Selecciona el proveedor de la lista (o créalo) antes de guardar.",
+        "saveSuccess": "Factura guardada.",
+        "saveError": "No se pudo guardar la factura.",
+        "attachAfterSaveError": "La factura se guardó, pero no se pudo subir el documento adjunto. Vuelve a intentarlo desde aquí."
+      },
+      "supplierSelector": {
+        "title": "Seleccionar proveedor",
+        "searchPlaceholder": "Buscar por nombre o NIF (mínimo 2 caracteres)",
+        "typeToSearch": "Escribe al menos 2 caracteres para buscar.",
+        "searching": "Buscando...",
+        "noResultsFor": "Sin resultados para \"{{query}}\".",
+        "searchError": "No se pudo completar la búsqueda. Inténtalo de nuevo.",
+        "newSupplier": "Proveedor nuevo",
+        "nameLabel": "Nombre / Razón social",
+        "nifCif": "NIF/CIF",
+        "address": "Dirección",
+        "city": "Población",
+        "postalCode": "Código postal",
+        "province": "Provincia",
+        "backToSearch": "Volver a buscar",
+        "useThisSupplier": "Usar este proveedor",
+        "nameNifRequired": "Nombre y NIF son obligatorios.",
+        "addressRequired": "Dirección, código postal, población y provincia son obligatorios.",
+        "createError": "No se pudo crear el proveedor."
+      },
+      "errors": {
+        "supplierRequired": "Selecciona el proveedor de la lista (o créalo) antes de guardar — no se puede guardar una factura solo con el nombre en texto.",
+        "invoiceNumberRequired": "El número de factura es obligatorio.",
+        "lineRequired": "La factura necesita al menos una línea.",
+        "updateNotFoundOrLocked": "No se pudo actualizar la factura {{id}}: no existe o está bloqueada."
+      }
+    }
+  },
+  "verifactu": {
+    "estados": {
+      "pendienteEnvio": "Pendiente de envío",
+      "correcto": "Correcto",
+      "aceptadoConErrores": "Aceptado con errores",
+      "rechazadoAeat": "Rechazado por AEAT",
+      "requiereRevisionManual": "Requiere revisión manual",
+      "sinDatos": "—"
+    },
+    "subsanacion": {
+      "aceptada": "Subsanada: aceptada",
+      "aceptadaConErrores": "Subsanada: aceptada con errores",
+      "rechazada": "Subsanada: rechazada",
+      "pendienteEnvio": "Subsanación pendiente de envío",
+      "prefijoGenerico": "Subsanación: {{estado}}"
+    },
+    "errors": {
+      "anularBorrador": "Esta factura todavía no se ha contabilizado — no se puede anular.",
+      "yaAnulada": "Esta factura ya está anulada.",
+      "subsanarBorrador": "Solo se puede subsanar una factura ya contabilizada.",
+      "subsanarAnulada": "Esta factura está anulada; no se puede subsanar.",
+      "motivoObligatorio": "El motivo de la subsanación es obligatorio.",
+      "sinCambiosFiscales": "El contenido fiscal no ha cambiado desde la última subsanación — no hay nada que corregir.",
+      "firmarBorrador": "Esta factura todavía no se ha guardado ni contabilizado — no se puede firmar.",
+      "guardarAntesDeContabilizar": "Guarda la factura antes de contabilizarla."
+    },
+    "aeatWarningPrefix": "Aviso de la AEAT:"
+  },
+  "ocr": {
+    "scanUnavailableNotice": "Escanear facturas no está disponible ahora mismo — usa \"Nueva factura\" para darla de alta a mano mientras tanto.",
+    "scanning": "Procesando...",
+    "scanButton": "Escanear",
+    "attachButton": "Adjuntar",
+    "badge": "OCR",
+    "savedWithWarnings": "Factura guardada, pero con avisos: {{aviso}}",
+    "savedSuccess": "Factura guardada desde \"{{archivo}}\": {{proveedor}}.",
+    "saveGenericError": "No se pudo guardar la factura. Inténtalo de nuevo.",
+    "supplierNotFoundDraft": "Proveedor no encontrado en el sistema. Se ha abierto un borrador: dalo de alta manualmente antes de guardar.",
+    "nifUnreadableDraft": "No se ha podido leer el NIF del proveedor. Se ha abierto un borrador: complétalo o da de alta el proveedor manualmente.",
+    "numberUnreadableDraft": "No se ha podido leer el número de factura. Se ha abierto un borrador para completarlo a mano.",
+    "processDocumentError": "No se pudo procesar el documento. Inténtalo de nuevo o crea la factura manualmente.",
+    "bankDocDraftError": "No se pudo preparar un borrador de factura a partir del documento bancario. Puedes crearla manualmente.",
+    "extractionError": "No se pudo extraer información del documento. Inténtalo de nuevo o crea la factura manualmente."
+  },
+  "bankDocuments": {
+    "title": "Documento bancario",
+    "detectedNotice": "El lector ha detectado un documento bancario.",
+    "detectedDescription": "Se muestran los datos extraídos para su revisión. No se ha creado ninguna factura recibida.",
+    "confidence": "Confianza:",
+    "readerWarnings": "Avisos del lector",
+    "noFieldsNotice": "El lector clasificó el fichero, pero no devolvió campos bancarios para mostrar.",
+    "viewOriginal": "Ver documento original",
+    "analysisId": "Identificador de análisis:",
+    "generalDataSection": "Datos generales",
+    "valueLabel": "Valor",
+    "fields": {
+      "bank": "Banco",
+      "documentType": "Tipo de documento",
+      "documentNumber": "Número de documento",
+      "issuer": "Emisor",
+      "issuerIdentification": "Identificación del emisor",
+      "identification": "Identificación",
+      "invoiceNumber": "Número de factura / documento",
+      "fileReference": "Referencia del fichero",
+      "receptionDate": "Fecha de recepción",
+      "operationType": "Tipo de operación",
+      "uniqueReference": "Referencia única",
+      "debtorName": "Nombre del librado",
+      "debtorIban": "IBAN del librado",
+      "debtor": "Librado",
+      "accountHolder": "Titular de la cuenta",
+      "iban": "IBAN",
+      "amount": "Importe",
+      "nominalAmount": "Nominal",
+      "commission": "Comisión",
+      "mailFee": "Correo",
+      "taxes": "Impuestos",
+      "netAmount": "Líquido",
+      "dueDate": "Vencimiento",
+      "valueDate": "Fecha valor",
+      "chargeStatus": "Estado del cargo",
+      "status": "Estado",
+      "currency": "Moneda",
+      "transactions": "Operaciones",
+      "entries": "Movimientos",
+      "references": "Referencias",
+      "amounts": "Importes",
+      "dates": "Fechas"
+    }
+  },
+  "errors": {
+    "sessionCompanyNotFound": "No se ha podido identificar la empresa de tu sesión. Vuelve a iniciar sesión e inténtalo de nuevo."
+  },
+  "validation": {
+    "fieldRequired": "Este campo es obligatorio."
   }
 }

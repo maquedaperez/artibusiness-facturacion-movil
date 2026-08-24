@@ -1,27 +1,557 @@
 {
-  "perfil": {
-    "titulo": "Profile",
-    "email": "Email:",
-    "telefono": "Phone:",
-    "idUsuario": "User ID:",
-    "empresa": "Company:",
-    "sinSesion": "No active session.",
-    "datosFiscales": "Tax details",
-    "sinNombre": "No name yet",
-    "sinNif": "No tax ID",
-    "tipoEmpresa": "Company",
-    "tipoAutonomo": "Self-employed",
-    "verDetalle": "View details",
-    "cerrarSesion": "Log out",
-    "cambiarEmpresa": "Switch company",
-    "alertaCambiarEmpresaMensaje": "This will log you out and you'll need to enter the company key again. Do you want to continue?",
-    "cancelar": "Cancel",
-    "siContinuar": "Yes, continue",
-    "idioma": "Language"
+  "common": {
+    "actions": {
+      "cancel": "Cancel",
+      "close": "Close",
+      "delete": "Delete",
+      "yesContinue": "Yes, continue"
+    },
+    "states": {
+      "calculating": "Calculating…"
+    },
+    "languages": {
+      "es": "Español",
+      "en": "English",
+      "uk": "Українська"
+    },
+    "demoBanner": {
+      "default": "Demo mode — simulated data",
+      "aeatRealSend": "post/sign send the invoice to the AEAT for real",
+      "recibidasTitulo": "Demo environment connected to the Development backend",
+      "recibidasDetalle": "the rest of the app's modules may use simulated data"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "withholdingLabel": "Withholding",
+    "documentViewer": {
+      "defaultTitle": "Document",
+      "defaultAlt": "Attached document"
+    },
+    "linesEditor": {
+      "title": "Lines",
+      "descriptionLabel": "Description",
+      "quantityLabel": "Quantity",
+      "unitPriceLabel": "Unit price",
+      "discountLabel": "% Disc.",
+      "vatLabel": "% VAT",
+      "lineTotal": "Line total:",
+      "deleteLine": "Delete line",
+      "discountAbbr": "Disc.",
+      "addLine": "Add line",
+      "noLines": "No lines yet.",
+      "fromCatalog": "Catalog product/service",
+      "subscription": "Subscription",
+      "outsideCatalog": "Outside the catalog",
+      "originCatalog": "Catalog",
+      "originSubscription": "Subscription",
+      "originManual": "Manual"
+    }
   },
-  "idiomas": {
-    "es": "Español",
-    "en": "English",
-    "uk": "Українська"
+  "navigation": {
+    "tabs": {
+      "issued": "Issued",
+      "received": "Received",
+      "profile": "Profile"
+    }
+  },
+  "auth": {
+    "login": {
+      "usernameLabel": "Username",
+      "usernamePlaceholder": "user@company.com",
+      "usernameRequired": "Username is required.",
+      "passwordLabel": "Password",
+      "passwordInvalid": "Incorrect password.",
+      "submit": "Log in",
+      "forgotPassword": "Forgot your password?",
+      "changeAccessKey": "Change access key",
+      "biometricReason": "Sign in with Face ID",
+      "errorInvalidCredentials": "Invalid credentials. Check your username and password.",
+      "errorBadRequest": "Incorrect data. Review the fields.",
+      "errorServer": "Server error. Try again later.",
+      "errorGeneric": "Could not log in. Try again."
+    },
+    "mfa": {
+      "codeSentTo": "We've sent a security code to:",
+      "yourEmailFallback": "your email",
+      "timeRemaining": "Time remaining:",
+      "codeLabel": "Verification code",
+      "codeInvalid": "Enter a valid 6-digit code.",
+      "submit": "Verify",
+      "resend": "Resend code",
+      "backToLogin": "Back to login",
+      "errorInvalidOrExpired": "Incorrect or expired code. Try again.",
+      "resendSuccess": "Code resent successfully.",
+      "resendError": "Could not resend the code. Try again."
+    },
+    "forgotPassword": {
+      "instructions": "Enter your username or email and we'll send you instructions to recover access.",
+      "identifierLabel": "Username or email",
+      "submit": "Send",
+      "backToLogin": "Back to login",
+      "successAlert": "If the user exists, the instructions will be sent.",
+      "errorAlert": "Could not send the request."
+    },
+    "setup": {
+      "title": "Initial setup",
+      "instructions": "Enter your access key",
+      "keyLabel": "Key",
+      "keyRequired": "The key is required (min. 3 characters).",
+      "keyInvalid": "The key is not valid. Check it and try again.",
+      "submit": "Continue",
+      "requestAccess": "Request access",
+      "errorServer": "Could not connect to the server."
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "email": "Email:",
+    "phone": "Phone:",
+    "userId": "User ID:",
+    "company": "Company:",
+    "noSession": "There is no active session.",
+    "fiscalData": "Fiscal data",
+    "noName": "No name yet",
+    "noNif": "No tax ID",
+    "typeCompany": "Company",
+    "typeSelfEmployed": "Self-employed",
+    "viewDetail": "View detail",
+    "logout": "Log out",
+    "changeCompany": "Change company",
+    "changeCompanyConfirm": "You will be logged out and will need to enter the company key again. Do you want to continue?",
+    "language": "Language",
+    "emisor": {
+      "title": "Company fiscal data",
+      "description": "This is the data that appears as the issuer on your invoices. None of it can be edited from the app — it comes from your company's registration.",
+      "fiscalIdentity": "Fiscal identity",
+      "type": "Type:",
+      "companyName": "Legal name:",
+      "fullName": "Full name:",
+      "cif": "Tax ID (CIF):",
+      "nif": "Tax ID (NIF):",
+      "addressContact": "Address and contact",
+      "address": "Address:",
+      "city": "City:",
+      "postalCode": "Postal code:",
+      "province": "Province:",
+      "additionalData": "Additional data",
+      "commercialRegistry": "Companies registry:",
+      "cnae": "Activity code (CNAE):",
+      "iban": "IBAN:",
+      "swift": "SWIFT:"
+    }
+  },
+  "invoices": {
+    "issued": {
+      "title": "Issued invoices",
+      "searchPlaceholder": "Search by client or concept",
+      "tabs": {
+        "draft": "Drafts",
+        "draftSingular": "Draft",
+        "posted": "Posted",
+        "signed": "Signed"
+      },
+      "filters": {
+        "seriesPrefix": "Series:",
+        "dates": "Dates",
+        "placeholder": "Filter by series or date",
+        "seriesLabel": "Series",
+        "all": "All",
+        "dateFrom": "From",
+        "dateTo": "To"
+      },
+      "card": {
+        "noNameFallback": "Client not available",
+        "noConceptFallback": "No concept"
+      },
+      "badges": {
+        "cancelled": "Cancelled",
+        "corrected": "Corrected"
+      },
+      "actions": {
+        "posting": "Posting…",
+        "post": "Post",
+        "signing": "Signing…",
+        "sign": "Sign",
+        "copyAria": "Copy / Duplicate",
+        "downloadAria": "Download document",
+        "shareAria": "Share document",
+        "deleteAria": "Delete draft"
+      },
+      "empty": {
+        "noneInState": "There are no invoices in state",
+        "noResultsFor": "No results for \"{{query}}\".",
+        "noResultsFiltered": "No results with the applied filters."
+      },
+      "list": {
+        "loadError": "Could not load the list of invoices."
+      },
+      "deleteDraft": {
+        "header": "Delete draft",
+        "message": "Delete draft {{num}} for {{cliente}}? This action cannot be undone.",
+        "success": "Draft deleted.",
+        "error": "Could not delete the invoice."
+      },
+      "post": {
+        "header": "Post invoice",
+        "message": "Post the invoice for {{cliente}} for {{importe}}? This sends the invoice to Verifactu/AEAT and it will no longer be editable.",
+        "success": "Invoice for {{cliente}} posted.",
+        "error": "Could not post the invoice."
+      },
+      "sign": {
+        "header": "Sign invoice",
+        "message": "Sign the invoice for {{cliente}}? This generates the real electronic signature (XAdES) of the document already registered with VERI*FACTU.",
+        "success": "Invoice for {{cliente}} signed.",
+        "error": "Could not sign the invoice."
+      },
+      "duplicate": {
+        "success": "Draft {{nuevo}} created from {{original}}.",
+        "error": "Could not duplicate the invoice."
+      },
+      "download": {
+        "success": "Document downloaded (simulated, not fiscally valid).",
+        "error": "Could not generate the document. Try again."
+      },
+      "share": {
+        "error": "Could not share the document. Try again."
+      },
+      "detail": {
+        "newInvoice": "New invoice",
+        "seriesLabel": "Numbering series",
+        "chooseClientAndStart": "Choose client and start",
+        "statusPosted": "Posted",
+        "statusSigned": "Signed",
+        "aeatStatus": "AEAT status:",
+        "client": "Client",
+        "individual": "Individual",
+        "changeClient": "Change client",
+        "dateLabel": "Date",
+        "dueDateLabel": "Due date",
+        "conceptLabel": "Concept / description of the operation",
+        "paymentMethodLabel": "Payment method",
+        "totals": "Totals",
+        "taxableBase": "Taxable base",
+        "vat": "VAT",
+        "base": "Base",
+        "withholding": "Withholding",
+        "notApplicable": "Not applicable",
+        "totalDue": "Total due",
+        "saving": "Saving...",
+        "saveDraft": "Save draft",
+        "correctInvoice": "Correct invoice",
+        "cancelling": "Cancelling…",
+        "cancelInvoice": "Cancel invoice",
+        "notFound": "Invoice not found.",
+        "loadError": "Could not load the invoice.",
+        "saveSuccess": "Invoice saved.",
+        "saveError": "Could not save the invoice.",
+        "postValidationError": "Concept and payment method are required to post the invoice.",
+        "postConfirmMessage": "Post the invoice for {{cliente}} for {{importe}}? This sends the invoice to Verifactu/AEAT and it will no longer be editable. Pending changes will be saved first.",
+        "postedSuccess": "Invoice posted.",
+        "signConfirmMessage": "Sign this invoice? This generates the real electronic signature (XAdES) of the document already registered with VERI*FACTU.",
+        "signedSuccess": "Invoice signed.",
+        "cancelHeader": "Cancel invoice",
+        "cancelConfirmMessage": "Cancel invoice {{num}}? This creates a real cancellation record in VERI*FACTU/AEAT. The original invoice is not deleted or modified, but it is marked as cancelled.",
+        "cancelledSuccess": "Invoice cancelled.",
+        "cancelError": "Could not cancel the invoice."
+      },
+      "correct": {
+        "title": "Correct invoice",
+        "readOnlyNotice": "This screen does not edit the invoice: the client, lines and amounts do not change. It only re-submits the fiscal record with the same data already saved, leaving a record of the reason. If the invoice content is wrong, a corrective invoice applies; if the transaction never happened, it should be cancelled instead.",
+        "invoiceTitle": "Invoice {{num}}",
+        "aeatStatusOriginal": "AEAT status (original submission):",
+        "total": "Total",
+        "lastCorrection": "Last correction",
+        "reason": "Reason",
+        "whatWouldChange": "What would change in the fiscal record",
+        "noDifferences": "The fiscal content that would be resubmitted is identical to the last record — there is nothing to correct. If the invoice needs to change client, lines, amounts or VAT, a corrective invoice applies, not a correction.",
+        "reasonTitle": "Reason for the correction",
+        "reasonNotice": "This is internal traceability only — it is not sent to the AEAT and is not part of the corrected record.",
+        "reasonPlaceholder": "Explain what was wrong in the submitted record (not in the invoice)",
+        "correcting": "Correcting…",
+        "confirm": "Confirm correction",
+        "previewError": "Could not calculate what would change when correcting.",
+        "reasonRequired": "State the reason for the correction.",
+        "confirmMessage": "Confirm the correction of invoice {{num}}? This generates a new record in VERI*FACTU (the invoice and the original submission are not modified). This action cannot be undone.",
+        "registeredSuccess": "Correction registered.",
+        "error": "Could not correct the invoice.",
+        "simulatedFieldLabel": "Description of the operation (simulated)"
+      },
+      "clientSelector": {
+        "title": "Select client",
+        "searchPlaceholder": "Search by name or tax ID (minimum 2 characters)",
+        "typeToSearch": "Type at least 2 characters to search.",
+        "searching": "Searching...",
+        "noResultsFor": "No results for \"{{query}}\".",
+        "searchError": "Could not complete the search. Try again.",
+        "newClient": "New client",
+        "isCompany": "Company?",
+        "nameLabel": "Name / Legal name",
+        "cif": "Tax ID (CIF)",
+        "nif": "Tax ID (NIF)",
+        "address": "Address",
+        "city": "City",
+        "postalCode": "Postal code",
+        "province": "Province",
+        "paymentMethod": "Payment method",
+        "backToSearch": "Back to search",
+        "creating": "Creating…",
+        "useThisClient": "Use this client",
+        "nameNifRequired": "Name and tax ID are required.",
+        "paymentMethodRequired": "Select a payment method for the client.",
+        "createError": "Could not create the client. Try again."
+      },
+      "catalogSelector": {
+        "title": "Catalog product / service",
+        "searchPlaceholder": "Search by name or reference (minimum 2 characters)"
+      },
+      "subscriptionSelector": {
+        "title": "Subscription / recurring service",
+        "searchPlaceholder": "Search by name (minimum 2 characters)",
+        "paused": "Paused",
+        "cancelled": "Cancelled"
+      },
+      "errors": {
+        "clientRequired": "Select the client from the list before saving — an invoice cannot be saved with only a name typed in.",
+        "paymentMethodRequired": "Select a payment method from the catalog before saving.",
+        "lineRequired": "The invoice needs at least one line.",
+        "notFoundWithId": "Invoice {{id}} not found."
+      }
+    },
+    "received": {
+      "title": "Received invoices",
+      "searchPlaceholder": "Search by supplier",
+      "filters": {
+        "status": "Status",
+        "all": "All",
+        "draft": "Draft",
+        "posted": "Posted",
+        "payment": "Payment",
+        "paid": "Paid",
+        "pending": "Pending",
+        "dateFrom": "From",
+        "dateTo": "To",
+        "dates": "Dates",
+        "placeholder": "Filters"
+      },
+      "loading": "Loading invoices...",
+      "limitNotice": "Last 50 invoices. Use the search box to find an older one.",
+      "card": {
+        "noSupplierFallback": "Supplier not available",
+        "noConceptFallback": "No concept",
+        "paidSuffix": "Paid",
+        "unsaved": "Unsaved",
+        "posted": "Posted",
+        "draft": "Draft"
+      },
+      "actions": {
+        "post": "Post",
+        "copyAria": "Copy / Duplicate",
+        "downloadAria": "Download attached document",
+        "shareAria": "Share attached document",
+        "deleteAria": "Delete invoice"
+      },
+      "empty": {
+        "none": "There are no received invoices yet.",
+        "noResults": "No results with the applied search or filters."
+      },
+      "list": {
+        "loadError": "Could not load the list of invoices.",
+        "loadFullError": "Could not load the full invoice."
+      },
+      "post": {
+        "header": "Post invoice",
+        "message": "Post invoice {{num}} from {{proveedor}} for {{importe}}? It will be locked for editing — it can only be deleted (if applicable) or managed from analytics/payments.",
+        "success": "Invoice posted.",
+        "error": "Could not post the invoice."
+      },
+      "duplicate": {
+        "numberDialogHeader": "Number of the new invoice",
+        "numberDialogMessage": "The invoice from {{proveedor}} (supplier, lines, amounts...) will be copied and saved directly. The rest of the data can be adjusted afterwards.",
+        "numberPlaceholder": "Invoice number",
+        "confirmButton": "Copy and save",
+        "success": "Copy saved from the invoice from {{proveedor}}.",
+        "error": "Could not copy the invoice."
+      },
+      "attachment": {
+        "downloadSuccess": "Document downloaded.",
+        "downloadError": "Could not download the document.",
+        "shareError": "Could not share the document."
+      },
+      "delete": {
+        "paidError": "An invoice marked as paid cannot be deleted.",
+        "lockedError": "An invoice that is already posted cannot be deleted.",
+        "header": "Delete invoice",
+        "message": "Delete the invoice from {{proveedor}}? This action cannot be undone.",
+        "success": "Invoice deleted.",
+        "error": "Could not delete the invoice.",
+        "messageWithNumber": "Delete invoice {{num}} from {{proveedor}}? This action cannot be undone."
+      },
+      "detail": {
+        "newInvoice": "New received invoice",
+        "fallbackTitle": "Received invoice",
+        "ocrChip": "Created from OCR",
+        "loading": "Loading invoice...",
+        "supplierSection": "Supplier",
+        "changeSupplier": "Change supplier",
+        "selectSupplier": "Select supplier",
+        "invoiceDataSection": "Invoice data",
+        "numberLabel": "Number",
+        "dateLabel": "Date",
+        "dueDateLabel": "Due date",
+        "conceptLabel": "Concept",
+        "paymentMethodLabel": "Payment method",
+        "paymentMethodPlaceholder": "Select payment method",
+        "statusLabel": "Status",
+        "statusPosted": "Posted",
+        "statusDraft": "Draft",
+        "paidLabel": "Paid",
+        "totalsSection": "Totals",
+        "taxableBase": "Taxable base",
+        "vat": "VAT",
+        "base": "Base",
+        "withholdingLabel": "% Withholding (per the supplier's invoice)",
+        "withholding": "Withholding",
+        "notApplicable": "Not applicable",
+        "totalDue": "Total due",
+        "attachmentSection": "Attached document",
+        "noAttachment": "No attached document.",
+        "changeDocument": "Change document",
+        "attachDocument": "Attach document",
+        "viewDocument": "View document",
+        "saving": "Saving...",
+        "save": "Save",
+        "notFound": "Invoice not found.",
+        "loadError": "Could not load the invoice.",
+        "attachError": "Could not attach the document. Try again.",
+        "viewDocumentError": "Could not load the document.",
+        "validationRequired": "Supplier and invoice number are required.",
+        "validationSupplier": "Select the supplier from the list (or create one) before saving.",
+        "saveSuccess": "Invoice saved.",
+        "saveError": "Could not save the invoice.",
+        "attachAfterSaveError": "The invoice was saved, but the attached document could not be uploaded. Try again from here."
+      },
+      "supplierSelector": {
+        "title": "Select supplier",
+        "searchPlaceholder": "Search by name or tax ID (minimum 2 characters)",
+        "typeToSearch": "Type at least 2 characters to search.",
+        "searching": "Searching...",
+        "noResultsFor": "No results for \"{{query}}\".",
+        "searchError": "Could not complete the search. Try again.",
+        "newSupplier": "New supplier",
+        "nameLabel": "Name / Legal name",
+        "nifCif": "Tax ID",
+        "address": "Address",
+        "city": "City",
+        "postalCode": "Postal code",
+        "province": "Province",
+        "backToSearch": "Back to search",
+        "useThisSupplier": "Use this supplier",
+        "nameNifRequired": "Name and tax ID are required.",
+        "addressRequired": "Address, postal code, city and province are required.",
+        "createError": "Could not create the supplier."
+      },
+      "errors": {
+        "supplierRequired": "Select the supplier from the list (or create one) before saving — an invoice cannot be saved with only a name typed in.",
+        "invoiceNumberRequired": "The invoice number is required.",
+        "lineRequired": "The invoice needs at least one line.",
+        "updateNotFoundOrLocked": "Could not update invoice {{id}}: it does not exist or is locked."
+      }
+    }
+  },
+  "verifactu": {
+    "estados": {
+      "pendienteEnvio": "Pending submission",
+      "correcto": "Correct",
+      "aceptadoConErrores": "Accepted with errors",
+      "rechazadoAeat": "Rejected by the AEAT",
+      "requiereRevisionManual": "Requires manual review",
+      "sinDatos": "—"
+    },
+    "subsanacion": {
+      "aceptada": "Corrected: accepted",
+      "aceptadaConErrores": "Corrected: accepted with errors",
+      "rechazada": "Corrected: rejected",
+      "pendienteEnvio": "Correction pending submission",
+      "prefijoGenerico": "Correction: {{estado}}"
+    },
+    "errors": {
+      "anularBorrador": "This invoice has not been posted yet — it cannot be cancelled.",
+      "yaAnulada": "This invoice is already cancelled.",
+      "subsanarBorrador": "Only an already-posted invoice can be corrected.",
+      "subsanarAnulada": "This invoice is cancelled; it cannot be corrected.",
+      "motivoObligatorio": "The reason for the correction is required.",
+      "sinCambiosFiscales": "The fiscal content has not changed since the last correction — there is nothing to correct.",
+      "firmarBorrador": "This invoice has not been saved or posted yet — it cannot be signed.",
+      "guardarAntesDeContabilizar": "Save the invoice before posting it."
+    },
+    "aeatWarningPrefix": "AEAT notice:"
+  },
+  "ocr": {
+    "scanUnavailableNotice": "Scanning invoices is not available right now — use \"New invoice\" to add it manually in the meantime.",
+    "scanning": "Processing...",
+    "scanButton": "Scan",
+    "attachButton": "Attach",
+    "badge": "OCR",
+    "savedWithWarnings": "Invoice saved, but with warnings: {{aviso}}",
+    "savedSuccess": "Invoice saved from \"{{archivo}}\": {{proveedor}}.",
+    "saveGenericError": "Could not save the invoice. Try again.",
+    "supplierNotFoundDraft": "Supplier not found in the system. A draft has been opened: register it manually before saving.",
+    "nifUnreadableDraft": "The supplier's tax ID could not be read. A draft has been opened: complete it or register the supplier manually.",
+    "numberUnreadableDraft": "The invoice number could not be read. A draft has been opened to complete it manually.",
+    "processDocumentError": "Could not process the document. Try again or create the invoice manually.",
+    "bankDocDraftError": "Could not prepare an invoice draft from the bank document. You can create it manually.",
+    "extractionError": "Could not extract information from the document. Try again or create the invoice manually."
+  },
+  "bankDocuments": {
+    "title": "Bank document",
+    "detectedNotice": "The reader has detected a bank document.",
+    "detectedDescription": "The extracted data is shown for review. No received invoice has been created.",
+    "confidence": "Confidence:",
+    "readerWarnings": "Reader warnings",
+    "noFieldsNotice": "The reader classified the file, but did not return any bank fields to display.",
+    "viewOriginal": "View original document",
+    "analysisId": "Analysis ID:",
+    "generalDataSection": "General data",
+    "valueLabel": "Value",
+    "fields": {
+      "bank": "Bank",
+      "documentType": "Document type",
+      "documentNumber": "Document number",
+      "issuer": "Issuer",
+      "issuerIdentification": "Issuer identification",
+      "identification": "Identification",
+      "invoiceNumber": "Invoice / document number",
+      "fileReference": "File reference",
+      "receptionDate": "Reception date",
+      "operationType": "Operation type",
+      "uniqueReference": "Unique reference",
+      "debtorName": "Debtor name",
+      "debtorIban": "Debtor IBAN",
+      "debtor": "Debtor",
+      "accountHolder": "Account holder",
+      "iban": "IBAN",
+      "amount": "Amount",
+      "nominalAmount": "Nominal amount",
+      "commission": "Commission",
+      "mailFee": "Postal fee",
+      "taxes": "Taxes",
+      "netAmount": "Net amount",
+      "dueDate": "Due date",
+      "valueDate": "Value date",
+      "chargeStatus": "Charge status",
+      "status": "Status",
+      "currency": "Currency",
+      "transactions": "Transactions",
+      "entries": "Entries",
+      "references": "References",
+      "amounts": "Amounts",
+      "dates": "Dates"
+    }
+  },
+  "errors": {
+    "sessionCompanyNotFound": "Could not identify your session's company. Log in again and try again."
+  },
+  "validation": {
+    "fieldRequired": "This field is required."
   }
 }
