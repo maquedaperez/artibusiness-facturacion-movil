@@ -7,6 +7,17 @@ import { FacturaRecibida } from '../../services/mock-facturas.service';
 import { ApiService } from '../../services/api.service';
 import { ReceivedInvoicesRepository } from '../../core/ports';
 import { environment } from 'src/environments/environment';
+import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
+
+const TRADUCCIONES_TEST = {
+  ocr: {
+    bankDocDraftError: 'No se pudo preparar un borrador de factura a partir del documento bancario. Puedes crearla manualmente.',
+    supplierNotFoundDraft: 'Proveedor no encontrado en el sistema. Se ha abierto un borrador: dalo de alta manualmente antes de guardar.',
+    nifUnreadableDraft: 'No se ha podido leer el NIF del proveedor. Se ha abierto un borrador: complétalo o da de alta el proveedor manualmente.',
+    numberUnreadableDraft: 'No se ha podido leer el número de factura. Se ha abierto un borrador para completarlo a mano.',
+    processDocumentError: 'No se pudo procesar el documento. Inténtalo de nuevo o crea la factura manualmente.',
+  },
+};
 
 describe('FacturasRecibidasPage', () => {
   let component: FacturasRecibidasPage;
@@ -67,7 +78,7 @@ describe('FacturasRecibidasPage', () => {
       const apiStub: Partial<ApiService> = { post: jasmine.createSpy().and.resolveTo([]) };
       TestBed.resetTestingModule();
       TestBed.configureTestingModule({
-        providers: [...MOCK_REPOSITORY_PROVIDERS, provideIonicAngular(), { provide: ApiService, useValue: apiStub }],
+        providers: [...MOCK_REPOSITORY_PROVIDERS, ...provideTranslocoTesting(TRADUCCIONES_TEST), provideIonicAngular(), { provide: ApiService, useValue: apiStub }],
       });
       fixtureFlagOff = TestBed.createComponent(FacturasRecibidasPage);
       componentFlagOff = fixtureFlagOff.componentInstance;

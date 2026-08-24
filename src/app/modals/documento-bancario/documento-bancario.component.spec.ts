@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideIonicAngular } from '@ionic/angular/standalone';
 
 import { DocumentoBancarioComponent } from './documento-bancario.component';
+import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 
 describe('DocumentoBancarioComponent', () => {
   let fixture: ComponentFixture<DocumentoBancarioComponent>;
@@ -9,7 +10,26 @@ describe('DocumentoBancarioComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [DocumentoBancarioComponent],
-      providers: [provideIonicAngular()],
+      providers: [
+        provideIonicAngular(),
+        ...provideTranslocoTesting({
+          es: {
+            common: { yes: 'Sí', no: 'No' },
+            bankDocuments: {
+              title: 'Documento bancario',
+              detectedNotice: 'El lector ha detectado un documento bancario.',
+              detectedDescription: 'Se muestran los datos extraídos para su revisión. No se ha creado ninguna factura recibida.',
+              confidence: 'Confianza:',
+              readerWarnings: 'Avisos del lector',
+              noFieldsNotice: 'El lector clasificó el fichero, pero no devolvió campos bancarios para mostrar.',
+              viewOriginal: 'Ver documento original',
+              analysisId: 'Identificador de análisis:',
+              generalDataSection: 'Datos generales',
+              valueLabel: 'Valor',
+            },
+          },
+        }),
+      ],
     });
     fixture = TestBed.createComponent(DocumentoBancarioComponent);
   });

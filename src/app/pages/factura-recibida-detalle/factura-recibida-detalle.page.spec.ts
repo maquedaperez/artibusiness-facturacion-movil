@@ -7,6 +7,18 @@ import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { ApiService } from '../../services/api.service';
 import { ReceivedInvoicesRepository } from '../../core/ports';
 import { FacturaRecibida } from '../../services/mock-facturas.service';
+import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
+
+const TRADUCCIONES_TEST = {
+  invoices: {
+    received: {
+      detail: {
+        validationRequired: 'Proveedor y número de factura son obligatorios.',
+        validationSupplier: 'Selecciona el proveedor de la lista (o créalo) antes de guardar.',
+      },
+    },
+  },
+};
 
 describe('FacturaRecibidaDetallePage', () => {
   let component: FacturaRecibidaDetallePage;
@@ -21,6 +33,7 @@ describe('FacturaRecibidaDetallePage', () => {
       imports: [FacturaRecibidaDetallePage, RouterTestingModule],
       providers: [
         ...MOCK_REPOSITORY_PROVIDERS,
+        ...provideTranslocoTesting(TRADUCCIONES_TEST),
         provideIonicAngular(),
         {
           provide: ApiService,

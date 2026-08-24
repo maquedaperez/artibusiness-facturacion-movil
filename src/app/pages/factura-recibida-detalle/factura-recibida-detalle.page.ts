@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
@@ -39,7 +40,7 @@ type FacturaRecibidaForm = Omit<FacturaRecibida, 'id' | 'origenOcr'>;
     CommonModule, FormsModule,
     IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
     IonItem, IonInput, IonSelect, IonSelectOption, IonCheckbox, IonText, IonChip, IonLabel,
-    IonCard, IonCardContent, IonSpinner,
+    IonCard, IonCardContent, IonSpinner, TranslocoPipe,
     DemoBannerComponent, LineasEditorComponent,
   ],
 })
@@ -50,6 +51,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
   private modalCtrl = inject(ModalController);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
+  private transloco = inject(TranslocoService);
 
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
 
@@ -112,7 +114,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
     try {
       const factura = await this.invoicesRepo.obtenerPorId(id);
       if (!factura) {
-        this.errorMsg = 'Factura no encontrada.';
+        this.errorMsg = this.transloco.translate('invoices.received.detail.notFound');
         return;
       }
 
@@ -120,7 +122,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
       this.origenOcr = factura.origenOcr;
       this.sincronizarWorkingDesde(factura);
     } catch (e: any) {
-      this.errorMsg = e?.message ?? 'No se pudo cargar la factura.';
+      this.errorMsg = e?.message ?? this.transloco.translate('invoices.received.detail.loadError');
     } finally {
       this.cargando = false;
     }
@@ -191,10 +193,10 @@ export class FacturaRecibidaDetallePage implements OnInit {
       // tal cual (bug real corregido el 2026-08-13: antes fallaba en silencio al duplicar
       // una factura real del backend, porque esas nunca están en el almacén del mock).
       const copia = await this.invoicesRepo.duplicar({ ...this.working, id: this.facturaId, origenOcr: this.origenOcr }, numFacturaNueva);
-      await this.showToast(`Copia guardada a partir de la factura de ${this.working.proveedor}.`);
+      await this.showToast(this.transloco.translate('invoices.received.duplicate.success', { proveedor: this.working.proveedor }));
       this.router.navigate(['/app/recibidas', copia.id], { replaceUrl: true });
     } catch (e: any) {
-      await this.showToast(e?.message ?? 'No se pudo copiar la factura.', 'danger');
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.received.duplicate.error'), 'danger');
     }
   }
 
@@ -205,18 +207,18 @@ export class FacturaRecibidaDetallePage implements OnInit {
   private pedirNumeroFacturaCopia(): Promise<string | null> {
     return new Promise(resolve => {
       this.alertCtrl.create({
-        header: 'Número de la nueva factura',
-        message: `Se copiará la factura de ${this.working.proveedor} (proveedor, líneas, importes...) y se guardará directamente. El resto de datos se pueden ajustar después.`,
+        header: this.transloco.translate('invoices.received.duplicate.numberDialogHeader'),
+        message: this.transloco.translate('invoices.received.duplicate.numberDialogMessage', { proveedor: this.working.proveedor }),
         // Corregido 2026-08-18: sin esto, tocar fuera del diálogo lo cierra sin pasar por
         // ningún botón — ni "Cancelar" ni "Copiar y guardar" llegan a ejecutarse. No cubre
         // el botón físico/gesto "atrás" de Android, que puede cerrar el diálogo igual sin
         // pasar por backdropDismiss — de ahí la red de seguridad en onDidDismiss() de abajo.
         backdropDismiss: false,
-        inputs: [{ name: 'numFactura', type: 'text', placeholder: 'Número de factura' }],
+        inputs: [{ name: 'numFactura', type: 'text', placeholder: this.transloco.translate('invoices.received.duplicate.numberPlaceholder') }],
         buttons: [
-          { text: 'Cancelar', role: 'cancel', handler: () => resolve(null) },
+          { text: this.transloco.translate('common.actions.cancel'), role: 'cancel', handler: () => resolve(null) },
           {
-            text: 'Copiar y guardar',
+            text: this.transloco.translate('invoices.received.duplicate.confirmButton'),
             handler: (data: { numFactura?: string }) => {
               const valor = data.numFactura?.trim();
               if (!valor) return false; // no cierra el diálogo: hace falta un número
@@ -248,9 +250,9 @@ export class FacturaRecibidaDetallePage implements OnInit {
     try {
       const blob = await this.adjuntoABlob();
       descargarBlob(blob, this.working.documentoNombre || 'documento-adjunto');
-      await this.showToast('Documento descargado.');
+      await this.showToast(this.transloco.translate('invoices.received.attachment.downloadSuccess'));
     } catch {
-      await this.showToast('No se pudo descargar el documento.', 'danger');
+      await this.showToast(this.transloco.translate('invoices.received.attachment.downloadError'), 'danger');
     }
   }
 
@@ -259,7 +261,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
       const blob = await this.adjuntoABlob();
       await compartirBlob(blob, this.working.documentoNombre || 'documento-adjunto');
     } catch {
-      await this.showToast('No se pudo compartir el documento.', 'danger');
+      await this.showToast(this.transloco.translate('invoices.received.attachment.shareError'), 'danger');
     }
   }
 
@@ -280,7 +282,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
     const cfg: ConfiguracionRetencion = {
       aplicable: this.working.retencionPct > 0,
       tipoCodigo: 'recibida',
-      etiqueta: 'Retención',
+      etiqueta: this.transloco.translate('common.withholdingLabel'),
       porcentaje: this.working.retencionPct,
     };
     return calcularTotalesLineas(this.working.lineas, cfg);
@@ -354,7 +356,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
       // BUG real encontrado en auditoría 2026-08-14: sin este catch, un fichero no legible
       // (corrupto, formato raro) dejaba desaparecer el spinner sin ningún aviso — el usuario
       // no se enteraba de que el adjunto había fallado.
-      await this.showToast(e?.message ?? 'No se pudo adjuntar el documento. Inténtalo de nuevo.', 'danger');
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.received.detail.attachError'), 'danger');
     } finally {
       this.adjuntando = false;
     }
@@ -389,7 +391,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
       await modal.present();
       await modal.onWillDismiss();
     } catch {
-      await this.showToast('No se pudo cargar el documento.', 'danger');
+      await this.showToast(this.transloco.translate('invoices.received.detail.viewDocumentError'), 'danger');
     } finally {
       // Aunque falle la creación/presentación del modal justo después de haber pedido el
       // blob, la URL temporal no debe quedar filtrada.
@@ -411,11 +413,11 @@ export class FacturaRecibidaDetallePage implements OnInit {
 
     this.errorMsg = '';
     if (!this.working.proveedor.trim() || !this.working.numFactura.trim()) {
-      await this.mostrarError('Proveedor y número de factura son obligatorios.');
+      await this.mostrarError(this.transloco.translate('invoices.received.detail.validationRequired'));
       return;
     }
     if (!this.working.idProveedor) {
-      await this.mostrarError('Selecciona el proveedor de la lista (o créalo) antes de guardar.');
+      await this.mostrarError(this.transloco.translate('invoices.received.detail.validationSupplier'));
       return;
     }
 
@@ -444,9 +446,9 @@ export class FacturaRecibidaDetallePage implements OnInit {
         await this.subirAdjuntoPendienteSiHaceFalta(guardada.id);
       }
 
-      await this.showToast('Factura guardada.');
+      await this.showToast(this.transloco.translate('invoices.received.detail.saveSuccess'));
     } catch (e) {
-      await this.mostrarError(e instanceof Error ? e.message : 'No se pudo guardar la factura.');
+      await this.mostrarError(e instanceof Error ? e.message : this.transloco.translate('invoices.received.detail.saveError'));
     } finally {
       this.guardando = false;
     }
@@ -463,7 +465,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
     } catch {
       // La factura ya se guardó bien — no se deshace por esto, solo se avisa: el documento
       // se queda solo en la vista previa local de esta sesión.
-      await this.showToast('La factura se guardó, pero no se pudo subir el documento adjunto. Vuelve a intentarlo desde aquí.', 'danger');
+      await this.showToast(this.transloco.translate('invoices.received.detail.attachAfterSaveError'), 'danger');
     } finally {
       this.archivoPendienteDeAdjuntar = null;
     }
@@ -493,20 +495,20 @@ export class FacturaRecibidaDetallePage implements OnInit {
     if (this.esNueva || this.facturaId == null || !this.esEditable) return;
 
     const alert = await this.alertCtrl.create({
-      header: 'Contabilizar factura',
-      message: `¿Contabilizar la factura ${this.working.numFactura} de ${this.working.proveedor} por ${this.formatEuros(this.totales().total)}? Quedará bloqueada para editar — solo podrá eliminarse (si corresponde) o gestionarse desde analítica/pagos.`,
+      header: this.transloco.translate('invoices.received.post.header'),
+      message: this.transloco.translate('invoices.received.post.message', { num: this.working.numFactura, proveedor: this.working.proveedor, importe: this.formatEuros(this.totales().total) }),
       buttons: [
-        { text: 'Cancelar', role: 'cancel' },
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
         {
-          text: 'Contabilizar',
+          text: this.transloco.translate('invoices.received.actions.post'),
           handler: async () => {
             try {
               const guardada = await this.invoicesRepo.actualizar(this.facturaId!, { ...this.working, estado: 'revisada' });
               this.facturaId = guardada.id;
               this.sincronizarWorkingDesde(guardada);
-              await this.showToast('Factura contabilizada.');
+              await this.showToast(this.transloco.translate('invoices.received.post.success'));
             } catch (e) {
-              await this.showToast(e instanceof Error ? e.message : 'No se pudo contabilizar la factura.', 'danger');
+              await this.showToast(e instanceof Error ? e.message : this.transloco.translate('invoices.received.post.error'), 'danger');
             }
           },
         },
@@ -522,29 +524,29 @@ export class FacturaRecibidaDetallePage implements OnInit {
     // movimiento contable real detrás) ni una factura ya contabilizada (regla confirmada
     // por el jefe, reunión 2026-08-17) — el backend todavía no impide ninguno de los dos.
     if (this.working.pagada) {
-      await this.showToast('No se puede eliminar una factura marcada como pagada.', 'danger');
+      await this.showToast(this.transloco.translate('invoices.received.delete.paidError'), 'danger');
       return;
     }
     if (this.working.accountingLocked) {
-      await this.showToast('No se puede eliminar una factura ya contabilizada.', 'danger');
+      await this.showToast(this.transloco.translate('invoices.received.delete.lockedError'), 'danger');
       return;
     }
 
     const alert = await this.alertCtrl.create({
-      header: 'Eliminar factura',
-      message: `¿Eliminar la factura ${this.working.numFactura} de ${this.working.proveedor}? Esta acción no se puede deshacer.`,
+      header: this.transloco.translate('invoices.received.delete.header'),
+      message: this.transloco.translate('invoices.received.delete.messageWithNumber', { num: this.working.numFactura, proveedor: this.working.proveedor }),
       buttons: [
-        { text: 'Cancelar', role: 'cancel' },
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
         {
-          text: 'Eliminar',
+          text: this.transloco.translate('common.actions.delete'),
           role: 'destructive',
           handler: async () => {
             try {
               await this.invoicesRepo.eliminar(this.facturaId!);
-              await this.showToast('Factura eliminada.');
+              await this.showToast(this.transloco.translate('invoices.received.delete.success'));
               this.volver();
             } catch (e) {
-              await this.showToast(e instanceof Error ? e.message : 'No se pudo eliminar la factura.', 'danger');
+              await this.showToast(e instanceof Error ? e.message : this.transloco.translate('invoices.received.delete.error'), 'danger');
             }
           },
         },

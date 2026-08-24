@@ -5,7 +5,7 @@
         <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
-    <ion-title class="title-bold">{{ esNueva ? 'Nueva factura recibida' : (working.numFactura || 'Factura recibida') }}</ion-title>
+    <ion-title class="title-bold">{{ esNueva ? ('invoices.received.detail.newInvoice' | transloco) : (working.numFactura || ('invoices.received.detail.fallbackTitle' | transloco)) }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -14,7 +14,7 @@
   <app-demo-banner></app-demo-banner>
 
   <ion-chip *ngIf="origenOcr" color="tertiary" class="mock-chip">
-    <ion-label>Creada desde OCR</ion-label>
+    <ion-label>{{ 'invoices.received.detail.ocrChip' | transloco }}</ion-label>
   </ion-chip>
 
   <ion-card *ngIf="working.avisosOcr?.length" class="avisos-ocr" color="warning">
@@ -32,26 +32,26 @@
 
   <div class="carga-factura" *ngIf="cargando">
     <ion-spinner name="crescent"></ion-spinner>
-    <ion-text color="medium"><p class="ion-no-margin">Cargando factura...</p></ion-text>
+    <ion-text color="medium"><p class="ion-no-margin">{{ 'invoices.received.detail.loading' | transloco }}</p></ion-text>
   </div>
 
   <ng-container *ngIf="!cargando && (esNueva || facturaId !== null)">
 
   <ion-card>
     <ion-card-content>
-      <div class="section-title">Proveedor</div>
+      <div class="section-title">{{ 'invoices.received.detail.supplierSection' | transloco }}</div>
 
       <ng-container *ngIf="working.proveedor; else sinProveedor">
         <p class="ion-no-margin"><strong>{{ working.proveedor }}</strong></p>
         <p class="ion-no-margin" *ngIf="working.proveedorNif">{{ working.proveedorNif }}</p>
         <ion-button *ngIf="esEditable" size="small" fill="outline" class="ion-margin-top" (click)="elegirProveedor()">
-          Cambiar proveedor
+          {{ 'invoices.received.detail.changeSupplier' | transloco }}
         </ion-button>
       </ng-container>
 
       <ng-template #sinProveedor>
         <ion-button expand="block" fill="outline" (click)="elegirProveedor()">
-          Seleccionar proveedor
+          {{ 'invoices.received.detail.selectSupplier' | transloco }}
         </ion-button>
       </ng-template>
     </ion-card-content>
@@ -59,46 +59,46 @@
 
   <ion-card>
     <ion-card-content>
-      <div class="section-title">Datos de la factura</div>
+      <div class="section-title">{{ 'invoices.received.detail.invoiceDataSection' | transloco }}</div>
 
       <ion-item [disabled]="!esEditable">
-        <ion-input label="Número" labelPlacement="stacked" [(ngModel)]="working.numFactura"></ion-input>
+        <ion-input [label]="'invoices.received.detail.numberLabel' | transloco" labelPlacement="stacked" [(ngModel)]="working.numFactura"></ion-input>
       </ion-item>
 
       <div class="grid-2">
         <ion-item [disabled]="!esEditable">
-          <ion-input label="Fecha" labelPlacement="stacked" type="date" [(ngModel)]="working.fecha"></ion-input>
+          <ion-input [label]="'invoices.received.detail.dateLabel' | transloco" labelPlacement="stacked" type="date" [(ngModel)]="working.fecha"></ion-input>
         </ion-item>
         <ion-item [disabled]="!esEditable">
-          <ion-input label="Vencimiento" labelPlacement="stacked" type="date" [(ngModel)]="working.vencimiento"></ion-input>
+          <ion-input [label]="'invoices.received.detail.dueDateLabel' | transloco" labelPlacement="stacked" type="date" [(ngModel)]="working.vencimiento"></ion-input>
         </ion-item>
       </div>
 
       <ion-item [disabled]="!esEditable">
-        <ion-input label="Concepto" labelPlacement="stacked" [(ngModel)]="working.concepto"></ion-input>
+        <ion-input [label]="'invoices.received.detail.conceptLabel' | transloco" labelPlacement="stacked" [(ngModel)]="working.concepto"></ion-input>
       </ion-item>
 
       <ion-item [disabled]="!esEditable">
-        <ion-select label="Forma de pago" labelPlacement="stacked" interface="action-sheet"
-          placeholder="Selecciona forma de pago" [(ngModel)]="working.idMedioPago">
+        <ion-select [label]="'invoices.received.detail.paymentMethodLabel' | transloco" labelPlacement="stacked" interface="action-sheet"
+          [placeholder]="'invoices.received.detail.paymentMethodPlaceholder' | transloco" [(ngModel)]="working.idMedioPago">
           <ion-select-option *ngFor="let m of mediosPago" [value]="m.id">{{ m.label }}</ion-select-option>
         </ion-select>
       </ion-item>
 
       <ion-item lines="none">
-        <ion-label>Estado</ion-label>
+        <ion-label>{{ 'invoices.received.detail.statusLabel' | transloco }}</ion-label>
         <ion-text slot="end" [color]="working.estado === 'revisada' ? 'success' : 'medium'">
-          {{ working.estado === 'revisada' ? 'Contabilizada' : 'Borrador' }}
+          {{ (working.estado === 'revisada' ? 'invoices.received.detail.statusPosted' : 'invoices.received.detail.statusDraft') | transloco }}
         </ion-text>
       </ion-item>
 
       <ion-item lines="none" *ngIf="pagadaEditable">
-        <ion-checkbox [(ngModel)]="working.pagada">Pagada</ion-checkbox>
+        <ion-checkbox [(ngModel)]="working.pagada">{{ 'invoices.received.detail.paidLabel' | transloco }}</ion-checkbox>
       </ion-item>
       <ion-item lines="none" *ngIf="!pagadaEditable">
-        <ion-label>Pagada</ion-label>
+        <ion-label>{{ 'invoices.received.detail.paidLabel' | transloco }}</ion-label>
         <ion-text slot="end" [color]="working.pagada ? 'success' : 'medium'">
-          {{ working.pagada ? 'Sí' : 'No' }}
+          {{ (working.pagada ? 'common.yes' : 'common.no') | transloco }}
         </ion-text>
       </ion-item>
     </ion-card-content>
@@ -115,22 +115,22 @@
 
   <ion-card class="totales-card">
     <ion-card-content>
-      <div class="section-title">Totales</div>
+      <div class="section-title">{{ 'invoices.received.detail.totalsSection' | transloco }}</div>
 
       <div class="totales-tabla">
         <div class="fila">
-          <span class="etiqueta">Base imponible</span>
+          <span class="etiqueta">{{ 'invoices.received.detail.taxableBase' | transloco }}</span>
           <span class="importe">{{ formatEuros(totales().base) }}</span>
         </div>
         <div class="fila" *ngFor="let d of totales().desgloseIva">
-          <span class="etiqueta">IVA {{ d.pct }}% · Base {{ formatEuros(d.baseGravada) }}</span>
+          <span class="etiqueta">{{ 'invoices.received.detail.vat' | transloco }} {{ d.pct }}% · {{ 'invoices.received.detail.base' | transloco }} {{ formatEuros(d.baseGravada) }}</span>
           <span class="importe importe-positivo">+{{ formatEuros(d.cuota) }}</span>
         </div>
       </div>
 
       <ion-item lines="none" class="retencion-select" [disabled]="!esEditable">
         <ion-select
-          label="% Retención (según la factura del proveedor)"
+          [label]="'invoices.received.detail.withholdingLabel' | transloco"
           labelPlacement="stacked"
           interface="popover"
           [(ngModel)]="working.retencionPct"
@@ -145,13 +145,13 @@
           <span class="importe importe-negativo">−{{ formatEuros(totales().retencion.importe) }}</span>
         </div>
         <div class="fila" *ngIf="!totales().retencion.aplicable">
-          <span class="etiqueta">Retención</span>
-          <span class="importe importe-neutro">No aplica</span>
+          <span class="etiqueta">{{ 'invoices.received.detail.withholding' | transloco }}</span>
+          <span class="importe importe-neutro">{{ 'invoices.received.detail.notApplicable' | transloco }}</span>
         </div>
       </div>
 
       <div class="fila-total">
-        <span class="etiqueta-total">Total a pagar</span>
+        <span class="etiqueta-total">{{ 'invoices.received.detail.totalDue' | transloco }}</span>
         <span class="importe-total">{{ formatEuros(totales().total) }}</span>
       </div>
     </ion-card-content>
@@ -159,24 +159,24 @@
 
   <ion-card>
     <ion-card-content>
-      <div class="section-title">Documento adjunto</div>
+      <div class="section-title">{{ 'invoices.received.detail.attachmentSection' | transloco }}</div>
 
       <input #fileInput type="file" accept="image/jpeg,image/png,image/webp,application/pdf" hidden (change)="onFileSelected($event)" />
 
       <p class="ion-no-margin" *ngIf="working.documentoNombre">{{ working.documentoNombre }}</p>
       <p class="ion-no-margin" *ngIf="!working.documentoNombre">
-        <ion-text color="medium">Sin documento adjunto.</ion-text>
+        <ion-text color="medium">{{ 'invoices.received.detail.noAttachment' | transloco }}</ion-text>
       </p>
 
       <div class="doc-actions">
         <ion-button *ngIf="esEditable" size="small" fill="outline" [disabled]="adjuntando" (click)="triggerAdjuntar()">
           <ion-icon slot="start" name="attach-outline"></ion-icon>
-          {{ working.documentoNombre ? 'Cambiar documento' : 'Adjuntar documento' }}
+          {{ (working.documentoNombre ? 'invoices.received.detail.changeDocument' : 'invoices.received.detail.attachDocument') | transloco }}
         </ion-button>
 
         <ion-button size="small" fill="outline" *ngIf="working.documentoUrl" (click)="verDocumento()">
           <ion-icon slot="start" name="eye-outline"></ion-icon>
-          Ver documento
+          {{ 'invoices.received.detail.viewDocument' | transloco }}
         </ion-button>
       </div>
     </ion-card-content>
@@ -189,16 +189,16 @@
 <ion-footer *ngIf="esNueva || facturaId !== null">
   <div class="footer-actions">
     <div class="acciones-secundarias" *ngIf="!esNueva">
-      <ion-button *ngIf="accionesPermitidas().copiar" fill="clear" size="small" aria-label="Copiar / Duplicar" (click)="duplicar()">
+      <ion-button *ngIf="accionesPermitidas().copiar" fill="clear" size="small" [attr.aria-label]="'invoices.received.actions.copyAria' | transloco" (click)="duplicar()">
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
-      <ion-button *ngIf="accionesPermitidas().descargar && working.documentoUrl" fill="clear" size="small" aria-label="Descargar documento adjunto" (click)="descargarAdjunto()">
+      <ion-button *ngIf="accionesPermitidas().descargar && working.documentoUrl" fill="clear" size="small" [attr.aria-label]="'invoices.received.actions.downloadAria' | transloco" (click)="descargarAdjunto()">
         <ion-icon slot="icon-only" name="download-outline"></ion-icon>
       </ion-button>
-      <ion-button *ngIf="accionesPermitidas().compartir && working.documentoUrl" fill="clear" size="small" aria-label="Compartir documento adjunto" (click)="compartirAdjunto()">
+      <ion-button *ngIf="accionesPermitidas().compartir && working.documentoUrl" fill="clear" size="small" [attr.aria-label]="'invoices.received.actions.shareAria' | transloco" (click)="compartirAdjunto()">
         <ion-icon slot="icon-only" name="share-social-outline"></ion-icon>
       </ion-button>
-      <ion-button *ngIf="accionesPermitidas().eliminar" fill="clear" size="small" color="danger" aria-label="Eliminar factura" (click)="confirmarEliminar()">
+      <ion-button *ngIf="accionesPermitidas().eliminar" fill="clear" size="small" color="danger" [attr.aria-label]="'invoices.received.actions.deleteAria' | transloco" (click)="confirmarEliminar()">
         <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
       </ion-button>
     </div>
@@ -206,12 +206,12 @@
     <ion-button *ngIf="esEditable" expand="block" [disabled]="guardando" (click)="guardar()">
       <ion-spinner *ngIf="guardando" slot="start" name="dots"></ion-spinner>
       <ion-icon *ngIf="!guardando" slot="start" name="create-outline"></ion-icon>
-      {{ guardando ? 'Guardando...' : 'Guardar' }}
+      {{ (guardando ? 'invoices.received.detail.saving' : 'invoices.received.detail.save') | transloco }}
     </ion-button>
 
     <ion-button *ngIf="esEditable && !esNueva" expand="block" fill="outline" [disabled]="guardando" (click)="confirmarContabilizar()">
       <ion-icon slot="start" name="checkmark-done-outline"></ion-icon>
-      Contabilizar
+      {{ 'invoices.received.actions.post' | transloco }}
     </ion-button>
   </div>
 </ion-footer>

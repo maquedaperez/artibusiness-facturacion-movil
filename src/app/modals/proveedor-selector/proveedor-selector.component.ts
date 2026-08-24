@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription, from, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
@@ -24,14 +25,14 @@ type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error'
   selector: 'app-proveedor-selector',
   standalone: true,
   imports: [
-    CommonModule, FormsModule,
+    CommonModule, FormsModule, TranslocoPipe,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonSearchbar, IonList, IonItem, IonLabel, IonInput, IonText, IonSpinner,
   ],
   template: `
     <ion-header>
       <ion-toolbar>
-        <ion-title>Seleccionar proveedor</ion-title>
+        <ion-title>{{ 'invoices.received.supplierSelector.title' | transloco }}</ion-title>
         <ion-buttons slot="end">
           <ion-button (click)="cancel()">
             <ion-icon slot="icon-only" name="close-outline"></ion-icon>
@@ -43,26 +44,26 @@ type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error'
     <ion-content class="ion-padding">
       <ng-container *ngIf="!modoNuevo">
         <ion-searchbar
-          placeholder="Buscar por nombre o NIF (mínimo 2 caracteres)"
+          [placeholder]="'invoices.received.supplierSelector.searchPlaceholder' | transloco"
           [(ngModel)]="query"
           (ionInput)="onQueryChange()"
         ></ion-searchbar>
 
         <ion-text color="medium" *ngIf="estado === 'inicial'">
-          <p class="ion-padding-top">Escribe al menos 2 caracteres para buscar.</p>
+          <p class="ion-padding-top">{{ 'invoices.received.supplierSelector.typeToSearch' | transloco }}</p>
         </ion-text>
 
         <div class="estado-buscando" *ngIf="estado === 'buscando'">
           <ion-spinner name="dots"></ion-spinner>
-          <ion-text color="medium"><p class="ion-no-margin">Buscando...</p></ion-text>
+          <ion-text color="medium"><p class="ion-no-margin">{{ 'invoices.received.supplierSelector.searching' | transloco }}</p></ion-text>
         </div>
 
         <ion-text color="medium" *ngIf="estado === 'sin-resultados'">
-          <p class="ion-padding-top">Sin resultados para "{{ query }}".</p>
+          <p class="ion-padding-top">{{ 'invoices.received.supplierSelector.noResultsFor' | transloco: { query } }}</p>
         </ion-text>
 
         <ion-text color="danger" *ngIf="estado === 'error'">
-          <p class="ion-padding-top">No se pudo completar la búsqueda. Inténtalo de nuevo.</p>
+          <p class="ion-padding-top">{{ 'invoices.received.supplierSelector.searchError' | transloco }}</p>
         </ion-text>
 
         <ion-list *ngIf="estado === 'ok'">
@@ -76,33 +77,33 @@ type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error'
 
         <ion-button expand="block" fill="outline" class="ion-margin-top" (click)="modoNuevo = true">
           <ion-icon slot="start" name="add-outline"></ion-icon>
-          Proveedor nuevo
+          {{ 'invoices.received.supplierSelector.newSupplier' | transloco }}
         </ion-button>
       </ng-container>
 
       <ng-container *ngIf="modoNuevo">
         <ion-item>
-          <ion-input label="Nombre / Razón social" labelPlacement="stacked" [(ngModel)]="nuevo.nombre"></ion-input>
+          <ion-input [label]="'invoices.received.supplierSelector.nameLabel' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.nombre"></ion-input>
         </ion-item>
 
         <ion-item>
-          <ion-input label="NIF/CIF" labelPlacement="stacked" [(ngModel)]="nuevo.nif"></ion-input>
+          <ion-input [label]="'invoices.received.supplierSelector.nifCif' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.nif"></ion-input>
         </ion-item>
 
         <ion-item>
-          <ion-input label="Dirección" labelPlacement="stacked" [(ngModel)]="nuevo.direccion"></ion-input>
+          <ion-input [label]="'invoices.received.supplierSelector.address' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.direccion"></ion-input>
         </ion-item>
 
         <ion-item>
-          <ion-input label="Población" labelPlacement="stacked" [(ngModel)]="nuevo.poblacion"></ion-input>
+          <ion-input [label]="'invoices.received.supplierSelector.city' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.poblacion"></ion-input>
         </ion-item>
 
         <ion-item>
-          <ion-input label="Código postal" labelPlacement="stacked" [(ngModel)]="nuevo.cp"></ion-input>
+          <ion-input [label]="'invoices.received.supplierSelector.postalCode' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.cp"></ion-input>
         </ion-item>
 
         <ion-item>
-          <ion-input label="Provincia" labelPlacement="stacked" [(ngModel)]="nuevo.provincia"></ion-input>
+          <ion-input [label]="'invoices.received.supplierSelector.province' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.provincia"></ion-input>
         </ion-item>
 
         <ion-text color="danger" *ngIf="errorMsg">
@@ -110,10 +111,10 @@ type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error'
         </ion-text>
 
         <div class="botones">
-          <ion-button expand="block" fill="outline" [disabled]="guardando" (click)="modoNuevo = false">Volver a buscar</ion-button>
+          <ion-button expand="block" fill="outline" [disabled]="guardando" (click)="modoNuevo = false">{{ 'invoices.received.supplierSelector.backToSearch' | transloco }}</ion-button>
           <ion-button expand="block" [disabled]="guardando" (click)="confirmarNuevo()">
             <ion-spinner name="dots" *ngIf="guardando"></ion-spinner>
-            <ng-container *ngIf="!guardando">Usar este proveedor</ng-container>
+            <ng-container *ngIf="!guardando">{{ 'invoices.received.supplierSelector.useThisSupplier' | transloco }}</ng-container>
           </ion-button>
         </div>
       </ng-container>
@@ -138,6 +139,7 @@ type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error'
 export class ProveedorSelectorComponent implements OnInit, OnDestroy {
   private suppliersRepo = inject(SuppliersRepository);
   private modalCtrl = inject(ModalController);
+  private transloco = inject(TranslocoService);
 
   // Pedido por el usuario 2026-08-18: cuando el borrador viene de un escaneo cuyo proveedor
   // no se reconoció por NIF, la factura YA tiene nombre/NIF/dirección extraídos por el OCR
@@ -220,11 +222,11 @@ export class ProveedorSelectorComponent implements OnInit, OnDestroy {
   async confirmarNuevo() {
     this.errorMsg = '';
     if (!this.nuevo.nombre.trim() || !this.nuevo.nif.trim()) {
-      this.errorMsg = 'Nombre y NIF son obligatorios.';
+      this.errorMsg = this.transloco.translate('invoices.received.supplierSelector.nameNifRequired');
       return;
     }
     if (!this.nuevo.direccion?.trim() || !this.nuevo.cp?.trim() || !this.nuevo.poblacion?.trim() || !this.nuevo.provincia?.trim()) {
-      this.errorMsg = 'Dirección, código postal, población y provincia son obligatorios.';
+      this.errorMsg = this.transloco.translate('invoices.received.supplierSelector.addressRequired');
       return;
     }
 
@@ -235,7 +237,7 @@ export class ProveedorSelectorComponent implements OnInit, OnDestroy {
       const creado = await this.suppliersRepo.crearAdHoc({ ...this.nuevo });
       this.modalCtrl.dismiss(creado, 'confirm');
     } catch (e) {
-      this.errorMsg = e instanceof Error ? e.message : 'No se pudo crear el proveedor.';
+      this.errorMsg = e instanceof Error ? e.message : this.transloco.translate('invoices.received.supplierSelector.createError');
     } finally {
       this.guardando = false;
     }

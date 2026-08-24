@@ -4,6 +4,7 @@ import { ProveedorSelectorComponent } from './proveedor-selector.component';
 import { SuppliersRepository } from '../../core/ports';
 import { ProveedorMock } from '../../services/mock-facturas.service';
 import { PaginaResultado } from '../../shared/types/pagination';
+import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 
 describe('ProveedorSelectorComponent — búsqueda bajo demanda', () => {
   let component: ProveedorSelectorComponent;
@@ -22,6 +23,7 @@ describe('ProveedorSelectorComponent — búsqueda bajo demanda', () => {
       imports: [ProveedorSelectorComponent],
       providers: [
         provideIonicAngular(),
+        ...provideTranslocoTesting(),
         { provide: SuppliersRepository, useValue: suppliersRepoSpy },
       ],
     });
@@ -111,6 +113,7 @@ describe('ProveedorSelectorComponent — precarga desde un escaneo (datosInicial
       imports: [ProveedorSelectorComponent],
       providers: [
         provideIonicAngular(),
+        ...provideTranslocoTesting(),
         { provide: SuppliersRepository, useValue: suppliersRepoSpy },
       ],
     });

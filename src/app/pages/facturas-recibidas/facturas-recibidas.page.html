@@ -1,11 +1,11 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title class="title-bold">Facturas recibidas</ion-title>
+    <ion-title class="title-bold">{{ 'invoices.received.title' | transloco }}</ion-title>
   </ion-toolbar>
 
   <ion-toolbar>
     <ion-searchbar
-      placeholder="Buscar por proveedor"
+      [placeholder]="'invoices.received.searchPlaceholder' | transloco"
       [(ngModel)]="searchQuery"
       [debounce]="150"
       (ionInput)="onFiltroCambia()"
@@ -16,14 +16,13 @@
 <ion-content class="ion-padding">
 
   <app-demo-banner
-    titulo="Entorno de demostración conectado al backend de Development"
-    detalle="el resto de módulos de la app puede usar datos simulados"
+    [titulo]="'common.demoBanner.recibidasTitulo' | transloco"
+    [detalle]="'common.demoBanner.recibidasDetalle' | transloco"
   ></app-demo-banner>
 
   <ion-text *ngIf="!mostrarEscaneo" color="medium" class="aviso-documento-local">
     <p class="ion-no-margin">
-      Escanear facturas no está disponible ahora mismo — usa "Nueva factura" para darla de
-      alta a mano mientras tanto.
+      {{ 'ocr.scanUnavailableNotice' | transloco }}
     </p>
   </ion-text>
 
@@ -52,7 +51,7 @@
     >
       <ion-spinner *ngIf="processing" slot="start" name="crescent"></ion-spinner>
       <ion-icon *ngIf="!processing" slot="start" name="camera-outline"></ion-icon>
-      {{ processing ? 'Procesando...' : 'Escanear' }}
+      {{ (processing ? 'ocr.scanning' : 'ocr.scanButton') | transloco }}
     </ion-button>
 
     <ion-button
@@ -63,7 +62,7 @@
       (click)="triggerUpload()"
     >
       <ion-icon slot="start" name="attach-outline"></ion-icon>
-      Adjuntar
+      {{ 'ocr.attachButton' | transloco }}
     </ion-button>
   </div>
 
@@ -74,38 +73,38 @@
 
   <div *ngIf="mostrarFiltros" class="panel-filtros">
     <ion-item lines="none">
-      <ion-select label="Estado" label-placement="start" interface="popover" [(ngModel)]="estadoFiltro" (ionChange)="onFiltroCambia()">
-        <ion-select-option value="todos">Todos</ion-select-option>
-        <ion-select-option value="borrador">Borrador</ion-select-option>
-        <ion-select-option value="revisada">Contabilizada</ion-select-option>
+      <ion-select [label]="'invoices.received.filters.status' | transloco" label-placement="start" interface="popover" [(ngModel)]="estadoFiltro" (ionChange)="onFiltroCambia()">
+        <ion-select-option value="todos">{{ 'invoices.received.filters.all' | transloco }}</ion-select-option>
+        <ion-select-option value="borrador">{{ 'invoices.received.filters.draft' | transloco }}</ion-select-option>
+        <ion-select-option value="revisada">{{ 'invoices.received.filters.posted' | transloco }}</ion-select-option>
       </ion-select>
     </ion-item>
 
     <ion-item lines="none">
-      <ion-select label="Pago" label-placement="start" interface="popover" [(ngModel)]="pagadaFiltro" (ionChange)="onFiltroCambia()">
-        <ion-select-option value="todos">Todos</ion-select-option>
-        <ion-select-option value="si">Pagada</ion-select-option>
-        <ion-select-option value="no">Pendiente</ion-select-option>
+      <ion-select [label]="'invoices.received.filters.payment' | transloco" label-placement="start" interface="popover" [(ngModel)]="pagadaFiltro" (ionChange)="onFiltroCambia()">
+        <ion-select-option value="todos">{{ 'invoices.received.filters.all' | transloco }}</ion-select-option>
+        <ion-select-option value="si">{{ 'invoices.received.filters.paid' | transloco }}</ion-select-option>
+        <ion-select-option value="no">{{ 'invoices.received.filters.pending' | transloco }}</ion-select-option>
       </ion-select>
     </ion-item>
 
     <div class="filtro-fechas">
       <ion-item lines="none">
-        <ion-input label="Desde" labelPlacement="stacked" type="date" [(ngModel)]="fechaDesde"></ion-input>
+        <ion-input [label]="'invoices.received.filters.dateFrom' | transloco" labelPlacement="stacked" type="date" [(ngModel)]="fechaDesde"></ion-input>
       </ion-item>
       <ion-item lines="none">
-        <ion-input label="Hasta" labelPlacement="stacked" type="date" [(ngModel)]="fechaHasta"></ion-input>
+        <ion-input [label]="'invoices.received.filters.dateTo' | transloco" labelPlacement="stacked" type="date" [(ngModel)]="fechaHasta"></ion-input>
       </ion-item>
     </div>
   </div>
 
   <div class="carga-lista" *ngIf="cargando">
     <ion-spinner name="crescent"></ion-spinner>
-    <ion-text color="medium"><p class="ion-no-margin">Cargando facturas...</p></ion-text>
+    <ion-text color="medium"><p class="ion-no-margin">{{ 'invoices.received.loading' | transloco }}</p></ion-text>
   </div>
 
   <ion-text color="medium" *ngIf="!cargando && !searchQuery.trim() && !hayFiltrosActivos()">
-    <p class="ion-no-margin aviso-limite-lista">Últimas 50 facturas. Usa el buscador para encontrar una más antigua.</p>
+    <p class="ion-no-margin aviso-limite-lista">{{ 'invoices.received.limitNotice' | transloco }}</p>
   </ion-text>
 
   <div class="facturas-list" *ngIf="!cargando">
@@ -119,11 +118,11 @@
         <div class="concepto">{{ conceptoResumen(f) }}</div>
 
         <div class="row-meta">
-          <span>{{ formatFecha(f.fecha) }} <ng-container *ngIf="f.pagada"> · Pagada</ng-container></span>
+          <span>{{ formatFecha(f.fecha) }} <ng-container *ngIf="f.pagada"> · {{ 'invoices.received.card.paidSuffix' | transloco }}</ng-container></span>
           <span class="estado" [class.ok]="f.estado === 'revisada'">
-            <ng-container *ngIf="f.esBorradorLocal; else estadoReal">Sin guardar</ng-container>
-            <ng-template #estadoReal>{{ f.estado === 'revisada' ? 'Contabilizada' : 'Borrador' }}</ng-template>
-            <ng-container *ngIf="f.origenOcr"> · OCR</ng-container>
+            <ng-container *ngIf="f.esBorradorLocal; else estadoReal">{{ 'invoices.received.card.unsaved' | transloco }}</ng-container>
+            <ng-template #estadoReal>{{ (f.estado === 'revisada' ? 'invoices.received.card.posted' : 'invoices.received.card.draft') | transloco }}</ng-template>
+            <ng-container *ngIf="f.origenOcr"> · {{ 'ocr.badge' | transloco }}</ng-container>
           </span>
         </div>
 
@@ -135,34 +134,34 @@
             (click)="confirmarContabilizar($event, f)"
           >
             <ion-icon slot="start" name="checkmark-circle-outline"></ion-icon>
-            Contabilizar
+            {{ 'invoices.received.actions.post' | transloco }}
           </ion-button>
 
           <span class="acciones-secundarias">
             <ion-button
               *ngIf="accionesPermitidas(f).copiar"
-              fill="clear" size="small" aria-label="Copiar / Duplicar"
+              fill="clear" size="small" [attr.aria-label]="'invoices.received.actions.copyAria' | transloco"
               (click)="duplicar($event, f)"
             >
               <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
             </ion-button>
             <ion-button
               *ngIf="accionesPermitidas(f).descargar && f.documentoUrl"
-              fill="clear" size="small" aria-label="Descargar documento adjunto"
+              fill="clear" size="small" [attr.aria-label]="'invoices.received.actions.downloadAria' | transloco"
               (click)="descargarAdjunto($event, f)"
             >
               <ion-icon slot="icon-only" name="download-outline"></ion-icon>
             </ion-button>
             <ion-button
               *ngIf="accionesPermitidas(f).compartir && f.documentoUrl"
-              fill="clear" size="small" aria-label="Compartir documento adjunto"
+              fill="clear" size="small" [attr.aria-label]="'invoices.received.actions.shareAria' | transloco"
               (click)="compartirAdjunto($event, f)"
             >
               <ion-icon slot="icon-only" name="share-social-outline"></ion-icon>
             </ion-button>
             <ion-button
               *ngIf="accionesPermitidas(f).eliminar"
-              fill="clear" size="small" color="danger" aria-label="Eliminar factura"
+              fill="clear" size="small" color="danger" [attr.aria-label]="'invoices.received.actions.deleteAria' | transloco"
               (click)="confirmarEliminar($event, f)"
             >
               <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
@@ -177,10 +176,10 @@
         <ion-icon name="receipt-outline"></ion-icon>
         <ion-text color="medium">
           <p class="ion-no-margin" *ngIf="facturas.length === 0 && !searchQuery.trim() && !hayFiltrosActivos()">
-            Todavía no hay facturas recibidas.
+            {{ 'invoices.received.empty.none' | transloco }}
           </p>
           <p class="ion-no-margin" *ngIf="facturas.length > 0 || searchQuery.trim() || hayFiltrosActivos()">
-            Sin resultados con la búsqueda o los filtros aplicados.
+            {{ 'invoices.received.empty.noResults' | transloco }}
           </p>
         </ion-text>
       </ion-card-content>

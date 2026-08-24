@@ -6,6 +6,7 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { closeOutline, documentTextOutline } from 'ionicons/icons';
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import { DocumentoBancarioAnalizado } from '../../core/models/documento-bancario';
 import { VerDocumentoComponent } from '../ver-documento/ver-documento.component';
@@ -15,60 +16,63 @@ type SeccionDocumento = { titulo: string; campos: CampoDocumento[] };
 
 // Traducción best-effort de las claves más habituales del lector (recibos bancarios,
 // remesas de adeudos) a etiquetas legibles — cualquier clave no listada aquí se muestra
-// igualmente (ver etiquetaPara), solo que sin traducir, para no perder nunca un campo nuevo
-// que el lector añada en el futuro.
+// igualmente (ver etiquetaPara), solo que sin traducir (es contenido del propio lector, no
+// texto de la app), para no perder nunca un campo nuevo que el lector añada en el futuro.
+// Los valores son CLAVES de traducción (namespace bankDocuments.fields.*), no texto literal.
 const ETIQUETAS: Record<string, string> = {
-  bank_name: 'Banco',
-  bank: 'Banco',
-  document_title: 'Tipo de documento',
-  document_number: 'Número de documento',
-  issuer: 'Emisor',
-  issuer_name: 'Emisor',
-  issuer_identification: 'Identificación del emisor',
-  identification: 'Identificación',
-  invoice_number: 'Número de factura / documento',
-  file_reference: 'Referencia del fichero',
-  reception_date: 'Fecha de recepción',
-  operation_type: 'Tipo de operación',
-  unique_reference: 'Referencia única',
-  debtor_name: 'Nombre del librado',
-  debtor_iban: 'IBAN del librado',
-  debtor: 'Librado',
-  account_holder: 'Titular de la cuenta',
-  account_iban: 'IBAN',
-  iban: 'IBAN',
-  amount: 'Importe',
-  nominal_amount: 'Nominal',
-  commission: 'Comisión',
-  mail_fee: 'Correo',
-  taxes: 'Impuestos',
-  tax_amount: 'Impuestos',
-  net_amount: 'Líquido',
-  due_date: 'Vencimiento',
-  value_date: 'Fecha valor',
-  charge_status: 'Estado del cargo',
-  status: 'Estado',
-  currency: 'Moneda',
-  transactions: 'Operaciones',
-  entries: 'Movimientos',
-  references: 'Referencias',
-  amounts: 'Importes',
-  dates: 'Fechas',
+  bank_name: 'bankDocuments.fields.bank',
+  bank: 'bankDocuments.fields.bank',
+  document_title: 'bankDocuments.fields.documentType',
+  document_number: 'bankDocuments.fields.documentNumber',
+  issuer: 'bankDocuments.fields.issuer',
+  issuer_name: 'bankDocuments.fields.issuer',
+  issuer_identification: 'bankDocuments.fields.issuerIdentification',
+  identification: 'bankDocuments.fields.identification',
+  invoice_number: 'bankDocuments.fields.invoiceNumber',
+  file_reference: 'bankDocuments.fields.fileReference',
+  reception_date: 'bankDocuments.fields.receptionDate',
+  operation_type: 'bankDocuments.fields.operationType',
+  unique_reference: 'bankDocuments.fields.uniqueReference',
+  debtor_name: 'bankDocuments.fields.debtorName',
+  debtor_iban: 'bankDocuments.fields.debtorIban',
+  debtor: 'bankDocuments.fields.debtor',
+  account_holder: 'bankDocuments.fields.accountHolder',
+  account_iban: 'bankDocuments.fields.iban',
+  iban: 'bankDocuments.fields.iban',
+  amount: 'bankDocuments.fields.amount',
+  nominal_amount: 'bankDocuments.fields.nominalAmount',
+  commission: 'bankDocuments.fields.commission',
+  mail_fee: 'bankDocuments.fields.mailFee',
+  taxes: 'bankDocuments.fields.taxes',
+  tax_amount: 'bankDocuments.fields.taxes',
+  net_amount: 'bankDocuments.fields.netAmount',
+  due_date: 'bankDocuments.fields.dueDate',
+  value_date: 'bankDocuments.fields.valueDate',
+  charge_status: 'bankDocuments.fields.chargeStatus',
+  status: 'bankDocuments.fields.status',
+  currency: 'bankDocuments.fields.currency',
+  transactions: 'bankDocuments.fields.transactions',
+  entries: 'bankDocuments.fields.entries',
+  references: 'bankDocuments.fields.references',
+  amounts: 'bankDocuments.fields.amounts',
+  dates: 'bankDocuments.fields.dates',
 };
 
 function esObjeto(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === 'object' && valor !== null && !Array.isArray(valor);
 }
 
-function etiquetaPara(clave: string): string {
+function etiquetaPara(clave: string, traducir: (clave: string) => string): string {
   const normalizada = clave.trim().toLowerCase();
-  return ETIQUETAS[normalizada]
-    ?? clave.replace(/[_-]+/g, ' ').replace(/^./, letra => letra.toUpperCase());
+  const claveTraduccion = ETIQUETAS[normalizada];
+  return claveTraduccion
+    ? traducir(claveTraduccion)
+    : clave.replace(/[_-]+/g, ' ').replace(/^./, letra => letra.toUpperCase());
 }
 
-function valorVisible(valor: unknown): string {
+function valorVisible(valor: unknown, traducir: (clave: string) => string): string {
   if (valor == null || valor === '') return '—';
-  if (typeof valor === 'boolean') return valor ? 'Sí' : 'No';
+  if (typeof valor === 'boolean') return valor ? traducir('common.yes') : traducir('common.no');
   if (typeof valor === 'string' || typeof valor === 'number' || typeof valor === 'bigint') {
     return String(valor);
   }
@@ -78,21 +82,22 @@ function valorVisible(valor: unknown): string {
 // Aplana el objeto (que puede traer sub-objetos y arrays anidados: emisor, importes,
 // movimientos...) en secciones con pares etiqueta/valor — recorrido genérico, sin asumir
 // ninguna forma fija, para sobrevivir a que el lector añada o quite campos.
-function construirSecciones(datos: Record<string, unknown>): SeccionDocumento[] {
+function construirSecciones(datos: Record<string, unknown>, traducir: (clave: string) => string): SeccionDocumento[] {
   const secciones = new Map<string, CampoDocumento[]>();
+  const tituloRaiz = traducir('bankDocuments.generalDataSection');
 
   const agregar = (seccion: string, etiqueta: string, valor: unknown) => {
     const campos = secciones.get(seccion) ?? [];
-    campos.push({ etiqueta, valor: valorVisible(valor) });
+    campos.push({ etiqueta, valor: valorVisible(valor, traducir) });
     secciones.set(seccion, campos);
   };
 
   const recorrer = (objeto: Record<string, unknown>, seccion: string) => {
     for (const [clave, valor] of Object.entries(objeto)) {
-      const etiqueta = etiquetaPara(clave);
+      const etiqueta = etiquetaPara(clave, traducir);
 
       if (esObjeto(valor)) {
-        recorrer(valor, seccion === 'Datos generales' ? etiqueta : `${seccion} · ${etiqueta}`);
+        recorrer(valor, seccion === tituloRaiz ? etiqueta : `${seccion} · ${etiqueta}`);
         continue;
       }
 
@@ -102,13 +107,13 @@ function construirSecciones(datos: Record<string, unknown>): SeccionDocumento[] 
           continue;
         }
         if (valor.every(item => !esObjeto(item) && !Array.isArray(item))) {
-          agregar(seccion, etiqueta, valor.map(valorVisible).join(' · '));
+          agregar(seccion, etiqueta, valor.map(v => valorVisible(v, traducir)).join(' · '));
           continue;
         }
         valor.forEach((item, indice) => {
           const titulo = `${etiqueta} ${indice + 1}`;
           if (esObjeto(item)) recorrer(item, titulo);
-          else agregar(titulo, 'Valor', item);
+          else agregar(titulo, traducir('bankDocuments.valueLabel'), item);
         });
         continue;
       }
@@ -117,7 +122,7 @@ function construirSecciones(datos: Record<string, unknown>): SeccionDocumento[] 
     }
   };
 
-  recorrer(datos, 'Datos generales');
+  recorrer(datos, tituloRaiz);
   return Array.from(secciones, ([titulo, campos]) => ({ titulo, campos }));
 }
 
@@ -125,16 +130,16 @@ function construirSecciones(datos: Record<string, unknown>): SeccionDocumento[] 
   selector: 'app-documento-bancario',
   standalone: true,
   imports: [
-    CommonModule,
+    CommonModule, TranslocoPipe,
     IonButton, IonButtons, IonCard, IonCardContent, IonChip, IonContent, IonHeader,
     IonIcon, IonLabel, IonText, IonTitle, IonToolbar,
   ],
   template: `
     <ion-header>
       <ion-toolbar>
-        <ion-title>Documento bancario</ion-title>
+        <ion-title>{{ 'bankDocuments.title' | transloco }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button aria-label="Cerrar" (click)="cerrar()">
+          <ion-button [attr.aria-label]="'common.actions.close' | transloco" (click)="cerrar()">
             <ion-icon slot="icon-only" name="close-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -144,8 +149,8 @@ function construirSecciones(datos: Record<string, unknown>): SeccionDocumento[] 
     <ion-content class="ion-padding">
       <ion-card color="warning" class="aviso-clasificacion">
         <ion-card-content>
-          <strong>El lector ha detectado un documento bancario.</strong>
-          <p>Se muestran los datos extraídos para su revisión. No se ha creado ninguna factura recibida.</p>
+          <strong>{{ 'bankDocuments.detectedNotice' | transloco }}</strong>
+          <p>{{ 'bankDocuments.detectedDescription' | transloco }}</p>
         </ion-card-content>
       </ion-card>
 
@@ -154,7 +159,7 @@ function construirSecciones(datos: Record<string, unknown>): SeccionDocumento[] 
           <ion-label>bank_document</ion-label>
         </ion-chip>
         <ion-chip *ngIf="documento.confianza != null" color="medium">
-          <ion-label>Confianza: {{ confianzaPct }}%</ion-label>
+          <ion-label>{{ 'bankDocuments.confidence' | transloco }} {{ confianzaPct }}%</ion-label>
         </ion-chip>
       </div>
 
@@ -162,7 +167,7 @@ function construirSecciones(datos: Record<string, unknown>): SeccionDocumento[] 
 
       <ion-card *ngIf="documento.avisos.length" color="warning">
         <ion-card-content>
-          <strong>Avisos del lector</strong>
+          <strong>{{ 'bankDocuments.readerWarnings' | transloco }}</strong>
           <p *ngFor="let aviso of documento.avisos">{{ aviso }}</p>
         </ion-card-content>
       </ion-card>
@@ -180,16 +185,16 @@ function construirSecciones(datos: Record<string, unknown>): SeccionDocumento[] 
       </ion-card>
 
       <ion-text color="medium" *ngIf="secciones.length === 0">
-        <p>El lector clasificó el fichero, pero no devolvió campos bancarios para mostrar.</p>
+        <p>{{ 'bankDocuments.noFieldsNotice' | transloco }}</p>
       </ion-text>
 
       <ion-button *ngIf="documento.documentoUrl" expand="block" fill="outline" (click)="verOriginal()">
         <ion-icon slot="start" name="document-text-outline"></ion-icon>
-        Ver documento original
+        {{ 'bankDocuments.viewOriginal' | transloco }}
       </ion-button>
 
       <ion-text color="medium" *ngIf="documento.requestId">
-        <p class="request-id">Identificador de análisis: {{ documento.requestId }}</p>
+        <p class="request-id">{{ 'bankDocuments.analysisId' | transloco }} {{ documento.requestId }}</p>
       </ion-text>
     </ion-content>
   `,
@@ -208,6 +213,7 @@ function construirSecciones(datos: Record<string, unknown>): SeccionDocumento[] 
 })
 export class DocumentoBancarioComponent implements OnInit {
   private modalCtrl = inject(ModalController);
+  private transloco = inject(TranslocoService);
 
   @Input({ required: true }) documento!: DocumentoBancarioAnalizado;
 
@@ -228,7 +234,7 @@ export class DocumentoBancarioComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.secciones = construirSecciones(this.documento.datos);
+    this.secciones = construirSecciones(this.documento.datos, clave => this.transloco.translate(clave));
   }
 
   get confianzaPct(): number {
