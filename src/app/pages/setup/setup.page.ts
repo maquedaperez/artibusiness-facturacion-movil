@@ -10,6 +10,7 @@ import {
 } from '@ionic/angular/standalone';
 
 import { TenantService } from '../../services/tenant.service';
+import { LanguageSelectorComponent } from '../../shared/language-selector/language-selector.component';
 
 @Component({
   selector: 'app-setup',
@@ -18,6 +19,7 @@ import { TenantService } from '../../services/tenant.service';
     CommonModule,
     ReactiveFormsModule,
     TranslocoPipe,
+    LanguageSelectorComponent,
     IonContent, IonHeader, IonTitle, IonToolbar,
     IonItem, IonInput, IonButton, IonText
   ],

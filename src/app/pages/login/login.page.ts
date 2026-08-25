@@ -10,6 +10,7 @@ import { Preferences } from '@capacitor/preferences';
 import { BiometricAuth } from '@aparajita/capacitor-biometric-auth';
 
 import { IonContent, IonItem, IonInput, IonButton, IonText } from '@ionic/angular/standalone';
+import { LanguageSelectorComponent } from '../../shared/language-selector/language-selector.component';
 
 const SAVED_USERNAME_KEY = 'saved_username';
 const SAVED_PASSWORD_KEY = 'saved_password';
@@ -22,6 +23,7 @@ const SAVED_PASSWORD_KEY = 'saved_password';
     ReactiveFormsModule,
     RouterLink,
     TranslocoPipe,
+    LanguageSelectorComponent,
     IonContent,
     IonItem,
     IonInput,
