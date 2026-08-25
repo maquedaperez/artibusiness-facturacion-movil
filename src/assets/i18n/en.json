@@ -66,7 +66,7 @@
       "changeAccessKey": "Change access key",
       "biometricReason": "Sign in with Face ID",
       "errorInvalidCredentials": "Invalid credentials. Check your username and password.",
-      "errorBadRequest": "Incorrect data. Review the fields.",
+      "errorBadRequest": "The information entered is incorrect. Check the fields.",
       "errorServer": "Server error. Try again later.",
       "errorGeneric": "Could not log in. Try again."
     },
@@ -160,7 +160,7 @@
         "dateTo": "To"
       },
       "card": {
-        "noNameFallback": "Client not available",
+        "noNameFallback": "Customer not available",
         "noConceptFallback": "No description"
       },
       "badges": {
@@ -180,7 +180,7 @@
       "empty": {
         "noneInState": "There are no invoices with status",
         "noResultsFor": "No results for \"{{query}}\".",
-        "noResultsFiltered": "No results with the applied filters."
+        "noResultsFiltered": "No results match the selected filters."
       },
       "list": {
         "loadError": "Could not load the list of invoices."
@@ -217,13 +217,13 @@
       "detail": {
         "newInvoice": "New invoice",
         "seriesLabel": "Numbering series",
-        "chooseClientAndStart": "Choose client and start",
+        "chooseClientAndStart": "Choose customer and start",
         "statusPosted": "Posted",
         "statusSigned": "Signed",
         "aeatStatus": "AEAT status:",
-        "client": "Client",
+        "client": "Customer",
         "individual": "Individual",
-        "changeClient": "Change client",
+        "changeClient": "Change customer",
         "dateLabel": "Date",
         "dueDateLabel": "Due date",
         "conceptLabel": "Description of the transaction",
@@ -237,7 +237,7 @@
         "totalDue": "Total due",
         "saving": "Saving...",
         "saveDraft": "Save draft",
-        "correctInvoice": "Correct invoice",
+        "correctInvoice": "Correct invoice record",
         "cancelling": "Cancelling…",
         "cancelInvoice": "Cancel invoice",
         "notFound": "Invoice not found.",
@@ -245,7 +245,7 @@
         "saveSuccess": "Invoice saved.",
         "saveError": "Could not save the invoice.",
         "postValidationError": "Description and payment method are required to post the invoice.",
-        "postConfirmMessage": "Post the invoice for {{cliente}} for {{importe}}? This will send its invoice record to VERI*FACTU/AEAT, and the invoice will no longer be editable. Pending changes will be saved first.",
+        "postConfirmMessage": "Post the invoice for {{cliente}}, totalling {{importe}}? This will send its invoice record to VERI*FACTU/AEAT, and the invoice will no longer be editable. Pending changes will be saved first.",
         "postedSuccess": "Invoice posted.",
         "signConfirmMessage": "Sign this invoice? This generates the XAdES electronic signature for the document already registered in VERI*FACTU.",
         "signedSuccess": "Invoice signed.",
@@ -255,15 +255,15 @@
         "cancelError": "Could not cancel the invoice."
       },
       "correct": {
-        "title": "Correct invoice",
-        "readOnlyNotice": "This screen does not edit the invoice: the client, lines and amounts do not change. It only re-submits the fiscal record with the same data already saved, leaving a record of the reason. If the invoice content is wrong, a corrective invoice applies; if the transaction never happened, it should be cancelled instead.",
+        "title": "Correct invoice record",
+        "readOnlyNotice": "This screen does not edit the invoice: the customer, lines and amounts do not change. It only re-submits the invoice record with the same data already saved, leaving a record of the reason. If the invoice content is wrong, a corrective invoice applies; if the transaction never happened, it should be cancelled instead.",
         "invoiceTitle": "Invoice {{num}}",
         "aeatStatusOriginal": "AEAT status (original submission):",
         "total": "Total",
         "lastCorrection": "Last correction",
         "reason": "Reason",
-        "whatWouldChange": "What would change in the fiscal record",
-        "noDifferences": "The fiscal content that would be resubmitted is identical to the last record — there is nothing to correct. If the invoice needs to change client, lines, amounts or VAT, a corrective invoice applies, not a correction.",
+        "whatWouldChange": "What would change in the invoice record",
+        "noDifferences": "The fiscal content that would be resubmitted is identical to the last record — there is nothing to correct. If the invoice needs to change customer, lines, amounts or VAT, a corrective invoice applies, not a correction.",
         "reasonTitle": "Reason for the correction",
         "reasonNotice": "This is internal traceability only — it is not sent to the AEAT and is not part of the corrected record.",
         "reasonPlaceholder": "Explain what was wrong in the submitted record (not in the invoice)",
@@ -277,13 +277,13 @@
         "simulatedFieldLabel": "Description of the operation (simulated)"
       },
       "clientSelector": {
-        "title": "Select client",
+        "title": "Select customer",
         "searchPlaceholder": "Search by name or tax ID (minimum 2 characters)",
         "typeToSearch": "Type at least 2 characters to search.",
         "searching": "Searching...",
         "noResultsFor": "No results for \"{{query}}\".",
         "searchError": "Could not complete the search. Try again.",
-        "newClient": "New client",
+        "newClient": "New customer",
         "isCompany": "Company?",
         "nameLabel": "Name / Legal name",
         "cif": "Tax ID (CIF)",
@@ -295,10 +295,10 @@
         "paymentMethod": "Payment method",
         "backToSearch": "Back to search",
         "creating": "Creating…",
-        "useThisClient": "Use this client",
+        "useThisClient": "Use this customer",
         "nameNifRequired": "Name and tax ID are required.",
-        "paymentMethodRequired": "Select a payment method for the client.",
-        "createError": "Could not create the client. Try again."
+        "paymentMethodRequired": "Select a payment method for the customer.",
+        "createError": "Could not create the customer. Try again."
       },
       "catalogSelector": {
         "title": "Catalog product / service",
@@ -311,7 +311,7 @@
         "cancelled": "Cancelled"
       },
       "errors": {
-        "clientRequired": "Select the client from the list before saving — an invoice cannot be saved with only a name typed in.",
+        "clientRequired": "Select the customer from the list before saving — an invoice cannot be saved with only a name typed in.",
         "paymentMethodRequired": "Select a payment method from the catalog before saving.",
         "lineRequired": "The invoice needs at least one line.",
         "notFoundWithId": "Invoice {{id}} not found."
@@ -352,7 +352,7 @@
       },
       "empty": {
         "none": "There are no received invoices yet.",
-        "noResults": "No results with the applied search or filters."
+        "noResults": "No results match your search or the selected filters."
       },
       "list": {
         "loadError": "Could not load the list of invoices.",
@@ -369,7 +369,7 @@
         "numberDialogMessage": "The invoice from {{proveedor}} (supplier, lines, amounts...) will be copied and saved directly. The rest of the data can be adjusted afterwards.",
         "numberPlaceholder": "Invoice number",
         "confirmButton": "Copy and save",
-        "success": "Copy saved from the invoice from {{proveedor}}.",
+        "success": "A copy of the invoice from {{proveedor}} has been saved.",
         "error": "Could not copy the invoice."
       },
       "attachment": {
@@ -394,7 +394,7 @@
         "supplierSection": "Supplier",
         "changeSupplier": "Change supplier",
         "selectSupplier": "Select supplier",
-        "invoiceDataSection": "Invoice data",
+        "invoiceDataSection": "Invoice details",
         "numberLabel": "Number",
         "dateLabel": "Date",
         "dueDateLabel": "Due date",
@@ -468,9 +468,9 @@
       "sinDatos": "—"
     },
     "subsanacion": {
-      "aceptada": "Corrected: accepted",
-      "aceptadaConErrores": "Corrected: accepted with errors",
-      "rechazada": "Corrected: rejected",
+      "aceptada": "Correction accepted",
+      "aceptadaConErrores": "Correction accepted with errors",
+      "rechazada": "Correction rejected",
       "pendienteEnvio": "Correction pending submission",
       "prefijoGenerico": "Correction: {{estado}}"
     },
