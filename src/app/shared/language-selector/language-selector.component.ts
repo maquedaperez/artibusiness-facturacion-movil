@@ -28,18 +28,18 @@ import { LanguageService, IdiomaSoportado, IDIOMAS_SOPORTADOS } from '../../core
         [attr.aria-label]="'common.languages.' + idioma | transloco"
         (click)="seleccionar(idioma)"
       >
-        <svg *ngIf="idioma === 'es'" viewBox="0 0 3 2" class="bandera-svg">
+        <svg *ngIf="idioma === 'es'" viewBox="0 0 3 2" preserveAspectRatio="xMidYMid slice" class="bandera-svg">
           <rect width="3" height="2" fill="#AA151B"/>
           <rect y="0.5" width="3" height="1" fill="#F1BF00"/>
         </svg>
-        <svg *ngIf="idioma === 'en'" viewBox="0 0 60 30" class="bandera-svg">
+        <svg *ngIf="idioma === 'en'" viewBox="0 0 60 30" preserveAspectRatio="xMidYMid slice" class="bandera-svg">
           <rect width="60" height="30" fill="#012169"/>
           <path d="M0,0 60,30 M60,0 0,30" stroke="#FFF" stroke-width="6"/>
           <path d="M0,0 60,30 M60,0 0,30" stroke="#C8102E" stroke-width="2"/>
           <path d="M30,0 V30 M0,15 H60" stroke="#FFF" stroke-width="10"/>
           <path d="M30,0 V30 M0,15 H60" stroke="#C8102E" stroke-width="6"/>
         </svg>
-        <svg *ngIf="idioma === 'uk'" viewBox="0 0 3 2" class="bandera-svg">
+        <svg *ngIf="idioma === 'uk'" viewBox="0 0 3 2" preserveAspectRatio="xMidYMid slice" class="bandera-svg">
           <rect width="3" height="1" fill="#005BBB"/>
           <rect y="1" width="3" height="1" fill="#FFD500"/>
         </svg>

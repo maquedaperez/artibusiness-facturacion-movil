@@ -6,54 +6,56 @@
 
 <ion-content class="ion-padding" [scrollY]="true">
   <div class="page-center">
-    <div class="box">
+    <div class="box-wrapper">
+      <div class="box">
 
-      <!-- LOGO más pequeño -->
-      <div class="brand-logo-small">
-        <img src="assets/icon/LogoHD.png" alt="ARTI" />
-      </div>
-
-      <!-- TEXTO -->
-      <ion-text color="medium">
-        <p class="ion-no-margin">{{ 'auth.setup.instructions' | transloco }}</p>
-      </ion-text>
-
-      <!-- FORM -->
-      <form [formGroup]="form" (ngSubmit)="submit()">
-        <ion-item class="ion-margin-top">
-          <ion-input
-            [label]="'auth.setup.keyLabel' | transloco"
-            label-placement="stacked"
-            formControlName="tenantKey"
-            autocapitalize="off"
-            autocomplete="off"
-          ></ion-input>
-        </ion-item>
-
-        <ion-text
-          color="danger"
-          *ngIf="submitted && form.controls.tenantKey.invalid"
-        >
-          <small>{{ 'auth.setup.keyRequired' | transloco }}</small>
-        </ion-text>
-
-        <ion-text color="danger" *ngIf="submitted && invalidTenant">
-          <small>{{ 'auth.setup.keyInvalid' | transloco }}</small>
-        </ion-text>
-
-        <ion-button expand="block" class="ion-margin-top" type="submit">
-          {{ 'auth.setup.submit' | transloco }}
-        </ion-button>
-
-        <div class="ion-text-center ion-margin-top">
-          <a (click)="openLink()" style="color: #007aff; cursor: pointer; font-size: 14px;">
-            {{ 'auth.setup.requestAccess' | transloco }}
-          </a>
+        <!-- LOGO más pequeño -->
+        <div class="brand-logo-small">
+          <img src="assets/icon/LogoHD.png" alt="ARTI" />
         </div>
-      </form>
 
-      <app-language-selector></app-language-selector>
+        <!-- TEXTO -->
+        <ion-text color="medium">
+          <p class="ion-no-margin">{{ 'auth.setup.instructions' | transloco }}</p>
+        </ion-text>
 
+        <!-- FORM -->
+        <form [formGroup]="form" (ngSubmit)="submit()">
+          <ion-item class="ion-margin-top">
+            <ion-input
+              [label]="'auth.setup.keyLabel' | transloco"
+              label-placement="stacked"
+              formControlName="tenantKey"
+              autocapitalize="off"
+              autocomplete="off"
+            ></ion-input>
+          </ion-item>
+
+          <ion-text
+            color="danger"
+            *ngIf="submitted && form.controls.tenantKey.invalid"
+          >
+            <small>{{ 'auth.setup.keyRequired' | transloco }}</small>
+          </ion-text>
+
+          <ion-text color="danger" *ngIf="submitted && invalidTenant">
+            <small>{{ 'auth.setup.keyInvalid' | transloco }}</small>
+          </ion-text>
+
+          <ion-button expand="block" class="ion-margin-top" type="submit">
+            {{ 'auth.setup.submit' | transloco }}
+          </ion-button>
+
+          <div class="ion-text-center ion-margin-top">
+            <a (click)="openLink()" style="color: #007aff; cursor: pointer; font-size: 14px;">
+              {{ 'auth.setup.requestAccess' | transloco }}
+            </a>
+          </div>
+        </form>
+
+      </div>
     </div>
+
+    <app-language-selector></app-language-selector>
   </div>
 </ion-content>
