@@ -50,6 +50,7 @@ import { LanguageService, IdiomaSoportado, IDIOMAS_SOPORTADOS } from '../../core
     :host {
       display: block;
       margin-top: 32px;
+      margin-bottom: 1cm;
     }
     .selector-idioma {
       display: flex;
