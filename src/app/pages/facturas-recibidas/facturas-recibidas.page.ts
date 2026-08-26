@@ -20,6 +20,7 @@ import {
 import { AccionesPermitidas, FacturaRecibida } from '../../services/mock-facturas.service';
 import { FiltrosListarRecibidas, ReceivedInvoicesRepository } from '../../core/ports';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
+import { PagosService } from '../../services/pagos.service';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 import { formatEuros as formatEurosUtil, formatFecha as formatFechaUtil } from '../../shared/utils/format-euros';
 import { environment } from 'src/environments/environment';
@@ -50,6 +51,7 @@ export class FacturasRecibidasPage {
   private modalCtrl = inject(ModalController);
   private router = inject(Router);
   private transloco = inject(TranslocoService);
+  private pagosService = inject(PagosService);
 
   @ViewChild('fileInputCamera') fileInputCamera?: ElementRef<HTMLInputElement>;
   @ViewChild('fileInputUpload') fileInputUpload?: ElementRef<HTMLInputElement>;
@@ -224,6 +226,10 @@ export class FacturasRecibidasPage {
       }
       await this.router.navigate(['/app/recibidas', nueva.id]);
     } catch (e: any) {
+      if (this.esCreditosAgotados(e)) {
+        await this.mostrarAvisoCreditosAgotados();
+        return;
+      }
       const motivo = this.motivoBorradorLocal(e?.message);
       if (motivo) {
         await this.intentarBorradorLocal(file, motivo);
@@ -232,6 +238,38 @@ export class FacturasRecibidasPage {
       }
     } finally {
       this.processing = false;
+    }
+  }
+
+  // Backend: FacturasRecibidasController devuelve HTTP 402 con code: "OCR_CREDITS_EXHAUSTED"
+  // (mismo código en CrearDesdeDocumento y en AdjuntarDocumento) cuando la empresa está sujeta
+  // a control de créditos (ver PagosOptions.EmpresasControlCreditos) y no le queda saldo. El
+  // 402 basta por sí solo para identificarlo — a día de hoy es el único caso que lo usa.
+  private esCreditosAgotados(e: unknown): boolean {
+    return e instanceof Error && /^HTTP 402\b/.test(e.message);
+  }
+
+  private async mostrarAvisoCreditosAgotados() {
+    const toast = await this.toastCtrl.create({
+      message: this.transloco.translate('profile.payments.creditsExhausted'),
+      color: 'danger',
+      position: 'bottom',
+      duration: 6000,
+      buttons: [{
+        text: this.transloco.translate('profile.payments.getMoreCredits'),
+        handler: () => this.abrirPortalDePagos(),
+      }],
+    });
+    await toast.present();
+  }
+
+  private async abrirPortalDePagos() {
+    try {
+      const url = await this.pagosService.obtenerUrlAccesoPortal();
+      this.pagosService.abrirPortalDePagos(url);
+    } catch {
+      // Silencioso a propósito, mismo criterio que perfil.page.ts: un fallo aquí no debe
+      // bloquear ni alarmar sobre un botón secundario de un toast de aviso.
     }
   }
 

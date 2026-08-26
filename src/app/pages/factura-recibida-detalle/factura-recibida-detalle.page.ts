@@ -28,6 +28,7 @@ import { ProveedorSelectorComponent } from '../../modals/proveedor-selector/prov
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 import { LineasEditorComponent } from '../../shared/lineas-editor/lineas-editor.component';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
+import { PagosService } from '../../services/pagos.service';
 
 type FacturaRecibidaForm = Omit<FacturaRecibida, 'id' | 'origenOcr'>;
 
@@ -52,6 +53,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
   private transloco = inject(TranslocoService);
+  private pagosService = inject(PagosService);
 
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
 
@@ -353,12 +355,48 @@ export class FacturaRecibidaDetallePage implements OnInit {
         this.archivoPendienteDeAdjuntar = file;
       }
     } catch (e: any) {
+      if (this.esCreditosAgotados(e)) {
+        await this.mostrarAvisoCreditosAgotados();
+        return;
+      }
       // BUG real encontrado en auditoría 2026-08-14: sin este catch, un fichero no legible
       // (corrupto, formato raro) dejaba desaparecer el spinner sin ningún aviso — el usuario
       // no se enteraba de que el adjunto había fallado.
       await this.showToast(e?.message ?? this.transloco.translate('invoices.received.detail.attachError'), 'danger');
     } finally {
       this.adjuntando = false;
+    }
+  }
+
+  // Backend: FacturasRecibidasController devuelve HTTP 402 con code: "OCR_CREDITS_EXHAUSTED"
+  // cuando la empresa está sujeta a control de créditos (ver PagosOptions.
+  // EmpresasControlCreditos) y no le queda saldo. El 402 basta por sí solo para
+  // identificarlo — a día de hoy es el único caso que lo usa.
+  private esCreditosAgotados(e: unknown): boolean {
+    return e instanceof Error && /^HTTP 402\b/.test(e.message);
+  }
+
+  private async mostrarAvisoCreditosAgotados() {
+    const toast = await this.toastCtrl.create({
+      message: this.transloco.translate('profile.payments.creditsExhausted'),
+      color: 'danger',
+      position: 'bottom',
+      duration: 6000,
+      buttons: [{
+        text: this.transloco.translate('profile.payments.getMoreCredits'),
+        handler: () => this.abrirPortalDePagos(),
+      }],
+    });
+    await toast.present();
+  }
+
+  private async abrirPortalDePagos() {
+    try {
+      const url = await this.pagosService.obtenerUrlAccesoPortal();
+      this.pagosService.abrirPortalDePagos(url);
+    } catch {
+      // Silencioso a propósito, mismo criterio que perfil.page.ts: un fallo aquí no debe
+      // bloquear ni alarmar sobre un botón secundario de un toast de aviso.
     }
   }
 
@@ -462,10 +500,14 @@ export class FacturaRecibidaDetallePage implements OnInit {
       const { documentoUrl, documentoNombre } = await this.invoicesRepo.adjuntarDocumentoAFactura(idFacturaReal, this.archivoPendienteDeAdjuntar);
       this.working.documentoUrl = documentoUrl;
       this.working.documentoNombre = documentoNombre;
-    } catch {
+    } catch (e) {
       // La factura ya se guardó bien — no se deshace por esto, solo se avisa: el documento
       // se queda solo en la vista previa local de esta sesión.
-      await this.showToast(this.transloco.translate('invoices.received.detail.attachAfterSaveError'), 'danger');
+      if (this.esCreditosAgotados(e)) {
+        await this.mostrarAvisoCreditosAgotados();
+      } else {
+        await this.showToast(this.transloco.translate('invoices.received.detail.attachAfterSaveError'), 'danger');
+      }
     } finally {
       this.archivoPendienteDeAdjuntar = null;
     }

@@ -23,6 +23,7 @@ import { AccionesPermitidas, EstadoFactura, FacturaEmitida, Numerador } from '..
 import { IssuedInvoicesRepository } from '../../core/ports';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
+import { PagosService } from '../../services/pagos.service';
 
 @Component({
   selector: 'app-facturas-emitidas',
@@ -46,6 +47,7 @@ export class FacturasEmitidasPage implements OnInit {
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
   private transloco = inject(TranslocoService);
+  private pagosService = inject(PagosService);
 
   estado: EstadoFactura = 'borrador';
   numeradorId: number | null = null;
@@ -296,7 +298,11 @@ export class FacturasEmitidasPage implements OnInit {
               await this.refresh();
               await this.showToast(this.transloco.translate('invoices.issued.post.success', { cliente: f.destinatario.nombre }));
             } catch (e: any) {
-              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.post.error'), 'danger');
+              if (this.esCreditosAgotados(e)) {
+                await this.mostrarAvisoCreditosAgotados();
+              } else {
+                await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.post.error'), 'danger');
+              }
             } finally {
               this.procesandoAeatIds.delete(f.id);
             }
@@ -325,7 +331,11 @@ export class FacturasEmitidasPage implements OnInit {
               await this.refresh();
               await this.showToast(this.transloco.translate('invoices.issued.sign.success', { cliente: f.destinatario.nombre }));
             } catch (e: any) {
-              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.sign.error'), 'danger');
+              if (this.esCreditosAgotados(e)) {
+                await this.mostrarAvisoCreditosAgotados();
+              } else {
+                await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.sign.error'), 'danger');
+              }
             } finally {
               this.procesandoAeatIds.delete(f.id);
             }
@@ -339,6 +349,38 @@ export class FacturasEmitidasPage implements OnInit {
   private async showToast(message: string, color: 'success' | 'danger' = 'success') {
     const toast = await this.toastCtrl.create({ message, duration: 2500, position: 'bottom', color });
     await toast.present();
+  }
+
+  // Backend: FacturaEmitidaController devuelve HTTP 402 con code: "OCR_CREDITS_EXHAUSTED"
+  // (Contabilizar y Firmar, mismo código que en Recibidas) cuando la empresa está sujeta a
+  // control de créditos (ver PagosOptions.EmpresasControlCreditos) y no le queda saldo. El
+  // 402 basta por sí solo para identificarlo — a día de hoy es el único caso que lo usa.
+  private esCreditosAgotados(e: unknown): boolean {
+    return e instanceof Error && /^HTTP 402\b/.test(e.message);
+  }
+
+  private async mostrarAvisoCreditosAgotados() {
+    const toast = await this.toastCtrl.create({
+      message: this.transloco.translate('profile.payments.creditsExhausted'),
+      color: 'danger',
+      position: 'bottom',
+      duration: 6000,
+      buttons: [{
+        text: this.transloco.translate('profile.payments.getMoreCredits'),
+        handler: () => this.abrirPortalDePagos(),
+      }],
+    });
+    await toast.present();
+  }
+
+  private async abrirPortalDePagos() {
+    try {
+      const url = await this.pagosService.obtenerUrlAccesoPortal();
+      this.pagosService.abrirPortalDePagos(url);
+    } catch {
+      // Silencioso a propósito, mismo criterio que perfil.page.ts: un fallo aquí no debe
+      // bloquear ni alarmar sobre un botón secundario de un toast de aviso.
+    }
   }
 
   formatEuros(v: number): string {
