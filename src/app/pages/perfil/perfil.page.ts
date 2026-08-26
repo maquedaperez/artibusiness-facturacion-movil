@@ -9,6 +9,7 @@ import { TenantService } from '../../services/tenant.service';
 import { EmisorFiscal } from '../../services/mock-facturas.service';
 import { EmisorRepository } from '../../core/ports';
 import { LanguageService, IdiomaSoportado } from '../../core/i18n/language.service';
+import { PagosService, EstadoPagos } from '../../services/pagos.service';
 
 import {
   IonContent,
@@ -65,9 +66,15 @@ export class PerfilPage {
   private alertCtrl = inject(AlertController);
   private languageService = inject(LanguageService);
   private transloco = inject(TranslocoService);
+  private pagosService = inject(PagosService);
 
   user: User | null = null;
   emisor: EmisorFiscal | null = null;
+
+  estadoPagos: EstadoPagos | null = null;
+  cargandoPagos = true;
+  errorPagos = false;
+  abriendoPortal = false;
 
   constructor() {
     addIcons({ chevronForwardOutline });
@@ -76,6 +83,38 @@ export class PerfilPage {
   ionViewWillEnter() {
     this.user = this.auth.getUser();
     this.emisor = this.emisorRepo.getEmisor();
+    // Refresco al volver del portal (decisión cerrada 2026-08-27: basta con que el usuario
+    // vuelva manualmente a la app para la demo, sin Universal Links) — ionViewWillEnter ya se
+    // dispara cada vez que se reentra a esta pestaña, así que no hace falta ningún mecanismo
+    // adicional de "detectar la vuelta".
+    this.cargarEstadoPagos();
+  }
+
+  private async cargarEstadoPagos() {
+    this.cargandoPagos = true;
+    this.errorPagos = false;
+    try {
+      this.estadoPagos = await this.pagosService.obtenerEstado();
+    } catch {
+      this.errorPagos = true;
+    } finally {
+      this.cargandoPagos = false;
+    }
+  }
+
+  async conseguirMasCreditos() {
+    if (this.abriendoPortal) return;
+    this.abriendoPortal = true;
+    try {
+      const url = await this.pagosService.obtenerUrlAccesoPortal();
+      this.pagosService.abrirPortalDePagos(url);
+    } catch {
+      // Silencioso a propósito para el MVP de demo: si el módulo de pagos está desactivado
+      // (Stripe:Enabled=false) o falla la llamada, no tiene sentido mostrar un error alarmante
+      // por un botón secundario — el usuario simplemente no ve reflejado ningún cambio.
+    } finally {
+      this.abriendoPortal = false;
+    }
   }
 
   get idiomaActual(): IdiomaSoportado {

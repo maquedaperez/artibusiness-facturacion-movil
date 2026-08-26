@@ -118,6 +118,21 @@
     "logout": "Log out",
     "changeCompany": "Change company",
     "changeCompanyConfirm": "You will be logged out and will need to enter the company key again. Do you want to continue?",
+    "payments": {
+      "title": "Payments and credits",
+      "error": "Could not check the credit balance.",
+      "unlimited": "Unlimited credits (demo company)",
+      "balance": "Available credits:",
+      "subscription": "Subscription:",
+      "noSubscription": "No active subscription",
+      "subscriptionStates": {
+        "Activa": "Active",
+        "Impagada": "Payment overdue",
+        "Cancelada": "Cancelled"
+      },
+      "getMoreCredits": "Get more credits",
+      "creditsExhausted": "No credits left. Get more from your profile."
+    },
     "language": "Language",
     "emisor": {
       "title": "Issuer tax details",

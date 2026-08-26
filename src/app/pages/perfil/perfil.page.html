@@ -53,6 +53,48 @@
   </ion-card>
 
   <ion-card class="compact-card">
+    <ion-card-header>
+      <ion-card-title>{{ 'profile.payments.title' | transloco }}</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <ion-text color="medium" *ngIf="cargandoPagos">
+        <p class="ion-no-margin">{{ 'common.loading' | transloco }}</p>
+      </ion-text>
+
+      <ion-text color="danger" *ngIf="!cargandoPagos && errorPagos">
+        <p class="ion-no-margin">{{ 'profile.payments.error' | transloco }}</p>
+      </ion-text>
+
+      <ng-container *ngIf="!cargandoPagos && !errorPagos && estadoPagos as e">
+        <p class="ion-no-margin" *ngIf="e.esIlimitado">
+          <strong>{{ 'profile.payments.unlimited' | transloco }}</strong>
+        </p>
+        <ng-container *ngIf="!e.esIlimitado">
+          <p class="ion-no-margin">
+            <strong>{{ 'profile.payments.balance' | transloco }}</strong><br>{{ e.saldoCreditos }}
+          </p>
+          <p class="ion-no-margin" *ngIf="e.suscripcion; else sinSuscripcionApp">
+            <strong>{{ 'profile.payments.subscription' | transloco }}</strong><br>{{ 'profile.payments.subscriptionStates.' + e.suscripcion.estado | transloco }}
+          </p>
+          <ng-template #sinSuscripcionApp>
+            <p class="ion-no-margin ion-text-medium">{{ 'profile.payments.noSubscription' | transloco }}</p>
+          </ng-template>
+        </ng-container>
+      </ng-container>
+
+      <ion-button
+        expand="block"
+        fill="outline"
+        style="margin-top: 12px;"
+        [disabled]="abriendoPortal"
+        (click)="conseguirMasCreditos()"
+      >
+        {{ 'profile.payments.getMoreCredits' | transloco }}
+      </ion-button>
+    </ion-card-content>
+  </ion-card>
+
+  <ion-card class="compact-card">
     <ion-card-content>
       <ion-item lines="none">
         <ion-select

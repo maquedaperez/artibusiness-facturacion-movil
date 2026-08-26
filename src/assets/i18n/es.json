@@ -119,6 +119,21 @@
     "changeCompany": "Cambiar empresa",
     "changeCompanyConfirm": "Se cerrará la sesión y tendrás que volver a introducir la clave de empresa. ¿Deseas continuar?",
     "language": "Idioma",
+    "payments": {
+      "title": "Pagos y créditos",
+      "error": "No se pudo consultar el saldo de créditos.",
+      "unlimited": "Créditos ilimitados (empresa demo)",
+      "balance": "Créditos disponibles:",
+      "subscription": "Suscripción:",
+      "noSubscription": "Sin suscripción activa",
+      "subscriptionStates": {
+        "Activa": "Activa",
+        "Impagada": "Pago pendiente",
+        "Cancelada": "Cancelada"
+      },
+      "getMoreCredits": "Conseguir más créditos",
+      "creditsExhausted": "No quedan créditos disponibles. Consigue más desde tu perfil."
+    },
     "emisor": {
       "title": "Datos fiscales del emisor",
       "description": "Estos son los datos del emisor que aparecen en tus facturas. No se pueden editar desde la app: proceden de la configuración fiscal de la cuenta.",
