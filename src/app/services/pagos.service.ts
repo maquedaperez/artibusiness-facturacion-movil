@@ -29,11 +29,18 @@ export class PagosService {
     return respuesta.url;
   }
 
-  // Mismo patrón ya usado en setup.page.ts (openLink) para abrir un enlace externo — funciona
-  // tanto en nativo (abre el navegador del sistema) como en web (nueva pestaña). Sin
-  // dependencias nuevas de Capacitor para el MVP de la demo.
+  // En nativo, window.open(url, '_system') abre el navegador del sistema como una intención —
+  // no es un pop-up de verdad, así que no le afecta el bloqueo de pop-ups de los navegadores.
+  // En web SÍ es un pop-up real: como la URL llega tras una llamada de red (obtenerUrlAccesoPortal
+  // — ver conseguirMasCreditos()), el click original del usuario ya no está "vivo" cuando se
+  // llama a window.open('_blank'), y navegadores como Safari lo bloquean en silencio (informe de
+  // revisión previa, punto 5). Navegar en la misma pestaña con location.assign no depende de ese
+  // gesto y nunca se bloquea.
   abrirPortalDePagos(url: string): void {
-    const target = Capacitor.isNativePlatform() ? '_system' : '_blank';
-    window.open(url, target);
+    if (Capacitor.isNativePlatform()) {
+      window.open(url, '_system');
+      return;
+    }
+    window.location.assign(url);
   }
 }
