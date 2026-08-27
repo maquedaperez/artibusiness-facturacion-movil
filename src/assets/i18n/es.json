@@ -159,6 +159,7 @@
     "issued": {
       "title": "Facturas emitidas",
       "searchPlaceholder": "Buscar por cliente o concepto",
+      "loading": "Cargando facturas...",
       "tabs": {
         "draft": "Borradores",
         "draftSingular": "Borrador",
@@ -519,7 +520,8 @@
     "ticketIvaNoDeducible": "Este documento no identifica fiscalmente a tu empresa. Se ha registrado el importe completo como gasto y el IVA no es deducible. Revisa los datos antes de contabilizar.",
     "recipientMismatch": "El documento está emitido a nombre de otra empresa y no puede guardarse automáticamente.",
     "ticketProvisioningFailed": "No se pudo preparar automáticamente el proveedor genérico ni el impuesto para tickets sin identificar. Inténtalo de nuevo o contacta con soporte.",
-    "documentDuplicate": "Este documento ya se había registrado antes."
+    "documentDuplicate": "Este documento ya se había registrado antes.",
+    "operationInProgress": "Ya hay una operación en curso con este mismo documento. Espera un momento antes de volver a intentarlo."
   },
   "bankDocuments": {
     "title": "Documento bancario",

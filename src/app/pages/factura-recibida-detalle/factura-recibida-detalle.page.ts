@@ -359,6 +359,13 @@ export class FacturaRecibidaDetallePage implements OnInit {
         await this.mostrarAvisoCreditosAgotados();
         return;
       }
+      // Fallo real encontrado en auditoría 2026-08-31: el backend puede devolver HTTP 409
+      // OPERATION_IN_PROGRESS (mismo fichero ya en curso de adjuntar) y antes caía al mensaje
+      // genérico, mostrando el JSON crudo del body en el toast.
+      if (this.esOperacionEnCurso(e)) {
+        await this.showToast(this.transloco.translate('ocr.operationInProgress'), 'danger');
+        return;
+      }
       // BUG real encontrado en auditoría 2026-08-14: sin este catch, un fichero no legible
       // (corrupto, formato raro) dejaba desaparecer el spinner sin ningún aviso — el usuario
       // no se enteraba de que el adjunto había fallado.
@@ -374,6 +381,14 @@ export class FacturaRecibidaDetallePage implements OnInit {
   // identificarlo — a día de hoy es el único caso que lo usa.
   private esCreditosAgotados(e: unknown): boolean {
     return e instanceof Error && /^HTTP 402\b/.test(e.message);
+  }
+
+  // Backend: 409 con code: "OPERATION_IN_PROGRESS" cuando ya hay una reserva de crédito activa
+  // para este mismo fichero (clave de idempotencia = hash del contenido, ver
+  // FacturasRecibidasController.AdjuntarDocumento/ClaveIdempotenciaArchivoAsync) — por código
+  // estable, nunca por el texto en español del mensaje.
+  private esOperacionEnCurso(e: unknown): boolean {
+    return e instanceof Error && e.message.includes('OPERATION_IN_PROGRESS');
   }
 
   private async mostrarAvisoCreditosAgotados() {

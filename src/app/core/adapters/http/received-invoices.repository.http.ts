@@ -772,8 +772,17 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   // del endpoint (total que no cuadra, fallo al subir el documento) se añaden a avisosOcr,
   // junto a la explicación habitual de por qué las líneas no traen el IVA real reconstruido.
   async crearDesdeDocumentoDirecto(file: File): Promise<ResultadoProcesamientoDocumento> {
+    // Fallo real encontrado en auditoría 2026-08-31: sin cabecera X-Request-ID, un timeout en el
+    // móvil que en realidad SÍ terminó bien en el servidor (factura guardada, crédito cobrado)
+    // hacía que un reintento manual del usuario se tratara como una operación nueva y cobrara un
+    // segundo crédito por el mismo documento — el backend está preparado para deduplicar por
+    // esta cabecera (ver FacturasRecibidasController.CrearDesdeDocumento), pero nadie la mandaba.
+    // Se deriva del propio contenido del fichero (mismo criterio que ya usa el backend para
+    // AdjuntarDocumento) para que un reintento del MISMO fichero reutilice la reserva.
+    const requestId = await this.idIdempotenciaDesdeArchivo(file);
     const resultado = await this.api.postMultipart<CrearDesdeDocumentoApi | OcrAnalyzeResponse>(
       `${RECIBIDAS_BASE_PATH}/CrearDesdeDocumento`, file, 'file',
+      requestId ? { 'X-Request-ID': requestId } : undefined,
     );
 
     // 2026-08-20 (correo de Alex): cuando el lector clasifica el fichero como bank_document,
@@ -838,6 +847,22 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       );
     }
     return this.impuestosCache;
+  }
+
+  // Clave de idempotencia para X-Request-ID (2026-08-31) — hash SHA-256 del contenido del
+  // propio fichero, mismo criterio que ya usa el backend para AdjuntarDocumento
+  // (ClaveIdempotenciaArchivoAsync): un reintento del MISMO fichero reutiliza la reserva de
+  // crédito en vez de cobrar dos veces; un fichero genuinamente distinto genera una clave
+  // distinta sin más. Si Web Crypto fallase por lo que sea, se devuelve null y
+  // crearDesdeDocumentoDirecto sigue sin la cabecera — nunca bloquea el escaneo por esto.
+  private async idIdempotenciaDesdeArchivo(file: File): Promise<string | null> {
+    try {
+      const buffer = await file.arrayBuffer();
+      const hash = await crypto.subtle.digest('SHA-256', buffer);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch {
+      return null;
+    }
   }
 
   // Sentido contrario a la lectura: aquí ivaPct ya es un dato de confianza (elegido por el

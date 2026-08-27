@@ -159,6 +159,7 @@
     "issued": {
       "title": "Issued invoices",
       "searchPlaceholder": "Search by customer or description",
+      "loading": "Loading invoices...",
       "tabs": {
         "draft": "Drafts",
         "draftSingular": "Draft",
@@ -519,7 +520,8 @@
     "ticketIvaNoDeducible": "This document does not identify your company for tax purposes. The full amount has been recorded as an expense and the VAT is not deductible. Review the details before posting.",
     "recipientMismatch": "This document is issued to another company and cannot be saved automatically.",
     "ticketProvisioningFailed": "We couldn't automatically set up the generic supplier or tax rate for unidentified receipts. Try again or contact support.",
-    "documentDuplicate": "This document has already been recorded before."
+    "documentDuplicate": "This document has already been recorded before.",
+    "operationInProgress": "There's already an operation in progress for this same document. Wait a moment before trying again."
   },
   "bankDocuments": {
     "title": "Bank document",

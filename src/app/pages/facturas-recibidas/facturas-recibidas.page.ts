@@ -230,6 +230,13 @@ export class FacturasRecibidasPage {
         await this.mostrarAvisoCreditosAgotados();
         return;
       }
+      // Fallo real encontrado en auditoría 2026-08-31: el backend puede devolver HTTP 409
+      // OPERATION_IN_PROGRESS (otra petición con el mismo id de operación sigue en curso) y
+      // antes caía al mensaje genérico, mostrando el JSON crudo del body en el toast.
+      if (this.esOperacionEnCurso(e)) {
+        await this.showToast(this.transloco.translate('ocr.operationInProgress'), 'danger');
+        return;
+      }
       // Tickets/facturas simplificadas sin destinatario identificado (2026-08-29): estos 3
       // casos son rechazos de negocio explícitos, nunca un borrador que completar a mano — se
       // decide por el código estable que manda el backend, nunca por el texto en español que
@@ -276,6 +283,13 @@ export class FacturasRecibidasPage {
   // 402 basta por sí solo para identificarlo — a día de hoy es el único caso que lo usa.
   private esCreditosAgotados(e: unknown): boolean {
     return e instanceof Error && /^HTTP 402\b/.test(e.message);
+  }
+
+  // Backend: 409 con code: "OPERATION_IN_PROGRESS" cuando ya hay una reserva de crédito activa
+  // para este mismo id de operación (ver CreditosService.IntentarReservarAsync) — por código
+  // estable, igual que codigoErrorOcrTicket, nunca por el texto en español del mensaje.
+  private esOperacionEnCurso(e: unknown): boolean {
+    return e instanceof Error && e.message.includes('OPERATION_IN_PROGRESS');
   }
 
   private async mostrarAvisoCreditosAgotados() {
