@@ -294,9 +294,14 @@ type CrearDesdeDocumentoApi = {
   requiereRevision?: boolean;
 };
 
-// Único tratamiento que existe hoy — código estable devuelto por el backend
-// (FacturaRecibidaDocumentoService.TratamientoTicketIvaNoDeducible).
+// Códigos estables devueltos por el backend (FacturaRecibidaDocumentoService).
 const TRATAMIENTO_TICKET_IVA_NO_DEDUCIBLE = 'TICKET_IVA_NO_DEDUCIBLE';
+
+// Cambio de requisito de producto (2026-09): un destinatario no coincidente ya NO bloquea el
+// guardado (antes: 422 OCR_RECIPIENT_MISMATCH, ver CODIGOS_ERROR_OCR_TICKET en
+// facturas-recibidas.page.ts, que se mantiene por si un backend antiguo todavía lo devuelve
+// como error) — ahora la factura se guarda igual, con este tratamiento y un aviso.
+const TRATAMIENTO_FACTURA_DESTINATARIO_NO_COINCIDENTE = 'FACTURA_DESTINATARIO_NO_COINCIDENTE';
 
 // Bloqueo de edición: SOLO para facturas ya "revisadas" (estado 132) — un repaso ya hecho
 // no debe tocarse a la ligera desde aquí. Una factura real en borrador (131) sí se puede
@@ -811,6 +816,9 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     // el aviso que se muestra aquí es el traducido de la propia app, no el del backend.
     if (resultadoFactura.tratamiento === TRATAMIENTO_TICKET_IVA_NO_DEDUCIBLE) {
       factura.avisosOcr = [...(factura.avisosOcr ?? []), this.transloco.translate('ocr.ticketIvaNoDeducible')];
+    }
+    if (resultadoFactura.tratamiento === TRATAMIENTO_FACTURA_DESTINATARIO_NO_COINCIDENTE) {
+      factura.avisosOcr = [...(factura.avisosOcr ?? []), this.transloco.translate('ocr.recipientMismatchWarning')];
     }
     return factura;
   }

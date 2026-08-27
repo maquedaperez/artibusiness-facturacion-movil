@@ -517,6 +517,7 @@
     "bankDocDraftError": "No se pudo preparar un borrador de factura a partir del documento bancario. Puedes crearla manualmente.",
     "extractionError": "No se pudo extraer información del documento. Inténtalo de nuevo o crea la factura manualmente.",
     "ticketIvaNoDeducible": "Este documento no identifica fiscalmente a tu empresa. Se ha registrado el importe completo como gasto y el IVA no es deducible. Revisa los datos antes de contabilizar.",
+    "recipientMismatchWarning": "El destinatario del documento no coincide con tu empresa. Se ha guardado como borrador — revísalo antes de continuar.",
     "recipientMismatch": "El documento está emitido a nombre de otra empresa y no puede guardarse automáticamente.",
     "ticketProvisioningFailed": "No se pudo preparar automáticamente el proveedor genérico ni el impuesto para tickets sin identificar. Inténtalo de nuevo o contacta con soporte.",
     "documentDuplicate": "Este documento ya se había registrado antes.",

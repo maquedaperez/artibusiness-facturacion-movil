@@ -517,6 +517,7 @@
     "bankDocDraftError": "Could not prepare an invoice draft from the bank document. You can create it manually.",
     "extractionError": "Could not extract information from the document. Try again or create the invoice manually.",
     "ticketIvaNoDeducible": "This document does not identify your company for tax purposes. The full amount has been recorded as an expense and the VAT is not deductible. Review the details before posting.",
+    "recipientMismatchWarning": "The document's recipient doesn't match your company. It's been saved as a draft — review it before continuing.",
     "recipientMismatch": "This document is issued to another company and cannot be saved automatically.",
     "ticketProvisioningFailed": "We couldn't automatically set up the generic supplier or tax rate for unidentified receipts. Try again or contact support.",
     "documentDuplicate": "This document has already been recorded before.",
