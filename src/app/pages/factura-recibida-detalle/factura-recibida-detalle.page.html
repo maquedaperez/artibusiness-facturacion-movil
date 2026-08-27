@@ -170,8 +170,9 @@
 
       <div class="doc-actions">
         <ion-button *ngIf="esEditable" size="small" fill="outline" [disabled]="adjuntando" (click)="triggerAdjuntar()">
-          <ion-icon slot="start" name="attach-outline"></ion-icon>
-          {{ (working.documentoNombre ? 'invoices.received.detail.changeDocument' : 'invoices.received.detail.attachDocument') | transloco }}
+          <ion-spinner *ngIf="adjuntando" slot="start" name="dots"></ion-spinner>
+          <ion-icon *ngIf="!adjuntando" slot="start" name="attach-outline"></ion-icon>
+          {{ (adjuntando ? 'invoices.received.detail.attaching' : (working.documentoNombre ? 'invoices.received.detail.changeDocument' : 'invoices.received.detail.attachDocument')) | transloco }}
         </ion-button>
 
         <ion-button size="small" fill="outline" *ngIf="working.documentoUrl" (click)="verDocumento()">

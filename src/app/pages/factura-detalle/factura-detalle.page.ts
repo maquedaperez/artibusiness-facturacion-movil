@@ -208,7 +208,11 @@ export class FacturaDetallePage implements OnInit {
   // solo no se ha podido persistir todavía.
   // Devuelve si de verdad se guardó — confirmarContabilizar() no debe simular la
   // contabilización de una factura que en realidad no se ha llegado a persistir.
-  async guardar(): Promise<boolean> {
+  // mostrarToast=false cuando el guardado es solo el paso previo automático de
+  // confirmarContabilizar() — evita solapar "Factura guardada" con el toast final de
+  // contabilizar, que llega segundos después y confundía al usuario ("¿ha hecho algo el
+  // segundo clic?").
+  async guardar(mostrarToast = true): Promise<boolean> {
     if (!this.working || this.facturaId == null || this.guardando) return false;
 
     this.guardando = true;
@@ -227,7 +231,9 @@ export class FacturaDetallePage implements OnInit {
 
       this.working = structuredClone(guardada);
       this.facturaId = guardada.id;
-      await this.showToast(this.transloco.translate('invoices.issued.detail.saveSuccess'));
+      if (mostrarToast) {
+        await this.showToast(this.transloco.translate('invoices.issued.detail.saveSuccess'));
+      }
       return true;
     } catch (e: any) {
       await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.detail.saveError'), 'danger');
@@ -259,10 +265,10 @@ export class FacturaDetallePage implements OnInit {
       buttons: [
         { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
         {
-          text: this.transloco.translate('invoices.issued.actions.post'),
+          text: this.transloco.translate('invoices.issued.actions.postConfirm'),
           handler: async () => {
             if (this.procesandoAeat) return;
-            const guardadoOk = await this.guardar();
+            const guardadoOk = await this.guardar(false);
             if (!guardadoOk) return; // guardar() ya mostró el motivo del fallo
             this.procesandoAeat = true;
             try {
@@ -290,7 +296,7 @@ export class FacturaDetallePage implements OnInit {
       buttons: [
         { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
         {
-          text: this.transloco.translate('invoices.issued.actions.sign'),
+          text: this.transloco.translate('invoices.issued.actions.signConfirm'),
           handler: async () => {
             if (this.procesandoAeat) return;
             this.procesandoAeat = true;
@@ -332,7 +338,7 @@ export class FacturaDetallePage implements OnInit {
       buttons: [
         { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
         {
-          text: this.transloco.translate('invoices.issued.detail.cancelInvoice'),
+          text: this.transloco.translate('invoices.issued.detail.cancelConfirm'),
           role: 'destructive',
           handler: async () => {
             if (this.procesandoAeat) return;

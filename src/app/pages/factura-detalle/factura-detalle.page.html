@@ -167,10 +167,12 @@
     </ion-button>
 
     <ion-button *ngIf="f.estado === 'borrador'" expand="block" [disabled]="procesandoAeat" (click)="confirmarContabilizar()">
+      <ion-spinner *ngIf="procesandoAeat" slot="start" name="dots"></ion-spinner>
       {{ (procesandoAeat ? 'invoices.issued.actions.posting' : 'invoices.issued.actions.post') | transloco }}
     </ion-button>
 
     <ion-button *ngIf="f.estado === 'contabilizada'" expand="block" [disabled]="procesandoAeat" (click)="confirmarFirmar()">
+      <ion-spinner *ngIf="procesandoAeat" slot="start" name="dots"></ion-spinner>
       {{ (procesandoAeat ? 'invoices.issued.actions.signing' : 'invoices.issued.actions.sign') | transloco }}
     </ion-button>
 
@@ -179,6 +181,7 @@
     </ion-button>
 
     <ion-button *ngIf="puedeAnular" expand="block" fill="outline" color="danger" [disabled]="procesandoAeat" (click)="confirmarAnular()">
+      <ion-spinner *ngIf="procesandoAeat" slot="start" name="dots"></ion-spinner>
       {{ (procesandoAeat ? 'invoices.issued.detail.cancelling' : 'invoices.issued.detail.cancelInvoice') | transloco }}
     </ion-button>
   </div>
