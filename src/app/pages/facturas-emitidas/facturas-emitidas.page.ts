@@ -79,7 +79,11 @@ export class FacturasEmitidasPage implements OnInit {
       this.estado = estadoParam;
     }
 
-    this.refresh();
+    // No llama a refresh() aquí -- ionViewWillEnter ya se dispara en la primera entrada a la
+    // pantalla (además de cada vez que se vuelve a ella). Llamarlo también desde ngOnInit
+    // disparaba 2 peticiones de listado en paralelo en la carga inicial, dejando el spinner
+    // en un estado inconsistente hasta que algo (un clic) forzaba a Angular a revisar el
+    // componente otra vez. Mismo fix ya aplicado en facturas-recibidas.page.ts (2026-08-14).
   }
 
   // Fase 4 del plan de integración (2026-08-20): sustituye los 2 numeradores fijos del mock
