@@ -109,6 +109,8 @@ type FacturaEmitidaCabeceraApi = {
   fechaVencimiento: string;
   idNumerador: number;
   idMedioPago: number;
+  // Descarga del PDF real (2026-08-27) — ver FacturaEmitidaCabeceraModel.TienePdf.
+  tienePdf: boolean;
 };
 
 type FacturaEmitidaLineaApi = {
@@ -160,6 +162,8 @@ type FacturaEmitidaDetalleApi = {
   fechaSubsanacion: string | null;
   estadoSubsanacion: string | null;
   motivoSubsanacion: string | null;
+  // Descarga del PDF real (2026-08-27) — ver FacturaEmitidaDetalleModel.TienePdf.
+  tienePdf: boolean;
 };
 
 // Combina código + descripción del error/aviso de la AEAT en un único texto listo para
@@ -343,6 +347,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       subsanada: dto.idSubsanacionVerifactu != null,
       fechaSubsanacion: dto.fechaSubsanacion ? dto.fechaSubsanacion.slice(0, 10) : undefined,
       estadoSubsanacion: dto.estadoSubsanacion ?? undefined,
+      tienePdf: dto.tienePdf,
     };
   }
 
@@ -391,6 +396,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       fechaSubsanacion: dto.fechaSubsanacion ? dto.fechaSubsanacion.slice(0, 10) : undefined,
       estadoSubsanacion: dto.estadoSubsanacion ?? undefined,
       motivoSubsanacion: dto.motivoSubsanacion ?? undefined,
+      tienePdf: dto.tienePdf,
     };
   }
 
@@ -694,5 +700,9 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
   generarDocumento(id: number): Promise<{ blob: Blob; nombre: string }> {
     return this.mockAdapter.generarDocumento(id);
+  }
+
+  obtenerPdfReal(id: number): Promise<Blob> {
+    return this.api.getBlob(`${EMITIDAS_BASE_PATH}/${id}/Pdf`);
   }
 }

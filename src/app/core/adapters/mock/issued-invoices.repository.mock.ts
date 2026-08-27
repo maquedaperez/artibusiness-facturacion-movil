@@ -137,4 +137,12 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
   generarDocumento(id: number): Promise<{ blob: Blob; nombre: string }> {
     return this.mock.generarDocumentoEmitida(id);
   }
+
+  async obtenerPdfReal(id: number): Promise<Blob> {
+    // Modo mock puro: no hay backend real ni FacturaE detrás, así que no existe ningún PDF
+    // real que traer — se reutiliza el mismo simulado que generarDocumento() para no dejar
+    // el modo demo sin nada que mostrar/descargar.
+    const { blob } = await this.mock.generarDocumentoEmitida(id);
+    return blob;
+  }
 }

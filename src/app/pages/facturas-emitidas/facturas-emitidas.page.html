@@ -115,7 +115,9 @@
             </ion-button>
             <ion-button
               *ngIf="accionesPermitidas(f).descargar"
-              fill="clear" size="small" [attr.aria-label]="'invoices.issued.actions.downloadAria' | transloco"
+              fill="clear" size="small"
+              [disabled]="f.estado !== 'borrador' && !f.tienePdf"
+              [attr.aria-label]="(f.estado !== 'borrador' && !f.tienePdf ? 'invoices.issued.download.pdfNotReady' : 'invoices.issued.actions.downloadAria') | transloco"
               (click)="descargar($event, f)"
             >
               <ion-icon slot="icon-only" name="download-outline"></ion-icon>

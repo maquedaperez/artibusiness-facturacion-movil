@@ -226,7 +226,9 @@
       },
       "download": {
         "success": "Document downloaded (simulated; not valid for tax purposes).",
-        "error": "Could not generate the document. Try again."
+        "successReal": "Invoice downloaded.",
+        "error": "Could not generate the document. Try again.",
+        "pdfNotReady": "This invoice's PDF isn't available yet."
       },
       "share": {
         "error": "Could not share the document. Try again."
@@ -525,7 +527,8 @@
     "recipientMismatch": "This document is issued to another company and cannot be saved automatically.",
     "ticketProvisioningFailed": "We couldn't automatically set up the generic supplier or tax rate for unidentified receipts. Try again or contact support.",
     "documentDuplicate": "This document has already been recorded before.",
-    "operationInProgress": "There's already an operation in progress for this same document. Wait a moment before trying again."
+    "operationInProgress": "There's already an operation in progress for this same document. Wait a moment before trying again.",
+    "serviceUnavailable": "The document reading service isn't available right now. Try again in a few minutes."
   },
   "bankDocuments": {
     "title": "Bank document",

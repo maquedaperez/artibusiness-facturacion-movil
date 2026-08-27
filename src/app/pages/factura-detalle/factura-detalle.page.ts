@@ -382,12 +382,25 @@ export class FacturaDetallePage implements OnInit {
     }
   }
 
+  // Un borrador nunca ha pasado por FacturaE (no existe hasta contabilizar), así que sigue
+  // usando el documento simulado; contabilizada/firmada ya tienen el PDF real generado y
+  // publicado en Blob Storage al contabilizar (2026-08-27).
   async descargar() {
     if (!this.working) return;
+    if (this.working.estado !== 'borrador' && !this.working.tienePdf) {
+      await this.showToast(this.transloco.translate('invoices.issued.download.pdfNotReady'), 'danger');
+      return;
+    }
     try {
-      const { blob, nombre } = await this.invoicesRepo.generarDocumento(this.working.id);
-      descargarBlob(blob, nombre);
-      await this.showToast(this.transloco.translate('invoices.issued.download.success'));
+      if (this.working.estado === 'borrador') {
+        const { blob, nombre } = await this.invoicesRepo.generarDocumento(this.working.id);
+        descargarBlob(blob, nombre);
+        await this.showToast(this.transloco.translate('invoices.issued.download.success'));
+      } else {
+        const blob = await this.invoicesRepo.obtenerPdfReal(this.working.id);
+        descargarBlob(blob, `Factura-${this.working.numFactura}.pdf`);
+        await this.showToast(this.transloco.translate('invoices.issued.download.successReal'));
+      }
     } catch {
       await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
     }

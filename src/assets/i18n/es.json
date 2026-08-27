@@ -226,7 +226,9 @@
       },
       "download": {
         "success": "Documento descargado (simulado, no válido fiscalmente).",
-        "error": "No se pudo generar el documento. Inténtalo de nuevo."
+        "successReal": "Factura descargada.",
+        "error": "No se pudo generar el documento. Inténtalo de nuevo.",
+        "pdfNotReady": "El PDF de esta factura todavía no está disponible."
       },
       "share": {
         "error": "No se pudo compartir el documento. Inténtalo de nuevo."
@@ -525,7 +527,8 @@
     "recipientMismatch": "El documento está emitido a nombre de otra empresa y no puede guardarse automáticamente.",
     "ticketProvisioningFailed": "No se pudo preparar automáticamente el proveedor genérico ni el impuesto para tickets sin identificar. Inténtalo de nuevo o contacta con soporte.",
     "documentDuplicate": "Este documento ya se había registrado antes.",
-    "operationInProgress": "Ya hay una operación en curso con este mismo documento. Espera un momento antes de volver a intentarlo."
+    "operationInProgress": "Ya hay una operación en curso con este mismo documento. Espera un momento antes de volver a intentarlo.",
+    "serviceUnavailable": "El servicio de lectura de documentos no está disponible ahora mismo. Inténtalo de nuevo en unos minutos."
   },
   "bankDocuments": {
     "title": "Documento bancario",

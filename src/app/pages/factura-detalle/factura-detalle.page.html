@@ -150,7 +150,13 @@
       <ion-button *ngIf="accionesPermitidas().copiar" fill="clear" size="small" [attr.aria-label]="'invoices.issued.actions.copyAria' | transloco" (click)="duplicar()">
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
-      <ion-button *ngIf="accionesPermitidas().descargar" fill="clear" size="small" [attr.aria-label]="'invoices.issued.actions.downloadAria' | transloco" (click)="descargar()">
+      <ion-button
+        *ngIf="accionesPermitidas().descargar"
+        fill="clear" size="small"
+        [disabled]="f.estado !== 'borrador' && !f.tienePdf"
+        [attr.aria-label]="(f.estado !== 'borrador' && !f.tienePdf ? 'invoices.issued.download.pdfNotReady' : 'invoices.issued.actions.downloadAria') | transloco"
+        (click)="descargar()"
+      >
         <ion-icon slot="icon-only" name="download-outline"></ion-icon>
       </ion-button>
       <ion-button *ngIf="accionesPermitidas().compartir" fill="clear" size="small" [attr.aria-label]="'invoices.issued.actions.shareAria' | transloco" (click)="compartir()">

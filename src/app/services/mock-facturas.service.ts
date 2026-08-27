@@ -159,6 +159,11 @@ export type FacturaEmitida = {
   fechaSubsanacion?: string;
   estadoSubsanacion?: string;
   motivoSubsanacion?: string;
+  // Descarga del PDF real (2026-08-27): solo lo rellena HttpIssuedInvoicesRepository, a partir
+  // de FacturaEmitidaCabeceraModel/DetalleModel.TienePdf — nunca la URL del blob en sí, solo si
+  // existe o no. Un borrador siempre es false; el modo mock puro tampoco lo rellena (no hay
+  // backend real detrás, ver obtenerPdfReal en el mock).
+  tienePdf?: boolean;
 };
 
 export type DesgloseIva = { pct: number; baseGravada: number; cuota: number };

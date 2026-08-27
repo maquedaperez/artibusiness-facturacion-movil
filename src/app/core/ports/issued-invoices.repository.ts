@@ -103,4 +103,9 @@ export abstract class IssuedInvoicesRepository {
   abstract eliminar(id: number): Promise<void>;
   abstract duplicar(id: number): Promise<FacturaEmitida | undefined>;
   abstract generarDocumento(id: number): Promise<{ blob: Blob; nombre: string }>;
+  // PDF real (2026-08-27): solo existe una vez contabilizada/firmada — lo genera y publica
+  // FacturaE en Blob Storage al contabilizar, servido por un endpoint propio protegido, nunca
+  // una URL pública. A diferencia de generarDocumento (siempre simulado), este SÍ es el
+  // documento fiscal real. Ver FacturaEmitidaController.DescargarPdf.
+  abstract obtenerPdfReal(id: number): Promise<Blob>;
 }
