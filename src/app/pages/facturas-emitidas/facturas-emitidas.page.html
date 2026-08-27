@@ -58,7 +58,12 @@
     </div>
   </div>
 
-  <div class="facturas-list">
+  <div class="carga-lista" *ngIf="cargando">
+    <ion-spinner name="crescent"></ion-spinner>
+    <ion-text color="medium"><p class="ion-no-margin">{{ 'invoices.issued.loading' | transloco }}</p></ion-text>
+  </div>
+
+  <div class="facturas-list" *ngIf="!cargando">
     <ion-card *ngFor="let f of facturasFiltradas" button (click)="abrir(f)" class="factura-card">
       <ion-card-content>
         <div class="row-top">

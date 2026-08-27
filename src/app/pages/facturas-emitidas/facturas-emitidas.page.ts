@@ -10,7 +10,7 @@ import {
   IonSegment, IonSegmentButton, IonLabel,
   IonSelect, IonSelectOption, IonSearchbar, IonItem, IonInput,
   IonCard, IonCardContent,
-  IonText, IonIcon, IonButton, IonFab, IonFabButton,
+  IonText, IonIcon, IonButton, IonFab, IonFabButton, IonSpinner,
   AlertController, ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
@@ -36,7 +36,7 @@ import { PagosService } from '../../services/pagos.service';
     IonSegment, IonSegmentButton, IonLabel,
     IonSelect, IonSelectOption, IonSearchbar, IonItem, IonInput,
     IonCard, IonCardContent,
-    IonText, IonIcon, IonButton, IonFab, IonFabButton,
+    IonText, IonIcon, IonButton, IonFab, IonFabButton, IonSpinner,
     DemoBannerComponent,
   ],
 })
