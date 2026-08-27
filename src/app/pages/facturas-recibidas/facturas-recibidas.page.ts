@@ -261,7 +261,14 @@ export class FacturasRecibidasPage {
   // (422/422/409) para el flujo de tickets — comprobar el código dentro del mensaje es la misma
   // técnica ya usada en motivoBorradorLocal, pero sobre un código en inglés, no sobre el texto
   // en español (informe de revisión previa: "no tomes decisiones mediante textos españoles").
-  private static readonly CODIGOS_ERROR_OCR_TICKET = ['OCR_RECIPIENT_MISMATCH', 'OCR_TICKET_PROVISIONING_FAILED', 'OCR_DOCUMENT_DUPLICATE'] as const;
+  private static readonly CODIGOS_ERROR_OCR_TICKET = [
+    'OCR_RECIPIENT_MISMATCH', 'OCR_TICKET_PROVISIONING_FAILED', 'OCR_DOCUMENT_DUPLICATE',
+    // Estabilización post-demo (2026-08-27): fallo de DISPONIBILIDAD del lector externo (5xx
+    // suyo, o inalcanzable) — nunca consume crédito (ver ResolverConsumoCreditoAsync en el
+    // backend), reintentable a mano, nunca automático (informe: "no reintentes hasta demostrar
+    // idempotencia real"). Mismo mecanismo de detección por código estable que los 3 de arriba.
+    'OCR_SERVICE_UNAVAILABLE',
+  ] as const;
 
   private codigoErrorOcrTicket(e: unknown): string | null {
     if (!(e instanceof Error)) return null;
@@ -273,6 +280,7 @@ export class FacturasRecibidasPage {
       case 'OCR_RECIPIENT_MISMATCH': return 'ocr.recipientMismatch';
       case 'OCR_TICKET_PROVISIONING_FAILED': return 'ocr.ticketProvisioningFailed';
       case 'OCR_DOCUMENT_DUPLICATE': return 'ocr.documentDuplicate';
+      case 'OCR_SERVICE_UNAVAILABLE': return 'ocr.serviceUnavailable';
       default: return 'ocr.saveGenericError';
     }
   }
