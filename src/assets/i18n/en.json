@@ -16,9 +16,8 @@
     },
     "demoBanner": {
       "default": "Demo mode — simulated data",
-      "aeatRealSend": "posting sends the invoice record to the AEAT; signing generates the XAdES electronic signature",
-      "recibidasTitulo": "Demo environment connected to the test environment",
-      "recibidasDetalle": "the rest of the app's modules may use simulated data"
+      "emitidasTitulo": "Demo mode: AEAT test environment",
+      "recibidasTitulo": "Demo mode: connected to the test environment"
     },
     "yes": "Yes",
     "no": "No",

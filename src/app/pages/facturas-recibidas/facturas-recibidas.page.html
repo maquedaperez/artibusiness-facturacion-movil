@@ -15,10 +15,7 @@
 
 <ion-content class="ion-padding">
 
-  <app-demo-banner
-    [titulo]="'common.demoBanner.recibidasTitulo' | transloco"
-    [detalle]="'common.demoBanner.recibidasDetalle' | transloco"
-  ></app-demo-banner>
+  <app-demo-banner [titulo]="'common.demoBanner.recibidasTitulo' | transloco"></app-demo-banner>
 
   <ion-text *ngIf="!mostrarEscaneo" color="medium" class="aviso-documento-local">
     <p class="ion-no-margin">

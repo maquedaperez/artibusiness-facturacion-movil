@@ -16,9 +16,8 @@
     },
     "demoBanner": {
       "default": "Modo demo — datos simulados",
-      "aeatRealSend": "contabilizar envía el registro de facturación a la AEAT; firmar genera la firma electrónica XAdES",
-      "recibidasTitulo": "Entorno de demostración conectado al entorno de pruebas",
-      "recibidasDetalle": "el resto de módulos de la app puede usar datos simulados"
+      "emitidasTitulo": "Modo demo: entorno de pruebas AEAT",
+      "recibidasTitulo": "Modo demo: entorno conectado a pruebas"
     },
     "yes": "Sí",
     "no": "No",
