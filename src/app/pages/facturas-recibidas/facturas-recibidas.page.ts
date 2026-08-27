@@ -254,7 +254,7 @@ export class FacturasRecibidasPage {
   // (422/422/409) para el flujo de tickets — comprobar el código dentro del mensaje es la misma
   // técnica ya usada en motivoBorradorLocal, pero sobre un código en inglés, no sobre el texto
   // en español (informe de revisión previa: "no tomes decisiones mediante textos españoles").
-  private static readonly CODIGOS_ERROR_OCR_TICKET = ['OCR_RECIPIENT_MISMATCH', 'OCR_TICKET_NOT_CONFIGURED', 'OCR_DOCUMENT_DUPLICATE'] as const;
+  private static readonly CODIGOS_ERROR_OCR_TICKET = ['OCR_RECIPIENT_MISMATCH', 'OCR_TICKET_PROVISIONING_FAILED', 'OCR_DOCUMENT_DUPLICATE'] as const;
 
   private codigoErrorOcrTicket(e: unknown): string | null {
     if (!(e instanceof Error)) return null;
@@ -264,7 +264,7 @@ export class FacturasRecibidasPage {
   private claveErrorOcrTicket(codigo: string): string {
     switch (codigo) {
       case 'OCR_RECIPIENT_MISMATCH': return 'ocr.recipientMismatch';
-      case 'OCR_TICKET_NOT_CONFIGURED': return 'ocr.ticketNotConfigured';
+      case 'OCR_TICKET_PROVISIONING_FAILED': return 'ocr.ticketProvisioningFailed';
       case 'OCR_DOCUMENT_DUPLICATE': return 'ocr.documentDuplicate';
       default: return 'ocr.saveGenericError';
     }
