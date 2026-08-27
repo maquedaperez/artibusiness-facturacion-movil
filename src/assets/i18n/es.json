@@ -16,8 +16,8 @@
     },
     "demoBanner": {
       "default": "Modo demo — datos simulados",
-      "emitidasTitulo": "Modo demo: entorno de pruebas AEAT",
-      "recibidasTitulo": "Modo demo: entorno conectado a pruebas"
+      "emitidasTitulo": "Modo demo: entorno de pruebas",
+      "recibidasTitulo": "Modo demo: entorno de pruebas"
     },
     "yes": "Sí",
     "no": "No",

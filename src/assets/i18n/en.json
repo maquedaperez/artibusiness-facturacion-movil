@@ -16,8 +16,8 @@
     },
     "demoBanner": {
       "default": "Demo mode — simulated data",
-      "emitidasTitulo": "Demo mode: AEAT test environment",
-      "recibidasTitulo": "Demo mode: connected to the test environment"
+      "emitidasTitulo": "Demo mode: test environment",
+      "recibidasTitulo": "Demo mode: test environment"
     },
     "yes": "Yes",
     "no": "No",
