@@ -287,7 +287,16 @@ type FacturaRecibidaDetalleApi = FacturaRecibidaCabeceraApi & {
 type CrearDesdeDocumentoApi = {
   factura: FacturaRecibidaDetalleApi;
   avisos: string[];
+  // Añadidos 2026-08-29 (tickets OCR sin destinatario identificado) — el front decide por
+  // 'tratamiento', nunca parseando el texto de 'avisos' (ese sigue siendo solo para mostrar,
+  // igual que antes). documentType/avisosEstructurados llegan pero hoy no se usan aquí.
+  tratamiento?: string | null;
+  requiereRevision?: boolean;
 };
+
+// Único tratamiento que existe hoy — código estable devuelto por el backend
+// (FacturaRecibidaDocumentoService.TratamientoTicketIvaNoDeducible).
+const TRATAMIENTO_TICKET_IVA_NO_DEDUCIBLE = 'TICKET_IVA_NO_DEDUCIBLE';
 
 // Bloqueo de edición: SOLO para facturas ya "revisadas" (estado 132) — un repaso ya hecho
 // no debe tocarse a la ligera desde aquí. Una factura real en borrador (131) sí se puede
@@ -787,6 +796,12 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     factura.lineas = (resultadoFactura.factura.lineas ?? []).map(l => mapearLinea(l, () => this.nuevoIdLinea(), catalogoImpuestos));
     if (resultadoFactura.avisos?.length) {
       factura.avisosOcr = [...(factura.avisosOcr ?? []), ...resultadoFactura.avisos];
+    }
+    // Ticket/factura simplificada sin destinatario identificado (2026-08-29): se decide por el
+    // código estable 'tratamiento', nunca por el texto (en español) que ya viene en 'avisos' —
+    // el aviso que se muestra aquí es el traducido de la propia app, no el del backend.
+    if (resultadoFactura.tratamiento === TRATAMIENTO_TICKET_IVA_NO_DEDUCIBLE) {
+      factura.avisosOcr = [...(factura.avisosOcr ?? []), this.transloco.translate('ocr.ticketIvaNoDeducible')];
     }
     return factura;
   }

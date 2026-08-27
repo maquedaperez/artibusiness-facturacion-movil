@@ -230,6 +230,15 @@ export class FacturasRecibidasPage {
         await this.mostrarAvisoCreditosAgotados();
         return;
       }
+      // Tickets/facturas simplificadas sin destinatario identificado (2026-08-29): estos 3
+      // casos son rechazos de negocio explícitos, nunca un borrador que completar a mano — se
+      // decide por el código estable que manda el backend, nunca por el texto en español que
+      // venga en el mensaje.
+      const codigoTicket = this.codigoErrorOcrTicket(e);
+      if (codigoTicket) {
+        await this.showToast(this.transloco.translate(this.claveErrorOcrTicket(codigoTicket)), 'danger');
+        return;
+      }
       const motivo = this.motivoBorradorLocal(e?.message);
       if (motivo) {
         await this.intentarBorradorLocal(file, motivo);
@@ -238,6 +247,26 @@ export class FacturasRecibidasPage {
       }
     } finally {
       this.processing = false;
+    }
+  }
+
+  // Backend: FacturasRecibidasController.CrearDesdeDocumento devuelve estos 3 códigos estables
+  // (422/422/409) para el flujo de tickets — comprobar el código dentro del mensaje es la misma
+  // técnica ya usada en motivoBorradorLocal, pero sobre un código en inglés, no sobre el texto
+  // en español (informe de revisión previa: "no tomes decisiones mediante textos españoles").
+  private static readonly CODIGOS_ERROR_OCR_TICKET = ['OCR_RECIPIENT_MISMATCH', 'OCR_TICKET_NOT_CONFIGURED', 'OCR_DOCUMENT_DUPLICATE'] as const;
+
+  private codigoErrorOcrTicket(e: unknown): string | null {
+    if (!(e instanceof Error)) return null;
+    return FacturasRecibidasPage.CODIGOS_ERROR_OCR_TICKET.find(codigo => e.message.includes(codigo)) ?? null;
+  }
+
+  private claveErrorOcrTicket(codigo: string): string {
+    switch (codigo) {
+      case 'OCR_RECIPIENT_MISMATCH': return 'ocr.recipientMismatch';
+      case 'OCR_TICKET_NOT_CONFIGURED': return 'ocr.ticketNotConfigured';
+      case 'OCR_DOCUMENT_DUPLICATE': return 'ocr.documentDuplicate';
+      default: return 'ocr.saveGenericError';
     }
   }
 

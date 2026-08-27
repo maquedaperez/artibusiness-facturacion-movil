@@ -515,7 +515,11 @@
     "numberUnreadableDraft": "No se ha podido leer el número de factura. Se ha abierto un borrador para completarlo a mano.",
     "processDocumentError": "No se pudo procesar el documento. Inténtalo de nuevo o crea la factura manualmente.",
     "bankDocDraftError": "No se pudo preparar un borrador de factura a partir del documento bancario. Puedes crearla manualmente.",
-    "extractionError": "No se pudo extraer información del documento. Inténtalo de nuevo o crea la factura manualmente."
+    "extractionError": "No se pudo extraer información del documento. Inténtalo de nuevo o crea la factura manualmente.",
+    "ticketIvaNoDeducible": "Este documento no identifica fiscalmente a tu empresa. Se ha registrado el importe completo como gasto y el IVA no es deducible. Revisa los datos antes de contabilizar.",
+    "recipientMismatch": "El documento está emitido a nombre de otra empresa y no puede guardarse automáticamente.",
+    "ticketNotConfigured": "No se ha configurado el proveedor genérico ni el impuesto para tickets sin identificar. Contacta con soporte.",
+    "documentDuplicate": "Este documento ya se había registrado antes."
   },
   "bankDocuments": {
     "title": "Documento bancario",
