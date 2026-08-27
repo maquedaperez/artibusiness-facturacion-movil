@@ -1124,7 +1124,10 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
 
       const factura = exigirFactura(await repo.crearDesdeDocumentoDirecto(archivoDePrueba()));
 
-      expect(apiSpy.postMultipart).toHaveBeenCalledWith('/api/FacturasRecibidas/CrearDesdeDocumento', jasmine.anything(), 'file');
+      // 4º argumento: cabecera X-Request-ID derivada del hash del propio fichero (idempotencia
+      // de créditos, ver crearDesdeDocumentoDirecto) — jasmine.anything() porque el valor exacto
+      // depende del hash SHA-256 real del contenido, no es relevante para este test.
+      expect(apiSpy.postMultipart).toHaveBeenCalledWith('/api/FacturasRecibidas/CrearDesdeDocumento', jasmine.anything(), 'file', jasmine.anything());
       expect(factura.id).toBe(700);
       expect(factura.proveedor).toBe('Iberdrola Clientes, S.A.U.'); // limpia el punto de apellido1
       expect(factura.lineas.length).toBe(1);
