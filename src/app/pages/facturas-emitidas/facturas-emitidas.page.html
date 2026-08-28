@@ -124,7 +124,9 @@
             </ion-button>
             <ion-button
               *ngIf="accionesPermitidas(f).compartir"
-              fill="clear" size="small" [attr.aria-label]="'invoices.issued.actions.shareAria' | transloco"
+              fill="clear" size="small"
+              [disabled]="f.estado !== 'borrador' && !f.tienePdf"
+              [attr.aria-label]="(f.estado !== 'borrador' && !f.tienePdf ? 'invoices.issued.download.pdfNotReady' : 'invoices.issued.actions.shareAria') | transloco"
               (click)="compartir($event, f)"
             >
               <ion-icon slot="icon-only" name="share-social-outline"></ion-icon>

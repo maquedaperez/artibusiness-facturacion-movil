@@ -259,11 +259,23 @@ export class FacturasEmitidasPage implements OnInit {
     }
   }
 
+  // Mismo criterio que descargar() (2026-08-27): comparte el PDF real ya contabilizado/
+  // firmado, no el simulado -- antes compartir() nunca se había actualizado y seguía
+  // mandando siempre el documento de mentira, aunque la factura ya fuera real.
   async compartir(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
+    if (f.estado !== 'borrador' && !f.tienePdf) {
+      await this.showToast(this.transloco.translate('invoices.issued.download.pdfNotReady'), 'danger');
+      return;
+    }
     try {
-      const { blob, nombre } = await this.invoicesRepo.generarDocumento(f.id);
-      await compartirBlob(blob, nombre);
+      if (f.estado === 'borrador') {
+        const { blob, nombre } = await this.invoicesRepo.generarDocumento(f.id);
+        await compartirBlob(blob, nombre);
+      } else {
+        const blob = await this.invoicesRepo.obtenerPdfReal(f.id);
+        await compartirBlob(blob, `Factura-${f.numFactura}.pdf`);
+      }
     } catch {
       await this.showToast(this.transloco.translate('invoices.issued.share.error'), 'danger');
     }

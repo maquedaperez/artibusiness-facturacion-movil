@@ -384,7 +384,10 @@ function accionesEmitidaPorEstado(esBorrador: boolean, estadoReconocido: boolean
     return { editar: false, eliminar: false, copiar: false, descargar: true, compartir: true };
   }
   if (esBorrador) {
-    return { editar: true, eliminar: true, copiar: true, descargar: true, compartir: true };
+    // Estabilización post-demo (2026-08-27): un borrador nunca ha pasado por FacturaE, no
+    // existe ningún PDF real que descargar todavía -- se quita la acción en vez de ofrecer
+    // el simulado, que confundía más de lo que ayudaba.
+    return { editar: true, eliminar: true, copiar: true, descargar: false, compartir: true };
   }
   // Contabilizada/firmada — definitiva: ya no se edita ni se borra desde aquí (borrar
   // una factura contabilizada requeriría una operación de anulación autorizada

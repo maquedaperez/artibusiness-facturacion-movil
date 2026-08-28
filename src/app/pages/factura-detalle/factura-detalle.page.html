@@ -159,7 +159,13 @@
       >
         <ion-icon slot="icon-only" name="download-outline"></ion-icon>
       </ion-button>
-      <ion-button *ngIf="accionesPermitidas().compartir" fill="clear" size="small" [attr.aria-label]="'invoices.issued.actions.shareAria' | transloco" (click)="compartir()">
+      <ion-button
+        *ngIf="accionesPermitidas().compartir"
+        fill="clear" size="small"
+        [disabled]="f.estado !== 'borrador' && !f.tienePdf"
+        [attr.aria-label]="(f.estado !== 'borrador' && !f.tienePdf ? 'invoices.issued.download.pdfNotReady' : 'invoices.issued.actions.shareAria') | transloco"
+        (click)="compartir()"
+      >
         <ion-icon slot="icon-only" name="share-social-outline"></ion-icon>
       </ion-button>
       <ion-button *ngIf="accionesPermitidas().eliminar" fill="clear" size="small" color="danger" [attr.aria-label]="'invoices.issued.actions.deleteAria' | transloco" (click)="confirmarEliminar()">

@@ -417,9 +417,11 @@ describe('Política de acciones permitidas — accionesFacturaEmitida / acciones
     };
   }
 
-  it('emitida borrador: edición, borrado, copia y descarga/compartir todo permitido', () => {
+  // Estabilización post-demo (2026-08-27): descargar ya no se ofrece en borrador -- no existe
+  // ningún PDF real hasta contabilizar, y el simulado confundía más de lo que ayudaba.
+  it('emitida borrador: edición, borrado, copia y compartir permitidos, descargar no', () => {
     const acciones = accionesFacturaEmitida(emitidaConEstado('borrador'));
-    expect(acciones).toEqual({ editar: true, eliminar: true, copiar: true, descargar: true, compartir: true });
+    expect(acciones).toEqual({ editar: true, eliminar: true, copiar: true, descargar: false, compartir: true });
   });
 
   it('emitida contabilizada/firmada: ni editar ni eliminar, pero sí copiar/descargar/compartir', () => {
