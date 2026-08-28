@@ -612,8 +612,10 @@ export class FacturaRecibidaDetallePage implements OnInit {
     await alert.present();
   }
 
+  // Duración proporcional al texto (2026-08-28) — mismo criterio que facturas-recibidas.page.ts.
   private async showToast(message: string, color: 'success' | 'danger' = 'success') {
-    const toast = await this.toastCtrl.create({ message, duration: 2000, position: 'bottom', color });
+    const duration = Math.max(3000, Math.min(8000, message.length * 60));
+    const toast = await this.toastCtrl.create({ message, duration, position: 'bottom', color });
     await toast.present();
   }
 

@@ -578,8 +578,13 @@ export class FacturasRecibidasPage {
     await alert.present();
   }
 
+  // Duración proporcional al texto (2026-08-28): los avisos del OCR (proveedor genérico,
+  // servicio no disponible, duplicado...) son frases largas que con los 3s fijos de antes no
+  // daba tiempo a leer. ~60ms por carácter, con un mínimo de 3s y un máximo de 8s para no dejar
+  // un toast corto colgado ni uno larguísimo bloqueando la pantalla indefinidamente.
   private async showToast(message: string, color: 'success' | 'danger' = 'success') {
-    const toast = await this.toastCtrl.create({ message, duration: 3000, position: 'bottom', color });
+    const duration = Math.max(3000, Math.min(8000, message.length * 60));
+    const toast = await this.toastCtrl.create({ message, duration, position: 'bottom', color });
     await toast.present();
   }
 
