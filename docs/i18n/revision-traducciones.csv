@@ -377,6 +377,7 @@
 "navigation.tabs.profile";"Navegación (pestañas)";"Perfil";"Profile";"Профіль";"no"
 "navigation.tabs.received";"Navegación (pestañas)";"Recibidas";"Received";"Отримані";"no"
 "ocr.attachButton";"OCR (escaneo de facturas)";"Adjuntar";"Attach";"Прикріпити";"no"
+"ocr.fileTooLarge";"OCR (escaneo de facturas)";"El archivo pesa demasiado (máximo 10 MB). Prueba con una foto de menor resolución o un PDF más ligero.";"The file is too large (10 MB max). Try a lower-resolution photo or a lighter PDF.";"Файл занадто великий (максимум 10 МБ). Спробуйте фото меншої роздільної здатності або легший PDF.";"no"
 "ocr.badge";"OCR (escaneo de facturas)";"OCR";"OCR";"OCR";"no"
 "ocr.bankDocDraftError";"OCR (escaneo de facturas)";"No se pudo preparar un borrador de factura a partir del documento bancario. Puedes crearla manualmente.";"Could not prepare an invoice draft from the bank document. You can create it manually.";"Не вдалося підготувати чернетку рахунку на основі банківського документа. Ви можете створити його вручну.";"no"
 "ocr.extractionError";"OCR (escaneo de facturas)";"No se pudo extraer información del documento. Inténtalo de nuevo o crea la factura manualmente.";"Could not extract information from the document. Try again or create the invoice manually.";"Не вдалося отримати інформацію з документа. Спробуйте ще раз або створіть рахунок вручну.";"no"

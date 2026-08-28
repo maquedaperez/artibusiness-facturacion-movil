@@ -515,6 +515,7 @@
     "scanning": "Procesando...",
     "scanButton": "Escanear",
     "attachButton": "Adjuntar",
+    "fileTooLarge": "El archivo pesa demasiado (máximo 10 MB). Prueba con una foto de menor resolución o un PDF más ligero.",
     "badge": "OCR",
     "savedWithWarnings": "Factura guardada, pero con avisos: {{aviso}}",
     "savedSuccess": "Factura creada a partir de \"{{archivo}}\": {{proveedor}}.",

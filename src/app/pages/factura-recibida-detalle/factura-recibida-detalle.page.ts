@@ -331,11 +331,20 @@ export class FacturaRecibidaDetallePage implements OnInit {
     this.fileInput?.nativeElement.click();
   }
 
+  // Mismo límite que el backend (RequestSizeLimit en FacturasRecibidasController.
+  // AdjuntarDocumento) — mismo criterio que facturas-recibidas.page.ts.
+  private static readonly TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024;
+
   async onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
+
+    if (file.size > FacturaRecibidaDetallePage.TAMANO_MAXIMO_BYTES) {
+      await this.showToast(this.transloco.translate('ocr.fileTooLarge'), 'danger');
+      return;
+    }
 
     this.adjuntando = true;
     try {

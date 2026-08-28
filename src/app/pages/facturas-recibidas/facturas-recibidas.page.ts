@@ -193,11 +193,21 @@ export class FacturasRecibidasPage {
   // crearDesdeDocumentoDirecto — no hay pantalla de revisión intermedia. Si el proveedor no
   // se reconoce por NIF o el documento no trae número de factura, el backend rechaza y no se
   // guarda nada — el mensaje de error ya viene listo para mostrar tal cual.
+  // Mismo límite que el backend (RequestSizeLimit en FacturasRecibidasController.
+  // CrearDesdeDocumento) — comprobarlo aquí evita subir un archivo entero (fácil de superar con
+  // una foto de cámara moderna) solo para que el servidor lo rechace con un error confuso.
+  private static readonly TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024;
+
   async onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
+
+    if (file.size > FacturasRecibidasPage.TAMANO_MAXIMO_BYTES) {
+      await this.showToast(this.transloco.translate('ocr.fileTooLarge'), 'danger');
+      return;
+    }
 
     this.processing = true;
     try {

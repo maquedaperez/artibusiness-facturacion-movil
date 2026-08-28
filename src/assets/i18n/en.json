@@ -515,6 +515,7 @@
     "scanning": "Processing...",
     "scanButton": "Scan",
     "attachButton": "Attach",
+    "fileTooLarge": "The file is too large (10 MB max). Try a lower-resolution photo or a lighter PDF.",
     "badge": "OCR",
     "savedWithWarnings": "Invoice saved, but with warnings: {{aviso}}",
     "savedSuccess": "Invoice saved from \"{{archivo}}\": {{proveedor}}.",
