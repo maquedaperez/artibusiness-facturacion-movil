@@ -82,7 +82,14 @@
         </ng-container>
       </ng-container>
 
+      <!-- Cumplimiento App Store (guideline 3.1.1, "no external purchase links"): una empresa
+           con créditos ilimitados (demo) nunca necesita comprar más, así que el botón ni
+           siquiera debe existir para ella -- no solo estar deshabilitado. También se oculta
+           mientras se desconoce el estado (cargando/error): mejor no mostrarlo que arriesgarse
+           a mostrarlo de más en una cuenta que resulte ser ilimitada. -->
       <ion-button
+        *ngIf="estadoPagos && !estadoPagos.esIlimitado"
+        data-testid="boton-conseguir-creditos"
         expand="block"
         fill="outline"
         style="margin-top: 12px;"
