@@ -479,6 +479,63 @@ describe('FacturaRecibidaDetallePage', () => {
     });
   });
 
+  // Pedido explícito (reunión 2026-08-28): caso real detectado con una factura de Leroy
+  // Merlin cuyas líneas, recalculadas por nosotros, dan un total distinto (unos céntimos) del
+  // que el proveedor declaró en el documento original (su propio redondeo). Antes de este
+  // cambio, totales() siempre recalculaba en vivo mientras la factura fuera editable — así
+  // que el total guardado en BBDD (working.totalesReales) nunca se veía en un borrador,
+  // solo el recalculado, que podía no coincidir con la factura real.
+  describe('total guardado con céntimos de diferencia frente al recalculado desde las líneas', () => {
+    beforeEach(async () => configurar('501', {
+      get: jasmine.createSpy().and.resolveTo({
+        idFacturaRecibida: 501, numFacRec: 'F-501', idProveedor: 7, nombreProveedor: 'Leroy Merlin',
+        concepto: 'Material', total: 99.98, iva: 21, suplidos: 0, irpf: 0, importe: 120.98,
+        pagada: false, estado: 131, escaneada: false,
+        fechaFactura: '2026-08-01', fechaVencimiento: '2026-08-01',
+        idMedioPago: null, idTipoFactura: 1,
+        // Recalculada, esta línea da 100 de base + 21% IVA = 121 — 2 céntimos por encima de
+        // los 120.98 que el proveedor declaró de verdad.
+        lineas: [{ idFacturaRecibidaLinea: 20, descripcion: 'Material', cantidad: 1, precioUnitario: 100, importe: 100, idImpuesto: 1 }],
+      }),
+      post: jasmine.createSpy().and.resolveTo([{ idImpuesto: 1, descripcion: 'IVA 21%', porcentaje: 21, literalFactura: null, tipoFacturaE: 'IVA' }]),
+    }));
+
+    it('al cargar, muestra el total guardado tal cual (120.98), no el recalculado desde las líneas (121)', () => {
+      expect(component.totales().total).toBe(120.98);
+    });
+
+    it('al modificar una línea, descarta el total guardado y recalcula desde las líneas', () => {
+      component.working.lineas[0].precioUnitario = 200;
+
+      expect(component.totales().total).toBe(242); // 200 + 21% de IVA, nada que ver con 120.98
+    });
+
+    it('actualizarTotalManual() corrige el total mostrado y no se pierde en una lectura posterior', () => {
+      component.actualizarTotalManual(120.98);
+
+      expect(component.totales().total).toBe(120.98);
+      expect(component.totales().total).toBe(120.98); // segunda lectura: sigue ahí
+    });
+
+    it('tras corregir el total a mano, volver a tocar una línea descarta la corrección', () => {
+      component.actualizarTotalManual(120.98);
+      component.working.lineas[0].cantidad = 2;
+
+      expect(component.totales().total).toBe(242); // recalculado desde las líneas nuevas
+    });
+
+    it('guardar() sin tocar líneas envía el total guardado, no uno recalculado de más', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      const actualizarSpy = spyOn(repo, 'actualizar').and.resolveTo({ ...facturaBorradorReal(), id: 501 });
+
+      await component.guardar();
+
+      expect(actualizarSpy).toHaveBeenCalledWith(501, jasmine.objectContaining({
+        totalesReales: jasmine.objectContaining({ total: 120.98 }),
+      }));
+    });
+  });
+
   describe('factura real en estado revisada/contabilizada (bloqueada)', () => {
     beforeEach(async () => configurar('502', {
       get: jasmine.createSpy().and.resolveTo({

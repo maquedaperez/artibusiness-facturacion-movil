@@ -1022,26 +1022,39 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       expect(segunda.id).toBe(primera.id);
     });
 
-    // BUG real corregido 2026-08-18: totalesReales en la respuesta se copiaba tal cual venía
-    // en 'data' (los totales de ANTES de este guardado) en vez de los recién calculados —
-    // no se notaba mientras la factura seguía editable (el detalle ignora totalesReales y
-    // recalcula en vivo), pero en cuanto se bloquea (Contabilizar), el detalle empieza a
-    // fiarse de totalesReales tal cual — si se había editado una línea justo antes de
-    // contabilizar, se veía el total VIEJO en vez del que de verdad se acababa de guardar.
-    it('totalesReales en la respuesta refleja el total recién calculado, no uno viejo que trajera "data"', async () => {
+    // Revisado 2026-08-28 (pedido explícito: dejar corregir el total a mano cuando el
+    // documento original redondea distinto a como recalculamos las líneas — caso real: una
+    // factura de Leroy Merlin con céntimos de diferencia). Antes 'guardarReal' SIEMPRE
+    // recalculaba desde las líneas, ignorando cualquier totalesReales que trajera 'data' —
+    // evitaba arrastrar un total viejo tras editar una línea (bug real corregido 2026-08-18),
+    // pero de paso hacía imposible que un total corregido a mano sobreviviera al guardado.
+    // La responsabilidad de que 'totalesReales' esté siempre al día con las líneas actuales
+    // (nunca un valor viejo de antes de un cambio) pasa ahora a quien llama —
+    // factura-recibida-detalle.page.ts: totales() lo vacía en cuanto detecta que las líneas
+    // cambiaron desde la última carga/guardado (ver lineasSnapshot) — así que guardarReal ya
+    // puede confiar en 'data.totalesReales' tal cual si está presente.
+    it('si "data" trae totalesReales, se manda tal cual (permite un total corregido a mano)', async () => {
       stubCatalogos();
-      const conTotalesViejos = {
+      const conTotalCorregido = {
         ...datosBase,
-        // Simula una factura real cargada antes de editar: ya trae totalesReales de cuando
-        // se abrió, con un total distinto al que resultará de las líneas actuales.
-        totalesReales: { base: 999, desgloseIva: [], ivaTotal: 999, retencion: { aplicable: false, etiqueta: 'Retención', porcentaje: 0, base: 0, importe: 0 }, total: 999 },
+        // Simula al usuario corrigiendo el total en el detalle porque la factura real (ej.
+        // Leroy Merlin) redondeaba distinto a como recalculamos las líneas — 121 sería lo
+        // recalculado desde datosBase, pero el usuario sabe que el documento dice 120.98.
+        totalesReales: { base: 100, desgloseIva: [], ivaTotal: 20.98, retencion: { aplicable: false, etiqueta: 'Retención', porcentaje: 0, base: 0, importe: 0 }, total: 120.98 },
       };
 
-      const guardada = await repo.crearManual(conTotalesViejos);
+      const guardada = await repo.crearManual(conTotalCorregido);
+
+      expect(guardada.totalesReales?.total).toBe(120.98);
+    });
+
+    it('si "data" NO trae totalesReales (líneas tocadas desde la última carga), recalcula desde las líneas', async () => {
+      stubCatalogos();
+
+      const guardada = await repo.crearManual(datosBase); // datosBase no incluye totalesReales
 
       // datosBase: 1 línea, cantidad 2 × 50 = 100 de base, IVA 21% = 21 → total 121.
       expect(guardada.totalesReales?.total).toBe(121);
-      expect(guardada.totalesReales?.total).not.toBe(999);
     });
 
     it('preserva idLineaBackend de las líneas ya existentes al reguardar (GuardarAsync las actualiza, no las duplica)', async () => {

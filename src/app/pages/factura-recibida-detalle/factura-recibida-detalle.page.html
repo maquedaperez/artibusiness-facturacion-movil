@@ -134,6 +134,7 @@
           labelPlacement="stacked"
           interface="popover"
           [(ngModel)]="working.retencionPct"
+          (ionChange)="retencionCambiada()"
         >
           <ion-select-option *ngFor="let r of irpfRates" [value]="r">{{ r }}%</ion-select-option>
         </ion-select>
@@ -152,8 +153,20 @@
 
       <div class="fila-total">
         <span class="etiqueta-total">{{ 'invoices.received.detail.totalDue' | transloco }}</span>
-        <span class="importe-total">{{ formatEuros(totales().total) }}</span>
+        <span class="importe-total" *ngIf="!esEditable">{{ formatEuros(totales().total) }}</span>
+        <ion-input
+          *ngIf="esEditable"
+          class="total-editable"
+          type="number"
+          inputmode="decimal"
+          [value]="totales().total"
+          (ionChange)="actualizarTotalManual($event.detail.value)"
+          [attr.aria-label]="'invoices.received.detail.totalDue' | transloco"
+        ></ion-input>
       </div>
+      <ion-text color="medium" *ngIf="esEditable">
+        <p class="ion-no-margin total-editable-hint">{{ 'invoices.received.detail.totalEditableHint' | transloco }}</p>
+      </ion-text>
     </ion-card-content>
   </ion-card>
 

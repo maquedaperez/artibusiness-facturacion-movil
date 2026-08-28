@@ -999,6 +999,10 @@ ${filas}
   // propio documento recibido (retencionPct), nunca de la config fiscal de nuestra
   // empresa, que es la que gobierna las facturas que emitimos.
   totalesFacturaRecibida(f: FacturaRecibida): TotalesFactura {
+    // Mismo criterio que factura-recibida-detalle.page.ts (totales()): si ya hay un total
+    // guardado/corregido a mano, se muestra tal cual en vez de recalcular desde las líneas.
+    if (f.totalesReales) return f.totalesReales;
+
     const cfg: ConfiguracionRetencion = {
       aplicable: f.retencionPct > 0,
       tipoCodigo: 'recibida',

@@ -436,6 +436,7 @@
         "withholding": "Withholding",
         "notApplicable": "Not applicable",
         "totalDue": "Total due",
+        "totalEditableHint": "You can correct the total by hand if it doesn't match the original invoice (for example, due to the supplier's rounding).",
         "attachmentSection": "Attached document",
         "noAttachment": "No attached document.",
         "changeDocument": "Change document",

@@ -267,19 +267,31 @@ export class FacturaRecibidaDetallePage implements OnInit {
     }
   }
 
-  // Previsualización local con la misma fórmula que usa el mock/backend
-  // (calcularTotalesLineas) — el guardado no envía este cálculo, solo las líneas y
-  // el % de retención; el total definitivo lo sigue calculando el repositorio/backend.
+  // Pedido explícito (reunión 2026-08-28): los totales guardados en BBDD (working.
+  // totalesReales) se muestran TAL CUAL mientras no se toque ninguna línea, sin importar si
+  // la factura sigue editable o no — antes, cualquier borrador editable recalculaba en vivo
+  // en cada repintado, así que un documento real cuyas líneas redondean de forma distinta a
+  // como las recalculamos aquí (ej. Leroy Merlin) siempre mostraba unos céntimos de
+  // diferencia frente al total real de la factura, aunque el usuario no hubiera tocado nada.
   //
-  // Si la factura viene del backend real Y no es editable ahora mismo (working.totalesReales,
-  // solo mientras esté bloqueada), se muestran esos importes oficiales tal cual en vez de
-  // recalcular. En cuanto es editable (borrador real desbloqueado, o cualquier borrador
-  // local), se recalcula en vivo desde 'lineas' — el ivaPct de cada línea ya es fiable
-  // (reconstruido desde idImpuesto al leerla, ver mapearLinea), así que si el usuario edita
-  // una línea, el total mostrado tiene que reflejarlo al momento, no quedarse congelado con
-  // el valor de cuando se abrió la factura.
+  // 'lineasSnapshot' es la foto de 'lineas' tal como estaban al cargar/guardar por última
+  // vez (ver fijarSnapshotLineas, llamado desde sincronizarWorkingDesde) — si difiere de las
+  // líneas actuales, es que el usuario añadió, quitó o modificó una línea desde entonces, y
+  // ESO es lo único que debe forzar un recálculo (igual que un total editado a mano queda
+  // obsoleto en cuanto cambian las líneas de las que salió).
+  private lineasSnapshot = '';
+
+  private fijarSnapshotLineas() {
+    this.lineasSnapshot = JSON.stringify(this.working.lineas);
+  }
+
   totales(): TotalesFactura {
-    if (this.working.totalesReales && !this.esEditable) return this.working.totalesReales;
+    const snapshotActual = JSON.stringify(this.working.lineas);
+    if (snapshotActual !== this.lineasSnapshot) {
+      this.working.totalesReales = undefined;
+      this.lineasSnapshot = snapshotActual;
+    }
+    if (this.working.totalesReales) return this.working.totalesReales;
 
     const cfg: ConfiguracionRetencion = {
       aplicable: this.working.retencionPct > 0,
@@ -288,6 +300,26 @@ export class FacturaRecibidaDetallePage implements OnInit {
       porcentaje: this.working.retencionPct,
     };
     return calcularTotalesLineas(this.working.lineas, cfg);
+  }
+
+  // Edición manual del total final: cuando el documento original redondea sus líneas de
+  // forma distinta a como las recalculamos (el caso real que motivó esto: una factura de
+  // Leroy Merlin con céntimos de diferencia), el usuario corrige aquí el total para que
+  // coincida con la factura real. Se congela también el snapshot de líneas actuales para que
+  // este valor no se pierda en el siguiente repintado (ver totales()) — solo se descarta si
+  // de verdad se vuelve a tocar una línea.
+  actualizarTotalManual(valorCrudo: string | number | null | undefined) {
+    const nuevoTotal = Number(valorCrudo);
+    if (!isFinite(nuevoTotal)) return;
+    const actual = this.totales();
+    this.working.totalesReales = { ...actual, total: Math.round(nuevoTotal * 100) / 100 };
+    this.fijarSnapshotLineas();
+  }
+
+  // La retención cambia el total igual que una línea — un total guardado o corregido a mano
+  // ya no sería válido si se cambia el % después, así que fuerza el mismo recálculo en vivo.
+  retencionCambiada() {
+    this.working.totalesReales = undefined;
   }
 
   async elegirProveedor() {
@@ -548,6 +580,10 @@ export class FacturaRecibidaDetallePage implements OnInit {
   private sincronizarWorkingDesde(factura: FacturaRecibida) {
     const { id: _id, origenOcr: _ocr, ...resto } = factura;
     this.working = resto;
+    // La factura recién cargada/guardada es el nuevo punto de partida — sus líneas todavía
+    // no se han tocado en esta sesión, así que totales() debe mostrar el total guardado
+    // (working.totalesReales) tal cual, no recalcularlo (ver totales()).
+    this.fijarSnapshotLineas();
   }
 
   // Pedido por el jefe en reunión 2026-08-17: "Contabilizar" debe ser una acción propia y

@@ -114,6 +114,22 @@
   --padding-start: 0;
 }
 
+.total-editable {
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--ion-color-primary);
+  text-align: right;
+  max-width: 140px;
+  --padding-start: 0;
+  --padding-end: 0;
+}
+
+.total-editable-hint {
+  font-size: 12px;
+  text-align: right;
+  margin-top: 2px;
+}
+
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

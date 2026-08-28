@@ -436,6 +436,7 @@
         "withholding": "Retención",
         "notApplicable": "No aplica",
         "totalDue": "Total a pagar",
+        "totalEditableHint": "Puedes corregir el total a mano si no coincide con el de la factura original (por ejemplo, por redondeos del proveedor).",
         "attachmentSection": "Documento adjunto",
         "noAttachment": "Sin documento adjunto.",
         "changeDocument": "Cambiar documento",

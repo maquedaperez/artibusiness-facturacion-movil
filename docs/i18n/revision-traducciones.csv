@@ -313,6 +313,7 @@
 "invoices.received.detail.supplierSection";"Facturas recibidas";"Proveedor";"Supplier";"Постачальник";"no"
 "invoices.received.detail.taxableBase";"Facturas recibidas";"Base imponible";"Taxable base";"Оподатковувана база";"no"
 "invoices.received.detail.totalDue";"Facturas recibidas";"Total a pagar";"Total due";"Разом до сплати";"no"
+"invoices.received.detail.totalEditableHint";"Facturas recibidas";"Puedes corregir el total a mano si no coincide con el de la factura original (por ejemplo, por redondeos del proveedor).";"You can correct the total by hand if it doesn't match the original invoice (for example, due to the supplier's rounding).";"Ви можете вручну виправити суму, якщо вона не збігається з оригінальним рахунком (наприклад, через округлення постачальника).";"no"
 "invoices.received.detail.totalsSection";"Facturas recibidas";"Totales";"Totals";"Підсумки";"no"
 "invoices.received.detail.validationRequired";"Facturas recibidas";"Proveedor y número de factura son obligatorios.";"Supplier and invoice number are required.";"Постачальник і номер рахунку обов'язкові.";"no"
 "invoices.received.detail.validationSupplier";"Facturas recibidas";"Selecciona el proveedor de la lista (o créalo) antes de guardar.";"Select the supplier from the list (or create one) before saving.";"Оберіть постачальника зі списку (або створіть нового) перед збереженням.";"no"

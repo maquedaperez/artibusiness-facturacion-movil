@@ -958,7 +958,12 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     const cfgRetencion: ConfiguracionRetencion = {
       aplicable: data.retencionPct > 0, tipoCodigo: 'recibida', etiqueta: 'Retención', porcentaje: data.retencionPct,
     };
-    const totales = calcularTotalesLineas(data.lineas, cfgRetencion);
+    // Pedido explícito (reunión 2026-08-28): si el usuario corrigió el total a mano en el
+    // detalle (factura-recibida-detalle.page.ts: actualizarTotalManual/totales()), 'data'
+    // llega con 'totalesReales' ya fijado a ese valor — se manda tal cual, sin recalcular.
+    // Solo se recalcula desde las líneas cuando no hay ningún total corregido/guardado
+    // pendiente (factura nueva sin guardar todavía, o líneas tocadas desde la última vez).
+    const totales = data.totalesReales ?? calcularTotalesLineas(data.lineas, cfgRetencion);
 
     const body = {
       idFacturaRecibida: idExistente,
