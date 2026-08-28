@@ -111,6 +111,8 @@ type FacturaEmitidaCabeceraApi = {
   idMedioPago: number;
   // Descarga del PDF real (2026-08-27) — ver FacturaEmitidaCabeceraModel.TienePdf.
   tienePdf: boolean;
+  // Descarga del .xsig real (2026-08-27) — ver FacturaEmitidaCabeceraModel.TieneXsig.
+  tieneXsig: boolean;
 };
 
 type FacturaEmitidaLineaApi = {
@@ -164,6 +166,8 @@ type FacturaEmitidaDetalleApi = {
   motivoSubsanacion: string | null;
   // Descarga del PDF real (2026-08-27) — ver FacturaEmitidaDetalleModel.TienePdf.
   tienePdf: boolean;
+  // Descarga del .xsig real (2026-08-27) — ver FacturaEmitidaDetalleModel.TieneXsig.
+  tieneXsig: boolean;
 };
 
 // Combina código + descripción del error/aviso de la AEAT en un único texto listo para
@@ -348,6 +352,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       fechaSubsanacion: dto.fechaSubsanacion ? dto.fechaSubsanacion.slice(0, 10) : undefined,
       estadoSubsanacion: dto.estadoSubsanacion ?? undefined,
       tienePdf: dto.tienePdf,
+      tieneXsig: dto.tieneXsig,
     };
   }
 
@@ -397,6 +402,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       estadoSubsanacion: dto.estadoSubsanacion ?? undefined,
       motivoSubsanacion: dto.motivoSubsanacion ?? undefined,
       tienePdf: dto.tienePdf,
+      tieneXsig: dto.tieneXsig,
     };
   }
 
@@ -704,5 +710,9 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
   obtenerPdfReal(id: number): Promise<Blob> {
     return this.api.getBlob(`${EMITIDAS_BASE_PATH}/${id}/Pdf`);
+  }
+
+  obtenerXsigReal(id: number): Promise<Blob> {
+    return this.api.getBlob(`${EMITIDAS_BASE_PATH}/${id}/Xsig`);
   }
 }

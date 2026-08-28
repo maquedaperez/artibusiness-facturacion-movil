@@ -164,6 +164,9 @@ export type FacturaEmitida = {
   // existe o no. Un borrador siempre es false; el modo mock puro tampoco lo rellena (no hay
   // backend real detrás, ver obtenerPdfReal en el mock).
   tienePdf?: boolean;
+  // Descarga del .xsig real (2026-08-27): mismo criterio que tienePdf, solo existe una vez
+  // firmada.
+  tieneXsig?: boolean;
 };
 
 export type DesgloseIva = { pct: number; baseGravada: number; cuota: number };

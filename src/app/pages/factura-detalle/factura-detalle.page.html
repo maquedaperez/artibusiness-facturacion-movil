@@ -160,6 +160,15 @@
         <ion-icon slot="icon-only" name="download-outline"></ion-icon>
       </ion-button>
       <ion-button
+        *ngIf="f.estado === 'firmada'"
+        fill="clear" size="small"
+        [disabled]="!f.tieneXsig"
+        [attr.aria-label]="(f.tieneXsig ? 'invoices.issued.actions.downloadXsigAria' : 'invoices.issued.download.xsigNotReady') | transloco"
+        (click)="descargarXsig()"
+      >
+        <ion-icon slot="icon-only" name="shield-checkmark-outline"></ion-icon>
+      </ion-button>
+      <ion-button
         *ngIf="accionesPermitidas().compartir"
         fill="clear" size="small"
         [disabled]="f.estado !== 'borrador' && !f.tienePdf"

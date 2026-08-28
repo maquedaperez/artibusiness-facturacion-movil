@@ -191,6 +191,7 @@
         "signConfirm": "Sí, firmar",
         "copyAria": "Copiar / Duplicar",
         "downloadAria": "Descargar documento",
+        "downloadXsigAria": "Descargar XML firmado (.xsig)",
         "shareAria": "Compartir documento",
         "deleteAria": "Eliminar borrador"
       },
@@ -228,7 +229,9 @@
         "success": "Documento descargado (simulado, no válido fiscalmente).",
         "successReal": "Factura descargada.",
         "error": "No se pudo generar el documento. Inténtalo de nuevo.",
-        "pdfNotReady": "El PDF de esta factura todavía no está disponible."
+        "pdfNotReady": "El PDF de esta factura todavía no está disponible.",
+        "xsigSuccess": "XML firmado descargado.",
+        "xsigNotReady": "El XML firmado de esta factura todavía no está disponible."
       },
       "share": {
         "error": "No se pudo compartir el documento. Inténtalo de nuevo."

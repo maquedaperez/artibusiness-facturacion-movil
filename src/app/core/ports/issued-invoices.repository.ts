@@ -108,4 +108,6 @@ export abstract class IssuedInvoicesRepository {
   // una URL pública. A diferencia de generarDocumento (siempre simulado), este SÍ es el
   // documento fiscal real. Ver FacturaEmitidaController.DescargarPdf.
   abstract obtenerPdfReal(id: number): Promise<Blob>;
+  // .xsig real (2026-08-27): solo existe una vez firmada — ver FacturaEmitidaController.DescargarXsig.
+  abstract obtenerXsigReal(id: number): Promise<Blob>;
 }

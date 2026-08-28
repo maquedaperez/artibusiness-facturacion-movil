@@ -14,7 +14,7 @@ import {
 import { addIcons } from 'ionicons';
 import {
   arrowBackOutline, personCircleOutline, documentTextOutline,
-  copyOutline, downloadOutline, shareSocialOutline, trashOutline,
+  copyOutline, downloadOutline, shareSocialOutline, trashOutline, shieldCheckmarkOutline,
 } from 'ionicons/icons';
 
 import {
@@ -73,7 +73,7 @@ export class FacturaDetallePage implements OnInit {
   constructor() {
     addIcons({
       arrowBackOutline, personCircleOutline, documentTextOutline,
-      copyOutline, downloadOutline, shareSocialOutline, trashOutline,
+      copyOutline, downloadOutline, shareSocialOutline, trashOutline, shieldCheckmarkOutline,
     });
   }
 
@@ -401,6 +401,23 @@ export class FacturaDetallePage implements OnInit {
         descargarBlob(blob, `Factura-${this.working.numFactura}.pdf`);
         await this.showToast(this.transloco.translate('invoices.issued.download.successReal'));
       }
+    } catch {
+      await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
+    }
+  }
+
+  // .xsig real (2026-08-27): solo tiene sentido para firmadas -- el propio botón solo se
+  // muestra en ese estado (ver plantilla), esto es la red de seguridad si tieneXsig no llegó.
+  async descargarXsig() {
+    if (!this.working) return;
+    if (!this.working.tieneXsig) {
+      await this.showToast(this.transloco.translate('invoices.issued.download.xsigNotReady'), 'danger');
+      return;
+    }
+    try {
+      const blob = await this.invoicesRepo.obtenerXsigReal(this.working.id);
+      descargarBlob(blob, `Factura-${this.working.numFactura}.xsig`);
+      await this.showToast(this.transloco.translate('invoices.issued.download.xsigSuccess'));
     } catch {
       await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
     }

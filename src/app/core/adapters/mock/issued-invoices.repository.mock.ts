@@ -145,4 +145,10 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     const { blob } = await this.mock.generarDocumentoEmitida(id);
     return blob;
   }
+
+  async obtenerXsigReal(id: number): Promise<Blob> {
+    // Mismo criterio que obtenerPdfReal — modo mock puro, sin .xsig real que traer.
+    const { blob } = await this.mock.generarDocumentoEmitida(id);
+    return blob;
+  }
 }

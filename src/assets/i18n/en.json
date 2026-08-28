@@ -191,6 +191,7 @@
         "signConfirm": "Yes, sign it",
         "copyAria": "Copy / Duplicate",
         "downloadAria": "Download document",
+        "downloadXsigAria": "Download signed XML (.xsig)",
         "shareAria": "Share document",
         "deleteAria": "Delete draft"
       },
@@ -228,7 +229,9 @@
         "success": "Document downloaded (simulated; not valid for tax purposes).",
         "successReal": "Invoice downloaded.",
         "error": "Could not generate the document. Try again.",
-        "pdfNotReady": "This invoice's PDF isn't available yet."
+        "pdfNotReady": "This invoice's PDF isn't available yet.",
+        "xsigSuccess": "Signed XML downloaded.",
+        "xsigNotReady": "This invoice's signed XML isn't available yet."
       },
       "share": {
         "error": "Could not share the document. Try again."
