@@ -16,7 +16,7 @@ import {
 import { addIcons } from 'ionicons';
 import {
   documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline, filterOutline,
-  copyOutline, downloadOutline, shareSocialOutline, trashOutline, shieldCheckmarkOutline,
+  copyOutline, downloadOutline, shareSocialOutline, trashOutline,
 } from 'ionicons/icons';
 
 import { AccionesPermitidas, EstadoFactura, FacturaEmitida, Numerador } from '../../services/mock-facturas.service';
@@ -66,7 +66,7 @@ export class FacturasEmitidasPage implements OnInit {
   constructor() {
     addIcons({
       documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline, filterOutline,
-      copyOutline, downloadOutline, shareSocialOutline, trashOutline, shieldCheckmarkOutline,
+      copyOutline, downloadOutline, shareSocialOutline, trashOutline,
     });
   }
 
@@ -235,11 +235,43 @@ export class FacturasEmitidasPage implements OnInit {
     }
   }
 
+  // "Descargar" trae un documento distinto según el estado -- ver descargar() más abajo.
+  descargaDeshabilitada(f: FacturaEmitida): boolean {
+    if (f.estado === 'firmada') return !f.tieneXsig;
+    if (f.estado === 'borrador') return false;
+    return !f.tienePdf;
+  }
+
+  descargaAriaLabel(f: FacturaEmitida): string {
+    if (f.estado === 'firmada') return f.tieneXsig ? 'invoices.issued.actions.downloadXsigAria' : 'invoices.issued.download.xsigNotReady';
+    if (f.estado !== 'borrador' && !f.tienePdf) return 'invoices.issued.download.pdfNotReady';
+    return 'invoices.issued.actions.downloadAria';
+  }
+
   // Un borrador nunca ha pasado por FacturaE (no existe hasta contabilizar), así que sigue
   // usando el documento simulado; contabilizada/firmada ya tienen el PDF real generado y
   // publicado en Blob Storage al contabilizar (2026-08-27).
+  // Estabilización post-demo (2026-08-28): un botón "Descargar" por estado, sin uno aparte
+  // para el .xsig (confundía con un icono de seguridad genérico) -- firmada descarga el .xsig
+  // (el documento legalmente vigente a partir de ahí), contabilizada descarga el PDF. Compartir
+  // sigue mandando siempre el PDF (legible), sea cual sea el estado -- lo que se comparte con un
+  // cliente es el documento humano, no el XML firmado.
   async descargar(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
+    if (f.estado === 'firmada') {
+      if (!f.tieneXsig) {
+        await this.showToast(this.transloco.translate('invoices.issued.download.xsigNotReady'), 'danger');
+        return;
+      }
+      try {
+        const blob = await this.invoicesRepo.obtenerXsigReal(f.id);
+        descargarBlob(blob, `Factura-${f.numFactura}.xsig`);
+        await this.showToast(this.transloco.translate('invoices.issued.download.xsigSuccess'));
+      } catch {
+        await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
+      }
+      return;
+    }
     if (f.estado !== 'borrador' && !f.tienePdf) {
       await this.showToast(this.transloco.translate('invoices.issued.download.pdfNotReady'), 'danger');
       return;
@@ -254,23 +286,6 @@ export class FacturasEmitidasPage implements OnInit {
         descargarBlob(blob, `Factura-${f.numFactura}.pdf`);
         await this.showToast(this.transloco.translate('invoices.issued.download.successReal'));
       }
-    } catch {
-      await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
-    }
-  }
-
-  // .xsig real (2026-08-27): solo tiene sentido para firmadas -- el propio botón solo se
-  // muestra en ese estado (ver plantilla), esto es la red de seguridad si tieneXsig no llegó.
-  async descargarXsig(event: Event, f: FacturaEmitida) {
-    event.stopPropagation();
-    if (!f.tieneXsig) {
-      await this.showToast(this.transloco.translate('invoices.issued.download.xsigNotReady'), 'danger');
-      return;
-    }
-    try {
-      const blob = await this.invoicesRepo.obtenerXsigReal(f.id);
-      descargarBlob(blob, `Factura-${f.numFactura}.xsig`);
-      await this.showToast(this.transloco.translate('invoices.issued.download.xsigSuccess'));
     } catch {
       await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
     }

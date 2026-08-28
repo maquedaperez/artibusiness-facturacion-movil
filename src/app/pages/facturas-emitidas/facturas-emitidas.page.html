@@ -116,20 +116,11 @@
             <ion-button
               *ngIf="accionesPermitidas(f).descargar"
               fill="clear" size="small"
-              [disabled]="f.estado !== 'borrador' && !f.tienePdf"
-              [attr.aria-label]="(f.estado !== 'borrador' && !f.tienePdf ? 'invoices.issued.download.pdfNotReady' : 'invoices.issued.actions.downloadAria') | transloco"
+              [disabled]="descargaDeshabilitada(f)"
+              [attr.aria-label]="descargaAriaLabel(f) | transloco"
               (click)="descargar($event, f)"
             >
               <ion-icon slot="icon-only" name="download-outline"></ion-icon>
-            </ion-button>
-            <ion-button
-              *ngIf="f.estado === 'firmada'"
-              fill="clear" size="small"
-              [disabled]="!f.tieneXsig"
-              [attr.aria-label]="(f.tieneXsig ? 'invoices.issued.actions.downloadXsigAria' : 'invoices.issued.download.xsigNotReady') | transloco"
-              (click)="descargarXsig($event, f)"
-            >
-              <ion-icon slot="icon-only" name="shield-checkmark-outline"></ion-icon>
             </ion-button>
             <ion-button
               *ngIf="accionesPermitidas(f).compartir"

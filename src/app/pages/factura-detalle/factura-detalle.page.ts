@@ -14,7 +14,7 @@ import {
 import { addIcons } from 'ionicons';
 import {
   arrowBackOutline, personCircleOutline, documentTextOutline,
-  copyOutline, downloadOutline, shareSocialOutline, trashOutline, shieldCheckmarkOutline,
+  copyOutline, downloadOutline, shareSocialOutline, trashOutline,
 } from 'ionicons/icons';
 
 import {
@@ -73,7 +73,7 @@ export class FacturaDetallePage implements OnInit {
   constructor() {
     addIcons({
       arrowBackOutline, personCircleOutline, documentTextOutline,
-      copyOutline, downloadOutline, shareSocialOutline, trashOutline, shieldCheckmarkOutline,
+      copyOutline, downloadOutline, shareSocialOutline, trashOutline,
     });
   }
 
@@ -382,11 +382,40 @@ export class FacturaDetallePage implements OnInit {
     }
   }
 
+  // "Descargar" trae un documento distinto según el estado -- ver descargar() más abajo.
+  descargaDeshabilitada(f: FacturaEmitida): boolean {
+    if (f.estado === 'firmada') return !f.tieneXsig;
+    if (f.estado === 'borrador') return false;
+    return !f.tienePdf;
+  }
+
+  descargaAriaLabel(f: FacturaEmitida): string {
+    if (f.estado === 'firmada') return f.tieneXsig ? 'invoices.issued.actions.downloadXsigAria' : 'invoices.issued.download.xsigNotReady';
+    if (f.estado !== 'borrador' && !f.tienePdf) return 'invoices.issued.download.pdfNotReady';
+    return 'invoices.issued.actions.downloadAria';
+  }
+
   // Un borrador nunca ha pasado por FacturaE (no existe hasta contabilizar), así que sigue
-  // usando el documento simulado; contabilizada/firmada ya tienen el PDF real generado y
-  // publicado en Blob Storage al contabilizar (2026-08-27).
+  // usando el documento simulado; contabilizada tiene el PDF real; firmada descarga el .xsig
+  // (el documento legalmente vigente a partir de ahí) en vez del PDF -- sin un botón aparte
+  // para esto, que confundía con un icono de seguridad genérico (2026-08-28). Compartir sigue
+  // mandando siempre el PDF, sea cual sea el estado.
   async descargar() {
     if (!this.working) return;
+    if (this.working.estado === 'firmada') {
+      if (!this.working.tieneXsig) {
+        await this.showToast(this.transloco.translate('invoices.issued.download.xsigNotReady'), 'danger');
+        return;
+      }
+      try {
+        const blob = await this.invoicesRepo.obtenerXsigReal(this.working.id);
+        descargarBlob(blob, `Factura-${this.working.numFactura}.xsig`);
+        await this.showToast(this.transloco.translate('invoices.issued.download.xsigSuccess'));
+      } catch {
+        await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
+      }
+      return;
+    }
     if (this.working.estado !== 'borrador' && !this.working.tienePdf) {
       await this.showToast(this.transloco.translate('invoices.issued.download.pdfNotReady'), 'danger');
       return;
@@ -401,23 +430,6 @@ export class FacturaDetallePage implements OnInit {
         descargarBlob(blob, `Factura-${this.working.numFactura}.pdf`);
         await this.showToast(this.transloco.translate('invoices.issued.download.successReal'));
       }
-    } catch {
-      await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
-    }
-  }
-
-  // .xsig real (2026-08-27): solo tiene sentido para firmadas -- el propio botón solo se
-  // muestra en ese estado (ver plantilla), esto es la red de seguridad si tieneXsig no llegó.
-  async descargarXsig() {
-    if (!this.working) return;
-    if (!this.working.tieneXsig) {
-      await this.showToast(this.transloco.translate('invoices.issued.download.xsigNotReady'), 'danger');
-      return;
-    }
-    try {
-      const blob = await this.invoicesRepo.obtenerXsigReal(this.working.id);
-      descargarBlob(blob, `Factura-${this.working.numFactura}.xsig`);
-      await this.showToast(this.transloco.translate('invoices.issued.download.xsigSuccess'));
     } catch {
       await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
     }
