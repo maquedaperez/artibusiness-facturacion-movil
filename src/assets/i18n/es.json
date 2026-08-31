@@ -244,10 +244,11 @@
       "simplified": {
         "explainer": "Una factura simplificada no necesita identificar al cliente — se emite a nombre de \"Consumidor final\". Elige esta opción para ventas al público sin datos fiscales del comprador.",
         "startWithGenericClient": "Empezar con Consumidor final",
+        "serieNoConfigurada": "No hay ninguna serie \"FS\" configurada para esta empresa — pide que se cree antes de emitir una factura simplificada.",
         "genericClientName": "Consumidor final",
         "badge": "Simplificada",
-        "genericClientNote": "Factura simplificada para consumidor final, sin destinatario fiscal identificado.",
-        "genericClientSecondaryNote": "El cliente \"Consumidor final\" se utiliza únicamente para la gestión interna y no se comunica como destinatario fiscal.",
+        "genericClientNote": "Factura simplificada sin destinatario fiscal identificado.",
+        "genericClientSecondaryNote": "\"Consumidor final\" se utiliza únicamente para la gestión interna y no se comunica como destinatario fiscal.",
         "convertToComplete": "Convertir en factura completa",
         "convertHeader": "Convertir en factura completa",
         "convertConfirmMessage": "Esto cambia el tipo fiscal a factura completa y te pedirá elegir un cliente real. Se ajustará también la serie si es necesario. ¿Continuar?",
