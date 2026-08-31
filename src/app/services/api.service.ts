@@ -5,6 +5,22 @@ import { environment } from 'src/environments/environment';
 import { TenantService } from './tenant.service';
 import { decodeJwtPayload } from '../shared/utils/jwt';
 
+// Hallazgo de auditoría (2026-08-31, punto 5): antes, un error HTTP solo exponía un string
+// (message) — cualquier llamador que necesitara datos estructurados del cuerpo de error (ej.
+// el 422 de "proveedor no encontrado" en CrearDesdeDocumento, que trae el NIF y el documento
+// OCR ya extraído) no tenía forma de acceder a ellos sin volver a parsear el texto a mano, y
+// eso empujaba a volver a llamar al backend (con un segundo análisis OCR completo) solo para
+// recuperar datos que la primera respuesta ya traía. 'status' y 'body' se añaden sin tocar
+// 'message' — todo el código existente que hace `e instanceof Error` o lee `e.message` sigue
+// funcionando exactamente igual; solo el código nuevo que necesita el cuerpo estructurado
+// necesita comprobar `e instanceof HttpError`.
+export class HttpError extends Error {
+  constructor(message: string, public readonly status: number, public readonly body: unknown) {
+    super(message);
+    this.name = 'HttpError';
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private tenant = inject(TenantService);
@@ -119,10 +135,18 @@ export class ApiService {
   }
 
   private extraerMensajeDeJsonTexto(texto: string): string | null {
+    const valor = this.intentarParsearJson(texto);
+    return valor !== undefined ? this.extraerMensajeDeJson(valor) : null;
+  }
+
+  // undefined = no se pudo parsear (o no era JSON) — distinto de null, que sí sería un JSON
+  // válido ("null" literal). Se usa tanto para el mensaje legible (extraerMensajeDeJsonTexto)
+  // como para adjuntar el cuerpo real a HttpError.body, sin parsear el mismo texto dos veces.
+  private intentarParsearJson(texto: string): unknown {
     try {
-      return this.extraerMensajeDeJson(JSON.parse(texto));
+      return JSON.parse(texto);
     } catch {
-      return null;
+      return undefined;
     }
   }
 
@@ -137,7 +161,7 @@ export class ApiService {
         const msg = res.data
           ? (typeof res.data === 'string' ? res.data : (this.extraerMensajeDeJson(res.data) ?? JSON.stringify(res.data)))
           : '';
-        throw new Error(`HTTP ${res.status} ${msg}`);
+        throw new HttpError(`HTTP ${res.status} ${msg}`, res.status, res.data ?? null);
       }
       return res.data as T;
     }
@@ -146,12 +170,13 @@ export class ApiService {
     const text = await r.text().catch(() => '');
     if (!r.ok) {
       const ct = r.headers.get('content-type') ?? '';
+      const cuerpoJson = ct.includes('application/json') ? this.intentarParsearJson(text) : undefined;
       const detail = ct.includes('text/html')
         ? this.stripHtmlToOneLine(text)
-        : ct.includes('application/json')
-          ? (this.extraerMensajeDeJsonTexto(text) ?? text)
+        : cuerpoJson !== undefined
+          ? (this.extraerMensajeDeJson(cuerpoJson) ?? text)
           : (text || r.statusText);
-      throw new Error(`HTTP ${r.status} - ${detail}`);
+      throw new HttpError(`HTTP ${r.status} - ${detail}`, r.status, cuerpoJson !== undefined ? cuerpoJson : text);
     }
     if (!text) return undefined as unknown as T;
     const ct = r.headers.get('content-type') ?? '';
@@ -207,7 +232,7 @@ export class ApiService {
         const msg = res.data
           ? (typeof res.data === 'string' ? res.data : (this.extraerMensajeDeJson(res.data) ?? JSON.stringify(res.data)))
           : '';
-        throw new Error(`HTTP ${res.status} ${msg}`);
+        throw new HttpError(`HTTP ${res.status} ${msg}`, res.status, res.data ?? null);
       }
       return res.data as T;
     }
@@ -216,12 +241,13 @@ export class ApiService {
     const text = await r.text().catch(() => '');
     if (!r.ok) {
       const ct = r.headers.get('content-type') ?? '';
+      const cuerpoJson = ct.includes('application/json') ? this.intentarParsearJson(text) : undefined;
       const detail = ct.includes('text/html')
         ? this.stripHtmlToOneLine(text)
-        : ct.includes('application/json')
-          ? (this.extraerMensajeDeJsonTexto(text) ?? text)
+        : cuerpoJson !== undefined
+          ? (this.extraerMensajeDeJson(cuerpoJson) ?? text)
           : (text || r.statusText);
-      throw new Error(`HTTP ${r.status} - ${detail}`);
+      throw new HttpError(`HTTP ${r.status} - ${detail}`, r.status, cuerpoJson !== undefined ? cuerpoJson : text);
     }
     if (!text) return undefined as unknown as T;
     const ct = r.headers.get('content-type') ?? '';
@@ -250,7 +276,7 @@ export class ApiService {
         const msg = res.data
           ? (typeof res.data === 'string' ? res.data : (this.extraerMensajeDeJson(res.data) ?? JSON.stringify(res.data)))
           : '';
-        throw new Error(`HTTP ${res.status} ${msg}`);
+        throw new HttpError(`HTTP ${res.status} ${msg}`, res.status, res.data ?? null);
       }
 
       return res.data as T;
@@ -268,12 +294,13 @@ export class ApiService {
 
     if (!r.ok) {
       const ct = r.headers.get('content-type') ?? '';
+      const cuerpoJson = ct.includes('application/json') ? this.intentarParsearJson(text) : undefined;
       const detail = ct.includes('text/html')
         ? this.stripHtmlToOneLine(text)
-        : ct.includes('application/json')
-          ? (this.extraerMensajeDeJsonTexto(text) ?? text)
+        : cuerpoJson !== undefined
+          ? (this.extraerMensajeDeJson(cuerpoJson) ?? text)
           : (text || r.statusText);
-      throw new Error(`HTTP ${r.status} - ${detail}`);
+      throw new HttpError(`HTTP ${r.status} - ${detail}`, r.status, cuerpoJson !== undefined ? cuerpoJson : text);
     }
 
     if (!text) return undefined as unknown as T;
@@ -329,7 +356,7 @@ export class ApiService {
         const msg = res.data
           ? (typeof res.data === 'string' ? res.data : (this.extraerMensajeDeJson(res.data) ?? JSON.stringify(res.data)))
           : '';
-        throw new Error(`HTTP ${res.status} ${msg}`);
+        throw new HttpError(`HTTP ${res.status} ${msg}`, res.status, res.data ?? null);
       }
       return res.data as T;
     }
@@ -354,12 +381,13 @@ export class ApiService {
 
     if (!r.ok) {
       const ct = r.headers.get('content-type') ?? '';
+      const cuerpoJson = ct.includes('application/json') ? this.intentarParsearJson(text) : undefined;
       const detail = ct.includes('text/html')
         ? this.stripHtmlToOneLine(text)
-        : ct.includes('application/json')
-          ? (this.extraerMensajeDeJsonTexto(text) ?? text)
+        : cuerpoJson !== undefined
+          ? (this.extraerMensajeDeJson(cuerpoJson) ?? text)
           : (text || r.statusText);
-      throw new Error(`HTTP ${r.status} - ${detail}`);
+      throw new HttpError(`HTTP ${r.status} - ${detail}`, r.status, cuerpoJson !== undefined ? cuerpoJson : text);
     }
 
     if (!text) return undefined as unknown as T;
