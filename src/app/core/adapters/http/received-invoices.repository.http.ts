@@ -1,10 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { TranslocoService } from '@jsverse/transloco';
 import {
-  FiltrosListarRecibidas, MedioPagoOpcion, ReceivedInvoicesRepository, ResultadoProcesamientoDocumento,
+  FiltrosListarRecibidas, MedioPagoOpcion, ProveedorNoEncontradoOcrError, ReceivedInvoicesRepository,
+  ResultadoProcesamientoDocumento,
 } from '../../ports/received-invoices.repository';
 import { MockReceivedInvoicesRepository } from '../mock/received-invoices.repository.mock';
-import { ApiService } from '../../../services/api.service';
+import { ApiService, HttpError } from '../../../services/api.service';
 import {
   AccionesPermitidas, ConfiguracionRetencion, FacturaRecibida, IRPF_RATES, LineaFactura, TotalesFactura,
   calcularTotalesLineas,
@@ -666,8 +667,22 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       throw new Error(this.transloco.translate('ocr.extractionError'));
     }
 
-    const inv = respuesta.document.invoice;
+    return this.construirBorradorDesdeInvoice(
+      respuesta.document.invoice, respuesta.document.warnings, documento, file.name, respuesta.document_hash,
+    );
+  }
 
+  // Extraído de crearDesdeOcr (hallazgo de auditoría 2026-08-31, punto 5): la misma
+  // construcción de borrador la necesita también el fallback de "proveedor no encontrado" de
+  // crearDesdeDocumentoDirecto, a partir del documento OCR que YA viene embebido en su 422 —
+  // sin volver a llamar al lector externo por segunda vez para conseguir los mismos datos.
+  private construirBorradorDesdeInvoice(
+    inv: OcrInvoice,
+    warnings: string[] | null | undefined,
+    documento: { documentoUrl: string; documentoNombre: string },
+    nombreArchivo: string,
+    documentoHash: string | null | undefined,
+  ): FacturaRecibida {
     const lineas: LineaFactura[] = (inv.lines ?? []).map(l => {
       // Preferimos SIEMPRE taxable_base/line_total (el importe de la línea que ya calculó
       // el OCR) sobre reconstruirlo nosotros multiplicando cantidad × unit_price. Motivo,
@@ -722,7 +737,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     // — en vez de intentar anticipar el próximo caso raro de los ~100 modelos de factura
     // que existen, dejamos que cualquier futuro descuadre se detecte solo y avise al
     // usuario, en lugar de mostrar un número posiblemente incorrecto sin más.
-    const avisosOcr: string[] = [...(respuesta.document.warnings ?? [])
+    const avisosOcr: string[] = [...(warnings ?? [])
       .filter((w): w is string => !!w?.trim())
       .map(w => `Aviso del motor de extracción: ${w}`)];
 
@@ -743,7 +758,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     }
 
     return this.mockAdapter.registrarRecibidaExtraida({
-      proveedor: inv.issuer?.legal_name?.trim() || `Proveedor detectado (${file.name})`,
+      proveedor: inv.issuer?.legal_name?.trim() || `Proveedor detectado (${nombreArchivo})`,
       proveedorNif: inv.issuer?.tax_id?.trim() || undefined,
       // Dirección del emisor — se usa para pre-rellenar la pantalla de alta de proveedor
       // (modo "Proveedor nuevo" de ProveedorSelectorComponent) cuando el NIF del OCR no
@@ -767,7 +782,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       documentoUrl: documento.documentoUrl,
       documentoNombre: documento.documentoNombre,
       avisosOcr: avisosOcr.length > 0 ? avisosOcr : undefined,
-      documentoHash: respuesta.document_hash ?? undefined,
+      documentoHash: documentoHash ?? undefined,
     });
   }
 
@@ -792,10 +807,32 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     // Se deriva del propio contenido del fichero (mismo criterio que ya usa el backend para
     // AdjuntarDocumento) para que un reintento del MISMO fichero reutilice la reserva.
     const requestId = await this.idIdempotenciaDesdeArchivo(file);
-    const resultado = await this.api.postMultipart<CrearDesdeDocumentoApi | OcrAnalyzeResponse>(
-      `${RECIBIDAS_BASE_PATH}/CrearDesdeDocumento`, file, 'file',
-      requestId ? { 'X-Request-ID': requestId } : undefined,
-    );
+    let resultado: CrearDesdeDocumentoApi | OcrAnalyzeResponse;
+    try {
+      resultado = await this.api.postMultipart<CrearDesdeDocumentoApi | OcrAnalyzeResponse>(
+        `${RECIBIDAS_BASE_PATH}/CrearDesdeDocumento`, file, 'file',
+        requestId ? { 'X-Request-ID': requestId } : undefined,
+      );
+    } catch (e) {
+      // Hallazgo de auditoría (2026-08-31, punto 5): antes, este 422 solo traía el mensaje de
+      // texto ("no existe ningún proveedor con NIF...") y facturas-recibidas.page.ts tenía que
+      // volver a mandar el MISMO fichero al lector externo (crearDesdeOcr) por segunda vez
+      // solo para poder ofrecer un borrador que completar a mano. El backend ya manda el
+      // documento completo dentro del propio 422 (ver ProveedorNoEncontradoException) — se
+      // construye el borrador aquí mismo, sin ninguna llamada de red adicional al OCR.
+      const cuerpo = e instanceof HttpError && e.status === 422 ? e.body : null;
+      if (esObjeto(cuerpo) && typeof cuerpo['nif'] === 'string' && esObjeto(cuerpo['document'])) {
+        const documentoOcr = cuerpo['document'] as OcrAnalyzeResponse['document'];
+        const adjunto = await this.mockAdapter.adjuntarDocumento(file);
+        const borrador = documentoOcr?.invoice
+          ? this.construirBorradorDesdeInvoice(documentoOcr.invoice, documentoOcr.warnings, adjunto, file.name, null)
+          : undefined;
+        throw new ProveedorNoEncontradoOcrError(
+          e instanceof Error ? e.message : 'Proveedor no encontrado', cuerpo['nif'], String(cuerpo['nombreSugerido'] ?? ''), borrador,
+        );
+      }
+      throw e;
+    }
 
     // 2026-08-20 (correo de Alex): cuando el lector clasifica el fichero como bank_document,
     // CrearDesdeDocumento no guarda ninguna factura — reenvía el mismo sobre OCR que

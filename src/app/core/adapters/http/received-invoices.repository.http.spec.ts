@@ -3,9 +3,9 @@ import { TestBed } from '@angular/core/testing';
 import { HttpReceivedInvoicesRepository } from './received-invoices.repository.http';
 import { MockReceivedInvoicesRepository } from '../mock/received-invoices.repository.mock';
 import { FacturaRecibida, MockFacturasService } from '../../../services/mock-facturas.service';
-import { ApiService } from '../../../services/api.service';
+import { ApiService, HttpError } from '../../../services/api.service';
 import { esDocumentoBancarioAnalizado } from '../../models/documento-bancario';
-import { ResultadoProcesamientoDocumento } from '../../ports/received-invoices.repository';
+import { ProveedorNoEncontradoOcrError, ResultadoProcesamientoDocumento } from '../../ports/received-invoices.repository';
 import { provideTranslocoTesting } from '../../i18n/testing/transloco-testing.providers';
 
 const TRADUCCIONES_TEST = {
@@ -1196,6 +1196,53 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       apiSpy.postMultipart.and.rejectWith(new Error("HTTP 400 - No existe ningún proveedor con NIF 'B00000000' para esta empresa."));
 
       await expectAsync(repo.crearDesdeDocumentoDirecto(archivoDePrueba())).toBeRejectedWithError(/NIF/);
+    });
+
+    // Hallazgo de auditoría (2026-08-31, punto 5): el 422 de "proveedor no encontrado" ya trae
+    // el documento OCR completo embebido (ver ProveedorNoEncontradoException del backend) — se
+    // construye el borrador directamente desde ahí, SIN volver a llamar a /Documento/analizar
+    // (antes: doble llamada al lector externo por el mismo fichero, ver
+    // facturas-recibidas.page.ts intentarBorradorLocal).
+    it('proveedor no encontrado (422): construye el borrador desde el documento embebido sin re-analizar', async () => {
+      apiSpy.postMultipart.and.rejectWith(new HttpError(
+        "HTTP 422 - No existe ningún proveedor con NIF 'B22222222' para esta empresa.", 422,
+        {
+          nif: 'B22222222',
+          nombreSugerido: 'Proveedor Nuevo S.L.',
+          mensaje: "No existe ningún proveedor con NIF 'B22222222' para esta empresa.",
+          document: {
+            document_type: 'invoice',
+            confidence: 0.9,
+            warnings: ['no me cuadran los importes'],
+            invoice: {
+              invoice_number: 'F-99', issue_date: '2026-08-30',
+              issuer: { legal_name: 'Proveedor Nuevo S.L.', tax_id: 'B22222222' },
+              lines: [{ description: 'Servicio', taxable_base: '100.00', tax_rate: '21' }],
+              totals: { total: '121.00' },
+            },
+          },
+        },
+      ));
+
+      let error: unknown;
+      try {
+        await repo.crearDesdeDocumentoDirecto(archivoDePrueba());
+        fail('se esperaba que crearDesdeDocumentoDirecto lanzara ProveedorNoEncontradoOcrError');
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).toBeInstanceOf(ProveedorNoEncontradoOcrError);
+      const err = error as ProveedorNoEncontradoOcrError;
+      expect(err.nif).toBe('B22222222');
+      expect(err.nombreSugerido).toBe('Proveedor Nuevo S.L.');
+      expect(err.borrador).toBeDefined();
+      expect(err.borrador?.proveedor).toBe('Proveedor Nuevo S.L.');
+      expect(err.borrador?.numFactura).toBe('F-99');
+      expect(err.borrador?.lineas.length).toBe(1);
+      // La comprobación real de "sin segunda llamada": postMultipart solo se llama UNA vez
+      // (CrearDesdeDocumento), nunca hacia /api/Documento/analizar.
+      expect(apiSpy.postMultipart).toHaveBeenCalledTimes(1);
     });
 
     // Prueba de aceptación real (correo de Alex, 2026-08-20): 4QHPJO04H000.pdf, un abono de

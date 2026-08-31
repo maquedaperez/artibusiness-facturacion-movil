@@ -39,6 +39,29 @@ export type FiltrosListarRecibidas = {
 // document_type: "bank_document" viaja con HTTP 200 y success: true, igual que una factura.
 export type ResultadoProcesamientoDocumento = FacturaRecibida | DocumentoBancarioAnalizado;
 
+// Hallazgo de auditoría (2026-08-31, punto 5): crearDesdeDocumentoDirecto (el "guardado
+// rápido") rechaza con 422 cuando el NIF+nombre del emisor se leyeron bien pero no hay
+// proveedor dado de alta con ese NIF — el backend YA extrajo el documento completo antes de
+// rechazar, y ahora lo manda dentro del propio 422 (ver FacturasRecibidasController /
+// ProveedorNoEncontradoException). HttpReceivedInvoicesRepository construye el borrador
+// directamente desde ese documento embebido y lo adjunta aquí — así facturas-recibidas.
+// page.ts puede ofrecerlo sin volver a mandar el mismo fichero al lector externo por segunda
+// vez (antes: crearDesdeOcr, un análisis completo repetido solo para recuperar datos que la
+// primera respuesta ya traía).
+export class ProveedorNoEncontradoOcrError extends Error {
+  constructor(
+    message: string,
+    public readonly nif: string,
+    public readonly nombreSugerido: string,
+    // undefined solo si, por lo que sea, el documento embebido no traía datos suficientes
+    // para construir un borrador — red de seguridad, nunca el caso esperado.
+    public readonly borrador: FacturaRecibida | undefined,
+  ) {
+    super(message);
+    this.name = 'ProveedorNoEncontradoOcrError';
+  }
+}
+
 export abstract class ReceivedInvoicesRepository {
   // Async a propósito: HttpReceivedInvoicesRepository los resuelve contra
   // POST /api/FacturasRecibidas/Enumerar y GET /api/FacturasRecibidas/{id} (backend real,

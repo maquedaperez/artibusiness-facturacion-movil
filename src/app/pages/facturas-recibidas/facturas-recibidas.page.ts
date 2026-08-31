@@ -18,7 +18,7 @@ import {
 } from 'ionicons/icons';
 
 import { AccionesPermitidas, FacturaRecibida } from '../../services/mock-facturas.service';
-import { FiltrosListarRecibidas, ReceivedInvoicesRepository } from '../../core/ports';
+import { FiltrosListarRecibidas, ProveedorNoEncontradoOcrError, ReceivedInvoicesRepository } from '../../core/ports';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 import { PagosService } from '../../services/pagos.service';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
@@ -245,6 +245,15 @@ export class FacturasRecibidasPage {
       // antes caía al mensaje genérico, mostrando el JSON crudo del body en el toast.
       if (this.esOperacionEnCurso(e)) {
         await this.showToast(this.transloco.translate('ocr.operationInProgress'), 'danger');
+        return;
+      }
+      // Hallazgo de auditoría (2026-08-31, punto 5): el borrador ya viene construido desde el
+      // documento OCR que el backend embebió en el propio 422 — evita la segunda llamada al
+      // lector externo que antes hacía intentarBorradorLocal (crearDesdeOcr) para este mismo
+      // caso, mandando otra vez el mismo fichero solo para recuperar datos ya extraídos.
+      if (e instanceof ProveedorNoEncontradoOcrError && e.borrador) {
+        await this.showToast(this.mensajeBorradorLocal('proveedor-no-encontrado'), 'danger');
+        await this.router.navigate(['/app/recibidas', e.borrador.id], { state: { archivoOriginal: file } });
         return;
       }
       // Tickets/facturas simplificadas sin destinatario identificado (2026-08-29): estos 3
