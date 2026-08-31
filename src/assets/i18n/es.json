@@ -236,6 +236,32 @@
       "share": {
         "error": "No se pudo compartir el documento. Inténtalo de nuevo."
       },
+      "new": {
+        "header": "Nueva factura emitida",
+        "complete": "Factura completa",
+        "simplified": "Factura simplificada"
+      },
+      "simplified": {
+        "explainer": "Una factura simplificada no necesita identificar al cliente — se emite a nombre de \"Consumidor final\". Elige esta opción para ventas al público sin datos fiscales del comprador.",
+        "startWithGenericClient": "Empezar con Consumidor final",
+        "chooseRealClientInstead": "Prefiero indicar un cliente real",
+        "genericClientName": "Consumidor final",
+        "badge": "Simplificada",
+        "genericClientNote": "Cliente genérico, sin NIF. Si la contabilización se rechaza por falta de datos del comprador, cambia a un cliente real desde \"Cambiar cliente\".",
+        "limitExceeded": "Una factura simplificada no puede superar {{limite}} (IVA incluido). Esta factura asciende a {{total}}.",
+        "emailSection": "Envío por correo",
+        "verifyQrLink": "Ver código de verificación (QR) de la AEAT",
+        "emailLabel": "Correo del cliente",
+        "emailPlaceholder": "correo@ejemplo.com",
+        "sending": "Enviando…",
+        "send": "Enviar por correo",
+        "resend": "Reenviar por correo",
+        "lastSentTo": "Último envío a {{email}}.",
+        "sentOk": "Entregado el {{fecha}}.",
+        "sentError": "Fallo: {{motivo}}",
+        "sendSuccess": "Correo enviado.",
+        "sendError": "No se pudo enviar el correo."
+      },
       "detail": {
         "newInvoice": "Nueva factura",
         "seriesLabel": "Numerador / Serie",

@@ -236,6 +236,32 @@
       "share": {
         "error": "Could not share the document. Try again."
       },
+      "new": {
+        "header": "New issued invoice",
+        "complete": "Full invoice",
+        "simplified": "Simplified invoice"
+      },
+      "simplified": {
+        "explainer": "A simplified invoice doesn't need to identify the customer — it's issued to \"Final consumer\". Choose this for retail sales with no buyer tax details.",
+        "startWithGenericClient": "Start with Final consumer",
+        "chooseRealClientInstead": "I'd rather pick a real customer",
+        "genericClientName": "Final consumer",
+        "badge": "Simplified",
+        "genericClientNote": "Generic customer, no tax ID. If posting is rejected for missing buyer details, switch to a real customer via \"Change customer\".",
+        "limitExceeded": "A simplified invoice cannot exceed {{limite}} (VAT included). This invoice totals {{total}}.",
+        "emailSection": "Email delivery",
+        "verifyQrLink": "View AEAT verification code (QR)",
+        "emailLabel": "Customer email",
+        "emailPlaceholder": "email@example.com",
+        "sending": "Sending…",
+        "send": "Send by email",
+        "resend": "Resend by email",
+        "lastSentTo": "Last sent to {{email}}.",
+        "sentOk": "Delivered on {{fecha}}.",
+        "sentError": "Failed: {{motivo}}",
+        "sendSuccess": "Email sent.",
+        "sendError": "Could not send the email."
+      },
       "detail": {
         "newInvoice": "New invoice",
         "seriesLabel": "Numbering series",
