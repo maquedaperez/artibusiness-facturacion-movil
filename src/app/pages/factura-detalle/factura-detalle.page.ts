@@ -195,21 +195,61 @@ export class FacturaDetallePage implements OnInit {
     const idCliente = cliente.id;
 
     if (this.esNueva) {
+      // Solo alcanzable para "Factura completa" — una simplificada siempre arranca por
+      // iniciarSimplificada() (nunca por aquí, ver el paso inicial en el HTML): no
+      // implementamos una "simplificada con destinatario identificado desde el principio".
       const numeradorId = this.numeradorSeleccionado ?? this.numeradores[0]?.id;
       if (numeradorId == null) return;
       const creada = this.invoicesRepo.crearBorrador(numeradorId, destinatario);
       this.working = structuredClone(creada);
       this.working.idCliente = idCliente;
-      // Elegir un cliente real desde el paso inicial en modo simplificado (alternativa a
-      // "Empezar con Consumidor final", ver iniciarSimplificada()) sigue siendo una factura
-      // simplificada — solo cambia el destinatario, nunca el tipo fiscal.
-      this.working.esSimplificada = this.esSimplificada;
       this.facturaId = creada.id;
       this.esNueva = false;
     } else if (this.working) {
       this.working.destinatario = destinatario;
       this.working.idCliente = idCliente;
     }
+  }
+
+  // Facturas simplificadas emitidas — "Convertir en factura completa" (2026-08-31): sustituye a
+  // "Cambiar cliente" para una simplificada, que es ambiguo (¿cambia el cliente genérico por otro
+  // pero sigue siendo simplificada? esa combinación no está implementada). Solo tiene sentido
+  // ANTES del primer guardado real: una vez guardada, la factura ya tiene un número real
+  // reservado en la serie FS (el numerador asigna el número AL GUARDAR, no al contabilizar) — no
+  // se renumera en silencio, se bloquea con una explicación clara.
+  async convertirEnFacturaCompleta() {
+    if (!this.working) return;
+
+    if (!this.working.esBorradorLocal) {
+      await this.showToast(this.transloco.translate('invoices.issued.simplified.convertBlockedAlreadyNumbered'), 'danger');
+      return;
+    }
+
+    const alert = await this.alertCtrl.create({
+      header: this.transloco.translate('invoices.issued.simplified.convertHeader'),
+      message: this.transloco.translate('invoices.issued.simplified.convertConfirmMessage'),
+      buttons: [
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
+        {
+          text: this.transloco.translate('invoices.issued.simplified.convertConfirm'),
+          handler: async () => {
+            if (!this.working) return;
+            this.working.esSimplificada = false;
+
+            // Nunca se conserva la serie FS en una completa — si el numerador actual es FS, se
+            // reajusta al primero disponible que no lo sea.
+            const numeradorActualEsFS = this.numeradores.find(n => n.id === this.working!.numeradorId)?.nombre?.trim().toUpperCase() === 'FS';
+            if (numeradorActualEsFS) {
+              const otro = this.numeradores.find(n => n.nombre?.trim().toUpperCase() !== 'FS') ?? this.numeradores[0];
+              if (otro) this.working.numeradorId = otro.id;
+            }
+
+            await this.elegirCliente();
+          },
+        },
+      ],
+    });
+    await alert.present();
   }
 
   // Facturas simplificadas emitidas (MVP, 2026-08-31): arranca el borrador directamente con

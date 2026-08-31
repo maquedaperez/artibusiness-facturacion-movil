@@ -37,6 +37,10 @@
         </ion-button>
       </ng-container>
 
+      <!-- No implementamos por ahora una "factura simplificada con destinatario identificado"
+           (decisión explícita, para no mezclar comportamientos fiscales) — una simplificada
+           SIEMPRE empieza con "Consumidor final". Quien quiera identificar al comprador desde el
+           principio debe elegir "Factura completa" en su lugar. -->
       <ng-container *ngIf="esSimplificada">
         <ion-text color="medium">
           <p class="ion-margin-top">{{ 'invoices.issued.simplified.explainer' | transloco }}</p>
@@ -44,10 +48,6 @@
         <ion-button expand="block" class="ion-margin-top" (click)="iniciarSimplificada()">
           <ion-icon slot="start" name="receipt-outline"></ion-icon>
           {{ 'invoices.issued.simplified.startWithGenericClient' | transloco }}
-        </ion-button>
-        <ion-button expand="block" fill="outline" (click)="elegirCliente()">
-          <ion-icon slot="start" name="person-circle-outline"></ion-icon>
-          {{ 'invoices.issued.simplified.chooseRealClientInstead' | transloco }}
         </ion-button>
       </ng-container>
     </ion-card-content>
@@ -82,11 +82,18 @@
           {{ f.destinatario.direccion }}, {{ f.destinatario.cp }} {{ f.destinatario.poblacion }} ({{ f.destinatario.provincia }})
         </p>
 
-        <ion-text color="medium" *ngIf="f.esSimplificada && !f.destinatario.nif">
-          <p class="ion-no-margin simplified-note">{{ 'invoices.issued.simplified.genericClientNote' | transloco }}</p>
-        </ion-text>
+        <ng-container *ngIf="f.esSimplificada">
+          <ion-text color="medium">
+            <p class="ion-no-margin simplified-note">{{ 'invoices.issued.simplified.genericClientNote' | transloco }}</p>
+            <p class="ion-no-margin simplified-note">{{ 'invoices.issued.simplified.genericClientSecondaryNote' | transloco }}</p>
+          </ion-text>
 
-        <ion-button *ngIf="esEditable" size="small" fill="outline" class="ion-margin-top" (click)="elegirCliente()">
+          <ion-button *ngIf="esEditable" size="small" fill="outline" class="ion-margin-top" (click)="convertirEnFacturaCompleta()">
+            {{ 'invoices.issued.simplified.convertToComplete' | transloco }}
+          </ion-button>
+        </ng-container>
+
+        <ion-button *ngIf="esEditable && !f.esSimplificada" size="small" fill="outline" class="ion-margin-top" (click)="elegirCliente()">
           {{ 'invoices.issued.detail.changeClient' | transloco }}
         </ion-button>
       </ion-card-content>
