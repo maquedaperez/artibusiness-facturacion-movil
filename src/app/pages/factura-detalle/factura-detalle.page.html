@@ -20,13 +20,16 @@
   <!-- Paso inicial: elegir numerador + cliente para arrancar un borrador nuevo -->
   <ion-card *ngIf="esNueva && !working">
     <ion-card-content>
+      <!-- Bug real corregido (2026-08-31): en modo simplificado, el desplegable SOLO ofrece la
+           serie configurada (FS) — antes mostraba todo el catálogo, incluidos numeradores de
+           facturas completas (p. ej. "FAR/17-"), que se podían dejar seleccionados por error. -->
       <ion-item>
         <ion-select
           [label]="'invoices.issued.detail.seriesLabel' | transloco"
           interface="popover"
           [(ngModel)]="numeradorSeleccionado"
         >
-          <ion-select-option *ngFor="let n of numeradores" [value]="n.id">{{ n.nombre }}</ion-select-option>
+          <ion-select-option *ngFor="let n of numeradoresParaElPasoInicial" [value]="n.id">{{ n.nombre }}</ion-select-option>
         </ion-select>
       </ion-item>
 
@@ -45,7 +48,12 @@
         <ion-text color="medium">
           <p class="ion-margin-top">{{ 'invoices.issued.simplified.explainer' | transloco }}</p>
         </ion-text>
-        <ion-button expand="block" class="ion-margin-top" (click)="iniciarSimplificada()">
+
+        <ion-text color="danger" *ngIf="serieSimplificadaNoConfigurada">
+          <p class="ion-margin-top">{{ 'invoices.issued.simplified.serieNoConfigurada' | transloco }}</p>
+        </ion-text>
+
+        <ion-button expand="block" class="ion-margin-top" [disabled]="serieSimplificadaNoConfigurada" (click)="iniciarSimplificada()">
           <ion-icon slot="start" name="receipt-outline"></ion-icon>
           {{ 'invoices.issued.simplified.startWithGenericClient' | transloco }}
         </ion-button>
@@ -104,7 +112,7 @@
       <ion-card-content>
         <ion-item [disabled]="!esEditable">
           <ion-select [label]="'invoices.issued.detail.seriesLabel' | transloco" interface="popover" [(ngModel)]="f.numeradorId">
-            <ion-select-option *ngFor="let n of numeradores" [value]="n.id">{{ n.nombre }}</ion-select-option>
+            <ion-select-option *ngFor="let n of numeradoresParaLaFactura(f.esSimplificada)" [value]="n.id">{{ n.nombre }}</ion-select-option>
           </ion-select>
         </ion-item>
 
@@ -254,7 +262,9 @@
       {{ (procesandoAeat ? 'invoices.issued.actions.posting' : 'invoices.issued.actions.post') | transloco }}
     </ion-button>
 
-    <ion-button *ngIf="f.estado === 'contabilizada'" expand="block" [disabled]="procesandoAeat" (click)="confirmarFirmar()">
+    <!-- Pipeline F2 (2026-08-31): una simplificada no genera XML Facturae, así que no hay nada
+         que firmar (el backend lo rechaza con un error estable si se llama directamente). -->
+    <ion-button *ngIf="f.estado === 'contabilizada' && !f.esSimplificada" expand="block" [disabled]="procesandoAeat" (click)="confirmarFirmar()">
       <ion-spinner *ngIf="procesandoAeat" slot="start" name="dots"></ion-spinner>
       {{ (procesandoAeat ? 'invoices.issued.actions.signing' : 'invoices.issued.actions.sign') | transloco }}
     </ion-button>

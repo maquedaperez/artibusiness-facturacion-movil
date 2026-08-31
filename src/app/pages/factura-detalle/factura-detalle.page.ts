@@ -56,6 +56,10 @@ export class FacturaDetallePage implements OnInit {
   // solo tiene efecto mientras esNueva (una factura ya guardada trae su propio
   // working.esSimplificada, que nunca cambia de tipo fiscal tras crearse).
   esSimplificada = false;
+  // Bug real corregido (2026-08-31): true cuando, en modo simplificado, el catálogo real de
+  // numeradores no tiene ninguna serie FS — antes se caía en silencio a cualquier otro
+  // numerador (p. ej. uno de facturas completas). Ver cargarCatalogos().
+  serieSimplificadaNoConfigurada = false;
   cargando = true;
   guardando = false;
   // Blindaje Fase 7 (2026-08-21): evita que un doble clic (o una respuesta lenta de la AEAT)
@@ -154,24 +158,44 @@ export class FacturaDetallePage implements OnInit {
       if (numeradores.length > 0) {
         this.numeradores = numeradores;
         if (this.esNueva) {
-          if (!numeradores.some(n => n.id === this.numeradorSeleccionado)) {
-            this.numeradorSeleccionado = numeradores[0].id;
-          }
-          // Facturas simplificadas emitidas (MVP, 2026-08-31): preselecciona la serie FS en
-          // cuanto llega el catálogo real — Nombre es literalmente la Serie del numerador
+          // Facturas simplificadas emitidas: Nombre es literalmente la Serie del numerador
           // (ver FacturaEmitidaService.ObtenerNumeradoresAsync), así que "FS" identifica la
           // serie configurada en FacturasSimplificadas:Serie sin necesidad de un endpoint
-          // propio de configuración. Si no existe todavía (numerador sin crear en la empresa),
-          // se queda con la preselección genérica y el usuario puede elegirla a mano.
+          // propio de configuración. Bug real corregido (2026-08-31): si la serie FS todavía
+          // no existe para la empresa, ANTES se caía al numerador[0] cualquiera (p. ej. "FAR"),
+          // dejando preseleccionado —y elegible en el desplegable— un numerador de facturas
+          // completas para una simplificada. Ahora, en modo simplificado, solo se preselecciona
+          // (y solo se puede elegir) un numerador de serie FS; si no existe ninguno, se deja sin
+          // seleccionar y se avisa en vez de asumir cualquier otro.
           if (this.esSimplificada) {
             const serieFS = numeradores.find(n => n.nombre?.trim().toUpperCase() === 'FS');
-            if (serieFS) this.numeradorSeleccionado = serieFS.id;
+            this.numeradorSeleccionado = serieFS?.id ?? null;
+            this.serieSimplificadaNoConfigurada = !serieFS;
+          } else if (!numeradores.some(n => n.id === this.numeradorSeleccionado)) {
+            this.numeradorSeleccionado = numeradores[0].id;
           }
         }
       }
     } catch {
       // Se mantienen los numeradores de ejemplo del mock.
     }
+  }
+
+  // Facturas simplificadas emitidas: en modo simplificado, el selector de serie del paso
+  // inicial SOLO debe ofrecer la serie configurada (FS) — nunca un numerador de facturas
+  // completas (ver el bug real corregido arriba). Para una factura completa, se sigue
+  // ofreciendo el catálogo completo, sin cambios.
+  get numeradoresParaElPasoInicial(): Numerador[] {
+    if (!this.esSimplificada) return this.numeradores;
+    return this.numeradores.filter(n => n.nombre?.trim().toUpperCase() === 'FS');
+  }
+
+  // Mismo criterio que numeradoresParaElPasoInicial, para el desplegable de serie DENTRO del
+  // formulario ya abierto: una FA no debe poder elegirse con un numerador de facturas completas
+  // (evita contabilizar accidentalmente una simplificada con una serie que no es FS).
+  numeradoresParaLaFactura(esSimplificada: boolean | undefined): Numerador[] {
+    if (!esSimplificada) return this.numeradores;
+    return this.numeradores.filter(n => n.nombre?.trim().toUpperCase() === 'FS');
   }
 
   get esEditable(): boolean {
@@ -427,8 +451,12 @@ export class FacturaDetallePage implements OnInit {
 
   // Fase 7 (Subsanar, 2026-08-24): misma disponibilidad que Anular — ambas exigen un Alta real
   // (estado != borrador) y que la factura no esté ya anulada.
+  // Pipeline F2 (2026-08-31): la subsanación de una simplificada no está implementada en este
+  // MVP (ver docs/FACTURAS_SIMPLIFICADAS_MVP.md) — el backend ya la rechaza con un error
+  // estable, pero se oculta también el botón para no invitar a un intento que se sabe que va a
+  // fallar. Anular SÍ sigue disponible para una simplificada (funciona sin cambios).
   get puedeSubsanar(): boolean {
-    return this.puedeAnular;
+    return this.puedeAnular && !this.working?.esSimplificada;
   }
 
   async confirmarAnular() {
