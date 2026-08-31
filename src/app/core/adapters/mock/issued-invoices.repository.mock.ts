@@ -151,4 +151,15 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     const { blob } = await this.mock.generarDocumentoEmitida(id);
     return blob;
   }
+
+  // Facturas simplificadas emitidas (MVP): modo mock puro, sin servidor de correo real detrás
+  // — simula un envío siempre correcto para no dejar el modo demo sin nada que probar.
+  async enviarPorCorreo(id: number, email: string): Promise<FacturaEmitida> {
+    const factura = await this.mock.getFacturaById(id);
+    if (!factura) throw new Error('Factura no encontrada.');
+    factura.emailUltimoEnvio = email;
+    factura.estadoUltimoEnvio = 'Enviado';
+    factura.fechaUltimoEnvioCorrecto = new Date().toISOString().slice(0, 10);
+    return factura;
+  }
 }

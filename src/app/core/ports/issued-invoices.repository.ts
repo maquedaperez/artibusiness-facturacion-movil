@@ -9,6 +9,7 @@ import { MedioPagoOpcion } from './received-invoices.repository';
 export type DatosGuardarFacturaEmitida = Pick<
   FacturaEmitida,
   'fecha' | 'vencimiento' | 'concepto' | 'medioPago' | 'idMedioPago' | 'destinatario' | 'lineas' | 'numeradorId' | 'idCliente'
+  | 'esSimplificada'
 >;
 
 // Fase 7 (Subsanar, blindaje 2026-08-24): campo a campo del contenido fiscal (Desglose/Cuota/
@@ -110,4 +111,11 @@ export abstract class IssuedInvoicesRepository {
   abstract obtenerPdfReal(id: number): Promise<Blob>;
   // .xsig real (2026-08-27): solo existe una vez firmada — ver FacturaEmitidaController.DescargarXsig.
   abstract obtenerXsigReal(id: number): Promise<Blob>;
+
+  // Facturas simplificadas emitidas (MVP, 2026-08-31): envía (o reenvía) el PDF ya generado por
+  // correo — solo existe una vez contabilizada. Reenviar es la MISMA llamada: nunca contabiliza
+  // otra vez, nunca genera otro número ni toca el registro VERI*FACTU (el backend no lo hace,
+  // ver FacturaEmitidaEmailService). Devuelve la factura actualizada con el nuevo estado de
+  // envío para refrescar la UI sin releer aparte.
+  abstract enviarPorCorreo(id: number, email: string): Promise<FacturaEmitida>;
 }

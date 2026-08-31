@@ -167,6 +167,20 @@ export type FacturaEmitida = {
   // Descarga del .xsig real (2026-08-27): mismo criterio que tienePdf, solo existe una vez
   // firmada.
   tieneXsig?: boolean;
+  // Facturas simplificadas emitidas (MVP, 2026-08-31): tipo fiscal explícito — nunca se
+  // deduce del cliente, del NIF, de la serie ni del numerador. Solo lo rellena
+  // HttpIssuedInvoicesRepository, a partir de FacturaEmitidaCabeceraModel/DetalleModel.
+  // EsSimplificada (que a su vez viene de InvoiceDocumentType="FA" en el backend).
+  esSimplificada?: boolean;
+  // URL de cotejo del QR de la AEAT — a diferencia de la descarga del PDF (protegida), esta
+  // sí es una URL pública segura de mostrar/enlazar directamente. Null hasta contabilizar.
+  urlQr?: string;
+  // Envío por correo — solo último estado (sin histórico completo, ver
+  // docs/FACTURAS_SIMPLIFICADAS_MVP.md del backend). Undefined si nunca se ha intentado enviar.
+  emailUltimoEnvio?: string;
+  estadoUltimoEnvio?: 'Enviado' | 'Fallido';
+  fechaUltimoEnvioCorrecto?: string;
+  errorUltimoEnvio?: string;
 };
 
 export type DesgloseIva = { pct: number; baseGravada: number; cuota: number };

@@ -113,6 +113,8 @@ type FacturaEmitidaCabeceraApi = {
   tienePdf: boolean;
   // Descarga del .xsig real (2026-08-27) — ver FacturaEmitidaCabeceraModel.TieneXsig.
   tieneXsig: boolean;
+  // Facturas simplificadas emitidas (MVP, 2026-08-31) — ver FacturaEmitidaCabeceraModel.EsSimplificada.
+  esSimplificada: boolean;
 };
 
 type FacturaEmitidaLineaApi = {
@@ -168,6 +170,13 @@ type FacturaEmitidaDetalleApi = {
   tienePdf: boolean;
   // Descarga del .xsig real (2026-08-27) — ver FacturaEmitidaDetalleModel.TieneXsig.
   tieneXsig: boolean;
+  // Facturas simplificadas emitidas (MVP, 2026-08-31) — ver FacturaEmitidaDetalleModel.cs.
+  esSimplificada: boolean;
+  urlQr: string | null;
+  emailUltimoEnvio: string | null;
+  fechaUltimoEnvioCorrecto: string | null;
+  estadoUltimoEnvio: string | null;
+  errorUltimoEnvio: string | null;
 };
 
 // Combina código + descripción del error/aviso de la AEAT en un único texto listo para
@@ -204,6 +213,10 @@ type GuardarFacturaEmitidaApi = {
   fechaFactura: string;
   fechaVencimiento: string;
   idMedioPago: number;
+  // Facturas simplificadas emitidas (MVP, 2026-08-31): true = venta sin comprador identificado
+  // necesariamente. idCliente puede ir a 0 cuando es true — el backend resuelve el cliente
+  // interno "Consumidor final" automáticamente (ver GuardarFacturaEmitidaRequest.cs).
+  esSimplificada: boolean;
   lineas: {
     idFacturaLinea?: number;
     descripcion: string;
@@ -353,6 +366,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       estadoSubsanacion: dto.estadoSubsanacion ?? undefined,
       tienePdf: dto.tienePdf,
       tieneXsig: dto.tieneXsig,
+      esSimplificada: dto.esSimplificada,
     };
   }
 
@@ -403,6 +417,12 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       motivoSubsanacion: dto.motivoSubsanacion ?? undefined,
       tienePdf: dto.tienePdf,
       tieneXsig: dto.tieneXsig,
+      esSimplificada: dto.esSimplificada,
+      urlQr: dto.urlQr ?? undefined,
+      emailUltimoEnvio: dto.emailUltimoEnvio ?? undefined,
+      fechaUltimoEnvioCorrecto: dto.fechaUltimoEnvioCorrecto ? dto.fechaUltimoEnvioCorrecto.slice(0, 10) : undefined,
+      estadoUltimoEnvio: dto.estadoUltimoEnvio === 'Enviado' || dto.estadoUltimoEnvio === 'Fallido' ? dto.estadoUltimoEnvio : undefined,
+      errorUltimoEnvio: dto.errorUltimoEnvio ?? undefined,
     };
   }
 
@@ -488,7 +508,10 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   }
 
   private async guardarReal(data: DatosGuardarFacturaEmitida, idExistente?: number): Promise<FacturaEmitida> {
-    if (!data.idCliente) {
+    // Facturas simplificadas emitidas (MVP): sin comprador identificado, idCliente puede faltar
+    // — el backend resuelve el cliente interno "Consumidor final" automáticamente. Para una
+    // completa sigue siendo obligatorio, igual que antes.
+    if (!data.esSimplificada && !data.idCliente) {
       throw new Error(this.transloco.translate('invoices.issued.errors.clientRequired'));
     }
     if (!data.idMedioPago) {
@@ -513,12 +536,13 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
     const body: GuardarFacturaEmitidaApi = {
       idFacturaEmitida: idExistente,
-      idCliente: data.idCliente,
+      idCliente: data.idCliente ?? 0,
       idNumerador: data.numeradorId,
       concepto: data.concepto?.trim() || '',
       fechaFactura: data.fecha,
       fechaVencimiento: data.vencimiento || data.fecha,
       idMedioPago: data.idMedioPago,
+      esSimplificada: !!data.esSimplificada,
       lineas: lineasConImpuesto,
     };
 
@@ -679,6 +703,19 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
     const [dto, mediosPago] = await Promise.all([
       this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Subsanar`, { motivo }),
+      this.obtenerMediosPagoApi(),
+    ]);
+    return this.mapearDetalle(dto, mediosPago ?? []);
+  }
+
+  // Facturas simplificadas emitidas (MVP, 2026-08-31): mismo patrón que contabilizar/anular/
+  // subsanar — reenviar es la MISMA llamada (el backend no distingue "primer envío" de
+  // "reenvío", ver FacturaEmitidaEmailService). Un fallo de correo (502) se propaga como error
+  // — la factura sigue contabilizada tal cual estaba, la pantalla solo necesita mostrar el
+  // aviso, no hace falta releerla aparte para eso.
+  async enviarPorCorreo(id: number, email: string): Promise<FacturaEmitida> {
+    const [dto, mediosPago] = await Promise.all([
+      this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/EnviarCorreo`, { email }),
       this.obtenerMediosPagoApi(),
     ]);
     return this.mapearDetalle(dto, mediosPago ?? []);
