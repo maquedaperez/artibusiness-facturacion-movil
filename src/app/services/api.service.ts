@@ -83,6 +83,49 @@ export class ApiService {
     return t.slice(0, 240);
   }
 
+  // Hallazgo real de auditoría (2026-08-31, punto 14): cuando el backend responde con un cuerpo
+  // JSON de error, antes se metía tal cual (JSON.stringify / texto crudo) dentro del mensaje del
+  // Error, y como varias pantallas hacen `showToast(e?.message ?? ...)` como último recurso, el
+  // usuario podía llegar a ver un toast con `{"type":"...","title":"Unauthorized","status":401,
+  // "traceId":"..."}` en vez de un mensaje legible — visto de verdad con el 401 de ASP.NET Core
+  // cuando falta la conexión de una empresa. Se extrae un mensaje humano cuando el JSON tiene una
+  // forma reconocible; si no, se cae al texto crudo (nunca se pierde información, solo se
+  // intenta mejorar cuando se puede).
+  //
+  // Se mantiene el código de error DENTRO del mensaje resultante a propósito (formato
+  // "mensaje [CODIGO]") — varias pantallas detectan errores conocidos con
+  // `e.message.includes('OPERATION_IN_PROGRESS')` o similar (ver facturas-recibidas.page.ts),
+  // y solo caen a mostrar este mensaje "en bruto" cuando ninguna de esas comprobaciones
+  // reconoce el error primero. Quitar el código rompería esas comprobaciones.
+  private extraerMensajeDeJson(valor: unknown): string | null {
+    if (!valor || typeof valor !== 'object') return null;
+    const obj = valor as Record<string, unknown>;
+
+    // Forma propia de la API (ver DocumentoController 503, OcrTicketException, etc.):
+    // { code: string, message: string }.
+    if (typeof obj['message'] === 'string' && obj['message'].trim()) {
+      const codigo = typeof obj['code'] === 'string' ? obj['code'] : null;
+      return codigo ? `${obj['message']} [${codigo}]` : (obj['message'] as string);
+    }
+
+    // ProblemDetails por defecto de ASP.NET Core (RFC 9110): { title, detail?, status, ... }
+    // — sin 'message' ni 'code' propios, nunca comprobado por .includes() en ningún sitio.
+    if (typeof obj['title'] === 'string' && obj['title'].trim()) {
+      const detalle = typeof obj['detail'] === 'string' && obj['detail'].trim() ? `: ${obj['detail']}` : '';
+      return `${obj['title']}${detalle}`;
+    }
+
+    return null;
+  }
+
+  private extraerMensajeDeJsonTexto(texto: string): string | null {
+    try {
+      return this.extraerMensajeDeJson(JSON.parse(texto));
+    } catch {
+      return null;
+    }
+  }
+
   async get<T>(path: string, extraHeaders?: Record<string, string>): Promise<T> {
     const baseUrl = await this.resolveBaseUrl();
     const url = `${baseUrl}${path}`;
@@ -91,7 +134,9 @@ export class ApiService {
     if (Capacitor.isNativePlatform()) {
       const res = await CapacitorHttp.request({ url, method: 'GET', headers });
       if (res.status < 200 || res.status >= 300) {
-        const msg = res.data ? (typeof res.data === 'string' ? res.data : JSON.stringify(res.data)) : '';
+        const msg = res.data
+          ? (typeof res.data === 'string' ? res.data : (this.extraerMensajeDeJson(res.data) ?? JSON.stringify(res.data)))
+          : '';
         throw new Error(`HTTP ${res.status} ${msg}`);
       }
       return res.data as T;
@@ -101,7 +146,11 @@ export class ApiService {
     const text = await r.text().catch(() => '');
     if (!r.ok) {
       const ct = r.headers.get('content-type') ?? '';
-      const detail = ct.includes('text/html') ? this.stripHtmlToOneLine(text) : (text || r.statusText);
+      const detail = ct.includes('text/html')
+        ? this.stripHtmlToOneLine(text)
+        : ct.includes('application/json')
+          ? (this.extraerMensajeDeJsonTexto(text) ?? text)
+          : (text || r.statusText);
       throw new Error(`HTTP ${r.status} - ${detail}`);
     }
     if (!text) return undefined as unknown as T;
@@ -155,7 +204,9 @@ export class ApiService {
     if (Capacitor.isNativePlatform()) {
       const res = await CapacitorHttp.request({ url, method: 'DELETE', headers });
       if (res.status < 200 || res.status >= 300) {
-        const msg = res.data ? (typeof res.data === 'string' ? res.data : JSON.stringify(res.data)) : '';
+        const msg = res.data
+          ? (typeof res.data === 'string' ? res.data : (this.extraerMensajeDeJson(res.data) ?? JSON.stringify(res.data)))
+          : '';
         throw new Error(`HTTP ${res.status} ${msg}`);
       }
       return res.data as T;
@@ -165,7 +216,11 @@ export class ApiService {
     const text = await r.text().catch(() => '');
     if (!r.ok) {
       const ct = r.headers.get('content-type') ?? '';
-      const detail = ct.includes('text/html') ? this.stripHtmlToOneLine(text) : (text || r.statusText);
+      const detail = ct.includes('text/html')
+        ? this.stripHtmlToOneLine(text)
+        : ct.includes('application/json')
+          ? (this.extraerMensajeDeJsonTexto(text) ?? text)
+          : (text || r.statusText);
       throw new Error(`HTTP ${r.status} - ${detail}`);
     }
     if (!text) return undefined as unknown as T;
@@ -193,7 +248,7 @@ export class ApiService {
 
       if (res.status < 200 || res.status >= 300) {
         const msg = res.data
-          ? (typeof res.data === 'string' ? res.data : JSON.stringify(res.data))
+          ? (typeof res.data === 'string' ? res.data : (this.extraerMensajeDeJson(res.data) ?? JSON.stringify(res.data)))
           : '';
         throw new Error(`HTTP ${res.status} ${msg}`);
       }
@@ -215,7 +270,9 @@ export class ApiService {
       const ct = r.headers.get('content-type') ?? '';
       const detail = ct.includes('text/html')
         ? this.stripHtmlToOneLine(text)
-        : (text || r.statusText);
+        : ct.includes('application/json')
+          ? (this.extraerMensajeDeJsonTexto(text) ?? text)
+          : (text || r.statusText);
       throw new Error(`HTTP ${r.status} - ${detail}`);
     }
 
@@ -269,7 +326,9 @@ export class ApiService {
       } as HttpOptions);
 
       if (res.status < 200 || res.status >= 300) {
-        const msg = res.data ? (typeof res.data === 'string' ? res.data : JSON.stringify(res.data)) : '';
+        const msg = res.data
+          ? (typeof res.data === 'string' ? res.data : (this.extraerMensajeDeJson(res.data) ?? JSON.stringify(res.data)))
+          : '';
         throw new Error(`HTTP ${res.status} ${msg}`);
       }
       return res.data as T;
@@ -297,7 +356,9 @@ export class ApiService {
       const ct = r.headers.get('content-type') ?? '';
       const detail = ct.includes('text/html')
         ? this.stripHtmlToOneLine(text)
-        : (text || r.statusText);
+        : ct.includes('application/json')
+          ? (this.extraerMensajeDeJsonTexto(text) ?? text)
+          : (text || r.statusText);
       throw new Error(`HTTP ${r.status} - ${detail}`);
     }
 
