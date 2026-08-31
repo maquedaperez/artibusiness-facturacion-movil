@@ -14,7 +14,7 @@ import {
 import { addIcons } from 'ionicons';
 import {
   arrowBackOutline, personCircleOutline, documentTextOutline,
-  copyOutline, downloadOutline, shareSocialOutline, trashOutline,
+  copyOutline, downloadOutline, shareSocialOutline, trashOutline, receiptOutline,
 } from 'ionicons/icons';
 
 import {
@@ -51,6 +51,11 @@ export class FacturaDetallePage implements OnInit {
 
   facturaId: number | null = null;
   esNueva = false;
+  // Facturas simplificadas emitidas (MVP, 2026-08-31): activado por el query param
+  // ?simplificada=1 que manda facturas-emitidas.page.ts al crear desde "Factura simplificada" —
+  // solo tiene efecto mientras esNueva (una factura ya guardada trae su propio
+  // working.esSimplificada, que nunca cambia de tipo fiscal tras crearse).
+  esSimplificada = false;
   cargando = true;
   guardando = false;
   // Blindaje Fase 7 (2026-08-21): evita que un doble clic (o una respuesta lenta de la AEAT)
@@ -70,10 +75,20 @@ export class FacturaDetallePage implements OnInit {
   working: FacturaEmitida | null = null;
   errorMsg = '';
 
+  // Facturas simplificadas emitidas (MVP, 2026-08-31): correo para el envío/reenvío del PDF —
+  // ver enviarPorCorreo() y la tarjeta de correo en el template.
+  emailEnvio = '';
+  enviandoCorreo = false;
+  // Límite legal de una factura simplificada (400 € IVA incluido) — mismo valor por defecto
+  // que FacturasSimplificadasOptions.ImporteMaximo en el backend, que es quien de verdad lo
+  // valida siempre (clarificación #7: configurable y validado SIEMPRE en backend). Aquí solo
+  // se usa para avisar antes de intentar guardar/contabilizar, nunca como única validación.
+  readonly limiteSimplificada = 400;
+
   constructor() {
     addIcons({
       arrowBackOutline, personCircleOutline, documentTextOutline,
-      copyOutline, downloadOutline, shareSocialOutline, trashOutline,
+      copyOutline, downloadOutline, shareSocialOutline, trashOutline, receiptOutline,
     });
   }
 
@@ -84,6 +99,7 @@ export class FacturaDetallePage implements OnInit {
 
     if (param === 'nueva') {
       this.esNueva = true;
+      this.esSimplificada = this.route.snapshot.queryParamMap.get('simplificada') === '1';
       this.numeradorSeleccionado = this.numeradores[0]?.id ?? null;
       this.cargando = false;
       return;
@@ -104,6 +120,7 @@ export class FacturaDetallePage implements OnInit {
 
       this.facturaId = id;
       this.working = structuredClone(factura);
+      this.emailEnvio = factura.emailUltimoEnvio ?? '';
     } catch (e: any) {
       this.errorMsg = e?.message ?? this.transloco.translate('invoices.issued.detail.loadError');
     } finally {
@@ -136,8 +153,20 @@ export class FacturaDetallePage implements OnInit {
       const numeradores = await this.invoicesRepo.obtenerNumeradores();
       if (numeradores.length > 0) {
         this.numeradores = numeradores;
-        if (this.esNueva && !numeradores.some(n => n.id === this.numeradorSeleccionado)) {
-          this.numeradorSeleccionado = numeradores[0].id;
+        if (this.esNueva) {
+          if (!numeradores.some(n => n.id === this.numeradorSeleccionado)) {
+            this.numeradorSeleccionado = numeradores[0].id;
+          }
+          // Facturas simplificadas emitidas (MVP, 2026-08-31): preselecciona la serie FS en
+          // cuanto llega el catálogo real — Nombre es literalmente la Serie del numerador
+          // (ver FacturaEmitidaService.ObtenerNumeradoresAsync), así que "FS" identifica la
+          // serie configurada en FacturasSimplificadas:Serie sin necesidad de un endpoint
+          // propio de configuración. Si no existe todavía (numerador sin crear en la empresa),
+          // se queda con la preselección genérica y el usuario puede elegirla a mano.
+          if (this.esSimplificada) {
+            const serieFS = numeradores.find(n => n.nombre?.trim().toUpperCase() === 'FS');
+            if (serieFS) this.numeradorSeleccionado = serieFS.id;
+          }
         }
       }
     } catch {
@@ -171,12 +200,36 @@ export class FacturaDetallePage implements OnInit {
       const creada = this.invoicesRepo.crearBorrador(numeradorId, destinatario);
       this.working = structuredClone(creada);
       this.working.idCliente = idCliente;
+      // Elegir un cliente real desde el paso inicial en modo simplificado (alternativa a
+      // "Empezar con Consumidor final", ver iniciarSimplificada()) sigue siendo una factura
+      // simplificada — solo cambia el destinatario, nunca el tipo fiscal.
+      this.working.esSimplificada = this.esSimplificada;
       this.facturaId = creada.id;
       this.esNueva = false;
     } else if (this.working) {
       this.working.destinatario = destinatario;
       this.working.idCliente = idCliente;
     }
+  }
+
+  // Facturas simplificadas emitidas (MVP, 2026-08-31): arranca el borrador directamente con
+  // "Consumidor final" sin pasar por el selector de cliente — ver clarificación del jefe "no
+  // obligar cliente, mostrar Consumidor final". idCliente se deja sin definir a propósito: lo
+  // resuelve/crea el backend (ClienteGenericoService) la primera vez que se guarda de verdad.
+  iniciarSimplificada() {
+    const numeradorId = this.numeradorSeleccionado ?? this.numeradores[0]?.id;
+    if (numeradorId == null) return;
+    const destinatario: Destinatario = {
+      nombre: this.transloco.translate('invoices.issued.simplified.genericClientName'),
+      nif: '',
+      esEmpresa: false,
+    };
+    const creada = this.invoicesRepo.crearBorrador(numeradorId, destinatario);
+    this.working = structuredClone(creada);
+    this.working.esSimplificada = true;
+    this.working.idCliente = undefined;
+    this.facturaId = creada.id;
+    this.esNueva = false;
   }
 
   // Mantiene medioPago (etiqueta, se sigue mostrando/validando como texto) en sincronía con
@@ -198,6 +251,14 @@ export class FacturaDetallePage implements OnInit {
       };
     }
     return this.invoicesRepo.totales(this.working);
+  }
+
+  // Facturas simplificadas emitidas (MVP, 2026-08-31): aviso local antes de guardar/contabilizar
+  // — el backend es quien de verdad rechaza por encima del límite (ValidarLimiteSimplificadaAsync
+  // en FacturaEmitidaService, solo al crear), pero no tiene sentido dejar que el usuario llegue
+  // hasta ahí sin avisarle antes.
+  get superaLimiteSimplificada(): boolean {
+    return !!this.working?.esSimplificada && this.totales().total > this.limiteSimplificada;
   }
 
   // Fase 4 del plan de integración (2026-08-20): guarda de verdad contra el backend (antes
@@ -227,6 +288,7 @@ export class FacturaDetallePage implements OnInit {
         lineas: this.working.lineas,
         numeradorId: this.working.numeradorId,
         idCliente: this.working.idCliente,
+        esSimplificada: this.working.esSimplificada,
       });
 
       this.working = structuredClone(guardada);
@@ -480,6 +542,23 @@ export class FacturaDetallePage implements OnInit {
       ],
     });
     await alert.present();
+  }
+
+  // Facturas simplificadas emitidas (MVP, 2026-08-31): envía (o reenvía, misma llamada) el PDF
+  // ya generado al contabilizar — solo disponible desde entonces, ver la tarjeta de correo en
+  // el template. No contabiliza ni cambia el registro VERI*FACTU (lo hace FacturaEmitidaEmailService
+  // en el backend, reutilizando MailARTI sin tocarlo).
+  async enviarPorCorreo() {
+    if (!this.working || this.facturaId == null || this.enviandoCorreo || !this.emailEnvio.trim()) return;
+    this.enviandoCorreo = true;
+    try {
+      this.working = await this.invoicesRepo.enviarPorCorreo(this.facturaId, this.emailEnvio.trim());
+      await this.showToast(this.transloco.translate('invoices.issued.simplified.sendSuccess'));
+    } catch (e: any) {
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.simplified.sendError'), 'danger');
+    } finally {
+      this.enviandoCorreo = false;
+    }
   }
 
   private async showToast(message: string, color: 'success' | 'danger' = 'success') {

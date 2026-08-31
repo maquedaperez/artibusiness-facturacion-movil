@@ -97,6 +97,23 @@
   border-top: 1px solid var(--ion-border-color);
 }
 
+.simplified-note {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.qr-link {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--ion-color-primary);
+  font-size: 14px;
+  text-decoration: underline;
+}
+
+.envio-error {
+  color: var(--ion-color-danger);
+}
+
 .acciones-secundarias {
   display: flex;
   align-items: center;

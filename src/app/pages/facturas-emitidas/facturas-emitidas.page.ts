@@ -169,6 +169,25 @@ export class FacturasEmitidasPage implements OnInit {
     this.router.navigate(['/app/emitidas', 'nueva']);
   }
 
+  // Facturas simplificadas emitidas (MVP, 2026-08-31): mismo formulario/ruta de creación que
+  // una factura completa (factura-detalle.page.ts), solo cambia el query param que activa el
+  // modo simplificado (preselección de Consumidor final + serie FS) — ver ngOnInit allí.
+  crearBorradorSimplificada() {
+    this.router.navigate(['/app/emitidas', 'nueva'], { queryParams: { simplificada: '1' } });
+  }
+
+  async elegirTipoNuevaFactura() {
+    const alert = await this.alertCtrl.create({
+      header: this.transloco.translate('invoices.issued.new.header'),
+      buttons: [
+        { text: this.transloco.translate('invoices.issued.new.complete'), handler: () => this.crearBorrador() },
+        { text: this.transloco.translate('invoices.issued.new.simplified'), handler: () => this.crearBorradorSimplificada() },
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
+      ],
+    });
+    await alert.present();
+  }
+
   clienteNombre(f: FacturaEmitida): string {
     return f.destinatario.nombre?.trim() || this.transloco.translate('invoices.issued.card.noNameFallback');
   }
