@@ -350,6 +350,11 @@ export type FacturaRecibida = {
   // de recalcular (y arriesgarnos a mostrar un IVA/total inventado) se usa este valor
   // directamente cuando está presente. Ver AUDITORIA_INTEGRACION_BACKEND.md.
   totalesReales?: TotalesFactura;
+  // Hash SHA-256 (hex) del documento original, cuando viene del flujo de OCR (crearDesdeOcr /
+  // received-invoices.repository.http.ts) — permite al backend detectar "el mismo documento
+  // guardado dos veces" (ver DocumentoHash en GuardarFacturaRecibidaRequest del backend).
+  // Ausente en alta manual real y en "Copiar" (no hay ningún documento del que calcularlo).
+  documentoHash?: string;
 };
 
 // Claves de traducción (namespace verifactu.estados/verifactu.subsanacion, ver

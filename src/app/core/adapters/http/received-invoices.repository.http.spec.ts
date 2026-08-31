@@ -944,6 +944,30 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       }));
     });
 
+    // Hallazgo de auditoría 2026-08-31 (punto 11): sin esto, el flujo manual de dos pasos
+    // (analizar -> revisar/editar -> Guardar) nunca mandaba el hash del documento al backend,
+    // así que subir el mismo fichero dos veces no se detectaba (el "guardado rápido"
+    // CrearDesdeDocumento sí deduplicaba desde siempre, por hacerlo todo en una sola llamada).
+    it('manda documentoHash a Guardar cuando la factura viene de un documento escaneado', async () => {
+      stubCatalogos();
+
+      await repo.crearManual({ ...datosBase, documentoHash: 'ABC123' });
+
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/Guardar', jasmine.objectContaining({
+        documentoHash: 'ABC123',
+      }));
+    });
+
+    it('no manda documentoHash a Guardar en alta manual real (no hay ningún documento)', async () => {
+      stubCatalogos();
+
+      await repo.crearManual(datosBase);
+
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/Guardar', jasmine.objectContaining({
+        documentoHash: undefined,
+      }));
+    });
+
     it('con porcentajes duplicados en el catálogo, usa el primero que devuelve el backend', async () => {
       apiSpy.post.and.callFake((path: string): Promise<any> => {
         if (path === '/api/Impuesto/Enumerar') {

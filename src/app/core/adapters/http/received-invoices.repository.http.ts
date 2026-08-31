@@ -83,6 +83,12 @@ type OcrAnalyzeResponse = {
   success: boolean;
   filename?: string | null;
   request_id?: string | null;
+  // Campo AÑADIDO por ARTI (no viene del lector externo, ver DocumentoController.Analizar del
+  // backend) — hash SHA-256 del fichero, para poder detectar "el mismo documento guardado dos
+  // veces" en el flujo manual de dos pasos (analizar -> revisar/editar -> Guardar), que hasta
+  // el hallazgo de auditoría 2026-08-31 lo perdía por completo (a diferencia del "guardado
+  // rápido" CrearDesdeDocumento, que ya deduplica desde siempre).
+  document_hash?: string | null;
   document?: {
     document_type?: 'invoice' | 'bank_document' | string | null;
     confidence?: number | null;
@@ -761,6 +767,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       documentoUrl: documento.documentoUrl,
       documentoNombre: documento.documentoNombre,
       avisosOcr: avisosOcr.length > 0 ? avisosOcr : undefined,
+      documentoHash: respuesta.document_hash ?? undefined,
     });
   }
 
@@ -989,6 +996,12 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       estado: estadoHaciaApi(data.estado),
       escaneada: !!data.documentoUrl,
       lineas: lineasConImpuesto,
+      // Hallazgo de auditoría 2026-08-31 (punto 11): sin esto, el flujo manual de dos pasos
+      // (analizar -> revisar/editar -> Guardar) nunca dejaba constancia del documento
+      // original, así que subir el mismo fichero dos veces no se detectaba. Undefined en
+      // alta manual real / "Copiar" (data no trae documentoHash) — el backend ya trata eso
+      // como "no hay nada que comprobar".
+      documentoHash: data.documentoHash,
     };
 
     const dto = await this.api.post<FacturaRecibidaDetalleApi>(`${RECIBIDAS_BASE_PATH}/Guardar`, body);
