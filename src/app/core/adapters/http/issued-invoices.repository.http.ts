@@ -565,6 +565,15 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       estadoAeat: estadoAeatDesdeApi(dto.estadoAeat),
       operacionId: '',
       totalesReales: this.totalesDesdeApi(dto.total, dto.iva, dto.irpf, dto.totalFactura),
+      // Bug real encontrado en revisión (2026-08-31): sin este override, una simplificada
+      // creada con "Consumidor final" (idCliente sin definir en el request) se quedaba con
+      // idCliente indefinido en el estado local tras guardar, aunque el backend ya hubiera
+      // resuelto y persistido el cliente genérico real — un segundo Guardar de la misma
+      // factura (p. ej. el que hace confirmarContabilizar() antes de contabilizar) volvía a
+      // mandar idCliente=0, y la rama de EDICIÓN de GuardarAsync no vuelve a resolver el
+      // cliente genérico (solo lo hace al crear), sobrescribiendo el cliente ya asignado con 0.
+      idCliente: dto.idCliente,
+      esSimplificada: dto.esSimplificada,
     };
   }
 
@@ -606,6 +615,11 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       lineas: original.lineas.map(l => ({ ...l, id: this.nuevoIdLinea(), idLineaBackend: undefined })),
       numeradorId: original.numeradorId,
       idCliente: original.idCliente,
+      // Bug real encontrado en revisión (2026-08-31): sin esto, duplicar una factura
+      // simplificada la convertía silenciosamente en completa (esSimplificada quedaba en
+      // undefined → false dentro de guardarReal), perdiendo el tipo fiscal "FA" y dejando de
+      // estar sujeta al límite de 400 €.
+      esSimplificada: original.esSimplificada,
     });
   }
 

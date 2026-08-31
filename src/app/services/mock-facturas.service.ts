@@ -822,6 +822,10 @@ export class MockFacturasService {
       lineas: original.lineas.map(l => ({ ...l, id: nextLineaId++ })),
       estado: 'borrador',
       operacionId: this.nuevoOperacionId(),
+      // Facturas simplificadas emitidas (MVP, 2026-08-31): sin esto, duplicar una simplificada
+      // en modo mock la convertía silenciosamente en completa — mismo bug real corregido en
+      // HttpIssuedInvoicesRepository.duplicar().
+      esSimplificada: original.esSimplificada,
     };
     this.emitidas.unshift(copia);
     return copia;
