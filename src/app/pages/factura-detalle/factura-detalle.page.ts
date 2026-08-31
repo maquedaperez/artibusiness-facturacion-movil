@@ -255,8 +255,8 @@ export class FacturaDetallePage implements OnInit {
 
   // Facturas simplificadas emitidas (MVP, 2026-08-31): aviso local antes de guardar/contabilizar
   // — el backend es quien de verdad rechaza por encima del límite (ValidarLimiteSimplificadaAsync
-  // en FacturaEmitidaService, solo al crear), pero no tiene sentido dejar que el usuario llegue
-  // hasta ahí sin avisarle antes.
+  // en FacturaEmitidaService, tanto al crear como al editar), pero no tiene sentido dejar que el
+  // usuario llegue hasta ahí sin avisarle antes.
   get superaLimiteSimplificada(): boolean {
     return !!this.working?.esSimplificada && this.totales().total > this.limiteSimplificada;
   }
@@ -556,6 +556,14 @@ export class FacturaDetallePage implements OnInit {
       await this.showToast(this.transloco.translate('invoices.issued.simplified.sendSuccess'));
     } catch (e: any) {
       await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.simplified.sendError'), 'danger');
+      // El backend persiste el fallo (EstadoUltimoEnvio/ErrorUltimoEnvio) aunque la petición
+      // termine en error — se relee para no dejar la tarjeta de correo con el estado anterior.
+      try {
+        const actualizada = await this.invoicesRepo.obtenerPorId(this.facturaId);
+        if (actualizada) this.working = actualizada;
+      } catch {
+        // Sin conexión o fallo de lectura: se deja el estado local tal cual, no es crítico.
+      }
     } finally {
       this.enviandoCorreo = false;
     }

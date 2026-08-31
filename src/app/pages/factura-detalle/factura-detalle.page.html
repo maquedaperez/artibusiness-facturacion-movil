@@ -74,7 +74,10 @@
       <ion-card-content>
         <div class="section-title">{{ 'invoices.issued.detail.client' | transloco }}</div>
         <p class="ion-no-margin"><strong>{{ f.destinatario.nombre }}</strong></p>
-        <p class="ion-no-margin">{{ f.destinatario.nif }} · {{ (f.destinatario.esEmpresa ? 'profile.typeCompany' : 'invoices.issued.detail.individual') | transloco }}</p>
+        <p class="ion-no-margin">
+          <ng-container *ngIf="f.destinatario.nif">{{ f.destinatario.nif }} · </ng-container>
+          {{ (f.destinatario.esEmpresa ? 'profile.typeCompany' : 'invoices.issued.detail.individual') | transloco }}
+        </p>
         <p class="ion-no-margin" *ngIf="f.destinatario.direccion">
           {{ f.destinatario.direccion }}, {{ f.destinatario.cp }} {{ f.destinatario.poblacion }} ({{ f.destinatario.provincia }})
         </p>
