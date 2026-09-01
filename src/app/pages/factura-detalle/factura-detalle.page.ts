@@ -214,8 +214,12 @@ export class FacturaDetallePage implements OnInit {
     return this.numeradores.filter(n => n.nombre?.trim().toUpperCase() === 'FS');
   }
 
+  // Bug real encontrado en revisión (2026-09-02): no miraba 'cobrada' — un ticket ya cobrado
+  // (mientras sigue en borrador) se podía seguir editando (líneas, importe, cliente) sin ningún
+  // aviso. El backend (FacturaEmitidaService.GuardarAsync) es quien de verdad lo impone con un
+  // 409; esto solo evita mostrar un formulario editable que se sabe que va a fallar al guardar.
   get esEditable(): boolean {
-    return this.esNueva || this.working?.estado === 'borrador';
+    return this.esNueva || (this.working?.estado === 'borrador' && !this.working?.cobrada);
   }
 
   // Renombrado visual a "Ticket" (2026-09-01): antes del primer guardado real (esBorradorLocal),

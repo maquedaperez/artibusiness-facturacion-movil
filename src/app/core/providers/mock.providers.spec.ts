@@ -444,6 +444,22 @@ describe('Política de acciones permitidas — accionesFacturaEmitida / acciones
     expect(acciones).toEqual({ editar: false, eliminar: false, copiar: false, descargar: true, compartir: true });
   });
 
+  // Bug real encontrado en revisión (2026-09-02): esta función nunca miraba 'cobrada' — un
+  // ticket ya cobrado (mientras sigue en borrador) se podía seguir editando/eliminando sin
+  // ningún aviso. El backend (FacturaEmitidaService.GuardarAsync/EliminarAsync) es quien de
+  // verdad lo impone con un 409 — esto solo evita ofrecer un botón que se sabe que va a fallar.
+  // Mismo patrón ya aplicado a accionesFacturaRecibida para 'pagada' (bug corregido 2026-08-17).
+  it('emitida borrador YA COBRADA: ni editar ni eliminar, pero sí copiar/compartir (descargar sigue sin PDF real)', () => {
+    const acciones = accionesFacturaEmitida({ ...emitidaConEstado('borrador'), cobrada: true });
+    expect(acciones).toEqual({ editar: false, eliminar: false, copiar: true, descargar: false, compartir: true });
+  });
+
+  it('emitida borrador SIN cobrar: sigue permitiendo editar y eliminar con normalidad', () => {
+    const acciones = accionesFacturaEmitida({ ...emitidaConEstado('borrador'), cobrada: false });
+    expect(acciones.editar).toBeTrue();
+    expect(acciones.eliminar).toBeTrue();
+  });
+
   // accionesFacturaRecibida solo mira el flag accountingLocked, nunca el string 'estado'
   // directamente — esta fixture pone estado:'revisada' SIN accountingLocked (a mano, fuera
   // del flujo real) a propósito, para comprobar que el string por sí solo no bloquea nada.
