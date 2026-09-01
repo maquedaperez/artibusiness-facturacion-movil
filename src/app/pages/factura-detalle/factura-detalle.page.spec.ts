@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { RouterTestingModule } from '@angular/router/testing';
 import { ActivatedRoute } from '@angular/router';
 import { AlertController, ModalController, ToastController, provideIonicAngular } from '@ionic/angular/standalone';
@@ -231,6 +232,44 @@ describe('FacturaDetallePage', () => {
       component.working = null;
 
       expect(component.tituloCabecera).toBe('invoices.issued.detail.newInvoice');
+    });
+  });
+
+  // Decisión de negocio (2026-09-02): Guardar ya quema un número real de la serie FS
+  // (ARTIBusinessCoreDLL Numerador.Incrementar, dentro de Create()) — así que "Convertir en
+  // factura completa" debe DESAPARECER de la pantalla en cuanto el ticket deja de ser un
+  // borrador local, no solo fallar al pulsarlo (esa comprobación sigue existiendo en el .ts).
+  describe('botón "Convertir en factura completa" en el DOM', () => {
+    function ticketRenderizado(overrides: Partial<FacturaEmitida> = {}): FacturaEmitida {
+      return {
+        id: 1001, numFactura: 'FS-BORRADOR-1001', numeradorId: 1, fecha: '2026-09-02', vencimiento: '',
+        concepto: '', medioPago: '', destinatario: { nombre: 'Consumidor final', nif: '', esEmpresa: false },
+        lineas: [], estado: 'borrador', operacionId: 'op-1', esSimplificada: true, esBorradorLocal: true,
+        ...overrides,
+      };
+    }
+
+    it('se muestra, junto con el aviso de "solo antes de guardar", para un borrador local sin guardar', () => {
+      component.working = ticketRenderizado();
+      fixture.detectChanges();
+
+      const boton = fixture.debugElement.query(By.css('.convert-to-complete-btn'));
+      expect(boton).withContext('el botón debe estar presente').not.toBeNull();
+    });
+
+    it('desaparece, y se muestra el mensaje de bloqueo, una vez el ticket ya se guardó de verdad', () => {
+      component.working = ticketRenderizado({ esBorradorLocal: false });
+      fixture.detectChanges();
+
+      const boton = fixture.debugElement.query(By.css('.convert-to-complete-btn'));
+      expect(boton).withContext('el botón NO debe estar presente').toBeNull();
+
+      // Nota: se comprueba solo la presencia del aviso (no su texto renderizado) — Ionic
+      // (ion-text, componente Stencil) no garantiza tener el contenido proyectado listo en el
+      // DOM real justo tras un único detectChanges() en este entorno de pruebas; la traducción
+      // en sí ya está cubierta por i18n-keys.spec.ts.
+      const aviso = fixture.debugElement.query(By.css('.convert-blocked-note'));
+      expect(aviso).withContext('debe mostrarse el aviso de bloqueo').not.toBeNull();
     });
   });
 });
