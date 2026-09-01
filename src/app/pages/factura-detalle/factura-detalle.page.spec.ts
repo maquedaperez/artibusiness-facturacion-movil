@@ -273,6 +273,67 @@ describe('FacturaDetallePage', () => {
     });
   });
 
+  // Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): cobrar NUNCA contabiliza por sí
+  // solo — es un acto independiente, disponible solo mientras la factura sigue en borrador y
+  // todavía no se ha cobrado.
+  describe('cobro manual', () => {
+    function facturaBorrador(overrides: Partial<FacturaEmitida> = {}): FacturaEmitida {
+      return {
+        id: 3001, numFactura: 'FS-3001', numeradorId: 1, fecha: '2026-09-02', vencimiento: '2026-09-02',
+        concepto: 'Venta', medioPago: '', destinatario: { nombre: 'Consumidor final', nif: '', esEmpresa: false },
+        lineas: [{ id: 1, origen: 'manual', descripcion: 'Producto', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 }],
+        estado: 'borrador', operacionId: 'op-3',
+        ...overrides,
+      };
+    }
+
+    it('puedeCobrar es true para un borrador todavía sin cobrar', () => {
+      component.working = facturaBorrador();
+      expect(component.puedeCobrar).toBeTrue();
+    });
+
+    it('puedeCobrar es false si ya tiene un cobro registrado', () => {
+      component.working = facturaBorrador({ cobrada: true });
+      expect(component.puedeCobrar).toBeFalse();
+    });
+
+    it('puedeCobrar es false si ya no está en borrador', () => {
+      component.working = facturaBorrador({ estado: 'contabilizada' });
+      expect(component.puedeCobrar).toBeFalse();
+    });
+
+    it('confirmarCobro llama a marcarComoCobrado con el importe total real y el medio elegido, y refresca working', async () => {
+      component.facturaId = 3001;
+      component.working = facturaBorrador();
+      const importeEsperado = component.totales().total;
+
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const spy = spyOn(repo, 'marcarComoCobrado').and.resolveTo(facturaBorrador({ cobrada: true }));
+
+      const alertCtrl = TestBed.inject(AlertController);
+      spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
+        const boton = opts.buttons.find((b: any) => b.role !== 'cancel');
+        return { present: async () => { await boton.handler('EFECTIVO'); } } as any;
+      });
+
+      await component.confirmarCobro();
+
+      expect(spy).toHaveBeenCalledWith(3001, 'EFECTIVO', importeEsperado);
+      expect(component.working?.cobrada).toBeTrue();
+    });
+
+    it('confirmarCobro no hace nada si la factura ya no se puede cobrar', async () => {
+      component.facturaId = 3001;
+      component.working = facturaBorrador({ cobrada: true });
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const spy = spyOn(repo, 'marcarComoCobrado');
+
+      await component.confirmarCobro();
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
   // Ticket (2026-09-02, reunión con Jose): el pago es inmediato — fecha siempre hoy y no
   // editable, sin concepto de vencimiento, y sin la opción de línea "Suscripción". El backend
   // impone lo mismo de forma independiente (WebAPIARTIBusiness.Tests); esto cubre que el
