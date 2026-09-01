@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { TranslocoService } from '@jsverse/transloco';
-import { DatosGuardarFacturaEmitida, IssuedInvoicesRepository, PrevisualizacionSubsanacion } from '../../ports/issued-invoices.repository';
+import { CobroFactura, DatosGuardarFacturaEmitida, EstadoStripeConnect, IssuedInvoicesRepository, PrevisualizacionSubsanacion } from '../../ports/issued-invoices.repository';
 import { MedioPagoOpcion } from '../../ports/received-invoices.repository';
 import { MockIssuedInvoicesRepository } from '../mock/issued-invoices.repository.mock';
 import { ApiService } from '../../../services/api.service';
@@ -20,6 +20,11 @@ const TIPO_IMPUESTO_IVA = 'IVA';
 // obtenerPorId genéricos, en vez de crear uno nuevo. La ruta resultante es /api/FacturaEmitida
 // (singular, como el nombre del controller), NO /api/FacturasEmitidas.
 const EMITIDAS_BASE_PATH = '/api/FacturaEmitida';
+
+// Stripe Connect (Fase 3, 2026-09-02) — separado de EMITIDAS_BASE_PATH a propósito: es el
+// mismo endpoint de capacidades/estado que usa el resto del módulo de Connect
+// (PagosConnectController), no algo propio de Facturas Emitidas.
+const PAGOS_CONNECT_BASE_PATH = '/api/PagosConnect';
 
 // Confirmado por código (WebAPIARTIBusiness/Models/ARTIBusinessAPIContext.cs y
 // ARTIBusinessCoreDLL/Models/ARTIBusinessCoreDLLContext.cs, idénticos): el backend usa bytes
@@ -231,6 +236,48 @@ type GuardarFacturaEmitidaApi = {
     origen?: string;
   }[];
 };
+
+// GET /api/PagosConnect/estado — ver PagosConnectController.Estado. 503 (módulo desactivado) se
+// trata en el catch del llamador, nunca llega a construirse este tipo en ese caso.
+type EstadoPagosConnectApi = {
+  conectado: boolean;
+  estado: string | null;
+  chargesEnabled: boolean;
+  detailsSubmitted: boolean;
+};
+
+// POST /api/FacturaEmitida/{id}/Cobros/Stripe — ver PagosConnectController.IniciarCobroStripe
+// en FacturaEmitidaCobrosController.cs. Nota: NO es el FacturaEmitidaDetalleApi completo (a
+// diferencia de Contabilizar/Firmar/Anular/Subsanar/Cobros manual) — mientras el cobro sigue
+// PENDING, la factura en sí no cambia; solo lo hace cuando el webhook confirma el pago.
+type CobroFacturaApi = {
+  id: number;
+  proveedor: string;
+  medio: string | null;
+  estado: string;
+  importe: number;
+  moneda: string;
+  fechaCreacionUtc: string;
+  fechaConfirmacionUtc: string | null;
+};
+
+type IniciarCobroStripeApi = {
+  cobro: CobroFacturaApi;
+  checkoutUrl: string | null;
+};
+
+function mapearCobro(dto: CobroFacturaApi): CobroFactura {
+  return {
+    id: dto.id,
+    proveedor: dto.proveedor,
+    medio: dto.medio,
+    estado: dto.estado,
+    importe: dto.importe,
+    moneda: dto.moneda,
+    fechaCreacionUtc: dto.fechaCreacionUtc,
+    fechaConfirmacionUtc: dto.fechaConfirmacionUtc,
+  };
+}
 
 type ImpuestoApi = {
   idImpuesto: number;
@@ -757,6 +804,36 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       this.obtenerMediosPagoApi(),
     ]);
     return this.mapearDetalle(dto, mediosPago ?? []);
+  }
+
+  // Stripe Connect (Fase 3, 2026-09-02): fuente de verdad de si "Cobrar con tarjeta" puede
+  // ofrecerse. CUALQUIER fallo (503 con StripeConnect:Enabled=false, sin conexión, lo que sea)
+  // se trata como "no disponible" — nunca se deja que el error se propague hacia la pantalla,
+  // porque la ausencia de esta función es el estado normal del MVP mientras no exista
+  // infraestructura real (Azure Table Storage + cuenta Stripe Connect), no un fallo a mostrar.
+  async obtenerEstadoStripeConnect(): Promise<EstadoStripeConnect> {
+    try {
+      const dto = await this.api.get<EstadoPagosConnectApi>(`${PAGOS_CONNECT_BASE_PATH}/estado`);
+      return { disponible: !!dto?.conectado && !!dto?.chargesEnabled };
+    } catch {
+      return { disponible: false };
+    }
+  }
+
+  async iniciarCobroStripe(id: number): Promise<{ checkoutUrl: string | null }> {
+    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
+    if (borradorLocal) {
+      throw new Error(this.transloco.translate('verifactu.errors.guardarAntesDeCobrar'));
+    }
+
+    const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${id}-${Date.now()}`;
+    const respuesta = await this.api.post<IniciarCobroStripeApi>(`${EMITIDAS_BASE_PATH}/${id}/Cobros/Stripe`, { idempotencyKey });
+    return { checkoutUrl: respuesta.checkoutUrl };
+  }
+
+  async obtenerCobros(id: number): Promise<CobroFactura[]> {
+    const cobros = await this.api.get<CobroFacturaApi[]>(`${EMITIDAS_BASE_PATH}/${id}/Cobros`);
+    return (cobros ?? []).map(mapearCobro);
   }
 
   // Facturas simplificadas emitidas (MVP, 2026-08-31): mismo patrón que contabilizar/anular/

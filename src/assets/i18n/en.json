@@ -202,6 +202,15 @@
           "soloBorrador": "Only a draft invoice can be marked as paid.",
           "yaCobrada": "This invoice already has a payment recorded.",
           "medioObligatorio": "Select a payment method."
+        },
+        "stripe": {
+          "action": "Charge card",
+          "instrucciones": "Share this link with the customer so they can pay from their phone or another device. This screen will update automatically once the payment is confirmed.",
+          "abrirPago": "Open payment page",
+          "yaResuelto": "This payment is already resolved — no need to open a new one.",
+          "pagadoConfirmado": "Card payment confirmed.",
+          "error": "Could not start the card payment.",
+          "noDisponibleDemo": "Card payment not available in demo mode."
         }
       },
       "actions": {

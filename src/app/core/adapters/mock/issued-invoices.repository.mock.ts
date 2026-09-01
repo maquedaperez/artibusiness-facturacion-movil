@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { TranslocoService } from '@jsverse/transloco';
-import { DatosGuardarFacturaEmitida, IssuedInvoicesRepository, PrevisualizacionSubsanacion } from '../../ports/issued-invoices.repository';
+import { CobroFactura, DatosGuardarFacturaEmitida, EstadoStripeConnect, IssuedInvoicesRepository, PrevisualizacionSubsanacion } from '../../ports/issued-invoices.repository';
 import { MedioPagoOpcion } from '../../ports/received-invoices.repository';
 import {
   AccionesPermitidas, Destinatario, EstadoAeat, EstadoFactura, FacturaEmitida, IVA_RATES, MEDIO_PAGO_OPTIONS,
@@ -102,6 +102,21 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     const factura = this.mock.getFacturaById(id);
     if (!factura) throw new Error(`Factura ${id} no encontrada.`);
     return factura;
+  }
+
+  // Modo mock puro: no hay módulo de Stripe Connect detrás — siempre "no disponible", igual
+  // que en un entorno real sin infraestructura configurada (nunca se simula un botón que
+  // luego no podría funcionar).
+  async obtenerEstadoStripeConnect(): Promise<EstadoStripeConnect> {
+    return { disponible: false };
+  }
+
+  async iniciarCobroStripe(_id: number): Promise<{ checkoutUrl: string | null }> {
+    throw new Error(this.transloco.translate('invoices.issued.cobros.stripe.noDisponibleDemo'));
+  }
+
+  async obtenerCobros(_id: number): Promise<CobroFactura[]> {
+    return [];
   }
 
   estadoAeatLabel(estado?: EstadoAeat): string {

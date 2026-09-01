@@ -281,6 +281,30 @@
     <ion-button *ngIf="puedeCobrar" expand="block" fill="outline" class="boton-cobrar" [disabled]="procesandoAeat" (click)="confirmarCobro()">
       {{ 'invoices.issued.cobros.action' | transloco }}
     </ion-button>
+
+    <!-- Stripe Connect (Fase 3, 2026-09-02): SOLO visible si obtenerEstadoStripeConnect() ya
+         confirmó que el módulo está activo y esta empresa puede cobrar de verdad — mientras no
+         exista infraestructura real (todo el MVP), stripeConnectDisponible es siempre false y
+         este botón no se renderiza. Nunca debe verse ni "deshabilitado": su ausencia es el
+         estado normal del MVP, no algo a explicar en pantalla. -->
+    <ion-button *ngIf="puedeCobrarStripe" expand="block" fill="outline" class="boton-cobrar-stripe"
+                [disabled]="cobrandoStripe" (click)="iniciarCobroStripe()">
+      <ion-spinner *ngIf="cobrandoStripe" slot="start" name="dots"></ion-spinner>
+      {{ 'invoices.issued.cobros.stripe.action' | transloco }}
+    </ion-button>
+
+    <ion-card *ngIf="checkoutUrlStripe" class="tarjeta-checkout-stripe">
+      <ion-card-content>
+        <p class="ion-no-margin">{{ 'invoices.issued.cobros.stripe.instrucciones' | transloco }}</p>
+        <a [href]="checkoutUrlStripe" target="_blank" rel="noopener" class="checkout-link">
+          {{ 'invoices.issued.cobros.stripe.abrirPago' | transloco }}
+        </a>
+        <ion-button expand="block" fill="clear" size="small" (click)="cerrarCheckoutStripe()">
+          {{ 'common.actions.cancel' | transloco }}
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+
     <ion-text color="success" *ngIf="f.cobrada && f.estado === 'borrador'">
       <p class="ion-no-margin aviso-pagado-pendiente">{{ 'invoices.issued.cobros.pagadoPendienteDeContabilizar' | transloco }}</p>
     </ion-text>

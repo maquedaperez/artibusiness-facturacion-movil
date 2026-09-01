@@ -202,6 +202,15 @@
           "soloBorrador": "Solo se puede marcar como cobrada una factura en borrador.",
           "yaCobrada": "Esta factura ya tiene un cobro registrado.",
           "medioObligatorio": "Selecciona un medio de pago."
+        },
+        "stripe": {
+          "action": "Cobrar con tarjeta",
+          "instrucciones": "Comparte este enlace con el cliente para que pague desde su móvil u otro dispositivo. Esta pantalla se actualizará sola en cuanto se confirme el pago.",
+          "abrirPago": "Abrir página de pago",
+          "yaResuelto": "Este cobro ya está resuelto — no hace falta abrir un nuevo pago.",
+          "pagadoConfirmado": "Pago confirmado con tarjeta.",
+          "error": "No se pudo iniciar el cobro con tarjeta.",
+          "noDisponibleDemo": "Cobro con tarjeta no disponible en modo demo."
         }
       },
       "actions": {

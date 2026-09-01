@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
@@ -40,7 +40,7 @@ import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-docum
     DemoBannerComponent, LineasEditorComponent,
   ],
 })
-export class FacturaDetallePage implements OnInit {
+export class FacturaDetallePage implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private invoicesRepo = inject(IssuedInvoicesRepository);
@@ -93,6 +93,19 @@ export class FacturaDetallePage implements OnInit {
   // coincide exactamente con lo que valida el backend (FacturacionFacturasEmitidasCobros.Medio).
   readonly MEDIOS_COBRO = ['EFECTIVO', 'TRANSFERENCIA', 'TPV_EXTERNA', 'TARJETA', 'BIZUM'];
 
+  // Cobro con Stripe Connect (Fase 3, 2026-09-02) — NUNCA se muestra el botón sin haber
+  // comprobado antes obtenerEstadoStripeConnect() (ver EstadoStripeConnect): mientras
+  // StripeConnect:Enabled=false (todo el MVP, hasta que exista infraestructura real), ese
+  // endpoint devuelve 503 y este flag se queda en false — el botón permanece oculto en vez de
+  // mostrarse y fallar al pulsarlo.
+  stripeConnectDisponible = false;
+  cobrandoStripe = false;
+  // URL de Stripe Checkout a la que redirigir al cliente — puede abrirse en OTRO dispositivo
+  // (el suyo), así que esta pantalla nunca asume que el pago se completó por volver aquí; solo
+  // deja de sondear cuando ve el cobro en PAID (ver iniciarSondeoCobroStripe()).
+  checkoutUrlStripe: string | null = null;
+  private sondeoCobroStripe: ReturnType<typeof setInterval> | null = null;
+
   constructor() {
     addIcons({
       arrowBackOutline, personCircleOutline, documentTextOutline,
@@ -102,6 +115,7 @@ export class FacturaDetallePage implements OnInit {
 
   ngOnInit() {
     this.cargarCatalogos();
+    this.cargarEstadoStripeConnect();
     this.numeradores = this.invoicesRepo.getNumeradores();
     const param = this.route.snapshot.paramMap.get('id');
 
@@ -312,6 +326,15 @@ export class FacturaDetallePage implements OnInit {
     this.esNueva = false;
   }
 
+  // Stripe Connect (Fase 3, 2026-09-02): se consulta SIEMPRE, no solo cuando puedeCobrar ya es
+  // true (la factura puede seguir cargando/guardando en ese momento) — un fallo (503 con el
+  // módulo desactivado, sin red) se traduce a "no disponible" en el propio adaptador, nunca
+  // llega aquí como excepción que rompa la carga de la página.
+  private async cargarEstadoStripeConnect() {
+    const { disponible } = await this.invoicesRepo.obtenerEstadoStripeConnect();
+    this.stripeConnectDisponible = disponible;
+  }
+
   // Mantiene medioPago (etiqueta, se sigue mostrando/validando como texto) en sincronía con
   // idMedioPago (el id real que exige Guardar) — ver <ion-select> en el template.
   onMedioPagoChange(id: number) {
@@ -474,6 +497,75 @@ export class FacturaDetallePage implements OnInit {
       ],
     });
     await alert.present();
+  }
+
+  // Solo se ofrece si además de poder cobrarse (mismo criterio que el manual) Stripe Connect
+  // está realmente operativo para esta empresa (ver cargarEstadoStripeConnect) — nunca se
+  // muestra un botón que el backend fuera a rechazar con 503.
+  get puedeCobrarStripe(): boolean {
+    return this.puedeCobrar && this.stripeConnectDisponible;
+  }
+
+  async iniciarCobroStripe() {
+    if (!this.working || this.facturaId == null || this.cobrandoStripe || !this.puedeCobrarStripe) return;
+
+    this.cobrandoStripe = true;
+    try {
+      const { checkoutUrl } = await this.invoicesRepo.iniciarCobroStripe(this.facturaId);
+      if (!checkoutUrl) {
+        await this.showToast(this.transloco.translate('invoices.issued.cobros.stripe.yaResuelto'));
+        return;
+      }
+      this.checkoutUrlStripe = checkoutUrl;
+      this.iniciarSondeoCobroStripe();
+    } catch (e: any) {
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.cobros.stripe.error'), 'danger');
+    } finally {
+      this.cobrandoStripe = false;
+    }
+  }
+
+  // El cliente puede pagar desde OTRO dispositivo (el suyo, no el de este profesional) — la
+  // única confirmación válida es ver el cobro en PAID, nunca el redirect del navegador (que
+  // además puede que ni siquiera ocurra en esta pantalla). Se detiene solo al confirmar el
+  // pago o al salir de la página (ver ngOnDestroy).
+  private iniciarSondeoCobroStripe() {
+    this.detenerSondeoCobroStripe();
+    this.sondeoCobroStripe = setInterval(() => this.comprobarCobroStripe(), 4000);
+  }
+
+  private async comprobarCobroStripe() {
+    if (this.facturaId == null) return;
+    try {
+      const cobros = await this.invoicesRepo.obtenerCobros(this.facturaId);
+      const pagado = cobros.some(c => c.proveedor === 'STRIPE' && c.estado === 'PAID');
+      if (!pagado) return;
+
+      this.detenerSondeoCobroStripe();
+      this.checkoutUrlStripe = null;
+      const actualizada = await this.invoicesRepo.obtenerPorId(this.facturaId);
+      if (actualizada) this.working = actualizada;
+      await this.showToast(this.transloco.translate('invoices.issued.cobros.stripe.pagadoConfirmado'));
+    } catch {
+      // Un fallo puntual de red al sondear no debe detener el sondeo — se reintenta en el
+      // siguiente tick.
+    }
+  }
+
+  private detenerSondeoCobroStripe() {
+    if (this.sondeoCobroStripe != null) {
+      clearInterval(this.sondeoCobroStripe);
+      this.sondeoCobroStripe = null;
+    }
+  }
+
+  cerrarCheckoutStripe() {
+    this.detenerSondeoCobroStripe();
+    this.checkoutUrlStripe = null;
+  }
+
+  ngOnDestroy() {
+    this.detenerSondeoCobroStripe();
   }
 
   async confirmarFirmar() {

@@ -27,6 +27,33 @@ export type PrevisualizacionSubsanacion = {
   diferencias: DiferenciaCampoFiscal[];
 };
 
+// Cobro de un ticket via Stripe Connect (Fase 3, 2026-09-02): "PENDING" | "PAID" | "FAILED" |
+// "CANCELED" | "REFUNDED" — mismo catálogo que Facturacion$FacturasEmitidasCobros.Estado en el
+// backend. A diferencia del cobro manual (que crea la fila ya en PAID), aquí SIEMPRE pasa
+// primero por PENDING mientras se espera la confirmación real del webhook de Stripe.
+export type CobroFactura = {
+  id: number;
+  proveedor: string;
+  medio: string | null;
+  estado: string;
+  importe: number;
+  moneda: string;
+  fechaCreacionUtc: string;
+  fechaConfirmacionUtc: string | null;
+};
+
+// Capacidades de Stripe Connect (2026-09-02): NUNCA se muestra "Cobrar con tarjeta" sin
+// consultar esto antes. GET /api/PagosConnect/estado devuelve 503 mientras
+// StripeConnect:Enabled=false (todo el MVP, hasta que exista infraestructura real) — cualquier
+// fallo al consultarlo (503, red, lo que sea) se interpreta como "no disponible", nunca como un
+// error que deba mostrarse: la ausencia de este botón es un estado normal del MVP, no un fallo.
+export type EstadoStripeConnect = {
+  // true SOLO si el módulo está activo, la empresa tiene una cuenta conectada y esa cuenta ya
+  // puede cobrar (chargesEnabled=true) — cualquier otra combinación deja el botón oculto, para
+  // no ofrecer una acción que el backend seguiría rechazando con 503.
+  disponible: boolean;
+};
+
 /**
  * Puerto tipado para Facturas Emitidas. Incluye Numeradores porque hoy solo se consume
  * desde aquí (selector de serie) — si en el futuro se confirma un endpoint propio de
@@ -115,6 +142,19 @@ export abstract class IssuedInvoicesRepository {
   // la pantalla la refresque sin tener que recargar la lista entera. medio: 'EFECTIVO' |
   // 'TRANSFERENCIA' | 'TPV_EXTERNA' | 'TARJETA' | 'BIZUM'.
   abstract marcarComoCobrado(id: number, medio: string, importe: number): Promise<FacturaEmitida>;
+
+  // Stripe Connect (Fase 3, 2026-09-02) — cobro de un ticket con tarjeta. A diferencia del
+  // manual, aquí SIEMPRE hay que consultar obtenerEstadoStripeConnect() antes de ofrecer la
+  // acción (ver EstadoStripeConnect): mientras no exista infraestructura real, este método no
+  // debe ni intentarse llamar desde la UI. checkoutUrl es null cuando el cobro ya estaba
+  // resuelto (pagado/fallido/cancelado) y no hay nada que reabrir.
+  abstract obtenerEstadoStripeConnect(): Promise<EstadoStripeConnect>;
+  abstract iniciarCobroStripe(id: number): Promise<{ checkoutUrl: string | null }>;
+  // Sondeado por la pantalla tras abrir el checkout — el cliente puede pagar desde OTRO
+  // dispositivo, así que la confirmación nunca llega por el redirect del navegador, solo por
+  // ver aquí un cobro STRIPE en estado PAID (confirmado por el webhook).
+  abstract obtenerCobros(id: number): Promise<CobroFactura[]>;
+
   abstract duplicar(id: number): Promise<FacturaEmitida | undefined>;
   abstract generarDocumento(id: number): Promise<{ blob: Blob; nombre: string }>;
   // PDF real (2026-08-27): solo existe una vez contabilizada/firmada — lo genera y publica
