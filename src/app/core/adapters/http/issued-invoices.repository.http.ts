@@ -224,6 +224,11 @@ type GuardarFacturaEmitidaApi = {
     precioUnitario: number;
     descuento: number;
     idImpuesto: number;
+    // Blindaje de backend para tickets (2026-09-02): "catalogo" | "suscripcion" | "manual" — el
+    // backend rechaza una linea "suscripcion" cuando EsSimplificada es true (ver
+    // GuardarFacturaEmitidaRequest.cs). El frontend ya oculta esa opcion en el editor de lineas
+    // para un ticket, pero esto es lo que hace que el backend pueda comprobarlo de verdad.
+    origen?: string;
   }[];
 };
 
@@ -532,6 +537,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       precioUnitario: l.precioUnitario,
       descuento: l.descuentoPct,
       idImpuesto: await this.resolverIdImpuesto(l.ivaPct),
+      origen: l.origen,
     })));
 
     const body: GuardarFacturaEmitidaApi = {

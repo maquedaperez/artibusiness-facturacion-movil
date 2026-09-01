@@ -128,11 +128,15 @@
           </ion-select>
         </ion-item>
 
+        <!-- Ticket (2026-09-02, reunión con Jose): el pago es inmediato — fecha siempre hoy, no
+             editable (bloqueado aunque esEditable sea true), y sin concepto de vencimiento (se
+             oculta en vez de solo bloquearlo). El backend impone lo mismo de forma independiente
+             (ValidarCamposObligatoriosDeUnTicket) para quien llame a la API directamente. -->
         <div class="linea-grid">
-          <ion-item [disabled]="!esEditable">
+          <ion-item class="fecha-item" [disabled]="!esEditable || f.esSimplificada">
             <ion-input [label]="'invoices.issued.detail.dateLabel' | transloco" labelPlacement="stacked" type="date" [(ngModel)]="f.fecha"></ion-input>
           </ion-item>
-          <ion-item [disabled]="!esEditable">
+          <ion-item class="vencimiento-item" [disabled]="!esEditable" *ngIf="!f.esSimplificada">
             <ion-input [label]="'invoices.issued.detail.dueDateLabel' | transloco" labelPlacement="stacked" type="date" [(ngModel)]="f.vencimiento"></ion-input>
           </ion-item>
         </div>
@@ -150,13 +154,15 @@
       </ion-card-content>
     </ion-card>
 
-    <!-- Líneas -->
+    <!-- Líneas — sin suscripción en un ticket (2026-09-02, reunión con Jose): exige
+         domiciliación/datos adicionales que no encajan con una venta al público sin destinatario
+         fiscal. El backend rechaza igualmente una línea de suscripción si EsSimplificada. -->
     <app-lineas-editor
       [lineas]="f.lineas"
       [editable]="esEditable"
       [ivaRates]="ivaRates"
       [permitirCatalogo]="true"
-      [permitirSuscripcion]="true"
+      [permitirSuscripcion]="!f.esSimplificada"
       [generarId]="generarIdLinea"
     ></app-lineas-editor>
 

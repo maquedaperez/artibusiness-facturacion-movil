@@ -235,6 +235,18 @@ function redondearCentimos(v: number): number {
   return Math.round(v * 100) / 100;
 }
 
+// Fecha local del dispositivo en formato YYYY-MM-DD, nunca vía toISOString() (que primero
+// convierte a UTC) — usado donde el valor debe coincidir con lo que el usuario ve en su propio
+// reloj, no con el día UTC (relevante cerca de medianoche). Ver crearBorrador() para el caso que
+// motivó esto: la fecha de un ticket, validada por el backend contra Europe/Madrid.
+function fechaLocalHoy(): string {
+  const hoy = new Date();
+  const anio = hoy.getFullYear();
+  const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+  const dia = String(hoy.getDate()).padStart(2, '0');
+  return `${anio}-${mes}-${dia}`;
+}
+
 export function aplicarRetencion(baseImponible: number, cfg: ConfiguracionRetencion): RetencionAplicada {
   const importe = cfg.aplicable ? redondearCentimos(baseImponible * cfg.porcentaje / 100) : 0;
   return {
@@ -727,7 +739,12 @@ export class MockFacturasService {
       id,
       numFactura: `${this.numeradorNombre(numeradorId).split(' ')[1] ?? 'X'}-BORRADOR-${id}`,
       numeradorId,
-      fecha: new Date().toISOString().slice(0, 10),
+      // Fecha local del dispositivo, no UTC (2026-09-02): toISOString() convierte a UTC primero,
+      // así que cerca de medianoche en España podía autorrellenar el día equivocado — el
+      // backend valida la fecha real de un ticket contra Europe/Madrid
+      // (ValidarCamposObligatoriosDeUnTicket), así que el valor de partida del frontend debe
+      // coincidir con lo que el usuario ve en su reloj, no con UTC.
+      fecha: fechaLocalHoy(),
       vencimiento: '',
       concepto: '',
       medioPago: '',
