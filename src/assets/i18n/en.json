@@ -239,15 +239,14 @@
       "new": {
         "header": "New issued invoice",
         "complete": "Full invoice",
-        "simplified": "Simplified invoice"
+        "simplified": "Ticket"
       },
       "simplified": {
-        "explainer": "A simplified invoice doesn't need to identify the customer — it's issued to \"Final consumer\". Choose this for retail sales with no buyer tax details.",
+        "explainer": "A ticket is a simplified invoice: it doesn't need to identify the customer — it's issued to \"Final consumer\". Choose this for retail sales with no buyer tax details.",
         "startWithGenericClient": "Start with Final consumer",
-        "serieNoConfigurada": "No \"FS\" series is configured for this company — ask for it to be set up before issuing a simplified invoice.",
+        "serieNoConfigurada": "No \"FS\" series is configured for this company — ask for it to be set up before issuing a ticket.",
         "genericClientName": "Final consumer",
-        "badge": "Simplified",
-        "genericClientNote": "Simplified invoice with no identified tax recipient.",
+        "genericClientNote": "Simplified invoice for final consumer, with no identified tax recipient.",
         "genericClientSecondaryNote": "\"Final consumer\" is used only for internal management and is never reported as the tax recipient.",
         "convertToComplete": "Convert to full invoice",
         "convertHeader": "Convert to full invoice",
@@ -270,6 +269,7 @@
       },
       "detail": {
         "newInvoice": "New invoice",
+        "newTicketTitle": "New ticket",
         "seriesLabel": "Numbering series",
         "chooseClientAndStart": "Choose customer and start",
         "statusPosted": "Posted",
