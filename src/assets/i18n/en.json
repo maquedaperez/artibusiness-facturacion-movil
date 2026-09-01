@@ -182,6 +182,28 @@
         "cancelled": "Cancelled",
         "corrected": "Corrected"
       },
+      "cobros": {
+        "action": "Mark as paid",
+        "header": "Confirm payment",
+        "confirmMessage": "Confirm you've received {{importe}}? This does NOT post the invoice — it can still be edited until you post it yourself.",
+        "confirm": "Yes, paid",
+        "success": "Payment recorded.",
+        "error": "Could not record the payment.",
+        "pagadoPendienteDeContabilizar": "Paid — pending posting",
+        "badgePagado": "Paid",
+        "medios": {
+          "EFECTIVO": "Cash",
+          "TRANSFERENCIA": "Bank transfer",
+          "TPV_EXTERNA": "External card reader",
+          "TARJETA": "Card",
+          "BIZUM": "Bizum"
+        },
+        "errors": {
+          "soloBorrador": "Only a draft invoice can be marked as paid.",
+          "yaCobrada": "This invoice already has a payment recorded.",
+          "medioObligatorio": "Select a payment method."
+        }
+      },
       "actions": {
         "posting": "Posting…",
         "post": "Post",
@@ -540,7 +562,8 @@
       "motivoObligatorio": "The reason for the correction is required.",
       "sinCambiosFiscales": "The fiscal content has not changed since the last correction — there is nothing to correct.",
       "firmarBorrador": "This invoice has not been saved or posted yet — it cannot be signed.",
-      "guardarAntesDeContabilizar": "Save the invoice before posting it."
+      "guardarAntesDeContabilizar": "Save the invoice before posting it.",
+      "guardarAntesDeCobrar": "Save the invoice before marking it as paid."
     },
     "aeatWarningPrefix": "AEAT notice:"
   },
