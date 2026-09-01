@@ -334,6 +334,95 @@ describe('FacturaDetallePage', () => {
     });
   });
 
+  // Stripe Connect (Fase 3, 2026-09-02): mientras no exista infraestructura real
+  // (StripeConnect:Enabled=false), obtenerEstadoStripeConnect() devuelve disponible=false y el
+  // botón "Cobrar con tarjeta" debe permanecer OCULTO — nunca visible y fallando con un 503 al
+  // pulsarlo. Cubre ambos estados: desactivado (por defecto) y activado.
+  describe('cobro con Stripe Connect', () => {
+    function facturaBorrador(overrides: Partial<FacturaEmitida> = {}): FacturaEmitida {
+      return {
+        id: 3001, numFactura: 'FS-3001', numeradorId: 1, fecha: '2026-09-02', vencimiento: '2026-09-02',
+        concepto: 'Venta', medioPago: '', destinatario: { nombre: 'Consumidor final', nif: '', esEmpresa: false },
+        lineas: [{ id: 1, origen: 'manual', descripcion: 'Producto', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 }],
+        estado: 'borrador', operacionId: 'op-3',
+        ...overrides,
+      };
+    }
+
+    describe('desactivado (estado por defecto del MVP)', () => {
+      it('puedeCobrarStripe es false aunque la factura sí se pueda cobrar', () => {
+        component.working = facturaBorrador();
+        component.stripeConnectDisponible = false;
+
+        expect(component.puedeCobrarStripe).toBeFalse();
+      });
+
+      it('el botón "Cobrar con tarjeta" no se renderiza en el DOM', () => {
+        component.working = facturaBorrador();
+        component.stripeConnectDisponible = false;
+        fixture.detectChanges();
+
+        const boton = fixture.debugElement.query(By.css('.boton-cobrar-stripe'));
+        expect(boton).withContext('el botón no debe existir mientras Stripe Connect no esté disponible').toBeNull();
+      });
+
+      it('iniciarCobroStripe() no llama al repositorio si no está disponible', async () => {
+        component.facturaId = 3001;
+        component.working = facturaBorrador();
+        component.stripeConnectDisponible = false;
+        const repo = TestBed.inject(IssuedInvoicesRepository);
+        const spy = spyOn(repo, 'iniciarCobroStripe');
+
+        await component.iniciarCobroStripe();
+
+        expect(spy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('activado (módulo configurado y cuenta lista para cobrar)', () => {
+      it('puedeCobrarStripe es true para un borrador cobrable', () => {
+        component.working = facturaBorrador();
+        component.stripeConnectDisponible = true;
+
+        expect(component.puedeCobrarStripe).toBeTrue();
+      });
+
+      it('el botón "Cobrar con tarjeta" se renderiza en el DOM', () => {
+        component.working = facturaBorrador();
+        component.stripeConnectDisponible = true;
+        fixture.detectChanges();
+
+        const boton = fixture.debugElement.query(By.css('.boton-cobrar-stripe'));
+        expect(boton).withContext('el botón debe existir cuando Stripe Connect sí está disponible').not.toBeNull();
+      });
+
+      it('iniciarCobroStripe() llama al repositorio y muestra el enlace de pago', async () => {
+        component.facturaId = 3001;
+        component.working = facturaBorrador();
+        component.stripeConnectDisponible = true;
+        const repo = TestBed.inject(IssuedInvoicesRepository);
+        const spy = spyOn(repo, 'iniciarCobroStripe').and.resolveTo({ checkoutUrl: 'https://checkout.stripe.com/session_1' });
+
+        await component.iniciarCobroStripe();
+
+        expect(spy).toHaveBeenCalledWith(3001);
+        expect(component.checkoutUrlStripe).toBe('https://checkout.stripe.com/session_1');
+      });
+
+      it('iniciarCobroStripe() no muestra ningún enlace si el cobro ya estaba resuelto', async () => {
+        component.facturaId = 3001;
+        component.working = facturaBorrador();
+        component.stripeConnectDisponible = true;
+        const repo = TestBed.inject(IssuedInvoicesRepository);
+        spyOn(repo, 'iniciarCobroStripe').and.resolveTo({ checkoutUrl: null });
+
+        await component.iniciarCobroStripe();
+
+        expect(component.checkoutUrlStripe).toBeNull();
+      });
+    });
+  });
+
   // Ticket (2026-09-02, reunión con Jose): el pago es inmediato — fecha siempre hoy y no
   // editable, sin concepto de vencimiento, y sin la opción de línea "Suscripción". El backend
   // impone lo mismo de forma independiente (WebAPIARTIBusiness.Tests); esto cubre que el
