@@ -193,4 +193,44 @@ describe('FacturaDetallePage', () => {
       expect(resultado.some(n => n.nombre === 'FAR/17-')).toBeFalse();
     });
   });
+
+  // Renombrado visual a "Ticket" (2026-09-01): el título de la cabecera nunca debe mostrar el
+  // identificador interno de un borrador local sin guardar (ej. "A-BORRADOR-100") para un
+  // ticket — debe leer "Nuevo ticket" hasta que exista un número real (guardado o contabilizado).
+  describe('tituloCabecera', () => {
+    function ticketLocal(overrides: Partial<FacturaEmitida> = {}): FacturaEmitida {
+      return {
+        id: 1001, numFactura: 'FS-BORRADOR-1001', numeradorId: 1, fecha: '2026-09-01', vencimiento: '',
+        concepto: '', medioPago: '', destinatario: { nombre: 'Consumidor final', nif: '', esEmpresa: false },
+        lineas: [], estado: 'borrador', operacionId: 'op-1', esSimplificada: true, esBorradorLocal: true,
+        ...overrides,
+      };
+    }
+
+    it('antes de elegir numerador, en modo ticket, muestra "Nuevo ticket"', () => {
+      component.esSimplificada = true;
+      component.working = null;
+
+      expect(component.tituloCabecera).toBe('invoices.issued.detail.newTicketTitle');
+    });
+
+    it('sigue mostrando "Nuevo ticket" tras iniciar un borrador local todavía sin guardar', () => {
+      component.working = ticketLocal();
+
+      expect(component.tituloCabecera).toBe('invoices.issued.detail.newTicketTitle');
+    });
+
+    it('muestra el número real una vez el ticket ya se guardó de verdad', () => {
+      component.working = ticketLocal({ numFactura: 'FS-000123', esBorradorLocal: false });
+
+      expect(component.tituloCabecera).toBe('FS-000123');
+    });
+
+    it('una factura completa nueva usa el título genérico, no el de ticket', () => {
+      component.esSimplificada = false;
+      component.working = null;
+
+      expect(component.tituloCabecera).toBe('invoices.issued.detail.newInvoice');
+    });
+  });
 });
