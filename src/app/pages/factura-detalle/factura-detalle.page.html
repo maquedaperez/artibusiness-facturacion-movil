@@ -95,9 +95,22 @@
             <p class="ion-no-margin simplified-note">{{ 'invoices.issued.simplified.genericClientSecondaryNote' | transloco }}</p>
           </ion-text>
 
-          <ion-button *ngIf="esEditable" size="small" fill="outline" class="ion-margin-top" (click)="convertirEnFacturaCompleta()">
-            {{ 'invoices.issued.simplified.convertToComplete' | transloco }}
-          </ion-button>
+          <!-- Decisión de negocio (2026-09-02): Guardar ya reserva un número real de la serie FS
+               (ver Numerador.Incrementar, llamado dentro de Create()) — convertir DESPUÉS de ese
+               punto dejaría un hueco permanente en la secuencia, que no se autoriza. Por eso el
+               botón desaparece en cuanto f.esBorradorLocal es false, en vez de solo fallar al
+               pulsarlo (esa comprobación se mantiene en el .ts como red de seguridad). -->
+          <ng-container *ngIf="f.esBorradorLocal">
+            <ion-text color="medium">
+              <p class="ion-no-margin simplified-note">{{ 'invoices.issued.simplified.convertOnlyBeforeSave' | transloco }}</p>
+            </ion-text>
+            <ion-button *ngIf="esEditable" size="small" fill="outline" class="ion-margin-top convert-to-complete-btn" (click)="convertirEnFacturaCompleta()">
+              {{ 'invoices.issued.simplified.convertToComplete' | transloco }}
+            </ion-button>
+          </ng-container>
+          <ion-text color="medium" *ngIf="!f.esBorradorLocal">
+            <p class="ion-no-margin simplified-note convert-blocked-note">{{ 'invoices.issued.simplified.convertBlockedAlreadyNumbered' | transloco }}</p>
+          </ion-text>
         </ng-container>
 
         <ion-button *ngIf="esEditable && !f.esSimplificada" size="small" fill="outline" class="ion-margin-top" (click)="elegirCliente()">
