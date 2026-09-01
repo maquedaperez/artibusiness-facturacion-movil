@@ -372,6 +372,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       tienePdf: dto.tienePdf,
       tieneXsig: dto.tieneXsig,
       esSimplificada: dto.esSimplificada,
+      cobrada: dto.cobrada === 1,
     };
   }
 
@@ -428,6 +429,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       fechaUltimoEnvioCorrecto: dto.fechaUltimoEnvioCorrecto ? dto.fechaUltimoEnvioCorrecto.slice(0, 10) : undefined,
       estadoUltimoEnvio: dto.estadoUltimoEnvio === 'Enviado' || dto.estadoUltimoEnvio === 'Fallido' ? dto.estadoUltimoEnvio : undefined,
       errorUltimoEnvio: dto.errorUltimoEnvio ?? undefined,
+      cobrada: dto.cobrada === 1,
     };
   }
 
@@ -731,6 +733,27 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
     const [dto, mediosPago] = await Promise.all([
       this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Subsanar`, { motivo }),
+      this.obtenerMediosPagoApi(),
+    ]);
+    return this.mapearDetalle(dto, mediosPago ?? []);
+  }
+
+  // Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): en manual, "confirmar" y "cobrar"
+  // son el mismo acto — el backend marca el cobro directamente como PAID y devuelve la factura
+  // completa ya actualizada (mismo patrón que contabilizar/firmar/anular/subsanar). Un borrador
+  // puramente local no puede cobrarse (todavía no existe en el backend) — mismo criterio que
+  // contabilizar/firmar/anular/subsanar. idempotencyKey generada aquí mismo: un doble-tap en el
+  // botón de confirmar reintenta con la MISMA clave (crypto.randomUUID por intento de usuario,
+  // no por click) — ver confirmarCobro() en factura-detalle.page.ts.
+  async marcarComoCobrado(id: number, medio: string, importe: number): Promise<FacturaEmitida> {
+    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
+    if (borradorLocal) {
+      throw new Error(this.transloco.translate('verifactu.errors.guardarAntesDeCobrar'));
+    }
+
+    const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${id}-${Date.now()}`;
+    const [dto, mediosPago] = await Promise.all([
+      this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Cobros`, { medio, importe, idempotencyKey }),
       this.obtenerMediosPagoApi(),
     ]);
     return this.mapearDetalle(dto, mediosPago ?? []);

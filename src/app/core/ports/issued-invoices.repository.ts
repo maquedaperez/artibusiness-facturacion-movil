@@ -109,6 +109,12 @@ export abstract class IssuedInvoicesRepository {
   // llamador debe usar descartarLocal() en su lugar cuando f.esBorradorLocal es true, para no
   // depender de que el backend responda 404 a una petición que no debería hacerse.
   abstract descartarLocal(id: number): Promise<void>;
+  // Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): "confirmar" y "cobrar" son el mismo
+  // acto en manual — no hay un paso asíncrono como en Stripe. NUNCA contabiliza ni genera número
+  // ni registro fiscal por sí solo; devuelve la factura actualizada (con cobrada=true) para que
+  // la pantalla la refresque sin tener que recargar la lista entera. medio: 'EFECTIVO' |
+  // 'TRANSFERENCIA' | 'TPV_EXTERNA' | 'TARJETA' | 'BIZUM'.
+  abstract marcarComoCobrado(id: number, medio: string, importe: number): Promise<FacturaEmitida>;
   abstract duplicar(id: number): Promise<FacturaEmitida | undefined>;
   abstract generarDocumento(id: number): Promise<{ blob: Blob; nombre: string }>;
   // PDF real (2026-08-27): solo existe una vez contabilizada/firmada — lo genera y publica

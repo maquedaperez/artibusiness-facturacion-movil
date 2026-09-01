@@ -175,6 +175,11 @@ export type FacturaEmitida = {
   // URL de cotejo del QR de la AEAT — a diferencia de la descarga del PDF (protegida), esta
   // sí es una URL pública segura de mostrar/enlazar directamente. Null hasta contabilizar.
   urlQr?: string;
+  // Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): resumen — true solo cuando existe
+  // un cobro confirmado (Facturacion$FacturasEmitidasCobros.Estado='PAID'); la fuente de verdad
+  // es esa tabla, esto nunca se fija a mano localmente salvo justo tras confirmar un cobro.
+  // "Pagado, pendiente de contabilizar" = cobrada && estado==='borrador'.
+  cobrada?: boolean;
   // Envío por correo — solo último estado (sin histórico completo, ver
   // docs/FACTURAS_SIMPLIFICADAS_MVP.md del backend). Undefined si nunca se ha intentado enviar.
   emailUltimoEnvio?: string;
@@ -808,6 +813,19 @@ export class MockFacturasService {
     f.fechaSubsanacion = new Date().toISOString().slice(0, 10);
     f.estadoSubsanacion = 'Correcto';
     f.motivoSubsanacion = motivo.trim();
+  }
+
+  // Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): simulación equivalente al backend
+  // real — solo se puede cobrar un borrador, y solo una vez (un segundo cobro activo se
+  // rechaza). NUNCA contabiliza ni cambia el número/estado fiscal — cobrada es un resumen
+  // aparte, igual que en la BBDD real.
+  marcarComoCobrado(id: number, medio: string, importe: number): void {
+    const f = this.emitidas.find(e => e.id === id);
+    if (!f) return;
+    if (f.estado !== 'borrador') throw new Error(this.transloco.translate('invoices.issued.cobros.errors.soloBorrador'));
+    if (f.cobrada) throw new Error(this.transloco.translate('invoices.issued.cobros.errors.yaCobrada'));
+    if (!medio?.trim()) throw new Error(this.transloco.translate('invoices.issued.cobros.errors.medioObligatorio'));
+    f.cobrada = true;
   }
 
   // Solo borra borradores — coherente con AccionesPermitidas.eliminar, que nunca es
