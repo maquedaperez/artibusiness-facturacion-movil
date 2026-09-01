@@ -202,6 +202,18 @@ export class FacturaDetallePage implements OnInit {
     return this.esNueva || this.working?.estado === 'borrador';
   }
 
+  // Renombrado visual a "Ticket" (2026-09-01): antes del primer guardado real (esBorradorLocal),
+  // el número que se ve en pantalla es un identificador interno del mock (ej. "A-BORRADOR-100"),
+  // no un número fiscal — mostrar "Nuevo ticket" en su lugar evita confundirlo con uno real. En
+  // cuanto existe un número real (guardado o contabilizado), se muestra ese número tal cual.
+  get tituloCabecera(): string {
+    const esTicket = this.working ? this.working.esSimplificada : this.esSimplificada;
+    if (esTicket && (!this.working || this.working.esBorradorLocal)) {
+      return this.transloco.translate('invoices.issued.detail.newTicketTitle');
+    }
+    return this.working?.numFactura || this.transloco.translate('invoices.issued.detail.newInvoice');
+  }
+
   async elegirCliente() {
     const modal = await this.modalCtrl.create({ component: ClienteSelectorComponent });
     await modal.present();
