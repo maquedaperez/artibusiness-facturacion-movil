@@ -272,4 +272,55 @@ describe('FacturaDetallePage', () => {
       expect(aviso).withContext('debe mostrarse el aviso de bloqueo').not.toBeNull();
     });
   });
+
+  // Ticket (2026-09-02, reunión con Jose): el pago es inmediato — fecha siempre hoy y no
+  // editable, sin concepto de vencimiento, y sin la opción de línea "Suscripción". El backend
+  // impone lo mismo de forma independiente (WebAPIARTIBusiness.Tests); esto cubre que el
+  // frontend efectivamente oculta/bloquea estos campos para un ticket.
+  describe('restricciones de campos para un ticket', () => {
+    function ticketEditable(overrides: Partial<FacturaEmitida> = {}): FacturaEmitida {
+      return {
+        id: 2001, numFactura: 'FS-2026-0001', numeradorId: 1, fecha: '2026-09-02', vencimiento: '2026-09-02',
+        concepto: 'Venta', medioPago: '', destinatario: { nombre: 'Consumidor final', nif: '', esEmpresa: false },
+        lineas: [], estado: 'borrador', operacionId: 'op-2', esSimplificada: true,
+        ...overrides,
+      };
+    }
+
+    it('la fecha queda deshabilitada aunque la factura sea editable', () => {
+      component.working = ticketEditable();
+      fixture.detectChanges();
+
+      const itemFecha = fixture.debugElement.query(By.css('.fecha-item'));
+      expect(itemFecha.componentInstance.disabled).toBeTrue();
+    });
+
+    it('el vencimiento no se muestra en absoluto', () => {
+      component.working = ticketEditable();
+      fixture.detectChanges();
+
+      const itemVencimiento = fixture.debugElement.query(By.css('.vencimiento-item'));
+      expect(itemVencimiento).toBeNull();
+    });
+
+    it('el editor de líneas no permite añadir una suscripción', () => {
+      component.working = ticketEditable();
+      fixture.detectChanges();
+
+      const editor = fixture.debugElement.query(By.css('app-lineas-editor'));
+      expect(editor.componentInstance.permitirSuscripcion).toBeFalse();
+    });
+
+    it('en una factura completa, la fecha sigue editable y el vencimiento sigue visible', () => {
+      component.working = ticketEditable({ esSimplificada: false });
+      fixture.detectChanges();
+
+      const itemFecha = fixture.debugElement.query(By.css('.fecha-item'));
+      expect(itemFecha.componentInstance.disabled).toBeFalse();
+      expect(fixture.debugElement.query(By.css('.vencimiento-item'))).not.toBeNull();
+
+      const editor = fixture.debugElement.query(By.css('app-lineas-editor'));
+      expect(editor.componentInstance.permitirSuscripcion).toBeTrue();
+    });
+  });
 });
