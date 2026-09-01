@@ -101,6 +101,41 @@
     </ion-card-content>
   </ion-card>
 
+  <!-- Stripe Connect (Fase 3, 2026-09-02): SOLO se renderiza si obtenerEstadoConnect() ya
+       confirmó que el módulo responde de verdad (moduloConnectDisponible) — mientras
+       StripeConnect:Enabled=false (todo el MVP), esta tarjeta entera está ausente, nunca
+       aparece deshabilitada ni con un mensaje de error. -->
+  <ion-card class="compact-card" *ngIf="!cargandoConnect && moduloConnectDisponible">
+    <ion-card-header>
+      <ion-card-title>{{ 'profile.stripeConnect.title' | transloco }}</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <ng-container *ngIf="estadoConnect as c">
+        <p class="ion-no-margin" *ngIf="c.conectado && c.chargesEnabled">
+          <strong>{{ 'profile.stripeConnect.conectado' | transloco }}</strong>
+        </p>
+        <p class="ion-no-margin ion-text-medium" *ngIf="c.conectado && !c.chargesEnabled">
+          {{ 'profile.stripeConnect.pendiente' | transloco }}
+        </p>
+        <p class="ion-no-margin ion-text-medium" *ngIf="!c.conectado">
+          {{ 'profile.stripeConnect.noConectado' | transloco }}
+        </p>
+
+        <ion-button
+          *ngIf="!c.chargesEnabled"
+          data-testid="boton-conectar-stripe"
+          expand="block"
+          fill="outline"
+          style="margin-top: 12px;"
+          [disabled]="conectandoStripe"
+          (click)="conectarStripe()"
+        >
+          {{ (c.conectado ? 'profile.stripeConnect.continuar' : 'profile.stripeConnect.conectar') | transloco }}
+        </ion-button>
+      </ng-container>
+    </ion-card-content>
+  </ion-card>
+
   <ion-card class="compact-card">
     <ion-card-content>
       <ion-item lines="none">

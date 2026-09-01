@@ -10,6 +10,7 @@ import { EmisorFiscal } from '../../services/mock-facturas.service';
 import { EmisorRepository } from '../../core/ports';
 import { LanguageService, IdiomaSoportado } from '../../core/i18n/language.service';
 import { PagosService, EstadoPagos } from '../../services/pagos.service';
+import { PagosConnectService, EstadoPagosConnect } from '../../services/pagos-connect.service';
 
 import {
   IonContent,
@@ -67,6 +68,7 @@ export class PerfilPage {
   private languageService = inject(LanguageService);
   private transloco = inject(TranslocoService);
   private pagosService = inject(PagosService);
+  private pagosConnectService = inject(PagosConnectService);
 
   user: User | null = null;
   emisor: EmisorFiscal | null = null;
@@ -75,6 +77,16 @@ export class PerfilPage {
   cargandoPagos = true;
   errorPagos = false;
   abriendoPortal = false;
+
+  // Stripe Connect (Fase 3, 2026-09-02) — cobro de tickets a los clientes finales. Mismo
+  // criterio que el botón "Cobrar con tarjeta" de factura-detalle.page.ts: NUNCA se muestra
+  // nada de esto sin haber confirmado antes que el módulo responde de verdad — mientras
+  // StripeConnect:Enabled=false (todo el MVP), el endpoint de estado da 503 y esta sección
+  // completa permanece oculta, nunca aparece un botón que fuera a fallar al pulsarlo.
+  estadoConnect: EstadoPagosConnect | null = null;
+  moduloConnectDisponible = false;
+  cargandoConnect = true;
+  conectandoStripe = false;
 
   constructor() {
     addIcons({ chevronForwardOutline });
@@ -88,6 +100,7 @@ export class PerfilPage {
     // dispara cada vez que se reentra a esta pestaña, así que no hace falta ningún mecanismo
     // adicional de "detectar la vuelta".
     this.cargarEstadoPagos();
+    this.cargarEstadoConnect();
   }
 
   private async cargarEstadoPagos() {
@@ -99,6 +112,36 @@ export class PerfilPage {
       this.errorPagos = true;
     } finally {
       this.cargandoPagos = false;
+    }
+  }
+
+  private async cargarEstadoConnect() {
+    this.cargandoConnect = true;
+    try {
+      this.estadoConnect = await this.pagosConnectService.obtenerEstado();
+      this.moduloConnectDisponible = true;
+    } catch {
+      // 503 (StripeConnect:Enabled=false) o cualquier otro fallo: se trata igual, la sección
+      // entera se oculta en vez de mostrar un error — su ausencia es el estado normal del MVP.
+      this.moduloConnectDisponible = false;
+    } finally {
+      this.cargandoConnect = false;
+    }
+  }
+
+  // Crea o retoma el onboarding de Stripe Express para esta empresa y redirige. Silencioso ante
+  // un fallo, mismo criterio que conseguirMasCreditos(): un botón secundario de Perfil no debe
+  // mostrar un error alarmante si el módulo está a medio configurar.
+  async conectarStripe() {
+    if (this.conectandoStripe) return;
+    this.conectandoStripe = true;
+    try {
+      const url = await this.pagosConnectService.iniciarOnboarding();
+      this.pagosConnectService.abrirOnboarding(url);
+    } catch {
+      // Silencioso a propósito, ver comentario de arriba.
+    } finally {
+      this.conectandoStripe = false;
     }
   }
 

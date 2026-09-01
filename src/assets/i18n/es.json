@@ -133,6 +133,14 @@
       "getMoreCredits": "Conseguir más créditos",
       "creditsExhausted": "No quedan créditos disponibles. Consigue más desde tu perfil."
     },
+    "stripeConnect": {
+      "title": "Cobro con tarjeta a clientes",
+      "conectado": "Cuenta conectada — ya puedes cobrar tickets con tarjeta",
+      "pendiente": "Conexión iniciada, pendiente de completar",
+      "noConectado": "Todavía no has conectado ninguna cuenta de Stripe",
+      "conectar": "Conectar con Stripe",
+      "continuar": "Continuar conexión"
+    },
     "emisor": {
       "title": "Datos fiscales del emisor",
       "description": "Estos son los datos del emisor que aparecen en tus facturas. No se pueden editar desde la app: proceden de la configuración fiscal de la cuenta.",

@@ -132,6 +132,14 @@
       "getMoreCredits": "Get more credits",
       "creditsExhausted": "No credits left. Get more from your profile."
     },
+    "stripeConnect": {
+      "title": "Card payments from customers",
+      "conectado": "Account connected — you can now charge tickets by card",
+      "pendiente": "Connection started, pending completion",
+      "noConectado": "You haven't connected a Stripe account yet",
+      "conectar": "Connect with Stripe",
+      "continuar": "Continue connection"
+    },
     "language": "Language",
     "emisor": {
       "title": "Issuer tax details",

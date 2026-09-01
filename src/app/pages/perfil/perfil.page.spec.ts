@@ -3,6 +3,7 @@ import { PerfilPage } from './perfil.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { LanguageService } from '../../core/i18n/language.service';
 import { PagosService, EstadoPagos } from '../../services/pagos.service';
+import { PagosConnectService, EstadoPagosConnect } from '../../services/pagos-connect.service';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 
 describe('PerfilPage', () => {
@@ -76,6 +77,67 @@ describe('PerfilPage', () => {
     it('mientras se desconoce el estado (todavía cargando), el botón tampoco aparece', () => {
       const boton = fixture.nativeElement.querySelector('[data-testid="boton-conseguir-creditos"]');
       expect(boton).toBeNull();
+    });
+  });
+
+  // Stripe Connect (Fase 3, 2026-09-02): mientras StripeConnect:Enabled=false (todo el MVP),
+  // GET /api/PagosConnect/estado da 503 — la sección entera debe permanecer OCULTA, nunca
+  // aparecer como un botón deshabilitado o un mensaje de error. Cubre ambos estados.
+  describe('sección "cobro con tarjeta" (Stripe Connect)', () => {
+    async function cargarConEstadoConnect(estado: EstadoPagosConnect | 'error') {
+      const pagosConnectService = TestBed.inject(PagosConnectService);
+      if (estado === 'error') {
+        spyOn(pagosConnectService, 'obtenerEstado').and.rejectWith(new Error('503'));
+      } else {
+        spyOn(pagosConnectService, 'obtenerEstado').and.resolveTo(estado);
+      }
+      component.ionViewWillEnter();
+      await fixture.whenStable();
+      fixture.detectChanges();
+    }
+
+    it('mientras se desconoce el estado (todavía cargando), la sección no aparece', () => {
+      const boton = fixture.nativeElement.querySelector('[data-testid="boton-conectar-stripe"]');
+      expect(boton).toBeNull();
+    });
+
+    it('con el módulo desactivado (503), la sección entera permanece oculta', async () => {
+      await cargarConEstadoConnect('error');
+
+      expect(component.moduloConnectDisponible).toBeFalse();
+      const boton = fixture.nativeElement.querySelector('[data-testid="boton-conectar-stripe"]');
+      expect(boton).toBeNull();
+    });
+
+    it('con el módulo activo y la cuenta ya lista para cobrar, no se muestra el botón de conectar', async () => {
+      await cargarConEstadoConnect({ conectado: true, estado: 'Conectado', chargesEnabled: true, detailsSubmitted: true });
+
+      const boton = fixture.nativeElement.querySelector('[data-testid="boton-conectar-stripe"]');
+      expect(boton).toBeNull();
+    });
+
+    it('con el módulo activo y sin conectar todavía, aparece el botón de conectar', async () => {
+      await cargarConEstadoConnect({ conectado: false, estado: null, chargesEnabled: false, detailsSubmitted: false });
+
+      const boton = fixture.nativeElement.querySelector('[data-testid="boton-conectar-stripe"]');
+      expect(boton).not.toBeNull();
+    });
+
+    it('con el módulo activo y la conexión pendiente de completar, aparece el botón de continuar', async () => {
+      await cargarConEstadoConnect({ conectado: true, estado: 'Pendiente', chargesEnabled: false, detailsSubmitted: false });
+
+      const boton = fixture.nativeElement.querySelector('[data-testid="boton-conectar-stripe"]');
+      expect(boton).not.toBeNull();
+    });
+
+    it('conectarStripe() llama al onboarding y abre la URL devuelta', async () => {
+      const pagosConnectService = TestBed.inject(PagosConnectService);
+      spyOn(pagosConnectService, 'iniciarOnboarding').and.resolveTo('https://connect.stripe.com/setup/abc');
+      const abrirSpy = spyOn(pagosConnectService, 'abrirOnboarding');
+
+      await component.conectarStripe();
+
+      expect(abrirSpy).toHaveBeenCalledWith('https://connect.stripe.com/setup/abc');
     });
   });
 });
