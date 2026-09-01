@@ -137,6 +137,7 @@
 "invoices.issued.cobros.errors.soloBorrador";"Facturas emitidas";"Solo se puede marcar como cobrada una factura en borrador.";"Only a draft invoice can be marked as paid.";"Оплаченим можна позначити лише чернетку рахунку.";"no"
 "invoices.issued.cobros.errors.yaCobrada";"Facturas emitidas";"Esta factura ya tiene un cobro registrado.";"This invoice already has a payment recorded.";"Для цього рахунку вже зареєстровано оплату.";"no"
 "invoices.issued.cobros.header";"Facturas emitidas";"Confirmar cobro";"Confirm payment";"Підтвердити оплату";"no"
+"invoices.issued.cobros.marking";"Facturas emitidas";"Marcando como cobrado…";"Marking as paid…";"Позначення як оплачено…";"no"
 "invoices.issued.cobros.medios.BIZUM";"Facturas emitidas";"Bizum";"Bizum";"Bizum";"no"
 "invoices.issued.cobros.medios.EFECTIVO";"Facturas emitidas";"Efectivo";"Cash";"Готівка";"no"
 "invoices.issued.cobros.medios.TARJETA";"Facturas emitidas";"Tarjeta";"Card";"Картка";"no"

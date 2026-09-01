@@ -184,6 +184,7 @@
       },
       "cobros": {
         "action": "Mark as paid",
+        "marking": "Marking as paid…",
         "header": "Confirm payment",
         "confirmMessage": "Confirm you've received {{importe}}? This does NOT post the invoice — it can still be edited until you post it yourself.",
         "confirm": "Yes, paid",

@@ -74,16 +74,27 @@ export class FacturasEmitidasPage implements OnInit {
     this.numeradores = this.invoicesRepo.getNumeradores();
     this.cargarNumeradores();
 
-    const estadoParam = this.route.snapshot.queryParamMap.get('estado');
-    if (estadoParam === 'borrador' || estadoParam === 'contabilizada' || estadoParam === 'firmada') {
-      this.estado = estadoParam;
-    }
-
     // No llama a refresh() aquí -- ionViewWillEnter ya se dispara en la primera entrada a la
     // pantalla (además de cada vez que se vuelve a ella). Llamarlo también desde ngOnInit
     // disparaba 2 peticiones de listado en paralelo en la carga inicial, dejando el spinner
     // en un estado inconsistente hasta que algo (un clic) forzaba a Angular a revisar el
     // componente otra vez. Mismo fix ya aplicado en facturas-recibidas.page.ts (2026-08-14).
+  }
+
+  // Bug real encontrado en revisión (2026-09-02): esta app usa IonicRouteStrategy (las páginas
+  // se mantienen vivas en memoria en vez de destruirse al navegar) — así que ngOnInit() solo se
+  // ejecuta la PRIMERA vez que se visita esta pantalla en toda la sesión. factura-detalle.page.ts
+  // (volver()) manda queryParams:{estado} tras contabilizar/firmar/anular/cobrar precisamente
+  // para aterrizar en la pestaña correcta, pero como solo ionViewWillEnter() se repetía en
+  // visitas posteriores (y antes no releía el parámetro), la pestaña se quedaba congelada en la
+  // que estuviera antes de abrir el detalle — la factura recién contabilizada podía parecer
+  // haber desaparecido de la vista. Se relee aquí, en cada entrada a la pantalla, no solo en
+  // ngOnInit().
+  private sincronizarEstadoDesdeQueryParam() {
+    const estadoParam = this.route.snapshot.queryParamMap.get('estado');
+    if (estadoParam === 'borrador' || estadoParam === 'contabilizada' || estadoParam === 'firmada') {
+      this.estado = estadoParam;
+    }
   }
 
   // Fase 4 del plan de integración (2026-08-20): sustituye los 2 numeradores fijos del mock
@@ -99,6 +110,7 @@ export class FacturasEmitidasPage implements OnInit {
   }
 
   ionViewWillEnter() {
+    this.sincronizarEstadoDesdeQueryParam();
     this.refresh();
   }
 

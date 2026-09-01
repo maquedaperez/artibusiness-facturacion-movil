@@ -184,6 +184,7 @@
       },
       "cobros": {
         "action": "Marcar como cobrado",
+        "marking": "Marcando como cobrado…",
         "header": "Confirmar cobro",
         "confirmMessage": "¿Confirmas que has cobrado {{importe}}? Esto NO contabiliza la factura — sigue pudiendo editarse hasta que la contabilices tú mismo.",
         "confirm": "Sí, cobrado",
