@@ -123,4 +123,34 @@ describe('FacturasEmitidasPage', () => {
       expect(descartarLocalSpy).not.toHaveBeenCalled();
     });
   });
+
+  // Bug real encontrado en revisión (2026-09-02): esta app usa IonicRouteStrategy (las páginas
+  // se mantienen vivas en memoria) — ngOnInit() (donde antes se leía el query param 'estado')
+  // solo se ejecuta la PRIMERA vez que se visita esta pantalla en toda la sesión.
+  // factura-detalle.page.ts (volver()) manda queryParams:{estado} tras contabilizar/firmar/
+  // anular/cobrar precisamente para aterrizar en la pestaña correcta, pero como solo
+  // ionViewWillEnter() se repite en visitas posteriores, la pestaña se quedaba congelada en la
+  // que estuviera antes de abrir el detalle. Se relee ahora en cada ionViewWillEnter().
+  describe('sincronización de la pestaña al volver del detalle', () => {
+    beforeEach(() => {
+      spyOn(component, 'refresh').and.resolveTo();
+    });
+
+    it('ionViewWillEnter() adopta la pestaña indicada por el query param "estado"', () => {
+      (component as any).route = { snapshot: { queryParamMap: { get: () => 'contabilizada' } } };
+
+      component.ionViewWillEnter();
+
+      expect(component.estado).toBe('contabilizada');
+    });
+
+    it('sin query param reconocido, ionViewWillEnter() no toca la pestaña ya seleccionada', () => {
+      component.estado = 'firmada';
+      (component as any).route = { snapshot: { queryParamMap: { get: () => null } } };
+
+      component.ionViewWillEnter();
+
+      expect(component.estado).toBe('firmada');
+    });
+  });
 });

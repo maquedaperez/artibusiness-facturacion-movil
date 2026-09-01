@@ -355,6 +355,28 @@ describe('HttpIssuedInvoicesRepository.guardar — Fase 4 (alta/edición real)',
     expect(body.lineas[0].idImpuesto).toBe(10); // 21% → idImpuesto 10
     expect(body.lineas[1].idImpuesto).toBe(11); // 10% → idImpuesto 11
   });
+
+  // Bug real encontrado en revisión (2026-09-02): 'data' (lo que manda el llamador a guardar())
+  // es un Pick sin 'cobrada' — sin este campo en el objeto devuelto, cualquier Guardar posterior
+  // a marcar un ticket como cobrado borraba ese dato en pantalla (el aviso "Pagado, pendiente de
+  // contabilizar" desaparecía y "Marcar como cobrado" reaparecía), aunque el backend siguiera
+  // teniendo el cobro bien registrado.
+  it('conserva cobrada=true tras guardar una factura ya marcada como cobrada', async () => {
+    apiSpy.post.and.callFake((path: string) => {
+      if (path === '/api/MediosPago/Enumerar') return Promise.resolve(MEDIOS_PAGO_API as any);
+      if (path === '/api/Impuesto/Enumerar') return Promise.resolve(IMPUESTOS_API as any);
+      if (path === '/api/FacturaEmitida/Guardar') return Promise.resolve(respuestaGuardar({ cobrada: 1 }) as any);
+      throw new Error(`POST no esperado en el test: ${path}`);
+    });
+
+    const guardada = await repo.guardar(501, {
+      fecha: '2026-08-20', vencimiento: '2026-09-20', concepto: 'Servicio',
+      medioPago: 'Transferencia', idMedioPago: 1, destinatario, idCliente: 3,
+      numeradorId: 1, lineas: [lineaBase],
+    });
+
+    expect(guardada.cobrada).toBeTrue();
+  });
 });
 
 describe('HttpIssuedInvoicesRepository.eliminar/duplicar — Fase 6', () => {

@@ -629,6 +629,14 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       // cliente genérico (solo lo hace al crear), sobrescribiendo el cliente ya asignado con 0.
       idCliente: dto.idCliente,
       esSimplificada: dto.esSimplificada,
+      // Bug real encontrado en revisión (2026-09-02): 'data' es DatosGuardarFacturaEmitida (un
+      // Pick sin 'cobrada'), así que sin este override cualquier Guardar posterior a marcar un
+      // ticket como cobrado borraba ese dato en pantalla (el aviso "Pagado, pendiente de
+      // contabilizar" desaparecía y "Marcar como cobrado" reaparecía), aunque el backend seguía
+      // teniendo el cobro bien registrado. dto.cobrada siempre viaja en la respuesta real de
+      // Guardar (GuardarFacturaEmitidaRequest -> FacturaEmitidaDetalleModel), así que esto solo
+      // faltaba aquí.
+      cobrada: dto.cobrada === 1,
     };
   }
 

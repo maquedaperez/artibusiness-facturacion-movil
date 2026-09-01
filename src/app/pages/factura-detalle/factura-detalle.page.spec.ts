@@ -473,4 +473,55 @@ describe('FacturaDetallePage', () => {
       expect(editor.componentInstance.permitirSuscripcion).toBeTrue();
     });
   });
+
+  // Bug real encontrado en revisión (2026-09-02): antes, Contabilizar/Firmar/Anular/Cobrar
+  // compartían una única bandera ('procesandoAeat'). En 'contabilizada' (Firmar+Anular visibles
+  // a la vez) y en 'borrador' (Cobrar+Contabilizar visibles a la vez), pulsar uno hacía que el
+  // OTRO botón también mostrara su spinner y su propio texto "...ando", aunque no fuera el que
+  // se estaba ejecutando de verdad. Cada acción tiene ahora su propia bandera; algoEnCurso()
+  // sigue bloqueando cualquier acción mientras otra está en vuelo.
+  describe('algoEnCurso — evita spinners/textos cruzados entre botones', () => {
+    function facturaContabilizada(): FacturaEmitida {
+      return {
+        id: 4001, numFactura: 'A-2026-4001', numeradorId: 1, fecha: '2026-09-02', vencimiento: '2026-09-02',
+        concepto: 'Servicio', medioPago: 'Transferencia', destinatario: { nombre: 'Cliente SL', nif: 'B1', esEmpresa: true },
+        lineas: [], estado: 'contabilizada', operacionId: 'op-4', anulada: false,
+      };
+    }
+
+    it('algoEnCurso es true si cualquiera de las acciones está en curso', () => {
+      expect(component.algoEnCurso).toBeFalse();
+      component.anulando = true;
+      expect(component.algoEnCurso).toBeTrue();
+    });
+
+    it('mientras se firma, NO se activa el flag de anular (antes compartían la misma bandera)', async () => {
+      component.facturaId = 4001;
+      component.working = facturaContabilizada();
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+
+      let resolverFirmar!: (f: FacturaEmitida) => void;
+      spyOn(repo, 'firmar').and.returnValue(new Promise<FacturaEmitida>(resolve => { resolverFirmar = resolve; }));
+
+      const alertCtrl = TestBed.inject(AlertController);
+      spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
+        const boton = opts.buttons.find((b: any) => b.role !== 'cancel');
+        return { present: async () => { boton.handler(); } } as any; // sin await: deja la firma "en vuelo"
+      });
+
+      await component.confirmarFirmar();
+      // firmar() todavía no se ha resuelto en este punto — es justo la ventana donde antes el
+      // botón de Anular (visible a la vez en 'contabilizada') mostraba spinner/texto de más.
+      expect(component.firmando).toBeTrue();
+      expect(component.anulando).toBeFalse();
+      expect(component.algoEnCurso).toBeTrue();
+
+      // Se resuelve la promesa para no dejar un handler colgado entre tests, sin más
+      // aserciones tras esto: el propio 'finally' del componente ya garantiza mecánicamente
+      // que firmando vuelve a false (no es lo que este test necesita demostrar) — comprobarlo
+      // aquí exigiría esperar a la cadena completa showToast()/volver() (Router real, sin rutas
+      // configuradas en este spec), lo que lo haría frágil sin aportar cobertura nueva.
+      resolverFirmar(facturaContabilizada());
+    });
+  });
 });

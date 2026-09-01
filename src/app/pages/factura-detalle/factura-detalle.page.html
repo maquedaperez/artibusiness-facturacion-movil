@@ -278,8 +278,9 @@
     <!-- Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): cobrar NUNCA contabiliza por sí
          solo — deja una sección claramente visible ("Pagado, pendiente de contabilizar") para
          que no se pierda de vista aunque se cierre la app entre el cobro y la contabilización. -->
-    <ion-button *ngIf="puedeCobrar" expand="block" fill="outline" class="boton-cobrar" [disabled]="procesandoAeat" (click)="confirmarCobro()">
-      {{ 'invoices.issued.cobros.action' | transloco }}
+    <ion-button *ngIf="puedeCobrar" expand="block" fill="outline" class="boton-cobrar" [disabled]="algoEnCurso" (click)="confirmarCobro()">
+      <ion-spinner *ngIf="marcandoCobrado" slot="start" name="dots"></ion-spinner>
+      {{ (marcandoCobrado ? 'invoices.issued.cobros.marking' : 'invoices.issued.cobros.action') | transloco }}
     </ion-button>
 
     <!-- Stripe Connect (Fase 3, 2026-09-02): SOLO visible si obtenerEstadoStripeConnect() ya
@@ -288,7 +289,7 @@
          este botón no se renderiza. Nunca debe verse ni "deshabilitado": su ausencia es el
          estado normal del MVP, no algo a explicar en pantalla. -->
     <ion-button *ngIf="puedeCobrarStripe" expand="block" fill="outline" class="boton-cobrar-stripe"
-                [disabled]="cobrandoStripe" (click)="iniciarCobroStripe()">
+                [disabled]="algoEnCurso" (click)="iniciarCobroStripe()">
       <ion-spinner *ngIf="cobrandoStripe" slot="start" name="dots"></ion-spinner>
       {{ 'invoices.issued.cobros.stripe.action' | transloco }}
     </ion-button>
@@ -309,25 +310,25 @@
       <p class="ion-no-margin aviso-pagado-pendiente">{{ 'invoices.issued.cobros.pagadoPendienteDeContabilizar' | transloco }}</p>
     </ion-text>
 
-    <ion-button *ngIf="f.estado === 'borrador'" expand="block" [disabled]="procesandoAeat || superaLimiteSimplificada" (click)="confirmarContabilizar()">
-      <ion-spinner *ngIf="procesandoAeat" slot="start" name="dots"></ion-spinner>
-      {{ (procesandoAeat ? 'invoices.issued.actions.posting' : 'invoices.issued.actions.post') | transloco }}
+    <ion-button *ngIf="f.estado === 'borrador'" expand="block" [disabled]="algoEnCurso || superaLimiteSimplificada" (click)="confirmarContabilizar()">
+      <ion-spinner *ngIf="contabilizando" slot="start" name="dots"></ion-spinner>
+      {{ (contabilizando ? 'invoices.issued.actions.posting' : 'invoices.issued.actions.post') | transloco }}
     </ion-button>
 
     <!-- Pipeline F2 (2026-08-31): una simplificada no genera XML Facturae, así que no hay nada
          que firmar (el backend lo rechaza con un error estable si se llama directamente). -->
-    <ion-button *ngIf="f.estado === 'contabilizada' && !f.esSimplificada" expand="block" [disabled]="procesandoAeat" (click)="confirmarFirmar()">
-      <ion-spinner *ngIf="procesandoAeat" slot="start" name="dots"></ion-spinner>
-      {{ (procesandoAeat ? 'invoices.issued.actions.signing' : 'invoices.issued.actions.sign') | transloco }}
+    <ion-button *ngIf="f.estado === 'contabilizada' && !f.esSimplificada" expand="block" [disabled]="algoEnCurso" (click)="confirmarFirmar()">
+      <ion-spinner *ngIf="firmando" slot="start" name="dots"></ion-spinner>
+      {{ (firmando ? 'invoices.issued.actions.signing' : 'invoices.issued.actions.sign') | transloco }}
     </ion-button>
 
-    <ion-button *ngIf="puedeSubsanar" expand="block" fill="outline" color="warning" [disabled]="procesandoAeat" (click)="irASubsanar()">
+    <ion-button *ngIf="puedeSubsanar" expand="block" fill="outline" color="warning" [disabled]="algoEnCurso" (click)="irASubsanar()">
       {{ 'invoices.issued.detail.correctInvoice' | transloco }}
     </ion-button>
 
-    <ion-button *ngIf="puedeAnular" expand="block" fill="outline" color="danger" [disabled]="procesandoAeat" (click)="confirmarAnular()">
-      <ion-spinner *ngIf="procesandoAeat" slot="start" name="dots"></ion-spinner>
-      {{ (procesandoAeat ? 'invoices.issued.detail.cancelling' : 'invoices.issued.detail.cancelInvoice') | transloco }}
+    <ion-button *ngIf="puedeAnular" expand="block" fill="outline" color="danger" [disabled]="algoEnCurso" (click)="confirmarAnular()">
+      <ion-spinner *ngIf="anulando" slot="start" name="dots"></ion-spinner>
+      {{ (anulando ? 'invoices.issued.detail.cancelling' : 'invoices.issued.detail.cancelInvoice') | transloco }}
     </ion-button>
   </div>
 </ion-footer>

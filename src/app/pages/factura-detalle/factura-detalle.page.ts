@@ -62,10 +62,22 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
   serieSimplificadaNoConfigurada = false;
   cargando = true;
   guardando = false;
-  // Blindaje Fase 7 (2026-08-21): evita que un doble clic (o una respuesta lenta de la AEAT)
-  // dispare dos veces Contabilizar/Firmar para la misma factura — visto en real en los logs
-  // de producción, dos peticiones casi simultáneas contabilizando la misma factura.
-  procesandoAeat = false;
+  // Blindaje Fase 7 (2026-08-21), separado en una bandera por acción (2026-09-02): antes
+  // 'procesandoAeat' era una única bandera compartida entre Contabilizar/Firmar/Anular/Cobrar —
+  // bug real encontrado en revisión: en 'contabilizada' (Firmar+Anular visibles a la vez) y en
+  // 'borrador' (Cobrar+Contabilizar visibles a la vez), pulsar uno hacía que el OTRO botón
+  // también mostrara su spinner y su propio texto "...ando", aunque no fuera el que se estaba
+  // ejecutando de verdad. Cada acción tiene ahora su propia bandera (para el spinner/texto
+  // correcto); algoEnCurso() sigue bloqueando cualquier acción mientras otra esté en vuelo
+  // (misma protección de fondo contra doble clic que había antes).
+  contabilizando = false;
+  firmando = false;
+  anulando = false;
+  marcandoCobrado = false;
+
+  get algoEnCurso(): boolean {
+    return this.contabilizando || this.firmando || this.anulando || this.marcandoCobrado || this.cobrandoStripe;
+  }
 
   numeradores: Numerador[] = [];
   numeradorSeleccionado: number | null = null;
@@ -414,7 +426,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
   // rechazo real de la AEAT), se muestra el motivo y la factura se queda tal cual estaba
   // (el backend no cambia nada si la llamada a FacturaE falla).
   async confirmarContabilizar() {
-    if (!this.working || this.facturaId == null || this.procesandoAeat) return;
+    if (!this.working || this.facturaId == null || this.algoEnCurso) return;
 
     // El servidor real rechaza la factura (error AEAT 4102) si el concepto va vacío,
     // y el medio de pago es obligatorio en el modelo — se valida aquí antes de intentarlo.
@@ -432,10 +444,10 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
         {
           text: this.transloco.translate('invoices.issued.actions.postConfirm'),
           handler: async () => {
-            if (this.procesandoAeat) return;
+            if (this.algoEnCurso) return;
             const guardadoOk = await this.guardar(false);
             if (!guardadoOk) return; // guardar() ya mostró el motivo del fallo
-            this.procesandoAeat = true;
+            this.contabilizando = true;
             try {
               this.working = await this.invoicesRepo.contabilizar(this.facturaId!);
               await this.showToast(this.transloco.translate('invoices.issued.detail.postedSuccess'));
@@ -443,7 +455,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
             } catch (e: any) {
               await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.post.error'), 'danger');
             } finally {
-              this.procesandoAeat = false;
+              this.contabilizando = false;
             }
           },
         },
@@ -464,7 +476,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
   // el backend lo revalida igualmente contra el total real de la factura ya guardada, esto solo
   // evita pedirle al usuario que teclee un importe que ya puede ver en pantalla.
   async confirmarCobro() {
-    if (!this.working || this.facturaId == null || this.procesandoAeat || !this.puedeCobrar) return;
+    if (!this.working || this.facturaId == null || this.algoEnCurso || !this.puedeCobrar) return;
 
     const importe = this.totales().total;
 
@@ -482,15 +494,15 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
         {
           text: this.transloco.translate('invoices.issued.cobros.confirm'),
           handler: async (medio: string) => {
-            if (this.procesandoAeat) return;
-            this.procesandoAeat = true;
+            if (this.algoEnCurso) return;
+            this.marcandoCobrado = true;
             try {
               this.working = await this.invoicesRepo.marcarComoCobrado(this.facturaId!, medio, importe);
               await this.showToast(this.transloco.translate('invoices.issued.cobros.success'));
             } catch (e: any) {
               await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.cobros.error'), 'danger');
             } finally {
-              this.procesandoAeat = false;
+              this.marcandoCobrado = false;
             }
           },
         },
@@ -507,7 +519,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
   }
 
   async iniciarCobroStripe() {
-    if (!this.working || this.facturaId == null || this.cobrandoStripe || !this.puedeCobrarStripe) return;
+    if (!this.working || this.facturaId == null || this.algoEnCurso || !this.puedeCobrarStripe) return;
 
     this.cobrandoStripe = true;
     try {
@@ -569,7 +581,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
   }
 
   async confirmarFirmar() {
-    if (!this.working || this.facturaId == null || this.procesandoAeat) return;
+    if (!this.working || this.facturaId == null || this.algoEnCurso) return;
 
     const alert = await this.alertCtrl.create({
       header: this.transloco.translate('invoices.issued.sign.header'),
@@ -579,8 +591,8 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
         {
           text: this.transloco.translate('invoices.issued.actions.signConfirm'),
           handler: async () => {
-            if (this.procesandoAeat) return;
-            this.procesandoAeat = true;
+            if (this.algoEnCurso) return;
+            this.firmando = true;
             try {
               this.working = await this.invoicesRepo.firmar(this.facturaId!);
               await this.showToast(this.transloco.translate('invoices.issued.detail.signedSuccess'));
@@ -588,7 +600,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
             } catch (e: any) {
               await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.sign.error'), 'danger');
             } finally {
-              this.procesandoAeat = false;
+              this.firmando = false;
             }
           },
         },
@@ -615,7 +627,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
   }
 
   async confirmarAnular() {
-    if (!this.working || this.facturaId == null || this.procesandoAeat) return;
+    if (!this.working || this.facturaId == null || this.algoEnCurso) return;
 
     const alert = await this.alertCtrl.create({
       header: this.transloco.translate('invoices.issued.detail.cancelHeader'),
@@ -626,15 +638,15 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
           text: this.transloco.translate('invoices.issued.detail.cancelConfirm'),
           role: 'destructive',
           handler: async () => {
-            if (this.procesandoAeat) return;
-            this.procesandoAeat = true;
+            if (this.algoEnCurso) return;
+            this.anulando = true;
             try {
               this.working = await this.invoicesRepo.anular(this.facturaId!);
               await this.showToast(this.transloco.translate('invoices.issued.detail.cancelledSuccess'));
             } catch (e: any) {
               await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.detail.cancelError'), 'danger');
             } finally {
-              this.procesandoAeat = false;
+              this.anulando = false;
             }
           },
         },
