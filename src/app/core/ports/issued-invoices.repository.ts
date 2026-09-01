@@ -102,6 +102,13 @@ export abstract class IssuedInvoicesRepository {
   // ya habla con el backend real para las dos (DELETE .../{id} y, para duplicar, reutilizando
   // guardar() con un borrador nuevo). Mismo cambio que ya sufrieron listar/obtenerPorId en Fase 2.
   abstract eliminar(id: number): Promise<void>;
+  // Facturas simplificadas emitidas (2026-09-02): un borrador puramente local (esBorradorLocal
+  // === true, nunca guardado de verdad) todavía no ha consumido ningún número fiscal — puede
+  // descartarse sin más. eliminar() SIEMPRE intenta primero un DELETE HTTP real (y solo cae al
+  // mock tras un 404), lo cual no tiene sentido para algo que el backend nunca ha visto; el
+  // llamador debe usar descartarLocal() en su lugar cuando f.esBorradorLocal es true, para no
+  // depender de que el backend responda 404 a una petición que no debería hacerse.
+  abstract descartarLocal(id: number): Promise<void>;
   abstract duplicar(id: number): Promise<FacturaEmitida | undefined>;
   abstract generarDocumento(id: number): Promise<{ blob: Blob; nombre: string }>;
   // PDF real (2026-08-27): solo existe una vez contabilizada/firmada — lo genera y publica

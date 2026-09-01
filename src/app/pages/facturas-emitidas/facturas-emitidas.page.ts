@@ -344,7 +344,14 @@ export class FacturasEmitidasPage implements OnInit {
           role: 'destructive',
           handler: async () => {
             try {
-              await this.invoicesRepo.eliminar(f.id);
+              // Un borrador puramente local (nunca guardado de verdad) todavia no ha consumido
+              // ningun numero fiscal — se descarta sin llamar al backend en absoluto, en vez de
+              // depender de que eliminar() reciba un 404 para caer al mismo sitio.
+              if (f.esBorradorLocal) {
+                await this.invoicesRepo.descartarLocal(f.id);
+              } else {
+                await this.invoicesRepo.eliminar(f.id);
+              }
               await this.refresh();
               await this.showToast(this.transloco.translate('invoices.issued.deleteDraft.success'));
             } catch (e: any) {

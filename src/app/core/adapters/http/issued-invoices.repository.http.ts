@@ -589,6 +589,14 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     this.mockAdapter.eliminar(id);
   }
 
+  // Facturas simplificadas emitidas (2026-09-02): descarte de un borrador puramente local — a
+  // diferencia de eliminar(), NUNCA intenta un DELETE HTTP (nada que borrar en el backend, ese
+  // número/id no existe ahí todavía). El llamador es responsable de comprobar antes
+  // f.esBorradorLocal; este método no lo vuelve a comprobar por su cuenta.
+  async descartarLocal(id: number): Promise<void> {
+    this.mockAdapter.eliminar(id);
+  }
+
   // Fase 6 del plan de integración (2026-08-20): un borrador local (todavía sin guardar de
   // verdad) se duplica en local, igual que antes — no tiene sentido reservar ya un número real
   // para una copia de algo que ni siquiera se ha guardado la primera vez. Una factura real

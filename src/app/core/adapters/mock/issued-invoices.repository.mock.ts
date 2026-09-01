@@ -130,6 +130,12 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     this.mock.eliminarEmitida(id);
   }
 
+  // En modo mock puro no hay backend real que llamar — descartarLocal() es literalmente lo
+  // mismo que eliminar() aquí (la distinción solo importa en HttpIssuedInvoicesRepository).
+  async descartarLocal(id: number): Promise<void> {
+    this.mock.eliminarEmitida(id);
+  }
+
   async duplicar(id: number): Promise<FacturaEmitida | undefined> {
     return this.mock.duplicarEmitida(id);
   }
