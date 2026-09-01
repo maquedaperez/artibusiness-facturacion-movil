@@ -423,6 +423,32 @@ describe('FacturaDetallePage', () => {
     });
   });
 
+  // Bug real encontrado en revisión (2026-09-02): esEditable nunca miraba 'cobrada' — un
+  // ticket ya cobrado (mientras sigue en borrador) se podía seguir editando (líneas, importe,
+  // cliente) sin ningún aviso. El backend (FacturaEmitidaService.GuardarAsync) es quien de
+  // verdad lo impone con un 409; esto cubre que el frontend oculta el formulario de edición.
+  describe('esEditable respeta cobrada', () => {
+    function facturaBorrador(overrides: Partial<FacturaEmitida> = {}): FacturaEmitida {
+      return {
+        id: 3001, numFactura: 'FS-3001', numeradorId: 1, fecha: '2026-09-02', vencimiento: '2026-09-02',
+        concepto: 'Venta', medioPago: '', destinatario: { nombre: 'Consumidor final', nif: '', esEmpresa: false },
+        lineas: [{ id: 1, origen: 'manual', descripcion: 'Producto', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 }],
+        estado: 'borrador', operacionId: 'op-3',
+        ...overrides,
+      };
+    }
+
+    it('un borrador ya cobrado deja de ser editable', () => {
+      component.working = facturaBorrador({ cobrada: true });
+      expect(component.esEditable).toBeFalse();
+    });
+
+    it('un borrador sin cobrar sigue siendo editable con normalidad', () => {
+      component.working = facturaBorrador({ cobrada: false });
+      expect(component.esEditable).toBeTrue();
+    });
+  });
+
   // Ticket (2026-09-02, reunión con Jose): el pago es inmediato — fecha siempre hoy y no
   // editable, sin concepto de vencimiento, y sin la opción de línea "Suscripción". El backend
   // impone lo mismo de forma independiente (WebAPIARTIBusiness.Tests); esto cubre que el

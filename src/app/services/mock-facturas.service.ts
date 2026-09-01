@@ -436,7 +436,18 @@ function accionesEmitidaPorEstado(esBorrador: boolean, estadoReconocido: boolean
 
 export function accionesFacturaEmitida(f: FacturaEmitida): AccionesPermitidas {
   const reconocido = f.estado === 'borrador' || f.estado === 'contabilizada' || f.estado === 'firmada';
-  return accionesEmitidaPorEstado(f.estado === 'borrador', reconocido);
+  const acciones = accionesEmitidaPorEstado(f.estado === 'borrador', reconocido);
+
+  // Bug real encontrado en revisión (2026-09-02): esta función nunca miraba 'cobrada' — un
+  // ticket ya cobrado (mientras sigue en borrador) se podía seguir editando o eliminando sin
+  // ningún aviso, igual que ya se corrigió una vez para Recibidas ('pagada' bloqueando
+  // 'eliminar', ver accionesFacturaRecibida más abajo). El backend (FacturaEmitidaService.
+  // GuardarAsync/EliminarAsync) es quien de verdad lo impone con un 409 — esto solo evita
+  // ofrecer un botón que se sabe que va a fallar.
+  if (f.cobrada) {
+    return { ...acciones, editar: false, eliminar: false };
+  }
+  return acciones;
 }
 
 // Política de RECIBIDAS — deliberadamente independiente de la de Emitidas. Esta app
