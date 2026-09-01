@@ -252,6 +252,7 @@
         "convertHeader": "Convertir en factura completa",
         "convertConfirmMessage": "Esto cambia el tipo fiscal a factura completa y te pedirá elegir un cliente real. Se ajustará también la serie si es necesario. ¿Continuar?",
         "convertConfirm": "Sí, convertir",
+        "convertOnlyBeforeSave": "Después de guardar el ticket ya no podrá convertirse directamente en factura completa.",
         "convertBlockedAlreadyNumbered": "Esta factura ya tiene un número real asignado en la serie simplificada — no se puede convertir sin perder ese número. Crea una factura completa nueva y elimina este borrador si lo necesitas.",
         "limitExceeded": "Una factura simplificada no puede superar {{limite}} (IVA incluido). Esta factura asciende a {{total}}.",
         "emailSection": "Envío por correo",

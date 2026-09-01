@@ -256,6 +256,7 @@
 "invoices.issued.simplified.convertConfirm";"Facturas emitidas";"Sí, convertir";"Yes, convert";"Так, перетворити";"no"
 "invoices.issued.simplified.convertConfirmMessage";"Facturas emitidas";"Esto cambia el tipo fiscal a factura completa y te pedirá elegir un cliente real. Se ajustará también la serie si es necesario. ¿Continuar?";"This changes the tax type to a full invoice and will ask you to choose a real customer. The series will also be adjusted if needed. Continue?";"Це змінить податковий тип на повний рахунок і запропонує обрати реального клієнта. За потреби буде скоригована й серія. Продовжити?";"no"
 "invoices.issued.simplified.convertHeader";"Facturas emitidas";"Convertir en factura completa";"Convert to full invoice";"Перетворити на повний рахунок";"no"
+"invoices.issued.simplified.convertOnlyBeforeSave";"Facturas emitidas";"Después de guardar el ticket ya no podrá convertirse directamente en factura completa.";"After saving, the ticket can no longer be converted directly into a full invoice.";"Після збереження чек більше не можна безпосередньо перетворити на повний рахунок.";"no"
 "invoices.issued.simplified.convertToComplete";"Facturas emitidas";"Convertir en factura completa";"Convert to full invoice";"Перетворити на повний рахунок";"no"
 "invoices.issued.simplified.emailLabel";"Facturas emitidas";"Correo del cliente";"Customer email";"Email клієнта";"no"
 "invoices.issued.simplified.emailPlaceholder";"Facturas emitidas";"correo@ejemplo.com";"email@example.com";"email@example.com";"no"

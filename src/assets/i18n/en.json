@@ -252,6 +252,7 @@
         "convertHeader": "Convert to full invoice",
         "convertConfirmMessage": "This changes the tax type to a full invoice and will ask you to choose a real customer. The series will also be adjusted if needed. Continue?",
         "convertConfirm": "Yes, convert",
+        "convertOnlyBeforeSave": "After saving, the ticket can no longer be converted directly into a full invoice.",
         "convertBlockedAlreadyNumbered": "This invoice already has a real number assigned in the simplified series — it can't be converted without losing that number. Create a new full invoice and delete this draft if you need one.",
         "limitExceeded": "A simplified invoice cannot exceed {{limite}} (VAT included). This invoice totals {{total}}.",
         "emailSection": "Email delivery",
