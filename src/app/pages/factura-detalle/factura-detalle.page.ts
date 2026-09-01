@@ -89,6 +89,10 @@ export class FacturaDetallePage implements OnInit {
   // se usa para avisar antes de intentar guardar/contabilizar, nunca como única validación.
   readonly limiteSimplificada = 400;
 
+  // Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): catálogo fijo de medios manuales —
+  // coincide exactamente con lo que valida el backend (FacturacionFacturasEmitidasCobros.Medio).
+  readonly MEDIOS_COBRO = ['EFECTIVO', 'TRANSFERENCIA', 'TPV_EXTERNA', 'TARJETA', 'BIZUM'];
+
   constructor() {
     addIcons({
       arrowBackOutline, personCircleOutline, documentTextOutline,
@@ -415,6 +419,53 @@ export class FacturaDetallePage implements OnInit {
               this.volver();
             } catch (e: any) {
               await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.post.error'), 'danger');
+            } finally {
+              this.procesandoAeat = false;
+            }
+          },
+        },
+      ],
+    });
+    await alert.present();
+  }
+
+  // Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): solo tiene sentido mientras sigue en
+  // borrador (cobrar algo ya contabilizado no es lo que dispara la contabilización; ver
+  // docs/FACTURAS_SIMPLIFICADAS_MVP.md) y todavía no se ha cobrado — el backend es quien de
+  // verdad decide (MarcarComoCobradoAsync), esto es solo para no invitar a un intento redundante.
+  get puedeCobrar(): boolean {
+    return !!this.working && this.working.estado === 'borrador' && !this.working.cobrada;
+  }
+
+  // El importe se manda tal cual lo calcula el propio formulario (nunca uno editable a mano) —
+  // el backend lo revalida igualmente contra el total real de la factura ya guardada, esto solo
+  // evita pedirle al usuario que teclee un importe que ya puede ver en pantalla.
+  async confirmarCobro() {
+    if (!this.working || this.facturaId == null || this.procesandoAeat || !this.puedeCobrar) return;
+
+    const importe = this.totales().total;
+
+    const alert = await this.alertCtrl.create({
+      header: this.transloco.translate('invoices.issued.cobros.header'),
+      message: this.transloco.translate('invoices.issued.cobros.confirmMessage', { importe: this.formatEuros(importe) }),
+      inputs: this.MEDIOS_COBRO.map((medio, i) => ({
+        type: 'radio' as const,
+        label: this.transloco.translate(`invoices.issued.cobros.medios.${medio}`),
+        value: medio,
+        checked: i === 0,
+      })),
+      buttons: [
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
+        {
+          text: this.transloco.translate('invoices.issued.cobros.confirm'),
+          handler: async (medio: string) => {
+            if (this.procesandoAeat) return;
+            this.procesandoAeat = true;
+            try {
+              this.working = await this.invoicesRepo.marcarComoCobrado(this.facturaId!, medio, importe);
+              await this.showToast(this.transloco.translate('invoices.issued.cobros.success'));
+            } catch (e: any) {
+              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.cobros.error'), 'danger');
             } finally {
               this.procesandoAeat = false;
             }

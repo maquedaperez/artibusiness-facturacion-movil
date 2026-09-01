@@ -80,6 +80,10 @@
           </span>
           <span class="aeat aeat-danger" *ngIf="f.anulada">{{ 'invoices.issued.badges.cancelled' | transloco }}</span>
           <span class="aeat aeat-warning" *ngIf="f.subsanada && !f.anulada">{{ 'invoices.issued.badges.corrected' | transloco }}</span>
+          <!-- Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): "sección claramente
+               visible" — aquí, en cada tarjeta de la lista de borradores, para que no se pierda
+               de vista aunque el usuario cierre la app entre cobrar y contabilizar. -->
+          <span class="aeat aeat-success" *ngIf="f.cobrada && f.estado === 'borrador'">{{ 'invoices.issued.cobros.badgePagado' | transloco }}</span>
         </div>
 
         <div class="row-actions">

@@ -275,6 +275,16 @@
       {{ (guardando ? 'invoices.issued.detail.saving' : 'invoices.issued.detail.saveDraft') | transloco }}
     </ion-button>
 
+    <!-- Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): cobrar NUNCA contabiliza por sí
+         solo — deja una sección claramente visible ("Pagado, pendiente de contabilizar") para
+         que no se pierda de vista aunque se cierre la app entre el cobro y la contabilización. -->
+    <ion-button *ngIf="puedeCobrar" expand="block" fill="outline" class="boton-cobrar" [disabled]="procesandoAeat" (click)="confirmarCobro()">
+      {{ 'invoices.issued.cobros.action' | transloco }}
+    </ion-button>
+    <ion-text color="success" *ngIf="f.cobrada && f.estado === 'borrador'">
+      <p class="ion-no-margin aviso-pagado-pendiente">{{ 'invoices.issued.cobros.pagadoPendienteDeContabilizar' | transloco }}</p>
+    </ion-text>
+
     <ion-button *ngIf="f.estado === 'borrador'" expand="block" [disabled]="procesandoAeat || superaLimiteSimplificada" (click)="confirmarContabilizar()">
       <ion-spinner *ngIf="procesandoAeat" slot="start" name="dots"></ion-spinner>
       {{ (procesandoAeat ? 'invoices.issued.actions.posting' : 'invoices.issued.actions.post') | transloco }}

@@ -19,6 +19,14 @@
   margin-bottom: 8px;
 }
 
+// Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): visible aunque el usuario cierre la
+// app entre el cobro y la contabilización — no debe pasar desapercibido.
+.aviso-pagado-pendiente {
+  font-weight: 700;
+  text-align: center;
+  padding: 8px;
+}
+
 .lineas-title {
   margin-top: 20px;
   margin-left: 4px;
