@@ -116,7 +116,7 @@
           <!-- Pipeline F2 (2026-08-31): una simplificada no genera XML Facturae, así que no hay
                nada que firmar. -->
           <ion-button
-            *ngIf="f.estado === 'contabilizada' && !f.esSimplificada"
+            *ngIf="puedeFirmar(f)"
             size="small"
             class="accion-principal"
             [disabled]="procesandoAeatIds.has(f.id)"

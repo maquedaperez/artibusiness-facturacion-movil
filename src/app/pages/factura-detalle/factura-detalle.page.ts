@@ -205,6 +205,8 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
     try {
       const mediosPago = await this.invoicesRepo.obtenerMediosPago();
       if (mediosPago.length > 0) this.mediosPago = mediosPago;
+      // El ticket puede haberse creado antes de que llegara el catalogo real.
+      this.autoseleccionarFormaDePagoDeUnTicket();
     } catch {
       // Se mantiene el catálogo de ejemplo como valor por defecto.
     }
@@ -398,6 +400,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
     this.working.idCliente = undefined;
     this.facturaId = creada.id;
     this.esNueva = false;
+    this.autoseleccionarFormaDePagoDeUnTicket();
     this.marcarSinCambiosPendientes();
   }
 
@@ -408,6 +411,33 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   private async cargarEstadoStripeConnect() {
     const { disponible } = await this.invoicesRepo.obtenerEstadoStripeConnect();
     this.stripeConnectDisponible = disponible;
+  }
+
+  // Forma de pago de un TICKET (2026-09-02, encontrado probando la demo): en un ticket el pago
+  // es inmediato y el medio real queda registrado en el cobro (MEDIOS_COBRO, ver
+  // confirmarCobro), que es la fila que de verdad guarda como se pago
+  // (FacturacionFacturasEmitidasCobros.Medio). Pedir ADEMAS la "forma de pago" de la cabecera
+  // era preguntar dos veces por lo mismo con dos vocabularios distintos —  y encima bloqueaba:
+  // el campo es obligatorio para guardar (el backend exige IdMedioPago), asi que no elegirlo
+  // impedia continuar.
+  //
+  // La cabecera sigue necesitando su IdMedioPago (es obligatorio en el modelo y una factura
+  // puede contabilizarse sin llegar a cobrarse), asi que se elige solo: se prefiere una entrada
+  // del catalogo real que suene a pago al contado y, si no hay ninguna, la primera disponible.
+  // Nunca se inventa un id: si el catalogo aun no ha llegado, no se toca nada.
+  private readonly PISTAS_PAGO_INMEDIATO = ['contado', 'efectivo', 'caja', 'metalico'];
+
+  private autoseleccionarFormaDePagoDeUnTicket() {
+    if (!this.working?.esSimplificada || this.working.idMedioPago) return;
+    if (this.mediosPago.length === 0) return;
+
+    const inmediato = this.mediosPago.find(m =>
+      this.PISTAS_PAGO_INMEDIATO.some(p => m.label?.toLowerCase().includes(p)));
+    const elegido = inmediato ?? this.mediosPago[0];
+    this.onMedioPagoChange(elegido.id);
+    // Es una eleccion automatica, no del usuario: no debe contar como cambio sin guardar ni
+    // hacer que salte el aviso de salida en un ticket que solo se ha abierto.
+    this.marcarSinCambiosPendientes();
   }
 
   // Mantiene medioPago (etiqueta, se sigue mostrando/validando como texto) en sincronía con
@@ -548,8 +578,21 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
           text: this.transloco.translate('invoices.issued.actions.postConfirm'),
           handler: async () => {
             if (this.algoEnCurso) return;
-            const guardadoOk = await this.guardar(false);
-            if (!guardadoOk) return; // guardar() ya mostró el motivo del fallo
+
+            // Bug real encontrado en revisión (2026-09-02): esto guardaba SIEMPRE antes de
+            // contabilizar, aunque no hubiera nada que guardar. Para un ticket ya cobrado el
+            // backend rechaza cualquier edición con un 409 ("Esta factura ya tiene un cobro
+            // confirmado — no se puede editar", ver GuardarAsync), así que el guardado previo
+            // fallaba y abortaba la contabilización: el flujo cobrar -> contabilizar, que es
+            // justo el que la propia pantalla invita a seguir con "Pagado — pendiente de
+            // contabilizar", era IMPOSIBLE de completar. Ahora solo se guarda si de verdad hay
+            // algo pendiente: un borrador local (que todavía no existe en el backend) o cambios
+            // sin guardar en pantalla.
+            const necesitaGuardar = this.working?.esBorradorLocal === true || this.hayCambiosSinGuardar;
+            if (necesitaGuardar) {
+              const guardadoOk = await this.guardar(false);
+              if (!guardadoOk) return; // guardar() ya mostró el motivo del fallo
+            }
             this.contabilizando = true;
             try {
               this.working = await this.invoicesRepo.contabilizar(this.facturaId!);
@@ -773,6 +816,18 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // fallar. Anular SÍ sigue disponible para una simplificada (funciona sin cambios).
   get puedeSubsanar(): boolean {
     return this.puedeAnular && !this.working?.esSimplificada;
+  }
+
+  // Bug real encontrado en revisión (2026-09-02): el botón de Firmar solo miraba el estado y
+  // que no fuera simplificada — dejaba firmar una factura ya ANULADA, que no tiene ningún
+  // sentido fiscal (se estaría firmando el documento de una factura que ya se dio de baja). El
+  // backend tampoco lo impide hoy (FacturaEmitidaAeatService.FirmarAsync comprueba estado y
+  // tipo, pero no la anulación), así que hasta ahora habría llegado a firmarse de verdad.
+  get puedeFirmar(): boolean {
+    return !!this.working
+      && this.working.estado === 'contabilizada'
+      && !this.working.esSimplificada
+      && !this.working.anulada;
   }
 
   async confirmarAnular() {

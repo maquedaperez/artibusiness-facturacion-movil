@@ -164,7 +164,13 @@
           <p class="aviso-campo">{{ 'invoices.issued.detail.conceptRequired' | transloco }}</p>
         </ion-text>
 
-        <ion-item [disabled]="!esEditable">
+        <!-- En un TICKET no se pregunta la forma de pago aqui: el pago es inmediato y el medio
+             real se registra en el cobro ("Marcar como cobrado"), que es donde de verdad queda
+             guardado. Preguntarlo tambien aqui era pedir lo mismo dos veces con dos vocabularios
+             distintos, y ademas bloqueaba (el campo es obligatorio para poder guardar). La
+             cabecera sigue llevando su idMedioPago, elegido automaticamente — ver
+             autoseleccionarFormaDePagoDeUnTicket(). -->
+        <ion-item [disabled]="!esEditable" *ngIf="!f.esSimplificada">
           <ion-select [label]="'invoices.issued.detail.paymentMethodLabel' | transloco" labelPlacement="stacked" interface="popover"
             [ngModel]="f.idMedioPago" (ngModelChange)="onMedioPagoChange($event)">
             <ion-select-option *ngFor="let m of mediosPago" [value]="m.id">{{ m.label }}</ion-select-option>
@@ -344,7 +350,7 @@
 
     <!-- Pipeline F2 (2026-08-31): una simplificada no genera XML Facturae, así que no hay nada
          que firmar (el backend lo rechaza con un error estable si se llama directamente). -->
-    <ion-button *ngIf="f.estado === 'contabilizada' && !f.esSimplificada" expand="block" [disabled]="algoEnCurso" (click)="confirmarFirmar()">
+    <ion-button *ngIf="puedeFirmar" expand="block" [disabled]="algoEnCurso" (click)="confirmarFirmar()">
       <ion-spinner *ngIf="firmando" slot="start" name="dots"></ion-spinner>
       {{ (firmando ? 'invoices.issued.actions.signing' : 'invoices.issued.actions.sign') | transloco }}
     </ion-button>

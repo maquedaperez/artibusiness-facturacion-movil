@@ -262,6 +262,13 @@ export class FacturasEmitidasPage implements OnInit {
     }
   }
 
+  // Bug real encontrado en revision (2026-09-02): la lista ofrecia Firmar sobre una factura ya
+  // ANULADA — no tiene sentido fiscal firmar el documento de una factura dada de baja, y el
+  // backend tampoco lo impide hoy. Misma regla que puedeFirmar en factura-detalle.page.ts.
+  puedeFirmar(f: FacturaEmitida): boolean {
+    return f.estado === 'contabilizada' && !f.esSimplificada && !f.anulada;
+  }
+
   accionesPermitidas(f: FacturaEmitida): AccionesPermitidas {
     return this.invoicesRepo.accionesPermitidas(f);
   }

@@ -922,4 +922,164 @@ describe('FacturaDetallePage', () => {
       });
     });
   });
+  // Bugs encontrados probando la demo con datos reales (2026-09-02).
+  describe('bugs encontrados probando la demo (2026-09-02)', () => {
+    function ticketGuardado(overrides: Partial<FacturaEmitida> = {}): FacturaEmitida {
+      return {
+        id: 3,
+        numFactura: 'FS7',
+        numeradorId: 1,
+        fecha: '2026-09-02',
+        vencimiento: '2026-09-02',
+        concepto: 'prueba 32413',
+        medioPago: 'Contado — Caja',
+        idMedioPago: 1,
+        destinatario: { nombre: 'Consumidor final', nif: '', esEmpresa: false },
+        lineas: [{ id: 1, origen: 'manual', descripcion: 'prueba 1231', cantidad: 1, precioUnitario: 5, descuentoPct: 0, ivaPct: 21 }],
+        estado: 'borrador',
+        operacionId: 'op-3',
+        esSimplificada: true,
+        esBorradorLocal: false,
+        ...overrides,
+      };
+    }
+
+    function confirmarEnElAlert() {
+      const alertCtrl = TestBed.inject(AlertController);
+      spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
+        const boton = opts.buttons.find((b: any) => b.role !== 'cancel');
+        return { present: async () => { await boton.handler(); } } as any;
+      });
+    }
+
+    async function cargar(f: FacturaEmitida) {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      spyOn(repo, 'obtenerPorId').and.resolveTo(f);
+      await component['cargarFactura'](f.id);
+    }
+
+    // El backend rechaza CUALQUIER edicion de una factura ya cobrada con un 409, asi que el
+    // guardado previo incondicional hacia imposible contabilizar un ticket cobrado — justo el
+    // flujo que la propia pantalla invita a seguir con "Pagado — pendiente de contabilizar".
+    it('contabilizar un ticket ya cobrado NO intenta guardarlo antes', async () => {
+      await cargar(ticketGuardado({ cobrada: true }));
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const guardarSpy = spyOn(repo, 'guardar').and.rejectWith(new Error('HTTP 409 - no se puede editar'));
+      const contabilizarSpy = spyOn(repo, 'contabilizar').and.resolveTo(ticketGuardado({ cobrada: true, estado: 'contabilizada' }));
+      spyOn(component, 'volver');
+      confirmarEnElAlert();
+
+      await component.confirmarContabilizar();
+
+      expect(guardarSpy).not.toHaveBeenCalled();
+      expect(contabilizarSpy).toHaveBeenCalledWith(3);
+    });
+
+    it('contabilizar con cambios sin guardar SI guarda antes', async () => {
+      await cargar(ticketGuardado());
+      component.working!.concepto = 'editado a mano';
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const guardarSpy = spyOn(repo, 'guardar').and.callFake(async () => ({ ...component.working! }));
+      const contabilizarSpy = spyOn(repo, 'contabilizar').and.resolveTo(ticketGuardado({ estado: 'contabilizada' }));
+      spyOn(component, 'volver');
+      confirmarEnElAlert();
+
+      await component.confirmarContabilizar();
+
+      expect(guardarSpy).toHaveBeenCalled();
+      expect(contabilizarSpy).toHaveBeenCalled();
+    });
+
+    it('un borrador local siempre se guarda antes de contabilizar', async () => {
+      component.working = ticketGuardado({ esBorradorLocal: true });
+      component.facturaId = component.working.id;
+      component['marcarSinCambiosPendientes']();
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const guardarSpy = spyOn(repo, 'guardar').and.callFake(async () => ({ ...component.working!, esBorradorLocal: false }));
+      spyOn(repo, 'contabilizar').and.resolveTo(ticketGuardado({ estado: 'contabilizada' }));
+      spyOn(component, 'volver');
+      confirmarEnElAlert();
+
+      await component.confirmarContabilizar();
+
+      expect(guardarSpy).toHaveBeenCalled();
+    });
+
+    // Firmar el documento de una factura ya dada de baja no tiene sentido fiscal, y el backend
+    // tampoco lo impide hoy: la unica barrera es esta.
+    it('no deja firmar una factura contabilizada que ya esta anulada', async () => {
+      await cargar(ticketGuardado({ estado: 'contabilizada', esSimplificada: false, anulada: true }));
+      expect(component.puedeFirmar).toBeFalse();
+    });
+
+    it('si deja firmar una contabilizada no anulada', async () => {
+      await cargar(ticketGuardado({ estado: 'contabilizada', esSimplificada: false, anulada: false }));
+      expect(component.puedeFirmar).toBeTrue();
+    });
+
+    it('una simplificada nunca se firma, aunque no este anulada', async () => {
+      await cargar(ticketGuardado({ estado: 'contabilizada', esSimplificada: true }));
+      expect(component.puedeFirmar).toBeFalse();
+    });
+
+    // En un ticket el medio real se registra en el cobro; pedir ademas la forma de pago de
+    // cabecera preguntaba dos veces por lo mismo y bloqueaba el guardado si no se elegia.
+    describe('forma de pago de un ticket', () => {
+      it('se autoselecciona, prefiriendo una entrada de pago al contado', () => {
+        component.mediosPago = [
+          { id: 9, label: 'Transferencia' },
+          { id: 4, label: 'Contado — Caja' },
+        ];
+        component.working = ticketGuardado({ idMedioPago: undefined, medioPago: '' });
+        component['autoseleccionarFormaDePagoDeUnTicket']();
+
+        expect(component.working.idMedioPago).toBe(4);
+        expect(component.working.medioPago).toBe('Contado — Caja');
+      });
+
+      it('si no hay ninguna de contado, usa la primera del catalogo real', () => {
+        component.mediosPago = [{ id: 9, label: 'Transferencia' }, { id: 11, label: 'Cheque' }];
+        component.working = ticketGuardado({ idMedioPago: undefined, medioPago: '' });
+        component['autoseleccionarFormaDePagoDeUnTicket']();
+
+        expect(component.working.idMedioPago).toBe(9);
+      });
+
+      it('nunca pisa una forma de pago ya elegida', () => {
+        component.mediosPago = [{ id: 4, label: 'Contado — Caja' }];
+        component.working = ticketGuardado({ idMedioPago: 7, medioPago: 'Bizum' });
+        component['autoseleccionarFormaDePagoDeUnTicket']();
+
+        expect(component.working.idMedioPago).toBe(7);
+      });
+
+      it('no toca una factura completa: ahi la forma de pago la elige el usuario', () => {
+        component.mediosPago = [{ id: 4, label: 'Contado — Caja' }];
+        component.working = ticketGuardado({ esSimplificada: false, idMedioPago: undefined, medioPago: '' });
+        component['autoseleccionarFormaDePagoDeUnTicket']();
+
+        expect(component.working.idMedioPago).toBeUndefined();
+      });
+
+      it('no inventa nada si el catalogo todavia no ha llegado', () => {
+        component.mediosPago = [];
+        component.working = ticketGuardado({ idMedioPago: undefined, medioPago: '' });
+        component['autoseleccionarFormaDePagoDeUnTicket']();
+
+        expect(component.working.idMedioPago).toBeUndefined();
+      });
+
+      // La eleccion la hace el sistema, no el usuario: no debe disparar el aviso de salida
+      // en un ticket que solo se ha abierto y no se ha tocado.
+      it('la autoseleccion no cuenta como cambio sin guardar', () => {
+        component.mediosPago = [{ id: 4, label: 'Contado — Caja' }];
+        component.working = ticketGuardado({ idMedioPago: undefined, medioPago: '' });
+        component['marcarSinCambiosPendientes']();
+
+        component['autoseleccionarFormaDePagoDeUnTicket']();
+
+        expect(component.hayCambiosSinGuardar).toBeFalse();
+      });
+    });
+  });
 });
