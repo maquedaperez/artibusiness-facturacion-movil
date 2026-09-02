@@ -67,9 +67,7 @@ export class FacturaSubsanarPage implements OnInit {
       }
       this.factura = factura;
       if (!this.puedeSubsanar) {
-        this.errorMsg = this.factura.anulada
-          ? this.transloco.translate('verifactu.errors.subsanarAnulada')
-          : this.transloco.translate('verifactu.errors.subsanarBorrador');
+        this.errorMsg = this.transloco.translate(this.motivoPorElQueNoSePuedeSubsanar());
         return;
       }
       await this.cargarPrevisualizacion();
@@ -93,8 +91,26 @@ export class FacturaSubsanarPage implements OnInit {
     }
   }
 
+  // Bug real encontrado en revisión (2026-09-02): esta comprobación se había quedado sin
+  // '!esSimplificada', a diferencia de la del detalle (factura-detalle.page.ts, puedeSubsanar),
+  // así que entrando por URL directa a /app/emitidas/{idTicket}/subsanar se cargaba la
+  // previsualización y el botón de confirmar llegaba a habilitarse para un ticket F2. El
+  // backend lo rechaza igualmente con un mensaje claro (FacturaEmitidaAeatService: "La
+  // subsanación de facturas simplificadas no está implementada todavía"), así que nunca hubo
+  // riesgo fiscal — pero no tiene sentido dejar avanzar por un flujo que se sabe cerrado.
+  // El orden importa: 'anulada' y 'simplificada' son motivos más específicos que "todavía es un
+  // borrador", y una factura puede cumplir varios a la vez.
+  private motivoPorElQueNoSePuedeSubsanar(): string {
+    if (this.factura?.anulada) return 'verifactu.errors.subsanarAnulada';
+    if (this.factura?.esSimplificada) return 'verifactu.errors.subsanarSimplificada';
+    return 'verifactu.errors.subsanarBorrador';
+  }
+
   get puedeSubsanar(): boolean {
-    return !!this.factura && this.factura.estado !== 'borrador' && !this.factura.anulada;
+    return !!this.factura
+      && this.factura.estado !== 'borrador'
+      && !this.factura.anulada
+      && !this.factura.esSimplificada;
   }
 
   estadoAeatLabel(): string {
