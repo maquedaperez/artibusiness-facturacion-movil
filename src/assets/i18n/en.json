@@ -556,6 +556,16 @@
       }
     }
   },
+  "payment": {
+    "result": {
+      "successTitle": "Payment received",
+      "successMessage": "Thank you. Your payment went through successfully.",
+      "successNote": "You can close this page now. The business will send you a receipt.",
+      "cancelledTitle": "Payment cancelled",
+      "cancelledMessage": "Your card has not been charged.",
+      "cancelledNote": "If this was a mistake, ask the business for a new payment link."
+    }
+  },
   "verifactu": {
     "estados": {
       "pendienteEnvio": "Pending submission",

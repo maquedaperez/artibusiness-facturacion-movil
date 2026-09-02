@@ -1,0 +1,35 @@
+<ion-content class="ion-padding">
+  <div class="pago-centro">
+    <div class="pago-caja">
+
+      <div class="marca">
+        <img src="assets/icon/LogoHD.png" alt="ARTI" />
+      </div>
+
+      <ion-icon
+        class="icono-resultado"
+        [class.exito]="esExito"
+        [class.cancelado]="!esExito"
+        [name]="esExito ? 'checkmark-circle-outline' : 'alert-circle-outline'"
+        aria-hidden="true"
+      ></ion-icon>
+
+      <h1 class="titulo">
+        {{ (esExito ? 'payment.result.successTitle' : 'payment.result.cancelledTitle') | transloco }}
+      </h1>
+
+      <ion-text color="medium">
+        <p class="mensaje">
+          {{ (esExito ? 'payment.result.successMessage' : 'payment.result.cancelledMessage') | transloco }}
+        </p>
+      </ion-text>
+
+      <ion-text color="medium">
+        <p class="nota">
+          {{ (esExito ? 'payment.result.successNote' : 'payment.result.cancelledNote') | transloco }}
+        </p>
+      </ion-text>
+
+    </div>
+  </div>
+</ion-content>

@@ -1,0 +1,52 @@
+.pago-centro {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pago-caja {
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+
+.marca {
+  width: 60%;
+  max-width: 200px;
+  margin: 0 auto 28px auto;
+
+  img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+}
+
+.icono-resultado {
+  font-size: 72px;
+
+  &.exito {
+    color: var(--ion-color-success);
+  }
+
+  &.cancelado {
+    color: var(--ion-color-medium);
+  }
+}
+
+.titulo {
+  margin: 16px 0 8px 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.mensaje {
+  margin: 0;
+  font-size: 16px;
+}
+
+.nota {
+  margin-top: 20px;
+  font-size: 13px;
+}

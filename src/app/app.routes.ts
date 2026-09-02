@@ -36,6 +36,24 @@ export const routes: Routes = [
       import('./pages/mfa/mfa.page').then(m => m.MfaPage),
   },
 
+  // Vuelta de Stripe Checkout para el CLIENTE FINAL (StripeConnect:CheckoutSuccessUrl /
+  // CheckoutCancelUrl). PÚBLICAS a propósito — sin authGuard ni tenantGuard: quien paga un
+  // ticket no tiene cuenta en la app ni clave de empresa, así que cualquier guard aquí lo
+  // devolvería al login. Van antes del comodín '**' para que no acaben en el splash.
+  {
+    path: 'pago/exito',
+    data: { resultado: 'exito' },
+    loadComponent: () =>
+      import('./pages/pago-resultado/pago-resultado.page').then(m => m.PagoResultadoPage),
+  },
+
+  {
+    path: 'pago/cancelado',
+    data: { resultado: 'cancelado' },
+    loadComponent: () =>
+      import('./pages/pago-resultado/pago-resultado.page').then(m => m.PagoResultadoPage),
+  },
+
   {
     path: 'app',
     canActivate: [authGuard],
