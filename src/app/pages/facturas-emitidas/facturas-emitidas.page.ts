@@ -58,6 +58,9 @@ export class FacturasEmitidasPage implements OnInit {
   fechaDesde = '';
   fechaHasta = '';
   cargando = false;
+  // Estado de error propio de la lista (ver refresh()) — mutuamente excluyente con
+  // cargando y con el contenido, para que nunca se vean resultados de otro filtro.
+  errorCarga = false;
   // Blindaje Fase 7 (2026-08-21): ids de facturas con un Contabilizar/Firmar en curso — evita
   // doble clic sobre la misma fila mientras la petición sigue en vuelo (visto en real en los
   // logs: dos peticiones casi simultáneas contabilizando la misma factura).
@@ -135,8 +138,17 @@ export class FacturasEmitidasPage implements OnInit {
       const resultado = await this.invoicesRepo.listar(this.estado, this.numeradorId);
       if (idPeticion !== this.peticionListarEnCurso) return;
       this.facturas = resultado;
+      this.errorCarga = false;
     } catch (e: any) {
       if (idPeticion !== this.peticionListarEnCurso) return;
+      // Bug real encontrado en revisión (2026-09-02): el catch solo mostraba un toast y dejaba
+      // this.facturas con el resultado de la carga ANTERIOR — pero this.estado ya había
+      // cambiado antes de llamar aquí, así que tras un fallo al cambiar de pestaña se veían
+      // los borradores listados bajo "Contabilizadas", como si fueran suyos. Con un backend en
+      // Development que puede arrancar en frío, es un escenario probable, no teórico. La lista
+      // se vacía y se muestra un estado de error propio con opción de reintentar.
+      this.facturas = [];
+      this.errorCarga = true;
       await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.list.loadError'), 'danger');
     } finally {
       if (idPeticion === this.peticionListarEnCurso) this.cargando = false;

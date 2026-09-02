@@ -153,4 +153,33 @@ describe('FacturasEmitidasPage', () => {
       expect(component.estado).toBe('firmada');
     });
   });
+  // M01 de la auditoria, confirmado en la revision (2026-09-02): el catch de refresh() solo
+  // mostraba un toast y dejaba this.facturas con el resultado de la carga ANTERIOR — pero
+  // this.estado ya habia cambiado antes de llamar, asi que tras un fallo al cambiar de pestana
+  // se veian los borradores listados bajo "Contabilizadas", como si fueran suyos.
+  describe('una carga fallida no deja ver los resultados del filtro anterior', () => {
+    it('vacia la lista y marca el error cuando listar() falla', async () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      spyOn(repo, 'listar').and.rejectWith(new Error('HTTP 503'));
+      component.facturas = [{ id: 1 } as any, { id: 2 } as any];
+
+      await component.refresh();
+
+      expect(component.facturas).toEqual([]);
+      expect(component.errorCarga).toBeTrue();
+      expect(component.cargando).toBeFalse();
+    });
+
+    it('una carga correcta posterior limpia el estado de error', async () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const listar = spyOn(repo, 'listar').and.rejectWith(new Error('HTTP 503'));
+      await component.refresh();
+      expect(component.errorCarga).toBeTrue();
+
+      listar.and.resolveTo([]);
+      await component.refresh();
+
+      expect(component.errorCarga).toBeFalse();
+    });
+  });
 });
