@@ -219,7 +219,9 @@
           "yaResuelto": "This payment is already resolved — no need to open a new one.",
           "pagadoConfirmado": "Card payment confirmed.",
           "error": "Could not start the card payment.",
-          "noDisponibleDemo": "Card payment not available in demo mode."
+          "noDisponibleDemo": "Card payment not available in demo mode.",
+          "compartir": "Share payment link",
+          "enlaceCopiado": "Payment link copied to clipboard."
         }
       },
       "actions": {

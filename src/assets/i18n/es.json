@@ -219,7 +219,9 @@
           "yaResuelto": "Este cobro ya está resuelto — no hace falta abrir un nuevo pago.",
           "pagadoConfirmado": "Pago confirmado con tarjeta.",
           "error": "No se pudo iniciar el cobro con tarjeta.",
-          "noDisponibleDemo": "Cobro con tarjeta no disponible en modo demo."
+          "noDisponibleDemo": "Cobro con tarjeta no disponible en modo demo.",
+          "compartir": "Compartir enlace de pago",
+          "enlaceCopiado": "Enlace de pago copiado al portapapeles."
         }
       },
       "actions": {

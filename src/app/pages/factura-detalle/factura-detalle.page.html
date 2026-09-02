@@ -297,9 +297,13 @@
     <ion-card *ngIf="checkoutUrlStripe" class="tarjeta-checkout-stripe">
       <ion-card-content>
         <p class="ion-no-margin">{{ 'invoices.issued.cobros.stripe.instrucciones' | transloco }}</p>
-        <a [href]="checkoutUrlStripe" target="_blank" rel="noopener" class="checkout-link">
+        <ion-button expand="block" size="small" (click)="compartirPagoStripe()">
+          <ion-icon slot="start" name="share-social-outline"></ion-icon>
+          {{ 'invoices.issued.cobros.stripe.compartir' | transloco }}
+        </ion-button>
+        <ion-button expand="block" fill="outline" size="small" (click)="abrirPagoStripe()">
           {{ 'invoices.issued.cobros.stripe.abrirPago' | transloco }}
-        </a>
+        </ion-button>
         <ion-button expand="block" fill="clear" size="small" (click)="cerrarCheckoutStripe()">
           {{ 'common.actions.cancel' | transloco }}
         </ion-button>

@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
+import { Capacitor } from '@capacitor/core';
+import { Share } from '@capacitor/share';
 
 import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
@@ -578,6 +580,49 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
   cerrarCheckoutStripe() {
     this.detenerSondeoCobroStripe();
     this.checkoutUrlStripe = null;
+  }
+
+  // Bug real encontrado en revisión (2026-09-02): un <a target="_blank"> es poco fiable dentro
+  // del WebView nativo (Capacitor) — en nativo hace falta el navegador del sistema, mismo
+  // criterio que PagosConnectService.abrirOnboarding().
+  abrirPagoStripe() {
+    if (!this.checkoutUrlStripe) return;
+    if (Capacitor.isNativePlatform()) {
+      window.open(this.checkoutUrlStripe, '_system');
+      return;
+    }
+    window.open(this.checkoutUrlStripe, '_blank', 'noopener');
+  }
+
+  // El texto de "instrucciones" pide compartir el enlace con el cliente, pero antes de esto no
+  // había ningún control real para hacerlo — solo el enlace "Abrir página de pago". En un
+  // mostrador real hace falta poder mandarlo por WhatsApp/SMS o enseñar el diálogo de compartir
+  // del sistema. Fallback a copiar en el portapapeles si no hay nada que ofrezca compartir
+  // (navegador de escritorio sin Web Share API).
+  async compartirPagoStripe() {
+    if (!this.checkoutUrlStripe) return;
+    const url = this.checkoutUrlStripe;
+    const titulo = this.transloco.translate('invoices.issued.cobros.stripe.action');
+
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await Share.share({ title: titulo, url, dialogTitle: titulo });
+        return;
+      }
+      const nav = navigator as Navigator & { canShare?: (data: { url: string }) => boolean; share?: (data: { url: string; title?: string }) => Promise<void> };
+      if (nav.canShare?.({ url }) && nav.share) {
+        await nav.share({ url, title: titulo });
+        return;
+      }
+      throw new Error('Web Share API no disponible');
+    } catch {
+      try {
+        await navigator.clipboard.writeText(url);
+        await this.showToast(this.transloco.translate('invoices.issued.cobros.stripe.enlaceCopiado'));
+      } catch {
+        await this.showToast(this.transloco.translate('invoices.issued.cobros.stripe.error'), 'danger');
+      }
+    }
   }
 
   ngOnDestroy() {

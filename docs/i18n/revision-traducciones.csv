@@ -531,3 +531,5 @@
 "payment.result.successMessage";"Pago del cliente final (vuelta de Stripe Checkout)";"Gracias. Tu pago se ha completado correctamente.";"Thank you. Your payment went through successfully.";"Дякуємо. Ваш платіж успішно здійснено.";"si"
 "payment.result.successNote";"Pago del cliente final (vuelta de Stripe Checkout)";"Ya puedes cerrar esta página. Recibirás el justificante del comercio.";"You can close this page now. The business will send you a receipt.";"Цю сторінку можна закрити. Продавець надішле вам квитанцію.";"si"
 "payment.result.successTitle";"Pago del cliente final (vuelta de Stripe Checkout)";"Pago recibido";"Payment received";"Платіж отримано";"si"
+"invoices.issued.cobros.stripe.compartir";"Cobro con tarjeta (Stripe Connect, ticket)";"Compartir enlace de pago";"Share payment link";"Поділитися посиланням на оплату";"si"
+"invoices.issued.cobros.stripe.enlaceCopiado";"Cobro con tarjeta (Stripe Connect, ticket)";"Enlace de pago copiado al portapapeles.";"Payment link copied to clipboard.";"Посилання на оплату скопійовано в буфер обміну.";"si"

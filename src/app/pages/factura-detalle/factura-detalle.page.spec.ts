@@ -3,6 +3,7 @@ import { By } from '@angular/platform-browser';
 import { RouterTestingModule } from '@angular/router/testing';
 import { ActivatedRoute } from '@angular/router';
 import { AlertController, ModalController, ToastController, provideIonicAngular } from '@ionic/angular/standalone';
+import { Capacitor } from '@capacitor/core';
 import { FacturaDetallePage } from './factura-detalle.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
@@ -419,6 +420,80 @@ describe('FacturaDetallePage', () => {
         await component.iniciarCobroStripe();
 
         expect(component.checkoutUrlStripe).toBeNull();
+      });
+    });
+
+    // Bug real encontrado en revisión (2026-09-02): el texto de "instrucciones" pide compartir
+    // el enlace con el cliente, pero antes de esto no había ningún control real para hacerlo.
+    describe('compartir/abrir el enlace de pago', () => {
+      beforeEach(() => {
+        component.checkoutUrlStripe = 'https://checkout.stripe.com/session_1';
+      });
+
+      it('abrirPagoStripe() en nativo abre el navegador del sistema, no el WebView', () => {
+        spyOn(Capacitor, 'isNativePlatform').and.returnValue(true);
+        const openSpy = spyOn(window, 'open');
+
+        component.abrirPagoStripe();
+
+        expect(openSpy).toHaveBeenCalledWith('https://checkout.stripe.com/session_1', '_system');
+      });
+
+      it('abrirPagoStripe() en web abre una pestaña nueva', () => {
+        spyOn(Capacitor, 'isNativePlatform').and.returnValue(false);
+        const openSpy = spyOn(window, 'open');
+
+        component.abrirPagoStripe();
+
+        expect(openSpy).toHaveBeenCalledWith('https://checkout.stripe.com/session_1', '_blank', 'noopener');
+      });
+
+      // La rama nativa (Capacitor.isNativePlatform() === true) llama al plugin Share de
+      // Capacitor, que no se puede interceptar de forma fiable con spyOn en este entorno de
+      // test (mismo límite ya asumido en compartir-documento.spec.ts, que tampoco prueba esa
+      // rama) — se cubre en su lugar la rama web (Web Share API / portapapeles), que sí usa
+      // APIs del navegador mockeables directamente.
+      it('compartirPagoStripe() en web con Web Share API disponible la usa', async () => {
+        spyOn(Capacitor, 'isNativePlatform').and.returnValue(false);
+        const nav = navigator as any;
+        const canShareOriginal = nav.canShare;
+        const shareOriginal = nav.share;
+        nav.canShare = () => true;
+        nav.share = jasmine.createSpy('share').and.resolveTo();
+
+        await component.compartirPagoStripe();
+
+        expect(nav.share).toHaveBeenCalledWith(jasmine.objectContaining({ url: 'https://checkout.stripe.com/session_1' }));
+        nav.canShare = canShareOriginal;
+        nav.share = shareOriginal;
+      });
+
+      it('compartirPagoStripe() cae a copiar en el portapapeles si no hay diálogo de compartir', async () => {
+        spyOn(Capacitor, 'isNativePlatform').and.returnValue(false);
+        const nav = navigator as any;
+        const canShareOriginal = nav.canShare;
+        nav.canShare = () => false;
+        const clipboardSpy = spyOn(navigator.clipboard, 'writeText').and.resolveTo();
+        const toastCtrl = TestBed.inject(ToastController);
+        const toastSpy = spyOn(toastCtrl, 'create').and.callThrough();
+
+        await component.compartirPagoStripe();
+
+        expect(clipboardSpy).toHaveBeenCalledWith('https://checkout.stripe.com/session_1');
+        expect(toastSpy).toHaveBeenCalled();
+        nav.canShare = canShareOriginal;
+      });
+
+      it('sin checkoutUrlStripe, ninguno de los dos hace nada', async () => {
+        component.checkoutUrlStripe = null;
+        const openSpy = spyOn(window, 'open');
+        const clipboardSpy = spyOn(navigator.clipboard, 'writeText');
+
+        component.abrirPagoStripe();
+        await component.compartirPagoStripe();
+
+        expect(openSpy).not.toHaveBeenCalled();
+        expect(clipboardSpy).not.toHaveBeenCalled();
       });
     });
   });
