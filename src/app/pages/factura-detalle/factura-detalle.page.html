@@ -1,7 +1,7 @@
 <ion-header>
   <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-button (click)="volver()">
+      <ion-button (click)="volver()" [attr.aria-label]="'common.actions.back' | transloco">
         <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
@@ -16,6 +16,15 @@
   <ion-text color="danger" *ngIf="errorMsg">
     <p>{{ errorMsg }}</p>
   </ion-text>
+
+  <!-- Bug real encontrado en revision (2026-09-02): 'cargando' existia en el .ts pero no se
+       usaba en ninguna parte de esta plantilla, asi que mientras se leia la factura del backend
+       (con posible arranque en frio de Azure) la pantalla se quedaba completamente vacia, como
+       si la app se hubiera colgado. Estados mutuamente excluyentes: cargando / error / contenido. -->
+  <div class="estado-cargando" *ngIf="cargando && !errorMsg">
+    <ion-spinner name="dots"></ion-spinner>
+    <p>{{ 'common.loading' | transloco }}</p>
+  </div>
 
   <!-- Paso inicial: elegir numerador + cliente para arrancar un borrador nuevo -->
   <ion-card *ngIf="esNueva && !working">
@@ -49,13 +58,17 @@
           <p class="ion-margin-top">{{ 'invoices.issued.simplified.explainer' | transloco }}</p>
         </ion-text>
 
-        <ion-text color="danger" *ngIf="serieSimplificadaNoConfigurada">
+        <ion-text color="danger" *ngIf="serieSimplificadaNoConfigurada && !cargandoCatalogos">
           <p class="ion-margin-top">{{ 'invoices.issued.simplified.serieNoConfigurada' | transloco }}</p>
         </ion-text>
 
-        <ion-button expand="block" class="ion-margin-top" [disabled]="serieSimplificadaNoConfigurada" (click)="iniciarSimplificada()">
-          <ion-icon slot="start" name="receipt-outline"></ion-icon>
-          {{ 'invoices.issued.simplified.startWithGenericClient' | transloco }}
+        <!-- Bloqueado tambien mientras cargandoCatalogos: hasta que llega el catalogo real no se
+             sabe cual es la serie FS, y arrancar antes creaba el ticket con el numerador de
+             ejemplo del mock (ver cargandoCatalogos en el .ts). -->
+        <ion-button expand="block" class="ion-margin-top" [disabled]="cargandoCatalogos || serieSimplificadaNoConfigurada" (click)="iniciarSimplificada()">
+          <ion-spinner *ngIf="cargandoCatalogos" slot="start" name="dots"></ion-spinner>
+          <ion-icon *ngIf="!cargandoCatalogos" slot="start" name="receipt-outline"></ion-icon>
+          {{ (cargandoCatalogos ? 'invoices.issued.simplified.loadingSeries' : 'invoices.issued.simplified.startWithGenericClient') | transloco }}
         </ion-button>
       </ng-container>
     </ion-card-content>
@@ -141,9 +154,15 @@
           </ion-item>
         </div>
 
-        <ion-item [disabled]="!esEditable">
+        <!-- Obligatorio de verdad: la AEAT rechaza la factura sin concepto (error 4102) y el
+             backend ya lo exige en un ticket. Se avisa aqui en vez de dejar descubrirlo al
+             contabilizar. -->
+        <ion-item [disabled]="!esEditable" [class.campo-invalido]="esEditable && faltaConcepto">
           <ion-input [label]="'invoices.issued.detail.conceptLabel' | transloco" labelPlacement="stacked" [(ngModel)]="f.concepto"></ion-input>
         </ion-item>
+        <ion-text color="danger" *ngIf="esEditable && faltaConcepto">
+          <p class="aviso-campo">{{ 'invoices.issued.detail.conceptRequired' | transloco }}</p>
+        </ion-text>
 
         <ion-item [disabled]="!esEditable">
           <ion-select [label]="'invoices.issued.detail.paymentMethodLabel' | transloco" labelPlacement="stacked" interface="popover"
@@ -196,6 +215,10 @@
         </div>
       </ion-card-content>
     </ion-card>
+
+    <ion-text color="danger" *ngIf="hayLineasInvalidas">
+      <p class="aviso-aeat">{{ 'common.linesEditor.invalidLinesWarning' | transloco }}</p>
+    </ion-text>
 
     <ion-text color="danger" *ngIf="superaLimiteSimplificada">
       <p class="aviso-aeat">{{ 'invoices.issued.simplified.limitExceeded' | transloco: { limite: formatEuros(limiteSimplificada), total: formatEuros(totales().total) } }}</p>
@@ -270,7 +293,7 @@
       </ion-button>
     </div>
 
-    <ion-button *ngIf="esEditable" expand="block" fill="outline" [disabled]="guardando || superaLimiteSimplificada" (click)="guardar()">
+    <ion-button *ngIf="esEditable" expand="block" fill="outline" [disabled]="algoEnCurso || noSePuedeGuardar" (click)="guardar()">
       <ion-spinner *ngIf="guardando" slot="start" name="dots"></ion-spinner>
       {{ (guardando ? 'invoices.issued.detail.saving' : 'invoices.issued.detail.saveDraft') | transloco }}
     </ion-button>
@@ -314,7 +337,7 @@
       <p class="ion-no-margin aviso-pagado-pendiente">{{ 'invoices.issued.cobros.pagadoPendienteDeContabilizar' | transloco }}</p>
     </ion-text>
 
-    <ion-button *ngIf="f.estado === 'borrador'" expand="block" [disabled]="algoEnCurso || superaLimiteSimplificada" (click)="confirmarContabilizar()">
+    <ion-button *ngIf="f.estado === 'borrador'" expand="block" [disabled]="algoEnCurso || noSePuedeGuardar || faltaConcepto" (click)="confirmarContabilizar()">
       <ion-spinner *ngIf="contabilizando" slot="start" name="dots"></ion-spinner>
       {{ (contabilizando ? 'invoices.issued.actions.posting' : 'invoices.issued.actions.post') | transloco }}
     </ion-button>

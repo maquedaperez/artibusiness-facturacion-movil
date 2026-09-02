@@ -4,7 +4,8 @@
       "cancel": "Cancelar",
       "close": "Cerrar",
       "delete": "Eliminar",
-      "yesContinue": "Sí, continuar"
+      "yesContinue": "Sí, continuar",
+      "back": "Volver"
     },
     "states": {
       "calculating": "Calculando…"
@@ -43,8 +44,11 @@
       "outsideCatalog": "Fuera de catálogo",
       "originCatalog": "Catálogo",
       "originSubscription": "Suscripción",
-      "originManual": "Manual"
-    }
+      "originManual": "Manual",
+      "invalidLine": "Revisa esta línea: la cantidad y el precio no pueden ser negativos, y el descuento debe estar entre 0 y 100 %.",
+      "invalidLinesWarning": "Hay líneas con valores no válidos. Corrígelas para poder guardar."
+    },
+    "loading": "Cargando…"
   },
   "navigation": {
     "tabs": {
@@ -243,7 +247,8 @@
         "noResultsFiltered": "Sin resultados con los filtros aplicados."
       },
       "list": {
-        "loadError": "No se pudo cargar la lista de facturas."
+        "loadError": "No se pudo cargar la lista de facturas.",
+        "retry": "Reintentar"
       },
       "deleteDraft": {
         "header": "Eliminar borrador",
@@ -308,7 +313,8 @@
         "sentOk": "Entregado el {{fecha}}.",
         "sentError": "Fallo: {{motivo}}",
         "sendSuccess": "Correo enviado.",
-        "sendError": "No se pudo enviar el correo."
+        "sendError": "No se pudo enviar el correo.",
+        "loadingSeries": "Cargando la serie…"
       },
       "detail": {
         "newInvoice": "Nueva factura",
@@ -350,7 +356,8 @@
         "cancelHeader": "Anular factura",
         "cancelConfirmMessage": "¿Anular la factura {{num}}? Esto crea un registro de anulación en VERI*FACTU/AEAT. La factura original no se borra ni se modifica, pero queda marcada como anulada.",
         "cancelledSuccess": "Factura anulada.",
-        "cancelError": "No se pudo anular la factura."
+        "cancelError": "No se pudo anular la factura.",
+        "conceptRequired": "El concepto es obligatorio."
       },
       "correct": {
         "title": "Subsanar factura",
@@ -589,6 +596,7 @@
       "yaAnulada": "Esta factura ya está anulada.",
       "subsanarBorrador": "Solo se puede subsanar una factura ya contabilizada.",
       "subsanarAnulada": "Esta factura está anulada; no se puede subsanar.",
+      "subsanarSimplificada": "Un ticket (factura simplificada) no se puede subsanar. Anúlalo y emite uno nuevo si necesitas corregirlo.",
       "motivoObligatorio": "El motivo de la subsanación es obligatorio.",
       "sinCambiosFiscales": "El contenido fiscal no ha cambiado desde la última subsanación — no hay nada que corregir.",
       "firmarBorrador": "Esta factura todavía no se ha guardado ni contabilizado — no se puede firmar.",

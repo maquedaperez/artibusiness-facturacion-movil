@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -26,7 +26,7 @@ import {
 import { IssuedInvoicesRepository, MedioPagoOpcion } from '../../core/ports';
 import { ClienteSelectorComponent, SeleccionCliente } from '../../modals/cliente-selector/cliente-selector.component';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
-import { LineasEditorComponent } from '../../shared/lineas-editor/lineas-editor.component';
+import { LineasEditorComponent, lineaFacturaInvalida } from '../../shared/lineas-editor/lineas-editor.component';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 
 @Component({
@@ -50,6 +50,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
   private transloco = inject(TranslocoService);
+  private location = inject(Location);
 
   facturaId: number | null = null;
   esNueva = false;
@@ -63,6 +64,16 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
   // numerador (p. ej. uno de facturas completas). Ver cargarCatalogos().
   serieSimplificadaNoConfigurada = false;
   cargando = true;
+  // Bug real encontrado en revisión (2026-09-02): serieSimplificadaNoConfigurada solo se
+  // conoce DESPUÉS de que cargarCatalogos() traiga el catálogo real (3 peticiones HTTP
+  // seguidas, con posible arranque en frío de Azure). Hasta entonces arrancaba en false y el
+  // botón de "Empezar con Consumidor final" estaba habilitado, así que un toque rápido creaba
+  // el ticket con el numerador de ejemplo del mock ('Serie A 2026'), no con la serie FS real —
+  // y como iniciarSimplificada() pone esNueva=false, la corrección posterior de
+  // cargarCatalogos() (que solo actúa si esNueva) ya no se aplicaba nunca. El backend lo
+  // rechaza igualmente (ValidarCoherenciaTipoFiscalYSerie), pero dejaba al usuario en un
+  // callejón sin salida: serie vacía en el desplegable y un ticket que no se puede guardar.
+  cargandoCatalogos = true;
   guardando = false;
   // Blindaje Fase 7 (2026-08-21), separado en una bandera por acción (2026-09-02): antes
   // 'procesandoAeat' era una única bandera compartida entre Contabilizar/Firmar/Anular/Cobrar —
@@ -77,8 +88,14 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
   anulando = false;
   marcandoCobrado = false;
 
+  // Bug real encontrado en revisión (2026-09-02): faltaba 'guardando'. Guardar y Contabilizar
+  // son visibles a la vez en un borrador, y Contabilizar no estaba bloqueado durante un
+  // guardado en curso — al pulsarlo, confirmarContabilizar() llamaba a guardar(), que devuelve
+  // false de inmediato por su propio guard, y el flujo salía por 'if (!guardadoOk) return'
+  // SIN mostrar ningún mensaje (el comentario de ahí asume que guardar() ya avisó, y en esa
+  // rama concreta no avisa). Resultado: un botón que no hacía absolutamente nada visible.
   get algoEnCurso(): boolean {
-    return this.contabilizando || this.firmando || this.anulando || this.marcandoCobrado || this.cobrandoStripe;
+    return this.guardando || this.contabilizando || this.firmando || this.anulando || this.marcandoCobrado || this.cobrandoStripe;
   }
 
   numeradores: Numerador[] = [];
@@ -136,7 +153,11 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
     if (param === 'nueva') {
       this.esNueva = true;
       this.esSimplificada = this.route.snapshot.queryParamMap.get('simplificada') === '1';
-      this.numeradorSeleccionado = this.numeradores[0]?.id ?? null;
+      // Un ticket NUNCA arranca con el numerador de ejemplo del mock: su serie solo puede ser
+      // la FS real, que se resuelve en cargarCatalogos(). Se deja sin seleccionar a propósito
+      // (ver cargandoCatalogos) en vez de preseleccionar uno de facturas completas y corregirlo
+      // después. Para una factura completa se mantiene el comportamiento de siempre.
+      this.numeradorSeleccionado = this.esSimplificada ? null : (this.numeradores[0]?.id ?? null);
       this.cargando = false;
       return;
     }
@@ -210,6 +231,15 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
       }
     } catch {
       // Se mantienen los numeradores de ejemplo del mock.
+    } finally {
+      // Siempre, también si falla: el paso inicial no puede quedarse bloqueado para siempre
+      // por una carga de catálogo que no llegó. Si falló y estamos en modo simplificado, no
+      // hay serie FS conocida y serieSimplificadaNoConfigurada sigue bloqueando el botón por
+      // su cuenta, que es exactamente lo que se quiere.
+      this.cargandoCatalogos = false;
+      if (this.esNueva && this.esSimplificada && this.numeradorSeleccionado == null) {
+        this.serieSimplificadaNoConfigurada = true;
+      }
     }
   }
 
@@ -250,12 +280,14 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
     return this.working?.numFactura || this.transloco.translate('invoices.issued.detail.newInvoice');
   }
 
-  async elegirCliente() {
+  // Devuelve si el usuario llegó a elegir un cliente — convertirEnFacturaCompleta() lo necesita
+  // para poder deshacer su cambio si se cancela el selector (ver allí).
+  async elegirCliente(): Promise<boolean> {
     const modal = await this.modalCtrl.create({ component: ClienteSelectorComponent });
     await modal.present();
 
     const { data, role } = await modal.onWillDismiss();
-    if (role !== 'confirm' || !data) return;
+    if (role !== 'confirm' || !data) return false;
 
     // Blindaje 2026-08-24: crearAdHoc ya crea el cliente de verdad contra el backend
     // (POST /api/Clientes/Crear) — un cliente "nuevo" trae un idCliente REAL igual que uno
@@ -271,7 +303,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
       // iniciarSimplificada() (nunca por aquí, ver el paso inicial en el HTML): no
       // implementamos una "simplificada con destinatario identificado desde el principio".
       const numeradorId = this.numeradorSeleccionado ?? this.numeradores[0]?.id;
-      if (numeradorId == null) return;
+      if (numeradorId == null) return false;
       const creada = this.invoicesRepo.crearBorrador(numeradorId, destinatario);
       this.working = structuredClone(creada);
       this.working.idCliente = idCliente;
@@ -281,6 +313,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
       this.working.destinatario = destinatario;
       this.working.idCliente = idCliente;
     }
+    return true;
   }
 
   // Facturas simplificadas emitidas — "Convertir en factura completa" (2026-08-31): sustituye a
@@ -306,6 +339,16 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
           text: this.transloco.translate('invoices.issued.simplified.convertConfirm'),
           handler: async () => {
             if (!this.working) return;
+
+            // Bug real encontrado en revisión (2026-09-02): el cambio se aplicaba ANTES de abrir
+            // el selector, así que cancelarlo dejaba el ticket ya convertido en factura completa,
+            // con "Consumidor final" como destinatario y sin idCliente — un estado que no se
+            // puede guardar ("falta el cliente") y del que la UI ya no ofrece vuelta atrás,
+            // porque el botón de convertir desaparece en cuanto esSimplificada es false. Se
+            // guarda el estado previo y se restaura si el usuario no llega a elegir cliente.
+            const esSimplificadaPrevio = this.working.esSimplificada;
+            const numeradorPrevio = this.working.numeradorId;
+
             this.working.esSimplificada = false;
 
             // Nunca se conserva la serie FS en una completa — si el numerador actual es FS, se
@@ -316,7 +359,11 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
               if (otro) this.working.numeradorId = otro.id;
             }
 
-            await this.elegirCliente();
+            const eligio = await this.elegirCliente();
+            if (!eligio && this.working) {
+              this.working.esSimplificada = esSimplificadaPrevio;
+              this.working.numeradorId = numeradorPrevio;
+            }
           },
         },
       ],
@@ -329,7 +376,11 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
   // obligar cliente, mostrar Consumidor final". idCliente se deja sin definir a propósito: lo
   // resuelve/crea el backend (ClienteGenericoService) la primera vez que se guarda de verdad.
   iniciarSimplificada() {
-    const numeradorId = this.numeradorSeleccionado ?? this.numeradores[0]?.id;
+    // Sin fallback a numeradores[0] a propósito (ver ngOnInit): para un ticket, o hay serie FS
+    // real seleccionada o no se arranca — caer en cualquier otro numerador es justo el bug que
+    // esto evita.
+    if (this.cargandoCatalogos || this.serieSimplificadaNoConfigurada) return;
+    const numeradorId = this.numeradorSeleccionado;
     if (numeradorId == null) return;
     const destinatario: Destinatario = {
       nombre: this.transloco.translate('invoices.issued.simplified.genericClientName'),
@@ -382,6 +433,27 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
     return !!this.working?.esSimplificada && this.totales().total > this.limiteSimplificada;
   }
 
+  // Validación de rango de las líneas (2026-09-02) — misma regla que marca el editor en cada
+  // campo (lineaFacturaInvalida), aplicada aquí para bloquear Guardar/Contabilizar. Sin esto se
+  // podía emitir una factura con cantidad o precio negativo: ni el frontend ni el backend
+  // comprobaban el signo.
+  get hayLineasInvalidas(): boolean {
+    return !!this.working?.lineas.some(l => lineaFacturaInvalida(l));
+  }
+
+  // El concepto es obligatorio de verdad: la AEAT rechaza la factura sin él (error 4102) y el
+  // backend ya lo exige explícitamente en un ticket (ValidarCamposObligatoriosDeUnTicket). Se
+  // avisa antes de intentar guardar en vez de dejar descubrir el rechazo al contabilizar.
+  get faltaConcepto(): boolean {
+    return !this.working?.concepto?.trim();
+  }
+
+  // Un borrador incompleto se puede seguir guardando a medias a propósito (es un borrador), pero
+  // nunca con datos imposibles: lo que se bloquea es lo que el servidor no puede aceptar.
+  get noSePuedeGuardar(): boolean {
+    return this.superaLimiteSimplificada || this.hayLineasInvalidas;
+  }
+
   // Fase 4 del plan de integración (2026-08-20): guarda de verdad contra el backend (antes
   // solo mutaba el borrador local) — invoicesRepo.guardar() decide alta vs actualización según
   // si facturaId sigue siendo un id local sin guardar o ya es uno real (ver
@@ -414,6 +486,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
 
       this.working = structuredClone(guardada);
       this.facturaId = guardada.id;
+      this.sincronizarUrlConLaFacturaGuardada();
       if (mostrarToast) {
         await this.showToast(this.transloco.translate('invoices.issued.detail.saveSuccess'));
       }
@@ -424,6 +497,23 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
     } finally {
       this.guardando = false;
     }
+  }
+
+  // Bug real encontrado en revisión (2026-09-02): tras el primer guardado real la factura ya
+  // existe en el backend con su id, pero la URL seguía siendo /app/emitidas/nueva — recargar el
+  // navegador ahí arrancaba OTRA factura desde cero, con riesgo de duplicarla, y compartir el
+  // enlace no llevaba a ninguna parte.
+  //
+  // Se usa Location.replaceState() y NO router.navigate({replaceUrl:true}) a propósito:
+  // IonicRouteStrategy compara los parámetros de ruta uno a uno (ver shouldReuseRoute), así que
+  // cambiar :id de 'nueva' a un id real destruiría y recrearía este componente — recarga
+  // completa, pérdida del scroll y del formulario en pantalla justo después de guardar. Aquí
+  // solo interesa que la barra de direcciones diga la verdad.
+  private sincronizarUrlConLaFacturaGuardada() {
+    if (this.facturaId == null) return;
+    const urlActual = this.location.path();
+    if (!urlActual.includes('/emitidas/nueva')) return;
+    this.location.replaceState(`/app/emitidas/${this.facturaId}`);
   }
 
   // Fase 7 del plan de integración (2026-08-21): contabilizar llama de verdad a FacturaE/AEAT
@@ -815,7 +905,20 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
           role: 'destructive',
           handler: async () => {
             try {
-              await this.invoicesRepo.eliminar(f.id);
+              // Bug real encontrado en revisión (2026-09-02): esto llamaba siempre a eliminar(),
+              // que lanza un DELETE /api/FacturaEmitida/{id} y solo cae al almacén local si
+              // recibe un 404 — pero el id de un borrador local es un contador propio del mock
+              // (arranca en 100), no un id real, así que ese DELETE puede acertar por
+              // casualidad con una factura REAL de la misma empresa. La lista ya lo hacía bien
+              // (ver facturas-emitidas.page.ts); el detalle se había quedado atrás. Además, si
+              // el id coincide con una factura ya contabilizada el backend responde 400 (no
+              // 404), el fallback local no se activa y el usuario no podía ni borrar su propio
+              // borrador.
+              if (f.esBorradorLocal) {
+                await this.invoicesRepo.descartarLocal(f.id);
+              } else {
+                await this.invoicesRepo.eliminar(f.id);
+              }
               await this.showToast(this.transloco.translate('invoices.issued.deleteDraft.success'));
               this.volver();
             } catch (e: any) {

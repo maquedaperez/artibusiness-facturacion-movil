@@ -625,4 +625,171 @@ describe('FacturaDetallePage', () => {
       resolverFirmar(facturaContabilizada());
     });
   });
+  // Correcciones de la revision de la auditoria (2026-09-02) — cada test cubre un bug real
+  // confirmado contra el codigo, no un riesgo teorico.
+  describe('correcciones de la revision de la auditoria (2026-09-02)', () => {
+    const NUMERADOR_FS: Numerador = { id: 1, nombre: 'FS' };
+    const NUMERADOR_COMPLETA: Numerador = { id: 2, nombre: 'A-2026' };
+
+    function borradorLocal(overrides: Partial<FacturaEmitida> = {}): FacturaEmitida {
+      return {
+        id: 1001,
+        numFactura: 'FS-BORRADOR-1001',
+        numeradorId: NUMERADOR_FS.id,
+        fecha: '2026-09-02',
+        vencimiento: '',
+        concepto: 'Consumicion',
+        medioPago: 'Efectivo',
+        idMedioPago: 1,
+        destinatario: { nombre: 'Consumidor final', nif: '', esEmpresa: false },
+        lineas: [],
+        estado: 'borrador',
+        operacionId: 'op-1',
+        esSimplificada: true,
+        esBorradorLocal: true,
+        ...overrides,
+      };
+    }
+
+    function confirmarEnElAlert() {
+      const alertCtrl = TestBed.inject(AlertController);
+      spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
+        const boton = opts.buttons.find((b: any) => b.role !== 'cancel');
+        return { present: async () => { await boton.handler(); } } as any;
+      });
+    }
+
+    // G01 — un borrador puramente local no tiene id real en el backend: su id sale de un
+    // contador propio del mock (arranca en 100), asi que un DELETE con ese id puede acertar
+    // por casualidad con una factura REAL de la misma empresa. La lista ya lo hacia bien.
+    it('eliminar un borrador local lo descarta en memoria, sin DELETE HTTP', async () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const descartarSpy = spyOn(repo, 'descartarLocal').and.resolveTo();
+      const eliminarSpy = spyOn(repo, 'eliminar').and.resolveTo();
+      spyOn(component, 'volver');
+      component.working = borradorLocal({ esBorradorLocal: true });
+      confirmarEnElAlert();
+
+      await component.confirmarEliminar();
+
+      expect(descartarSpy).toHaveBeenCalledWith(1001);
+      expect(eliminarSpy).not.toHaveBeenCalled();
+    });
+
+    it('eliminar una factura ya guardada de verdad si llama a eliminar() (DELETE real)', async () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const descartarSpy = spyOn(repo, 'descartarLocal').and.resolveTo();
+      const eliminarSpy = spyOn(repo, 'eliminar').and.resolveTo();
+      spyOn(component, 'volver');
+      component.working = borradorLocal({ id: 55, esBorradorLocal: false });
+      confirmarEnElAlert();
+
+      await component.confirmarEliminar();
+
+      expect(eliminarSpy).toHaveBeenCalledWith(55);
+      expect(descartarSpy).not.toHaveBeenCalled();
+    });
+
+    // M03 — hasta que llega el catalogo real no se sabe cual es la serie FS; arrancar antes
+    // creaba el ticket con el numerador de ejemplo del mock ('Serie A 2026').
+    it('no deja arrancar un ticket mientras el catalogo de series todavia se esta cargando', () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const crearSpy = spyOn(repo, 'crearBorrador');
+      component.cargandoCatalogos = true;
+      component.numeradorSeleccionado = NUMERADOR_COMPLETA.id;
+
+      component.iniciarSimplificada();
+
+      expect(crearSpy).not.toHaveBeenCalled();
+      expect(component.working).toBeNull();
+    });
+
+    it('no deja arrancar un ticket si la empresa no tiene serie FS configurada', () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const crearSpy = spyOn(repo, 'crearBorrador');
+      component.cargandoCatalogos = false;
+      component.serieSimplificadaNoConfigurada = true;
+      component.numeradorSeleccionado = NUMERADOR_COMPLETA.id;
+
+      component.iniciarSimplificada();
+
+      expect(crearSpy).not.toHaveBeenCalled();
+    });
+
+    it('con la serie FS ya resuelta, arranca el ticket con ESA serie', () => {
+      component.cargandoCatalogos = false;
+      component.serieSimplificadaNoConfigurada = false;
+      component.numeradores = [NUMERADOR_FS, NUMERADOR_COMPLETA];
+      component.numeradorSeleccionado = NUMERADOR_FS.id;
+
+      component.iniciarSimplificada();
+
+      expect(component.working).not.toBeNull();
+      expect(component.working!.numeradorId).toBe(NUMERADOR_FS.id);
+      expect(component.working!.esSimplificada).toBeTrue();
+    });
+
+    // Bug encontrado en la revision y no recogido por la auditoria: el cambio se aplicaba
+    // ANTES de abrir el selector, asi que cancelarlo dejaba el ticket convertido a medias
+    // (factura completa, sin cliente, imposible de guardar y sin vuelta atras en la UI).
+    it('cancelar el selector de cliente deja el ticket como estaba (no lo convierte a medias)', async () => {
+      component.numeradores = [NUMERADOR_FS, NUMERADOR_COMPLETA];
+      component.working = borradorLocal({ numeradorId: NUMERADOR_FS.id });
+      confirmarEnElAlert();
+      const modalCtrl = TestBed.inject(ModalController);
+      spyOn(modalCtrl, 'create').and.resolveTo({
+        present: async () => {},
+        onWillDismiss: async () => ({ data: undefined, role: 'cancel' }),
+      } as any);
+
+      await component.convertirEnFacturaCompleta();
+
+      expect(component.working!.esSimplificada).toBeTrue();
+      expect(component.working!.numeradorId).toBe(NUMERADOR_FS.id);
+    });
+
+    // M04 — Guardar y Contabilizar son visibles a la vez en un borrador; pulsar Contabilizar
+    // durante un guardado en curso salia por 'if (!guardadoOk) return' sin ningun mensaje.
+    it('algoEnCurso incluye guardando, para que Contabilizar no sea un no-op silencioso', () => {
+      expect(component.algoEnCurso).toBeFalse();
+      component.guardando = true;
+      expect(component.algoEnCurso).toBeTrue();
+    });
+
+    // M05 — ni el frontend ni el backend comprobaban el signo ni el tope de estos campos.
+    it('marca como invalidas las lineas con cantidad, precio o descuento fuera de rango', () => {
+      const linea = (o: Partial<FacturaEmitida['lineas'][number]>) => ({
+        id: 1, origen: 'manual' as const, descripcion: 'x',
+        cantidad: 1, precioUnitario: 10, descuentoPct: 0, ivaPct: 21, ...o,
+      });
+
+      component.working = borradorLocal({ lineas: [linea({ cantidad: -1 })] });
+      expect(component.hayLineasInvalidas).toBeTrue();
+
+      component.working = borradorLocal({ lineas: [linea({ precioUnitario: -5 })] });
+      expect(component.hayLineasInvalidas).toBeTrue();
+
+      component.working = borradorLocal({ lineas: [linea({ descuentoPct: 120 })] });
+      expect(component.hayLineasInvalidas).toBeTrue();
+
+      component.working = borradorLocal({ lineas: [linea({})] });
+      expect(component.hayLineasInvalidas).toBeFalse();
+    });
+
+    it('una linea recien anadida (todo a cero) no se considera invalida', () => {
+      component.working = borradorLocal({
+        lineas: [{ id: 1, origen: 'manual', descripcion: '', cantidad: 0, precioUnitario: 0, descuentoPct: 0, ivaPct: 21 }],
+      });
+      expect(component.hayLineasInvalidas).toBeFalse();
+    });
+
+    it('faltaConcepto refleja el concepto vacio o solo con espacios', () => {
+      component.working = borradorLocal({ concepto: '' });
+      expect(component.faltaConcepto).toBeTrue();
+      component.working = borradorLocal({ concepto: '   ' });
+      expect(component.faltaConcepto).toBeTrue();
+      component.working = borradorLocal({ concepto: 'Consumicion' });
+      expect(component.faltaConcepto).toBeFalse();
+    });
+  });
 });

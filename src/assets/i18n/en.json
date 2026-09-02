@@ -4,7 +4,8 @@
       "cancel": "Cancel",
       "close": "Close",
       "delete": "Delete",
-      "yesContinue": "Yes, continue"
+      "yesContinue": "Yes, continue",
+      "back": "Back"
     },
     "states": {
       "calculating": "Calculating…"
@@ -43,8 +44,11 @@
       "outsideCatalog": "Outside the catalog",
       "originCatalog": "Catalog",
       "originSubscription": "Subscription",
-      "originManual": "Manual"
-    }
+      "originManual": "Manual",
+      "invalidLine": "Check this line: quantity and price cannot be negative, and the discount must be between 0 and 100%.",
+      "invalidLinesWarning": "Some lines have invalid values. Fix them before saving."
+    },
+    "loading": "Loading…"
   },
   "navigation": {
     "tabs": {
@@ -243,7 +247,8 @@
         "noResultsFiltered": "No results match the selected filters."
       },
       "list": {
-        "loadError": "Could not load the list of invoices."
+        "loadError": "Could not load the list of invoices.",
+        "retry": "Retry"
       },
       "deleteDraft": {
         "header": "Delete draft",
@@ -308,7 +313,8 @@
         "sentOk": "Delivered on {{fecha}}.",
         "sentError": "Failed: {{motivo}}",
         "sendSuccess": "Email sent.",
-        "sendError": "Could not send the email."
+        "sendError": "Could not send the email.",
+        "loadingSeries": "Loading series…"
       },
       "detail": {
         "newInvoice": "New invoice",
@@ -350,7 +356,8 @@
         "cancelHeader": "Cancel invoice",
         "cancelConfirmMessage": "Cancel invoice {{num}}? This creates a cancellation record in VERI*FACTU/AEAT. The original invoice is not deleted or modified, but it is marked as cancelled.",
         "cancelledSuccess": "Invoice cancelled.",
-        "cancelError": "Could not cancel the invoice."
+        "cancelError": "Could not cancel the invoice.",
+        "conceptRequired": "A description is required."
       },
       "correct": {
         "title": "Correct invoice record",
@@ -589,6 +596,7 @@
       "yaAnulada": "This invoice is already cancelled.",
       "subsanarBorrador": "Only an already-posted invoice can be corrected.",
       "subsanarAnulada": "This invoice is cancelled; it cannot be corrected.",
+      "subsanarSimplificada": "A ticket (simplified invoice) cannot be corrected. Void it and issue a new one instead.",
       "motivoObligatorio": "The reason for the correction is required.",
       "sinCambiosFiscales": "The fiscal content has not changed since the last correction — there is nothing to correct.",
       "firmarBorrador": "This invoice has not been saved or posted yet — it cannot be signed.",

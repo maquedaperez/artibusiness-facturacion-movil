@@ -140,3 +140,31 @@
     font-size: 19px;
   }
 }
+
+// Estado de carga del detalle (2026-09-02) — mismo tratamiento visual que .carga-lista en la
+// lista de emitidas, para que las dos pantallas del modulo se sientan iguales al esperar.
+.estado-cargando {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--texto-secundario);
+
+  p {
+    margin: 0;
+    font-size: 14px;
+  }
+}
+
+// Campo obligatorio sin rellenar (2026-09-02) — se marca el borde, no el fondo: dentro de un
+// ion-item el fondo pisa el estado de foco propio de Ionic y se ve sucio al escribir.
+.campo-invalido {
+  --border-color: var(--ion-color-danger);
+  --highlight-color-focused: var(--ion-color-danger);
+}
+
+.aviso-campo {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
