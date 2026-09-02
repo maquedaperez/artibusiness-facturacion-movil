@@ -420,6 +420,12 @@
         "paymentMethodRequired": "Selecciona una forma de pago del catálogo antes de guardar.",
         "lineRequired": "La factura necesita al menos una línea.",
         "notFoundWithId": "Factura {{id}} no encontrada."
+      },
+      "unsaved": {
+        "header": "Cambios sin guardar",
+        "message": "Si sales ahora perderás los cambios de esta factura.",
+        "keepEditing": "Seguir editando",
+        "discard": "Salir sin guardar"
       }
     },
     "received": {

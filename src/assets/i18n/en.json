@@ -420,6 +420,12 @@
         "paymentMethodRequired": "Select a payment method from the catalog before saving.",
         "lineRequired": "The invoice needs at least one line.",
         "notFoundWithId": "Invoice {{id}} not found."
+      },
+      "unsaved": {
+        "header": "Unsaved changes",
+        "message": "If you leave now you will lose the changes to this invoice.",
+        "keepEditing": "Keep editing",
+        "discard": "Leave without saving"
       }
     },
     "received": {

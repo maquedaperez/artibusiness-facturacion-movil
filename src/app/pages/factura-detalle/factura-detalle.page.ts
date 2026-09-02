@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
@@ -28,6 +28,7 @@ import { ClienteSelectorComponent, SeleccionCliente } from '../../modals/cliente
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 import { LineasEditorComponent, lineaFacturaInvalida } from '../../shared/lineas-editor/lineas-editor.component';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
+import { PuedeSalirDeLaPantalla } from '../../guards/cambios-sin-guardar.guard';
 
 @Component({
   selector: 'app-factura-detalle',
@@ -42,7 +43,7 @@ import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-docum
     DemoBannerComponent, LineasEditorComponent,
   ],
 })
-export class FacturaDetallePage implements OnInit, OnDestroy {
+export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPantalla {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private invoicesRepo = inject(IssuedInvoicesRepository);
@@ -177,6 +178,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
 
       this.facturaId = id;
       this.working = structuredClone(factura);
+      this.marcarSinCambiosPendientes();
       this.emailEnvio = factura.emailUltimoEnvio ?? '';
     } catch (e: any) {
       this.errorMsg = e?.message ?? this.transloco.translate('invoices.issued.detail.loadError');
@@ -309,6 +311,9 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
       this.working.idCliente = idCliente;
       this.facturaId = creada.id;
       this.esNueva = false;
+      // Un borrador recien creado no tiene todavia trabajo que perder (ni concepto ni lineas):
+      // se toma como punto de partida para que salir de inmediato no pregunte por nada.
+      this.marcarSinCambiosPendientes();
     } else if (this.working) {
       this.working.destinatario = destinatario;
       this.working.idCliente = idCliente;
@@ -393,6 +398,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
     this.working.idCliente = undefined;
     this.facturaId = creada.id;
     this.esNueva = false;
+    this.marcarSinCambiosPendientes();
   }
 
   // Stripe Connect (Fase 3, 2026-09-02): se consulta SIEMPRE, no solo cuando puedeCobrar ya es
@@ -486,6 +492,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
 
       this.working = structuredClone(guardada);
       this.facturaId = guardada.id;
+      this.marcarSinCambiosPendientes();
       this.sincronizarUrlConLaFacturaGuardada();
       if (mostrarToast) {
         await this.showToast(this.transloco.translate('invoices.issued.detail.saveSuccess'));
@@ -546,6 +553,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
             this.contabilizando = true;
             try {
               this.working = await this.invoicesRepo.contabilizar(this.facturaId!);
+              this.marcarSinCambiosPendientes();
               await this.showToast(this.transloco.translate('invoices.issued.detail.postedSuccess'));
               this.volver();
             } catch (e: any) {
@@ -594,6 +602,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
             this.marcandoCobrado = true;
             try {
               this.working = await this.invoicesRepo.marcarComoCobrado(this.facturaId!, medio, importe);
+              this.marcarSinCambiosPendientes();
               await this.showToast(this.transloco.translate('invoices.issued.cobros.success'));
             } catch (e: any) {
               await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.cobros.error'), 'danger');
@@ -652,7 +661,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
       this.detenerSondeoCobroStripe();
       this.checkoutUrlStripe = null;
       const actualizada = await this.invoicesRepo.obtenerPorId(this.facturaId);
-      if (actualizada) this.working = actualizada;
+      if (actualizada) { this.working = actualizada; this.marcarSinCambiosPendientes(); }
       await this.showToast(this.transloco.translate('invoices.issued.cobros.stripe.pagadoConfirmado'));
     } catch {
       // Un fallo puntual de red al sondear no debe detener el sondeo — se reintenta en el
@@ -734,6 +743,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
             this.firmando = true;
             try {
               this.working = await this.invoicesRepo.firmar(this.facturaId!);
+              this.marcarSinCambiosPendientes();
               await this.showToast(this.transloco.translate('invoices.issued.detail.signedSuccess'));
               this.volver();
             } catch (e: any) {
@@ -781,6 +791,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
             this.anulando = true;
             try {
               this.working = await this.invoicesRepo.anular(this.facturaId!);
+              this.marcarSinCambiosPendientes();
               await this.showToast(this.transloco.translate('invoices.issued.detail.cancelledSuccess'));
             } catch (e: any) {
               await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.detail.cancelError'), 'danger');
@@ -919,6 +930,10 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
               } else {
                 await this.invoicesRepo.eliminar(f.id);
               }
+              // La factura ya no existe: lo que hubiera a medio escribir en pantalla ya no es
+              // "trabajo sin guardar" que proteger, o el guard preguntaria por algo que se acaba
+              // de borrar a proposito.
+              this.marcarSinCambiosPendientes();
               await this.showToast(this.transloco.translate('invoices.issued.deleteDraft.success'));
               this.volver();
             } catch (e: any) {
@@ -940,6 +955,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
     this.enviandoCorreo = true;
     try {
       this.working = await this.invoicesRepo.enviarPorCorreo(this.facturaId, this.emailEnvio.trim());
+      this.marcarSinCambiosPendientes();
       await this.showToast(this.transloco.translate('invoices.issued.simplified.sendSuccess'));
     } catch (e: any) {
       await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.simplified.sendError'), 'danger');
@@ -947,7 +963,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
       // termine en error — se relee para no dejar la tarjeta de correo con el estado anterior.
       try {
         const actualizada = await this.invoicesRepo.obtenerPorId(this.facturaId);
-        if (actualizada) this.working = actualizada;
+        if (actualizada) { this.working = actualizada; this.marcarSinCambiosPendientes(); }
       } catch {
         // Sin conexión o fallo de lectura: se deja el estado local tal cual, no es crítico.
       }
@@ -959,6 +975,87 @@ export class FacturaDetallePage implements OnInit, OnDestroy {
   private async showToast(message: string, color: 'success' | 'danger' = 'success') {
     const toast = await this.toastCtrl.create({ message, duration: 2500, position: 'bottom', color });
     await toast.present();
+  }
+
+
+  // ---------------------------------------------------------------------------------------
+  // Cambios sin guardar (hallazgo G04 de la auditoría, 2026-09-02)
+  //
+  // Antes, editar concepto o líneas y salir —por el botón de la cabecera, por las pestañas de
+  // abajo o por el botón Atrás— descartaba el trabajo en silencio, sin ningún aviso. No había
+  // ni CanDeactivate, ni comparación con el último estado guardado, ni beforeunload.
+  //
+  // La comprobación vive en un guard de ruta (cambiosSinGuardarGuard) y NO dentro de volver():
+  // así cubre de una vez todas las salidas que pasan por el router, sin repetir la lógica en
+  // cada botón ni arriesgarse a olvidar una. volver() se queda tal cual estaba a propósito —
+  // navega, y es el guard quien decide si esa navegación llega a completarse.
+  // ---------------------------------------------------------------------------------------
+
+  // Último estado conocido como "ya persistido". Se refresca en cada punto en el que 'working'
+  // pasa a reflejar lo que hay en el backend: al cargar, al guardar y tras cada acción del
+  // servidor que devuelve la factura actualizada (contabilizar/firmar/anular/cobrar/enviar).
+  private snapshotGuardado = '';
+
+  // Solo los campos que el formulario puede modificar. Comparar la factura entera daría falsos
+  // positivos con los campos que el backend rellena por su cuenta (estadoAeat, urlQr,
+  // fechaUltimoEnvioCorrecto...), que cambian sin que el usuario haya tocado nada.
+  private instantaneaDeLoEditable(): string {
+    const f = this.working;
+    if (!f) return '';
+    return JSON.stringify({
+      fecha: f.fecha,
+      vencimiento: f.vencimiento,
+      concepto: f.concepto,
+      medioPago: f.medioPago,
+      idMedioPago: f.idMedioPago,
+      destinatario: f.destinatario,
+      idCliente: f.idCliente,
+      numeradorId: f.numeradorId,
+      esSimplificada: f.esSimplificada,
+      lineas: f.lineas,
+    });
+  }
+
+  private marcarSinCambiosPendientes() {
+    this.snapshotGuardado = this.instantaneaDeLoEditable();
+  }
+
+  // Solo puede haber cambios pendientes en una factura editable: una ya contabilizada o firmada
+  // se muestra en modo lectura, así que nada de lo que se ve ahí puede haberse tocado.
+  get hayCambiosSinGuardar(): boolean {
+    if (!this.working || !this.esEditable) return false;
+    return this.instantaneaDeLoEditable() !== this.snapshotGuardado;
+  }
+
+  // Lo llama cambiosSinGuardarGuard antes de dejar salir de la pantalla.
+  async puedeSalir(): Promise<boolean> {
+    if (!this.hayCambiosSinGuardar) return true;
+
+    const alert = await this.alertCtrl.create({
+      header: this.transloco.translate('invoices.issued.unsaved.header'),
+      message: this.transloco.translate('invoices.issued.unsaved.message'),
+      buttons: [
+        // 'cancel' es también el rol que Ionic asigna al cerrar tocando fuera o con Escape:
+        // ante la duda, quedarse es la opción segura, nunca perder el trabajo.
+        { text: this.transloco.translate('invoices.issued.unsaved.keepEditing'), role: 'cancel' },
+        { text: this.transloco.translate('invoices.issued.unsaved.discard'), role: 'salir' },
+      ],
+    });
+    await alert.present();
+
+    const { role } = await alert.onDidDismiss();
+    return role === 'salir';
+  }
+
+  // Recargar o cerrar la pestaña no pasa por el router, así que el guard no se entera — este es
+  // el único caso que hay que cubrir aparte. El navegador ignora el texto y muestra su propio
+  // mensaje: basta con preventDefault() para que pregunte. En la app nativa no se dispara nunca,
+  // que es justo lo correcto (ahí no existe "recargar").
+  @HostListener('window:beforeunload', ['$event'])
+  avisarAlRecargarOCerrar(evento: BeforeUnloadEvent) {
+    if (!this.hayCambiosSinGuardar) return;
+    evento.preventDefault();
+    evento.returnValue = '';
   }
 
   volver() {

@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth.guard';
 import { tenantGuard } from './guards/tenant.guard';
+import { cambiosSinGuardarGuard } from './guards/cambios-sin-guardar.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'splash', pathMatch: 'full' },
@@ -68,6 +69,10 @@ export const routes: Routes = [
       },
       {
         path: 'emitidas/:id',
+        // Protege el formulario de factura frente a una salida con cambios sin guardar
+        // (hallazgo G04, 2026-09-02) — cubre el boton de la cabecera, las pestanas de abajo, el
+        // Atras del navegador y el Atras fisico de Android de una sola vez.
+        canDeactivate: [cambiosSinGuardarGuard],
         loadComponent: () =>
           import('./pages/factura-detalle/factura-detalle.page').then(m => m.FacturaDetallePage),
       },

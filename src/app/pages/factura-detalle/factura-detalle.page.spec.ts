@@ -792,4 +792,134 @@ describe('FacturaDetallePage', () => {
       expect(component.faltaConcepto).toBeFalse();
     });
   });
+  // G04 de la auditoria (2026-09-02): editar concepto o lineas y salir descartaba el trabajo en
+  // silencio. La proteccion vive en un guard de ruta que pregunta a puedeSalir().
+  describe('cambios sin guardar (G04)', () => {
+    function facturaBorrador(overrides: Partial<FacturaEmitida> = {}): FacturaEmitida {
+      return {
+        id: 42,
+        numFactura: 'A-2026-42',
+        numeradorId: 2,
+        fecha: '2026-09-02',
+        vencimiento: '',
+        concepto: 'Servicios',
+        medioPago: 'Transferencia',
+        idMedioPago: 3,
+        destinatario: { nombre: 'Cliente SL', nif: 'B12345678', esEmpresa: true },
+        lineas: [],
+        estado: 'borrador',
+        operacionId: 'op-42',
+        ...overrides,
+      };
+    }
+
+    // Coloca el componente en el estado "recien cargada del backend", que es cuando el
+    // snapshot de referencia queda fijado.
+    async function cargarFactura(f: FacturaEmitida) {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      spyOn(repo, 'obtenerPorId').and.resolveTo(f);
+      TestBed.inject(ActivatedRoute).snapshot.params = { id: String(f.id) };
+      await component['cargarFactura'](f.id);
+    }
+
+    it('una factura recien cargada no tiene cambios pendientes', async () => {
+      await cargarFactura(facturaBorrador());
+      expect(component.hayCambiosSinGuardar).toBeFalse();
+    });
+
+    it('editar el concepto marca cambios pendientes', async () => {
+      await cargarFactura(facturaBorrador());
+      component.working!.concepto = 'Otro concepto';
+      expect(component.hayCambiosSinGuardar).toBeTrue();
+    });
+
+    it('anadir una linea marca cambios pendientes', async () => {
+      await cargarFactura(facturaBorrador());
+      component.working!.lineas.push({
+        id: 1, origen: 'manual', descripcion: 'Mano de obra',
+        cantidad: 1, precioUnitario: 50, descuentoPct: 0, ivaPct: 21,
+      });
+      expect(component.hayCambiosSinGuardar).toBeTrue();
+    });
+
+    // Los campos que rellena el backend por su cuenta cambian sin que el usuario haya tocado
+    // nada: si entraran en la comparacion, saldria el aviso al salir de una factura que solo
+    // se ha mirado.
+    it('un cambio del backend en campos no editables NO cuenta como cambio pendiente', async () => {
+      await cargarFactura(facturaBorrador());
+      component.working!.estadoAeat = 'Correcto';
+      component.working!.urlQr = 'https://ejemplo/qr';
+      expect(component.hayCambiosSinGuardar).toBeFalse();
+    });
+
+    // Una factura ya contabilizada se muestra en modo lectura: nada de lo que se ve ahi puede
+    // haberse tocado, asi que nunca debe preguntar al salir.
+    it('una factura no editable nunca tiene cambios pendientes', async () => {
+      await cargarFactura(facturaBorrador({ estado: 'contabilizada' }));
+      component.working!.concepto = 'Manipulado a mano en el test';
+      expect(component.hayCambiosSinGuardar).toBeFalse();
+    });
+
+    it('guardar deja la pantalla sin cambios pendientes', async () => {
+      await cargarFactura(facturaBorrador());
+      component.working!.concepto = 'Otro concepto';
+      expect(component.hayCambiosSinGuardar).toBeTrue();
+
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      spyOn(repo, 'guardar').and.callFake(async () => ({ ...component.working! }));
+
+      await component.guardar(false);
+
+      expect(component.hayCambiosSinGuardar).toBeFalse();
+    });
+
+    describe('puedeSalir()', () => {
+      it('deja salir sin preguntar si no hay nada que perder', async () => {
+        await cargarFactura(facturaBorrador());
+        const alertCtrl = TestBed.inject(AlertController);
+        const alertSpy = spyOn(alertCtrl, 'create');
+
+        await expectAsync(component.puedeSalir()).toBeResolvedTo(true);
+        expect(alertSpy).not.toHaveBeenCalled();
+      });
+
+      it('con cambios pendientes pregunta, y "Seguir editando" cancela la salida', async () => {
+        await cargarFactura(facturaBorrador());
+        component.working!.concepto = 'Otro concepto';
+        const alertCtrl = TestBed.inject(AlertController);
+        spyOn(alertCtrl, 'create').and.resolveTo({
+          present: async () => {},
+          onDidDismiss: async () => ({ role: 'cancel' }),
+        } as any);
+
+        await expectAsync(component.puedeSalir()).toBeResolvedTo(false);
+      });
+
+      it('con cambios pendientes, "Salir sin guardar" deja salir', async () => {
+        await cargarFactura(facturaBorrador());
+        component.working!.concepto = 'Otro concepto';
+        const alertCtrl = TestBed.inject(AlertController);
+        spyOn(alertCtrl, 'create').and.resolveTo({
+          present: async () => {},
+          onDidDismiss: async () => ({ role: 'salir' }),
+        } as any);
+
+        await expectAsync(component.puedeSalir()).toBeResolvedTo(true);
+      });
+
+      // Cerrar tocando fuera del dialogo o con Escape llega tambien como rol 'backdrop':
+      // ante la duda, quedarse es lo seguro — nunca perder el trabajo por un toque accidental.
+      it('cerrar el dialogo sin elegir no se interpreta como salir', async () => {
+        await cargarFactura(facturaBorrador());
+        component.working!.concepto = 'Otro concepto';
+        const alertCtrl = TestBed.inject(AlertController);
+        spyOn(alertCtrl, 'create').and.resolveTo({
+          present: async () => {},
+          onDidDismiss: async () => ({ role: 'backdrop' }),
+        } as any);
+
+        await expectAsync(component.puedeSalir()).toBeResolvedTo(false);
+      });
+    });
+  });
 });
