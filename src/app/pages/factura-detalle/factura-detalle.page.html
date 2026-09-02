@@ -185,8 +185,8 @@
       [lineas]="f.lineas"
       [editable]="esEditable"
       [ivaRates]="ivaRates"
-      [permitirCatalogo]="true"
-      [permitirSuscripcion]="!f.esSimplificada"
+      [permitirCatalogo]="catalogoDisponible"
+      [permitirSuscripcion]="suscripcionesDisponibles && !f.esSimplificada"
       [generarId]="generarIdLinea"
     ></app-lineas-editor>
 

@@ -380,7 +380,7 @@
         "error": "No se pudo subsanar la factura.",
         "simulatedFieldLabel": "Descripción de la operación (simulado)",
         "whenUsefulTitle": "¿Cuándo sirve?",
-        "whenUsefulEmisor": "¿Cambiaron los datos de tu empresa? Corrígelos en Datos de emisor y vuelve.",
+        "whenUsefulEmisor": "Si se corrigieron los datos fiscales de tu empresa después de contabilizar, aquí verás qué cambia.",
         "whenUsefulContenido": "¿Está mal el cliente o los importes? Anula la factura y emite otra."
       },
       "clientSelector": {

@@ -380,7 +380,7 @@
         "error": "Could not correct the invoice.",
         "simulatedFieldLabel": "Description of the operation (simulated)",
         "whenUsefulTitle": "When is it useful?",
-        "whenUsefulEmisor": "Did your company details change? Fix them in Issuer details and come back.",
+        "whenUsefulEmisor": "If your company tax details were corrected after posting, you will see the changes here.",
         "whenUsefulContenido": "Wrong customer or amounts? Void the invoice and issue a new one."
       },
       "clientSelector": {

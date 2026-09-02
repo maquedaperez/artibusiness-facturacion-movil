@@ -541,6 +541,25 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     return this.mockAdapter.obtenerPorId(id);
   }
 
+
+  // MISMO bug de fondo que se corrigio en Emitidas (2026-09-02, ver
+  // issued-invoices.repository.http.ts): usar la mera PRESENCIA del id en el almacen del mock
+  // como definicion de "borrador local sin guardar" es incorrecto, porque ese almacen tambien
+  // contiene las facturas de EJEMPLO del modo demo, con ids 1, 2, 3... — justo el rango de los
+  // ids reales de una empresa que acaba de empezar.
+  //
+  // Aqui el sintoma era peor todavia: en actualizar(), una factura recibida REAL cuyo id
+  // coincidiera con una de ejemplo se tomaba por borrador local y se guardaba por la rama de
+  // ALTA, creando una fila DUPLICADA en cada guardado en vez de actualizar la suya. Es
+  // exactamente el bug que el comentario de actualizar() dice haber corregido el 2026-08-14
+  // por otra via, y que seguia abierto por este lado.
+  //
+  // El criterio correcto es la marca esBorradorLocal, que es la que ya usaba listar().
+  private async esBorradorLocalSinGuardar(id: number): Promise<boolean> {
+    const enMemoria = await this.mockAdapter.obtenerPorId(id);
+    return enMemoria?.esBorradorLocal === true;
+  }
+
   async crearManual(data: Omit<FacturaRecibida, 'id' | 'origenOcr'>): Promise<FacturaRecibida> {
     return this.guardarReal(data);
   }
@@ -559,8 +578,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     // primera vez que se guarda de verdad (alta); si ya no está, es un id real del backend
     // (se guardó antes en esta sesión, o se leyó de obtenerPorId) y toca actualizar esa
     // misma fila.
-    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
-    if (borradorLocal) {
+    if (await this.esBorradorLocalSinGuardar(id)) {
       const guardada = await this.guardarReal(data);
       this.mockAdapter.eliminar(id);
       return guardada;

@@ -123,9 +123,9 @@ describe('FacturaSubsanarPage', () => {
 
       const texto = fixture.nativeElement.textContent as string;
       expect(component.hayDiferencias).toBeFalse();
-      // Corregir los datos del emisor SI produce una subsanacion con contenido: se releen en
-      // vivo al regenerar el registro.
-      expect(texto).toContain('Datos de emisor');
+      // Los datos del emisor se releen en vivo al regenerar el registro, asi que corregirlos
+      // (fuera de la app: esa ficha no se edita aqui) SI produce una subsanacion con contenido.
+      expect(texto).toContain('datos fiscales de tu empresa');
       // El contenido de la factura quedo congelado al contabilizarla: la via es anular y reemitir.
       expect(texto).toContain('Anula la factura');
     });
@@ -144,7 +144,7 @@ describe('FacturaSubsanarPage', () => {
       fixture.detectChanges();
 
       const texto = fixture.nativeElement.textContent as string;
-      expect(texto).not.toContain('Datos de emisor');
+      expect(texto).not.toContain('datos fiscales de tu empresa');
       expect(texto).toContain('Emisor NIF');
     });
   });

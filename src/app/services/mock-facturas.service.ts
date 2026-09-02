@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { TranslocoService } from '@jsverse/transloco';
 import { PaginaResultado } from '../shared/types/pagination';
+import { DOCUMENTO_DE_BORRADOR_DISPONIBLE } from '../core/providers/funcionalidades-pendientes';
 
 export type EstadoFactura = 'borrador' | 'contabilizada' | 'firmada';
 export type EstadoAeat = 'PendienteEnvio' | 'Correcto' | 'AceptadoConErrores' | 'RechazadoAeat' | 'RequiereRevisionManual';
@@ -426,7 +427,17 @@ function accionesEmitidaPorEstado(esBorrador: boolean, estadoReconocido: boolean
     // Estabilización post-demo (2026-08-27): un borrador nunca ha pasado por FacturaE, no
     // existe ningún PDF real que descargar todavía -- se quita la acción en vez de ofrecer
     // el simulado, que confundía más de lo que ayudaba.
-    return { editar: true, eliminar: true, copiar: true, descargar: false, compartir: true };
+    //
+    // 2026-09-02: por el mismo motivo se retira también COMPARTIR mientras el documento de un
+    // borrador siga siendo el simulado del mock (lleva impreso "SIMULACIÓN — NO VÁLIDO
+    // FISCALMENTE"): mandarle eso a un cliente es peor que no ofrecer el botón. Contabilizadas
+    // y firmadas no se tocan — esas comparten el PDF real de FacturaE. Ver
+    // DOCUMENTO_DE_BORRADOR_DISPONIBLE en core/providers/funcionalidades-pendientes.ts.
+    return {
+      editar: true, eliminar: true, copiar: true,
+      descargar: false,
+      compartir: DOCUMENTO_DE_BORRADOR_DISPONIBLE,
+    };
   }
   // Contabilizada/firmada — definitiva: ya no se edita ni se borra desde aquí (borrar
   // una factura contabilizada requeriría una operación de anulación autorizada
@@ -494,7 +505,10 @@ let nextEmitidaId = BASE_ID_BORRADOR_LOCAL;
 let nextNumeroBorradorVisible = 1;
 let nextLineaId = 1000;
 let nextClienteId = 100;
-let nextRecibidaId = 100;
+// Mismo criterio que BASE_ID_BORRADOR_LOCAL en emitidas: fuera del rango de cualquier id real
+// del backend, para que un borrador local nunca pueda confundirse con una factura real (ver
+// esBorradorLocalSinGuardar en received-invoices.repository.http.ts).
+let nextRecibidaId = BASE_ID_BORRADOR_LOCAL;
 let nextProveedorId = 100;
 
 @Injectable({ providedIn: 'root' })

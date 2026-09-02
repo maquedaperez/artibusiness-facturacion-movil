@@ -32,6 +32,7 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { chevronForwardOutline } from 'ionicons/icons';
+import { DATOS_EMISOR_DISPONIBLES } from '../../core/providers/funcionalidades-pendientes';
 
 @Component({
   selector: 'app-perfil',
@@ -63,6 +64,9 @@ export class PerfilPage {
   private auth = inject(AuthService);
   private tenant = inject(TenantService);
   private emisorRepo = inject(EmisorRepository);
+
+  // Ver funcionalidades-pendientes.ts: la ficha de emisor todavia sale del mock.
+  readonly datosEmisorDisponibles = DATOS_EMISOR_DISPONIBLES;
   private router = inject(Router);
   private alertCtrl = inject(AlertController);
   private languageService = inject(LanguageService);

@@ -570,8 +570,12 @@ describe('FacturaDetallePage', () => {
       expect(itemFecha.componentInstance.disabled).toBeFalse();
       expect(fixture.debugElement.query(By.css('.vencimiento-item'))).not.toBeNull();
 
+      // permitirSuscripcion depende ahora tambien de SUSCRIPCIONES_DISPONIBLES (el catalogo de
+      // suscripciones sigue siendo mock, ver funcionalidades-pendientes.ts). Lo que este test
+      // fija es que una factura COMPLETA no lo restringe por su tipo fiscal, a diferencia de un
+      // ticket — no que la funcion este activada.
       const editor = fixture.debugElement.query(By.css('app-lineas-editor'));
-      expect(editor.componentInstance.permitirSuscripcion).toBeTrue();
+      expect(editor.componentInstance.permitirSuscripcion).toBe(component.suscripcionesDisponibles);
     });
   });
 

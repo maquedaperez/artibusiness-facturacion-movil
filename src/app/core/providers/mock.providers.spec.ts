@@ -20,6 +20,7 @@ import {
   MockFacturasService,
 } from '../../services/mock-facturas.service';
 import { provideTranslocoTesting } from '../i18n/testing/transloco-testing.providers';
+import { DOCUMENTO_DE_BORRADOR_DISPONIBLE } from './funcionalidades-pendientes';
 
 const TRADUCCIONES_TEST = {
   es: {
@@ -419,9 +420,17 @@ describe('Política de acciones permitidas — accionesFacturaEmitida / acciones
 
   // Estabilización post-demo (2026-08-27): descargar ya no se ofrece en borrador -- no existe
   // ningún PDF real hasta contabilizar, y el simulado confundía más de lo que ayudaba.
-  it('emitida borrador: edición, borrado, copia y compartir permitidos, descargar no', () => {
+  // 2026-09-02: compartir sigue el mismo criterio mientras el documento de un borrador sea el
+  // simulado del mock ("SIMULACIÓN — NO VÁLIDO FISCALMENTE") — ver
+  // DOCUMENTO_DE_BORRADOR_DISPONIBLE en core/providers/funcionalidades-pendientes.ts. Se
+  // compara contra la constante y no contra 'false' a pelo: el día que el backend sirva un
+  // documento de borrador real, este test acompaña al cambio en vez de bloquearlo.
+  it('emitida borrador: edición, borrado y copia permitidos; descargar no, y compartir solo si hay documento real', () => {
     const acciones = accionesFacturaEmitida(emitidaConEstado('borrador'));
-    expect(acciones).toEqual({ editar: true, eliminar: true, copiar: true, descargar: false, compartir: true });
+    expect(acciones).toEqual({
+      editar: true, eliminar: true, copiar: true,
+      descargar: false, compartir: DOCUMENTO_DE_BORRADOR_DISPONIBLE,
+    });
   });
 
   it('emitida contabilizada/firmada: ni editar ni eliminar, pero sí copiar/descargar/compartir', () => {
@@ -449,9 +458,12 @@ describe('Política de acciones permitidas — accionesFacturaEmitida / acciones
   // ningún aviso. El backend (FacturaEmitidaService.GuardarAsync/EliminarAsync) es quien de
   // verdad lo impone con un 409 — esto solo evita ofrecer un botón que se sabe que va a fallar.
   // Mismo patrón ya aplicado a accionesFacturaRecibida para 'pagada' (bug corregido 2026-08-17).
-  it('emitida borrador YA COBRADA: ni editar ni eliminar, pero sí copiar/compartir (descargar sigue sin PDF real)', () => {
+  it('emitida borrador YA COBRADA: ni editar ni eliminar, pero sí copiar (descargar sigue sin PDF real)', () => {
     const acciones = accionesFacturaEmitida({ ...emitidaConEstado('borrador'), cobrada: true });
-    expect(acciones).toEqual({ editar: false, eliminar: false, copiar: true, descargar: false, compartir: true });
+    expect(acciones).toEqual({
+      editar: false, eliminar: false, copiar: true,
+      descargar: false, compartir: DOCUMENTO_DE_BORRADOR_DISPONIBLE,
+    });
   });
 
   it('emitida borrador SIN cobrar: sigue permitiendo editar y eliminar con normalidad', () => {
