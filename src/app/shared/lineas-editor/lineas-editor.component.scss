@@ -38,3 +38,9 @@
   --background: var(--ion-color-tertiary-tint);
   --color: var(--ion-color-tertiary-shade);
 }
+
+// Aviso de linea con valores fuera de rango (2026-09-02) — ver lineaFacturaInvalida().
+.linea-error {
+  margin: 4px 0 0;
+  font-size: 12px;
+}

@@ -13,8 +13,23 @@ import { addIcons } from 'ionicons';
 import { addOutline, trashOutline } from 'ionicons/icons';
 
 import { LineaFactura, ProductoCatalogo, Suscripcion, IVA_RATES } from '../../services/mock-facturas.service';
+
 import { CatalogoSelectorComponent } from '../../modals/catalogo-selector/catalogo-selector.component';
 import { SuscripcionSelectorComponent } from '../../modals/suscripcion-selector/suscripcion-selector.component';
+
+// Regla unica de validez de una linea, exportada a proposito: la usa este editor para marcar el
+// campo y factura-detalle.page.ts para bloquear Guardar/Contabilizar, sin duplicarla en dos
+// sitios que puedan divergir. Una linea recien anadida (todo a 0) NO es invalida: 0 es el valor
+// de partida legitimo mientras el usuario todavia esta escribiendo.
+export function lineaFacturaInvalida(l: LineaFactura): boolean {
+  const cantidad = Number(l.cantidad);
+  const precio = Number(l.precioUnitario);
+  const descuento = Number(l.descuentoPct);
+  if (!Number.isFinite(cantidad) || cantidad < 0) return true;
+  if (!Number.isFinite(precio) || precio < 0) return true;
+  if (!Number.isFinite(descuento) || descuento < 0 || descuento > 100) return true;
+  return false;
+}
 
 // Editor de líneas compartido entre Facturas Emitidas y Recibidas — misma UI, misma
 // lógica de añadir/editar/eliminar y de elegir origen. Las diferencias entre las dos
@@ -138,6 +153,16 @@ export class LineasEditorComponent {
 
   formatEuros(v: number): string {
     return formatEurosUtil(v);
+  }
+
+  // Validación de rango (2026-09-02): ni este editor ni el backend comprobaban el signo ni el
+  // tope de estos tres campos, así que se podía guardar (y contabilizar) una factura con
+  // cantidad o precio negativo, o con un descuento superior al 100 % — total negativo. Se marca
+  // la línea aquí, junto al campo, en vez de esperar a un rechazo del servidor que además no
+  // llegaba. Una línea recién añadida (todo a 0) NO se considera inválida: 0 es el valor de
+  // partida legítimo mientras el usuario todavía está escribiendo.
+  lineaInvalida(l: LineaFactura): boolean {
+    return lineaFacturaInvalida(l);
   }
 
   // Base de la línea (cantidad × precio − descuento), sin IVA — misma fórmula exacta que

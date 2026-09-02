@@ -11,18 +11,22 @@
         <ion-input [label]="'common.linesEditor.descriptionLabel' | transloco" labelPlacement="stacked" [(ngModel)]="l.descripcion"></ion-input>
       </ion-item>
 
+      <!-- Limites de entrada (2026-09-02): ni el frontend ni el backend validaban rango, asi
+           que se podia emitir una factura con cantidad o precio negativo, o un descuento
+           superior al 100% (total negativo). min/max/step evitan lo obvio en el propio teclado
+           numerico; lineaInvalida() ademas lo marca y bloquea el guardado. -->
       <div class="linea-grid">
         <ion-item>
-          <ion-input [label]="'common.linesEditor.quantityLabel' | transloco" labelPlacement="stacked" type="number" [(ngModel)]="l.cantidad"></ion-input>
+          <ion-input [label]="'common.linesEditor.quantityLabel' | transloco" labelPlacement="stacked" type="number" min="0" step="1" [(ngModel)]="l.cantidad"></ion-input>
         </ion-item>
         <ion-item>
-          <ion-input [label]="'common.linesEditor.unitPriceLabel' | transloco" labelPlacement="stacked" type="number" [(ngModel)]="l.precioUnitario"></ion-input>
+          <ion-input [label]="'common.linesEditor.unitPriceLabel' | transloco" labelPlacement="stacked" type="number" min="0" step="0.01" [(ngModel)]="l.precioUnitario"></ion-input>
         </ion-item>
       </div>
 
       <div class="linea-grid">
         <ion-item>
-          <ion-input [label]="'common.linesEditor.discountLabel' | transloco" labelPlacement="stacked" type="number" [(ngModel)]="l.descuentoPct"></ion-input>
+          <ion-input [label]="'common.linesEditor.discountLabel' | transloco" labelPlacement="stacked" type="number" min="0" max="100" step="1" [(ngModel)]="l.descuentoPct"></ion-input>
         </ion-item>
         <ion-item>
           <ion-select [label]="'common.linesEditor.vatLabel' | transloco" labelPlacement="stacked" [(ngModel)]="l.ivaPct">
@@ -32,6 +36,10 @@
       </div>
 
       <p class="linea-total">{{ 'common.linesEditor.lineTotal' | transloco }} <strong>{{ formatEuros(lineaTotal(l)) }}</strong></p>
+
+      <ion-text color="danger" *ngIf="lineaInvalida(l)">
+        <p class="linea-error">{{ 'common.linesEditor.invalidLine' | transloco }}</p>
+      </ion-text>
 
       <ion-button expand="block" fill="clear" color="danger" size="small" (click)="eliminarLinea(l)">
         <ion-icon slot="start" name="trash-outline"></ion-icon>
