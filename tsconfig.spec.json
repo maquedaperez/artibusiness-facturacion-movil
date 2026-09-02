@@ -5,7 +5,12 @@
     "outDir": "./out-tsc/spec",
     "types": [
       "jasmine"
-    ]
+    ],
+    // Permite que un spec importe directamente src/assets/i18n/es.json. Se usa donde el test
+    // comprueba el TEXTO real que ve el usuario (ver factura-subsanar.page.spec.ts): copiar las
+    // cadenas al spec las deja obsoletas en cuanto se reescribe la traduccion, y el test pasa
+    // verde comprobando un texto que ya no existe en la app.
+    "resolveJsonModule": true
   },
   "files": [
     "src/test.ts",

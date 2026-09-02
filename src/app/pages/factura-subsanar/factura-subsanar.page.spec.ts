@@ -7,21 +7,12 @@ import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 import { IssuedInvoicesRepository } from '../../core/ports';
 import { FacturaEmitida } from '../../services/mock-facturas.service';
+import ES from '../../../assets/i18n/es.json';
 
-const TRADUCCIONES_TEST = {
-  es: {
-    invoices: {
-      issued: {
-        correct: {
-          whenUsefulTitle: "¿Entonces cuándo sirve subsanar?",
-          whenUsefulEmisor: "Si lo que estaba mal son los datos fiscales de tu empresa (NIF, razón social o dirección): corrígelos en Perfil › Datos de emisor y vuelve aquí. Entonces sí habrá algo que subsanar.",
-          whenUsefulContenido: "Si lo que está mal es el contenido de la factura (cliente, líneas, importes o IVA), subsanar no puede arreglarlo: esos datos quedaron fijados al contabilizarla. Hoy la vía es anular esta factura y emitir una nueva.",
-          noDifferences: "No hay nada que subsanar: el registro que se volvería a enviar sería idéntico al que ya está en la AEAT.",
-        },
-      },
-    },
-  },
-};
+// Traducciones REALES de la app, no una copia: este spec comprueba el texto que de verdad ve el
+// usuario, y una copia a mano se queda obsoleta en cuanto se reescribe la traduccion — el test
+// seguiria verde comprobando un texto que ya no existe.
+const TRADUCCIONES_TEST = { es: ES };
 
 // La auditoria (2026-09-02) acerto en que esta pantalla no tenia ninguna cobertura. Se cubre
 // aqui la politica de "que se puede subsanar", que es lo unico que decide de verdad si el
@@ -97,7 +88,11 @@ describe('FacturaSubsanarPage', () => {
 
       expect(previsualizarSpy).not.toHaveBeenCalled();
       // El motivo es el especifico del ticket, no el generico de "todavia es un borrador".
-      expect(component.errorMsg).toBe('verifactu.errors.subsanarSimplificada');
+      // Con las traducciones reales cargadas, errorMsg trae el texto, no la clave. Se compara
+      // contra el mismo JSON, asi que sigue verificando que sale el motivo ESPECIFICO del ticket
+      // y no el generico de "todavia es un borrador".
+      expect(component.errorMsg).toBe(ES.verifactu.errors.subsanarSimplificada);
+      expect(component.errorMsg).not.toBe(ES.verifactu.errors.subsanarBorrador);
       expect(component.cargando).toBeFalse();
     });
 
@@ -132,7 +127,7 @@ describe('FacturaSubsanarPage', () => {
       // vivo al regenerar el registro.
       expect(texto).toContain('Datos de emisor');
       // El contenido de la factura quedo congelado al contabilizarla: la via es anular y reemitir.
-      expect(texto).toContain('anular esta factura');
+      expect(texto).toContain('Anula la factura');
     });
 
     it('con diferencias reales no muestra esa explicacion', async () => {
