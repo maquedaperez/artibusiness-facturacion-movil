@@ -45,7 +45,7 @@ describe('DocumentoBancarioComponent', () => {
     fixture = TestBed.createComponent(DocumentoBancarioComponent);
   });
 
-  it('muestra campos anidados y deja claro que no ha creado una factura', () => {
+  it('muestra campos anidados y deja claro que no ha creado una factura', async () => {
     fixture.componentInstance.documento = {
       tipoDocumento: 'bank_document',
       nombreArchivo: '4QHPJO04H000.pdf',
@@ -58,6 +58,13 @@ describe('DocumentoBancarioComponent', () => {
       },
     };
 
+    // TranslocoPipe resuelve de forma asíncrona (se suscribe a langChanges$, que a su vez
+    // depende de que el loader de prueba resuelva su Promise) — un único detectChanges()
+    // síncrono deja todas las traducciones vía pipe (a diferencia de las que el propio
+    // componente resuelve con transloco.translate() en ngOnInit, esas sí síncronas) en blanco.
+    // Bug real encontrado en revisión (2026-09-02): el test no esperaba a que se estabilizara.
+    fixture.detectChanges();
+    await fixture.whenStable();
     fixture.detectChanges();
     const texto = fixture.nativeElement.textContent as string;
 
@@ -68,7 +75,7 @@ describe('DocumentoBancarioComponent', () => {
     expect(texto).toContain('Confianza: 98%');
   });
 
-  it('muestra avisos y el request_id para poder rastrear el análisis', () => {
+  it('muestra avisos y el request_id para poder rastrear el análisis', async () => {
     fixture.componentInstance.documento = {
       tipoDocumento: 'bank_document',
       nombreArchivo: 'banco.pdf',
@@ -77,6 +84,8 @@ describe('DocumentoBancarioComponent', () => {
       requestId: 'ocr-request-123',
     };
 
+    fixture.detectChanges();
+    await fixture.whenStable();
     fixture.detectChanges();
     const texto = fixture.nativeElement.textContent as string;
 
