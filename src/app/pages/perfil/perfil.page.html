@@ -39,7 +39,8 @@
        Ejemplo S.L." / B00000000, que NO son los datos del usuario ni los que salen en sus
        facturas (esos los pone el backend desde la ficha real de la empresa al contabilizar).
        Ver DATOS_EMISOR_DISPONIBLES en core/providers/funcionalidades-pendientes.ts. -->
-  <ion-card class="compact-card" button (click)="irADatosEmisor()" *ngIf="datosEmisorDisponibles && emisor as e">
+  <ng-container *ngIf="datosEmisorDisponibles">
+  <ion-card class="compact-card" button (click)="irADatosEmisor()" *ngIf="emisor as e">
     <ion-card-header>
       <ion-card-title>{{ 'profile.fiscalData' | transloco }}</ion-card-title>
     </ion-card-header>
@@ -55,6 +56,7 @@
       </div>
     </ion-card-content>
   </ion-card>
+  </ng-container>
 
   <ion-card class="compact-card">
     <ion-card-header>
