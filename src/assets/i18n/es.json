@@ -539,6 +539,16 @@
       }
     }
   },
+  "payment": {
+    "result": {
+      "successTitle": "Pago recibido",
+      "successMessage": "Gracias. Tu pago se ha completado correctamente.",
+      "successNote": "Ya puedes cerrar esta página. Recibirás el justificante del comercio.",
+      "cancelledTitle": "Pago cancelado",
+      "cancelledMessage": "No se ha realizado ningún cargo en tu tarjeta.",
+      "cancelledNote": "Si ha sido un error, pide al comercio un nuevo enlace de pago."
+    }
+  },
   "verifactu": {
     "estados": {
       "pendienteEnvio": "Pendiente de envío",
