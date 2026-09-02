@@ -361,14 +361,14 @@
       },
       "correct": {
         "title": "Subsanar factura",
-        "readOnlyNotice": "Esta pantalla no edita la factura: el cliente, las líneas y los importes no cambian. Solo vuelve a emitir el registro fiscal con los mismos datos ya guardados, dejando constancia del motivo. Si el contenido de la factura está mal, corresponde una rectificativa; si la operación no existió, corresponde anularla.",
+        "readOnlyNotice": "Subsanar no cambia la factura: ni el cliente, ni las líneas, ni los importes. Solo vuelve a emitir a la AEAT el registro fiscal de una factura que ya es válida, dejando constancia del motivo.",
         "invoiceTitle": "Factura {{num}}",
         "aeatStatusOriginal": "Estado AEAT (Alta original):",
         "total": "Total",
         "lastCorrection": "Última subsanación",
         "reason": "Motivo",
         "whatWouldChange": "Qué cambiaría en el registro fiscal",
-        "noDifferences": "El contenido fiscal que se volvería a emitir es idéntico al del último registro — no hay ningún dato que corregir. Si la factura necesita cambiar cliente, líneas, importes o IVA, corresponde una factura rectificativa, no una subsanación.",
+        "noDifferences": "No hay nada que subsanar: el registro que se volvería a enviar sería idéntico al que ya está en la AEAT.",
         "reasonTitle": "Motivo de la subsanación",
         "reasonNotice": "Es trazabilidad interna — no se envía a la AEAT ni forma parte del registro corregido.",
         "reasonPlaceholder": "Explica qué estaba mal en el registro remitido (no en la factura)",
@@ -379,7 +379,10 @@
         "confirmMessage": "¿Confirmar la subsanación de la factura {{num}}? Esto genera un registro nuevo en VERI*FACTU (la factura y el Alta original no se modifican). Esta acción no se puede deshacer.",
         "registeredSuccess": "Subsanación registrada.",
         "error": "No se pudo subsanar la factura.",
-        "simulatedFieldLabel": "Descripción de la operación (simulado)"
+        "simulatedFieldLabel": "Descripción de la operación (simulado)",
+        "whenUsefulTitle": "¿Entonces cuándo sirve subsanar?",
+        "whenUsefulEmisor": "Si lo que estaba mal son los datos fiscales de tu empresa (NIF, razón social o dirección): corrígelos en Perfil › Datos de emisor y vuelve aquí. Entonces sí habrá algo que subsanar.",
+        "whenUsefulContenido": "Si lo que está mal es el contenido de la factura (cliente, líneas, importes o IVA), subsanar no puede arreglarlo: esos datos quedaron fijados al contabilizarla. Hoy la vía es anular esta factura y emitir una nueva."
       },
       "clientSelector": {
         "title": "Seleccionar cliente",

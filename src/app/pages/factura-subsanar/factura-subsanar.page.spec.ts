@@ -8,6 +8,21 @@ import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testi
 import { IssuedInvoicesRepository } from '../../core/ports';
 import { FacturaEmitida } from '../../services/mock-facturas.service';
 
+const TRADUCCIONES_TEST = {
+  es: {
+    invoices: {
+      issued: {
+        correct: {
+          whenUsefulTitle: "¿Entonces cuándo sirve subsanar?",
+          whenUsefulEmisor: "Si lo que estaba mal son los datos fiscales de tu empresa (NIF, razón social o dirección): corrígelos en Perfil › Datos de emisor y vuelve aquí. Entonces sí habrá algo que subsanar.",
+          whenUsefulContenido: "Si lo que está mal es el contenido de la factura (cliente, líneas, importes o IVA), subsanar no puede arreglarlo: esos datos quedaron fijados al contabilizarla. Hoy la vía es anular esta factura y emitir una nueva.",
+          noDifferences: "No hay nada que subsanar: el registro que se volvería a enviar sería idéntico al que ya está en la AEAT.",
+        },
+      },
+    },
+  },
+};
+
 // La auditoria (2026-09-02) acerto en que esta pantalla no tenia ninguna cobertura. Se cubre
 // aqui la politica de "que se puede subsanar", que es lo unico que decide de verdad si el
 // usuario avanza por un flujo fiscal o se le corta antes.
@@ -35,7 +50,7 @@ describe('FacturaSubsanarPage', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [FacturaSubsanarPage, RouterTestingModule],
-      providers: [...MOCK_REPOSITORY_PROVIDERS, ...provideTranslocoTesting(), provideIonicAngular()],
+      providers: [...MOCK_REPOSITORY_PROVIDERS, ...provideTranslocoTesting(TRADUCCIONES_TEST), provideIonicAngular()],
     });
     fixture = TestBed.createComponent(FacturaSubsanarPage);
     component = fixture.componentInstance;
@@ -96,6 +111,46 @@ describe('FacturaSubsanarPage', () => {
 
       expect(previsualizarSpy).toHaveBeenCalled();
       expect(component.errorMsg).toBe('');
+    });
+  });
+  // La pantalla se quedaba en un callejon sin salida cuando no habia diferencias: boton
+  // deshabilitado y un mensaje que remitia a una rectificativa que la app todavia no emite.
+  describe('cuando no hay nada que subsanar', () => {
+    it('explica las dos vias reales en vez de dejar solo el boton deshabilitado', async () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      spyOn(repo, 'obtenerPorId').and.resolveTo(factura());
+      spyOn(repo, 'previsualizarSubsanacion').and.resolveTo({ hayDiferencias: false, diferencias: [] });
+
+      await component.ngOnInit();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const texto = fixture.nativeElement.textContent as string;
+      expect(component.hayDiferencias).toBeFalse();
+      // Corregir los datos del emisor SI produce una subsanacion con contenido: se releen en
+      // vivo al regenerar el registro.
+      expect(texto).toContain('Datos de emisor');
+      // El contenido de la factura quedo congelado al contabilizarla: la via es anular y reemitir.
+      expect(texto).toContain('anular esta factura');
+    });
+
+    it('con diferencias reales no muestra esa explicacion', async () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      spyOn(repo, 'obtenerPorId').and.resolveTo(factura());
+      spyOn(repo, 'previsualizarSubsanacion').and.resolveTo({
+        hayDiferencias: true,
+        diferencias: [{ campo: 'Emisor NIF', valorAnterior: 'B1', valorNuevo: 'B2' }],
+      });
+
+      await component.ngOnInit();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const texto = fixture.nativeElement.textContent as string;
+      expect(texto).not.toContain('Datos de emisor');
+      expect(texto).toContain('Emisor NIF');
     });
   });
 });

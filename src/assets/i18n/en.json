@@ -361,14 +361,14 @@
       },
       "correct": {
         "title": "Correct invoice record",
-        "readOnlyNotice": "This screen does not edit the invoice: the customer, lines and amounts do not change. It only re-submits the invoice record with the same data already saved, leaving a record of the reason. If the invoice content is wrong, a corrective invoice applies; if the transaction never happened, it should be cancelled instead.",
+        "readOnlyNotice": "Correcting does not change the invoice: not the customer, the lines or the amounts. It only re-sends the tax record of an invoice that is already valid, leaving a note of the reason.",
         "invoiceTitle": "Invoice {{num}}",
         "aeatStatusOriginal": "AEAT status (original submission):",
         "total": "Total",
         "lastCorrection": "Last correction",
         "reason": "Reason",
         "whatWouldChange": "What would change in the invoice record",
-        "noDifferences": "The fiscal content that would be resubmitted is identical to the last record — there is nothing to correct. If the invoice needs to change customer, lines, amounts or VAT, a corrective invoice applies, not a correction.",
+        "noDifferences": "There is nothing to correct: the record that would be re-sent is identical to the one already filed with the AEAT.",
         "reasonTitle": "Reason for the correction",
         "reasonNotice": "This is internal traceability only — it is not sent to the AEAT and is not part of the corrected record.",
         "reasonPlaceholder": "Explain what was wrong in the submitted record (not in the invoice)",
@@ -379,7 +379,10 @@
         "confirmMessage": "Confirm the correction of invoice {{num}}? This generates a new record in VERI*FACTU (the invoice and the original submission are not modified). This action cannot be undone.",
         "registeredSuccess": "Correction registered.",
         "error": "Could not correct the invoice.",
-        "simulatedFieldLabel": "Description of the operation (simulated)"
+        "simulatedFieldLabel": "Description of the operation (simulated)",
+        "whenUsefulTitle": "So when is correcting useful?",
+        "whenUsefulEmisor": "If what was wrong is your own company tax data (tax ID, legal name or address): fix it in Profile › Issuer details and come back here. Then there will be something to correct.",
+        "whenUsefulContenido": "If what is wrong is the invoice content (customer, lines, amounts or VAT), correcting cannot fix it: that data was frozen when the invoice was posted. Today the way is to void this invoice and issue a new one."
       },
       "clientSelector": {
         "title": "Select customer",

@@ -77,6 +77,21 @@
       </ion-card-content>
     </ion-card>
 
+    <!-- Sin diferencias, el boton queda deshabilitado y antes no se explicaba que hacer. Los dos
+         casos de abajo son los reales: los datos del EMISOR se releen en vivo al regenerar el
+         registro (asi que corregirlos si produce una subsanacion con contenido), mientras que los
+         del cliente y las lineas quedaron congelados en la factura al contabilizarla y no hay
+         forma de cambiarlos desde aqui. -->
+    <ion-card *ngIf="puedeSubsanar && !cargandoPrevisualizacion && !hayDiferencias">
+      <ion-card-content>
+        <div class="section-title">{{ 'invoices.issued.correct.whenUsefulTitle' | transloco }}</div>
+        <ion-text color="medium">
+          <p class="ion-no-margin aviso-solo-lectura">{{ 'invoices.issued.correct.whenUsefulEmisor' | transloco }}</p>
+          <p class="ion-no-margin aviso-solo-lectura">{{ 'invoices.issued.correct.whenUsefulContenido' | transloco }}</p>
+        </ion-text>
+      </ion-card-content>
+    </ion-card>
+
     <!-- Motivo de esta subsanación -->
     <ion-card *ngIf="puedeSubsanar && hayDiferencias">
       <ion-card-content>
