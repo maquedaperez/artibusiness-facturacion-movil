@@ -24,16 +24,23 @@ import { HttpCustomersRepository } from '../adapters/http/customers.repository.h
  * docs/SERVICE_CONTRACT_GAPS.md), este es el único archivo que cambia para pasar a HTTP;
  * ninguna pantalla ni componente se toca.
  *
+ * QUÉ SIGUE SIENDO MOCK (y por tanto oculto en la interfaz, ver
+ * funcionalidades-pendientes.ts): EmisorRepository (ficha de la empresa), CatalogRepository
+ * (catálogo de productos) y SubscriptionsRepository (suscripciones). Los tres muestran datos
+ * inventados, así que sus entradas en la interfaz están ocultas hasta que exista el endpoint
+ * real. Mantener esta lista al día: es el mapa que se consulta para saber qué es de verdad.
+ *
  * Deliberadamente NO hay todavía un `environment.production ? HTTP_PROVIDERS : MOCK_PROVIDERS`
  * — eso llega cuando haya más de un HttpXxxRepository real. Netlify sigue desplegando con
  * este mismo MOCK_REPOSITORY_PROVIDERS (es el entorno demo), así que activar OCR real aquí
  * también lo activa ahí en cuanto se haga push — solo hacerlo cuando el backend confirme
  * que está desplegado con el token real puesto (ver docs/OCR_BACKEND_INTEGRATION.md).
  *
- * ReceivedInvoicesRepository usa HttpReceivedInvoicesRepository: listar/obtenerPorId y
- * crearDesdeOcr hablan con el backend real — crear-manual/editar/eliminar siguen delegando
- * en el mismo mock por debajo, porque Guardar exige catálogos (Impuestos, Proveedores/Crear)
- * que el backend todavía no expone.
+ * ReceivedInvoicesRepository usa HttpReceivedInvoicesRepository: listar/obtenerPorId,
+ * crearDesdeOcr, crear-manual/editar/eliminar y los adjuntos (Blob Storage real vía
+ * /Documento) hablan todos con el backend real. Solo queda local la vista previa del
+ * documento ANTES del primer guardado (adjuntarDocumento devuelve una data URL), que es
+ * deliberado: todavía no hay id real al que subir nada.
  *
  * SuppliersRepository usa HttpSuppliersRepository: buscar() y crearAdHoc() hablan con el
  * backend real (POST /api/Proveedores/Enumerar y /Crear, confirmados 2026-08-14).
@@ -45,11 +52,10 @@ import { HttpCustomersRepository } from '../adapters/http/customers.repository.h
  * real de AEAT/VERI*FACTU) hablan todas con el backend real. Solo generarDocumento sigue
  * delegado al mock (genera un PDF de ejemplo, no fiscal).
  *
- * CustomersRepository usa HttpCustomersRepository (Fase 3, 2026-08-20): solo buscar() habla
- * con el backend real (POST /api/Clientes/Enumerar, nuevo, calcado de Proveedores) —
- * crearAdHoc sigue en el mismo mock: la tabla 'clientes' real tiene columnas obligatorias de
- * cuenta bancaria/SEPA y Dynamics 365 que no tiene sentido rellenar a ciegas desde un alta
- * rápida, pendiente de decisión del jefe (ver ClienteService.cs).
+ * CustomersRepository usa HttpCustomersRepository: buscar() (POST /api/Clientes/Enumerar) y
+ * crearAdHoc() (POST /api/Clientes/Crear, desde el blindaje del 2026-08-24) hablan las dos con
+ * el backend real. Un cliente creado desde el selector trae un idCliente REAL, igual que uno
+ * elegido de la búsqueda.
  */
 export const MOCK_REPOSITORY_PROVIDERS: Provider[] = [
   { provide: EmisorRepository, useClass: MockEmisorRepository },
