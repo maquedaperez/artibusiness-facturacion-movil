@@ -497,6 +497,33 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     };
   }
 
+
+  // BUG REAL Y GRAVE encontrado en revision (2026-09-02, reportado como "hay que dar dos veces
+  // a Contabilizar"): estos metodos usaban la mera PRESENCIA del id en el almacen del mock como
+  // definicion de "esto es un borrador local todavia sin guardar". Pero ese almacen no contiene
+  // solo los borradores locales de la sesion: tambien tiene las facturas de EJEMPLO fijas del
+  // modo demo, con ids 1, 2, 3, 4, 5... — exactamente el rango en el que caen los ids reales de
+  // una empresa que acaba de empezar a emitir (los primeros tickets FS de esta demo, sin ir mas
+  // lejos).
+  //
+  // Con un id real que coincidiera con uno de ejemplo, la secuencia era:
+  //   1er intento -> contabilizar() creia que era un borrador local y lanzaba "guarda la factura
+  //                  antes de contabilizar", sin contabilizar nada.
+  //   2o intento  -> guardar() creia lo mismo, entraba por la rama de ALTA y creaba una factura
+  //                  DUPLICADA con un numero fiscal nuevo, ademas de borrar del mock la de
+  //                  ejemplo; ya sin colision, el contabilizar posterior si funcionaba.
+  // De ahi la sensacion de "hay que darle dos veces": el primer intento fallaba y el segundo
+  // duplicaba la factura en silencio, consumiendo un numero fiscal real.
+  //
+  // El criterio correcto es la marca esBorradorLocal, que SOLO pone crearBorrador() — es el
+  // mismo que ya usaba listar() para decidir que borradores locales mezclar con los reales; el
+  // resto de metodos se habia quedado atras. Ver ademas el nuevo rango de ids locales en
+  // mock-facturas.service.ts, que hace la colision estructuralmente imposible.
+  private async esBorradorLocalSinGuardar(id: number): Promise<boolean> {
+    const enMemoria = await this.mockAdapter.obtenerPorId(id);
+    return enMemoria?.esBorradorLocal === true;
+  }
+
   async listar(estado: EstadoFactura, numeradorId: number | null = null): Promise<FacturaEmitida[]> {
     const body: Record<string, unknown> = { top: PAGINA_TAMANO, estado: estadoHaciaApi(estado) };
     if (numeradorId != null) body['idNumerador'] = numeradorId;
@@ -552,8 +579,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   // está, es un id real (se guardó antes en esta sesión, o se leyó de obtenerPorId) y toca
   // actualizar esa misma fila.
   async guardar(id: number, cambios: DatosGuardarFacturaEmitida): Promise<FacturaEmitida> {
-    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
-    if (borradorLocal) {
+    if (await this.esBorradorLocalSinGuardar(id)) {
       const guardada = await this.guardarReal(cambios);
       this.mockAdapter.eliminar(id);
       return guardada;
@@ -668,8 +694,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   // Numerador real que asigna un número nuevo y limpio, sin heredar estado fiscal ni
   // OperacionId del original.
   async duplicar(id: number): Promise<FacturaEmitida | undefined> {
-    const esLocal = await this.mockAdapter.obtenerPorId(id);
-    if (esLocal) {
+    if (await this.esBorradorLocalSinGuardar(id)) {
       return this.mockAdapter.duplicar(id);
     }
 
@@ -732,8 +757,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   // primero (la pantalla de detalle ya lo hace; aquí se deja como error explícito para
   // cualquier otro punto de entrada, como el botón directo del listado).
   async contabilizar(id: number): Promise<FacturaEmitida> {
-    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
-    if (borradorLocal) {
+    if (await this.esBorradorLocalSinGuardar(id)) {
       throw new Error(this.transloco.translate('verifactu.errors.guardarAntesDeContabilizar'));
     }
 
@@ -745,8 +769,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   }
 
   async firmar(id: number): Promise<FacturaEmitida> {
-    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
-    if (borradorLocal) {
+    if (await this.esBorradorLocalSinGuardar(id)) {
       throw new Error(this.transloco.translate('verifactu.errors.firmarBorrador'));
     }
 
@@ -764,8 +787,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   // ya anulada) las hace el backend y llegan aquí como HTTP 400 (ver BadRequest en el
   // controller), que ApiService ya convierte en Error con el mensaje real.
   async anular(id: number): Promise<FacturaEmitida> {
-    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
-    if (borradorLocal) {
+    if (await this.esBorradorLocalSinGuardar(id)) {
       throw new Error(this.transloco.translate('verifactu.errors.anularBorrador'));
     }
 
@@ -781,8 +803,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   // reconstruye el registro a partir de los mismos datos de la factura ya guardados — solo se
   // envía el motivo, obligatorio.
   async subsanar(id: number, motivo: string): Promise<FacturaEmitida> {
-    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
-    if (borradorLocal) {
+    if (await this.esBorradorLocalSinGuardar(id)) {
       throw new Error(this.transloco.translate('verifactu.errors.subsanarBorrador'));
     }
 
@@ -801,8 +822,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   // botón de confirmar reintenta con la MISMA clave (crypto.randomUUID por intento de usuario,
   // no por click) — ver confirmarCobro() en factura-detalle.page.ts.
   async marcarComoCobrado(id: number, medio: string, importe: number): Promise<FacturaEmitida> {
-    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
-    if (borradorLocal) {
+    if (await this.esBorradorLocalSinGuardar(id)) {
       throw new Error(this.transloco.translate('verifactu.errors.guardarAntesDeCobrar'));
     }
 
@@ -829,8 +849,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   }
 
   async iniciarCobroStripe(id: number): Promise<{ checkoutUrl: string | null }> {
-    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
-    if (borradorLocal) {
+    if (await this.esBorradorLocalSinGuardar(id)) {
       throw new Error(this.transloco.translate('verifactu.errors.guardarAntesDeCobrar'));
     }
 
@@ -866,8 +885,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   }
 
   async previsualizarSubsanacion(id: number): Promise<PrevisualizacionSubsanacion> {
-    const borradorLocal = await this.mockAdapter.obtenerPorId(id);
-    if (borradorLocal) {
+    if (await this.esBorradorLocalSinGuardar(id)) {
       throw new Error(this.transloco.translate('verifactu.errors.subsanarBorrador'));
     }
     return this.api.get<PrevisualizarSubsanacionApi>(`${EMITIDAS_BASE_PATH}/${id}/Subsanar/Previsualizar`);
@@ -877,8 +895,20 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return this.mockAdapter.accionesPermitidas(factura);
   }
 
-  generarDocumento(id: number): Promise<{ blob: Blob; nombre: string }> {
-    return this.mockAdapter.generarDocumento(id);
+  // Bug real encontrado en revision (2026-09-02, reportado como "un borrador no se puede
+  // compartir"): esto delegaba sin mas en el mock, que solo sabe buscar en SU almacen — un
+  // borrador ya guardado en el backend no esta ahi, asi que compartirlo (y descargarlo)
+  // fallaba SIEMPRE con "Factura no encontrada". Un borrador no tiene todavia PDF fiscal (se
+  // genera al contabilizar), asi que lo que se comparte es el mismo documento simulado y
+  // claramente marcado como no fiscal que ya se usaba para los borradores locales — pero ahora
+  // construido con los datos reales de la factura.
+  async generarDocumento(id: number): Promise<{ blob: Blob; nombre: string }> {
+    if (await this.esBorradorLocalSinGuardar(id)) {
+      return this.mockAdapter.generarDocumento(id);
+    }
+    const factura = await this.obtenerPorId(id);
+    if (!factura) throw new Error(this.transloco.translate('invoices.issued.detail.notFound'));
+    return this.mockAdapter.generarDocumentoDesde(factura);
   }
 
   obtenerPdfReal(id: number): Promise<Blob> {

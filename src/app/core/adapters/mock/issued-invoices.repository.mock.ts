@@ -166,6 +166,13 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return this.mock.generarDocumentoEmitida(id);
   }
 
+  // Para un borrador que YA existe en el backend (y por tanto no esta en el almacen local):
+  // el documento simulado solo necesita los datos de la factura. Ver generarDocumento() en
+  // HttpIssuedInvoicesRepository.
+  generarDocumentoDesde(factura: FacturaEmitida): Promise<{ blob: Blob; nombre: string }> {
+    return this.mock.generarDocumentoEmitidaDesde(factura);
+  }
+
   async obtenerPdfReal(id: number): Promise<Blob> {
     // Modo mock puro: no hay backend real ni FacturaE detrás, así que no existe ningún PDF
     // real que traer — se reutiliza el mismo simulado que generarDocumento() para no dejar

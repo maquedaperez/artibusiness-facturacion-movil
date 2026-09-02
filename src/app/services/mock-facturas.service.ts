@@ -479,7 +479,19 @@ export const IRPF_RATES = [0, 1, 7, 15, 19];
 // Placeholder mientras no exista el catálogo real de medios de pago (IdMedioPago).
 export const MEDIO_PAGO_OPTIONS = ['Transferencia', 'Domiciliación', 'Tarjeta', 'Efectivo', 'Cheque'];
 
-let nextEmitidaId = 100;
+// Los ids de un borrador local viven en un rango que NUNCA puede chocar con un id real del
+// backend (identity positiva, que empieza en 1 y crece de uno en uno). Antes arrancaban en 100 y
+// si chocaban: ver el bug del "doble clic en Contabilizar" documentado en
+// issued-invoices.repository.http.ts (esBorradorLocalSinGuardar). Aquel se corrigio usando la
+// marca esBorradorLocal como criterio; este rango cierra ademas la puerta estructuralmente, para
+// que ningun codigo futuro pueda volver a confundir un id local con uno real. Solo vive en
+// memoria: nunca se persiste ni se manda al backend (guardar() da de alta la factura y el
+// servidor asigna el id real).
+const BASE_ID_BORRADOR_LOCAL = 900_000_000;
+let nextEmitidaId = BASE_ID_BORRADOR_LOCAL;
+// Numero visible del borrador (1, 2, 3...) — separado del id a proposito: el id ya no es un
+// numero que tenga sentido ensenar, y "FS-BORRADOR-900000001" no le dice nada a nadie.
+let nextNumeroBorradorVisible = 1;
 let nextLineaId = 1000;
 let nextClienteId = 100;
 let nextRecibidaId = 100;
@@ -753,7 +765,7 @@ export class MockFacturasService {
     const id = nextEmitidaId++;
     const nueva: FacturaEmitida = {
       id,
-      numFactura: `${this.numeradorNombre(numeradorId).split(' ')[1] ?? 'X'}-BORRADOR-${id}`,
+      numFactura: `${this.numeradorNombre(numeradorId).split(' ')[1] ?? 'X'}-BORRADOR-${nextNumeroBorradorVisible++}`,
       numeradorId,
       // Fecha local del dispositivo, no UTC (2026-09-02): toISOString() convierte a UTC primero,
       // así que cerca de medianoche en España podía autorrellenar el día equivocado — el
@@ -858,7 +870,7 @@ export class MockFacturasService {
     const nuevoId = nextEmitidaId++;
     const copia: FacturaEmitida = {
       id: nuevoId,
-      numFactura: `${this.numeradorNombre(original.numeradorId).split(' ')[1] ?? 'X'}-BORRADOR-${nuevoId}`,
+      numFactura: `${this.numeradorNombre(original.numeradorId).split(' ')[1] ?? 'X'}-BORRADOR-${nextNumeroBorradorVisible++}`,
       numeradorId: original.numeradorId,
       fecha: new Date().toISOString().slice(0, 10),
       vencimiento: '',
@@ -872,6 +884,11 @@ export class MockFacturasService {
       // en modo mock la convertía silenciosamente en completa — mismo bug real corregido en
       // HttpIssuedInvoicesRepository.duplicar().
       esSimplificada: original.esSimplificada,
+      // Una copia local es, por definicion, un borrador local todavia sin guardar. Sin esta
+      // marca, esBorradorLocalSinGuardar() (ver issued-invoices.repository.http.ts) la tomaria
+      // por una factura real e intentaria ACTUALIZAR un id que el backend no conoce, en vez de
+      // darla de alta.
+      esBorradorLocal: true,
     };
     this.emitidas.unshift(copia);
     return copia;
@@ -883,6 +900,15 @@ export class MockFacturasService {
   async generarDocumentoEmitida(id: number): Promise<{ blob: Blob; nombre: string }> {
     const f = this.emitidas.find(e => e.id === id);
     if (!f) throw new Error('Factura no encontrada.');
+    return this.generarDocumentoEmitidaDesde(f);
+  }
+
+  // Bug real encontrado en revision (2026-09-02, reportado como "un borrador no se puede
+  // compartir"): generarDocumentoEmitida() solo sabia buscar en el almacen local, asi que un
+  // borrador YA GUARDADO en el backend (que no esta aqui) fallaba siempre con "Factura no
+  // encontrada" al compartirlo. El documento solo necesita los datos de la factura, no que
+  // viva en este almacen — se separa para poder generarlo tambien desde una factura real.
+  async generarDocumentoEmitidaDesde(f: FacturaEmitida): Promise<{ blob: Blob; nombre: string }> {
 
     const totales = this.totalesFactura(f);
     const filas = f.lineas.map(l =>

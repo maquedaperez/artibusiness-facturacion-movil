@@ -493,3 +493,94 @@ describe('HttpIssuedInvoicesRepository.eliminar/duplicar — Fase 6', () => {
     expect(apiSpy.post).not.toHaveBeenCalledWith('/api/FacturaEmitida/Guardar', jasmine.anything());
   });
 });
+
+// Causa raiz del bug reportado como "hay que dar dos veces a Contabilizar" (2026-09-02).
+//
+// Estos metodos usaban la mera presencia del id en el almacen del mock como definicion de
+// "borrador local sin guardar". Ese almacen tambien contiene las facturas de EJEMPLO del modo
+// demo, con ids 1..5 — justo el rango de los ids reales de una empresa que acaba de empezar a
+// emitir. Un id real que coincidiera se tomaba por local: el primer Contabilizar fallaba y el
+// segundo creaba una factura DUPLICADA con numero fiscal nuevo.
+describe('HttpIssuedInvoicesRepository — un id real nunca se confunde con un borrador local', () => {
+  let repo: HttpIssuedInvoicesRepository;
+  let mock: MockFacturasService;
+  let apiSpy: jasmine.SpyObj<ApiService>;
+
+  // Detalle real que devuelve el backend para una factura cuyo id coincide con el de una de
+  // las facturas de ejemplo del mock.
+  const DETALLE_REAL = {
+    idFacturaEmitida: 3, numFactura: 'FS7', idEmpresa: 9, idCliente: 5,
+    clienteVisualizacion: 'Consumidor final', razonSocialDenominacion: 'Consumidor final',
+    concepto: 'prueba', total: 5, iva: 1.05, suplidos: 0, irpf: 0, totalFactura: 6.05,
+    cobrada: 1, estado: 131, estadoAeat: null, esSimplificada: true,
+    fechaFactura: '2026-09-02T00:00:00', fechaVencimiento: '2026-09-02T00:00:00',
+    idNumerador: 1, idMedioPago: 1, lineas: [],
+  };
+
+  beforeEach(() => {
+    apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['post', 'get']);
+    apiSpy.post.and.callFake((path: string) => {
+      if (path === '/api/MediosPago/Enumerar') return Promise.resolve(MEDIOS_PAGO_API as any);
+      if (path === '/api/Impuesto/Enumerar') return Promise.resolve(IMPUESTOS_API as any);
+      if (path.endsWith('/Contabilizar')) return Promise.resolve({ ...DETALLE_REAL, estado: 132 } as any);
+      if (path.endsWith('/Firmar')) return Promise.resolve({ ...DETALLE_REAL, estado: 133 } as any);
+      if (path === '/api/FacturaEmitida/Guardar') return Promise.resolve(DETALLE_REAL as any);
+      throw new Error(`POST no esperado en el test: ${path}`);
+    });
+    apiSpy.get.and.resolveTo(DETALLE_REAL as any);
+
+    TestBed.configureTestingModule({
+      providers: [
+        ...provideTranslocoTesting(TRADUCCIONES_TEST),
+        HttpIssuedInvoicesRepository,
+        MockIssuedInvoicesRepository,
+        MockFacturasService,
+        { provide: ApiService, useValue: apiSpy },
+      ],
+    });
+    repo = TestBed.inject(HttpIssuedInvoicesRepository);
+    mock = TestBed.inject(MockFacturasService);
+  });
+
+  it('el almacen del mock contiene facturas de ejemplo con ids bajos (la trampa del bug)', () => {
+    // Si esto dejara de ser cierto el bug seria irreproducible, pero la proteccion debe seguir.
+    expect(mock.getFacturaById(3)).toBeDefined();
+    expect(mock.getFacturaById(3)!.esBorradorLocal).toBeUndefined();
+  });
+
+  it('contabilizar() un id real que coincide con una factura de ejemplo llama al backend', async () => {
+    await repo.contabilizar(3);
+    expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturaEmitida/3/Contabilizar', {});
+  });
+
+  it('firmar() un id real que coincide con una de ejemplo llama al backend', async () => {
+    await repo.firmar(3);
+    expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturaEmitida/3/Firmar', {});
+  });
+
+  // El sintoma mas grave: el segundo intento creaba una factura nueva en vez de actualizar.
+  it('guardar() un id real ACTUALIZA, nunca crea una factura duplicada', async () => {
+    await repo.guardar(3, {
+      fecha: '2026-09-02', vencimiento: '2026-09-02', concepto: 'prueba',
+      medioPago: 'Transferencia', idMedioPago: 1, idCliente: 5,
+      destinatario: { nombre: 'Consumidor final', nif: '', esEmpresa: false },
+      lineas: [{ id: 1, origen: 'manual', descripcion: 'x', cantidad: 1, precioUnitario: 5, descuentoPct: 0, ivaPct: 21 }],
+      numeradorId: 1, esSimplificada: true,
+    });
+
+    const cuerpo = apiSpy.post.calls.allArgs().find(a => a[0] === '/api/FacturaEmitida/Guardar')?.[1] as any;
+    expect(cuerpo.idFacturaEmitida).toBe(3); // alta = undefined; actualizacion = el id real
+  });
+
+  it('un borrador local de verdad SI se detecta como tal', async () => {
+    const local = mock.crearBorrador(1, { nombre: 'Cliente', nif: 'B1', esEmpresa: true });
+    await expectAsync(repo.contabilizar(local.id)).toBeRejected();
+  });
+
+  // Cierra la puerta estructuralmente: aunque alguien volviera a usar un criterio flojo, un id
+  // local no puede coincidir con uno real (identity positiva que arranca en 1).
+  it('los ids de borrador local viven fuera del rango de los ids reales', () => {
+    const local = mock.crearBorrador(1, { nombre: 'Cliente', nif: 'B1', esEmpresa: true });
+    expect(local.id).toBeGreaterThan(100_000_000);
+  });
+});
