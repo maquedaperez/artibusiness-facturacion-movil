@@ -29,6 +29,7 @@ import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.compon
 import { LineasEditorComponent, lineaFacturaInvalida } from '../../shared/lineas-editor/lineas-editor.component';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 import { PuedeSalirDeLaPantalla } from '../../guards/cambios-sin-guardar.guard';
+import { pedirConfirmacion } from '../../shared/utils/confirmacion';
 import { RECTIFICATIVAS_DISPONIBLES } from '../../core/providers/funcionalidades-pendientes';
 
 @Component({
@@ -338,15 +339,13 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       return;
     }
 
-    const alert = await this.alertCtrl.create({
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.simplified.convertHeader'),
       message: this.transloco.translate('invoices.issued.simplified.convertConfirmMessage'),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('invoices.issued.simplified.convertConfirm'),
-          handler: async () => {
-            if (!this.working) return;
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('invoices.issued.simplified.convertConfirm'),
+    });
+    if (!confirmado || !this.working) return;
 
             // Bug real encontrado en revisión (2026-09-02): el cambio se aplicaba ANTES de abrir
             // el selector, así que cancelarlo dejaba el ticket ya convertido en factura completa,
@@ -367,16 +366,11 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
               if (otro) this.working.numeradorId = otro.id;
             }
 
-            const eligio = await this.elegirCliente();
-            if (!eligio && this.working) {
-              this.working.esSimplificada = esSimplificadaPrevio;
-              this.working.numeradorId = numeradorPrevio;
-            }
-          },
-        },
-      ],
-    });
-    await alert.present();
+    const eligio = await this.elegirCliente();
+    if (!eligio && this.working) {
+      this.working.esSimplificada = esSimplificadaPrevio;
+      this.working.numeradorId = numeradorPrevio;
+    }
   }
 
   // Facturas simplificadas emitidas (MVP, 2026-08-31): arranca el borrador directamente con
@@ -575,46 +569,36 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
     }
     this.errorMsg = '';
 
-    const alert = await this.alertCtrl.create({
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.post.header'),
       message: this.transloco.translate('invoices.issued.detail.postConfirmMessage', { cliente: this.working.destinatario.nombre, importe: this.formatEuros(this.totales().total) }),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('invoices.issued.actions.postConfirm'),
-          handler: async () => {
-            if (this.algoEnCurso) return;
-
-            // Bug real encontrado en revisión (2026-09-02): esto guardaba SIEMPRE antes de
-            // contabilizar, aunque no hubiera nada que guardar. Para un ticket ya cobrado el
-            // backend rechaza cualquier edición con un 409 ("Esta factura ya tiene un cobro
-            // confirmado — no se puede editar", ver GuardarAsync), así que el guardado previo
-            // fallaba y abortaba la contabilización: el flujo cobrar -> contabilizar, que es
-            // justo el que la propia pantalla invita a seguir con "Pagado — pendiente de
-            // contabilizar", era IMPOSIBLE de completar. Ahora solo se guarda si de verdad hay
-            // algo pendiente: un borrador local (que todavía no existe en el backend) o cambios
-            // sin guardar en pantalla.
-            const necesitaGuardar = this.working?.esBorradorLocal === true || this.hayCambiosSinGuardar;
-            if (necesitaGuardar) {
-              const guardadoOk = await this.guardar(false);
-              if (!guardadoOk) return; // guardar() ya mostró el motivo del fallo
-            }
-            this.contabilizando = true;
-            try {
-              this.working = await this.invoicesRepo.contabilizar(this.facturaId!);
-              this.marcarSinCambiosPendientes();
-              await this.showToast(this.transloco.translate('invoices.issued.detail.postedSuccess'));
-              this.volver();
-            } catch (e: any) {
-              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.post.error'), 'danger');
-            } finally {
-              this.contabilizando = false;
-            }
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('invoices.issued.actions.postConfirm'),
     });
-    await alert.present();
+    if (!confirmado || this.algoEnCurso) return;
+
+    // Bug real encontrado en revisión (2026-09-02): esto guardaba SIEMPRE antes de contabilizar,
+    // aunque no hubiera nada que guardar. Para un ticket ya cobrado el backend rechaza cualquier
+    // edición con un 409 ("Esta factura ya tiene un cobro confirmado"), así que el guardado previo
+    // fallaba y abortaba la contabilización: el flujo cobrar -> contabilizar, que es justo el que
+    // la pantalla invita a seguir con "Pagado — pendiente de contabilizar", era IMPOSIBLE de
+    // completar. Solo se guarda si de verdad hay algo pendiente.
+    const necesitaGuardar = this.working?.esBorradorLocal === true || this.hayCambiosSinGuardar;
+    if (necesitaGuardar) {
+      const guardadoOk = await this.guardar(false);
+      if (!guardadoOk) return; // guardar() ya mostró el motivo del fallo
+    }
+    this.contabilizando = true;
+    try {
+      this.working = await this.invoicesRepo.contabilizar(this.facturaId!);
+      this.marcarSinCambiosPendientes();
+      await this.showToast(this.transloco.translate('invoices.issued.detail.postedSuccess'));
+      this.volver();
+    } catch (e: any) {
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.post.error'), 'danger');
+    } finally {
+      this.contabilizando = false;
+    }
   }
 
   // Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): solo tiene sentido mientras sigue en
@@ -633,36 +617,30 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
 
     const importe = this.totales().total;
 
-    const alert = await this.alertCtrl.create({
+    const { confirmado, valor: medio } = await pedirConfirmacion<string>(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.cobros.header'),
       message: this.transloco.translate('invoices.issued.cobros.confirmMessage', { importe: this.formatEuros(importe) }),
-      inputs: this.MEDIOS_COBRO.map((medio, i) => ({
+      inputs: this.MEDIOS_COBRO.map((m, i) => ({
         type: 'radio' as const,
-        label: this.transloco.translate(`invoices.issued.cobros.medios.${medio}`),
-        value: medio,
+        label: this.transloco.translate(`invoices.issued.cobros.medios.${m}`),
+        value: m,
         checked: i === 0,
       })),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('invoices.issued.cobros.confirm'),
-          handler: async (medio: string) => {
-            if (this.algoEnCurso) return;
-            this.marcandoCobrado = true;
-            try {
-              this.working = await this.invoicesRepo.marcarComoCobrado(this.facturaId!, medio, importe);
-              this.marcarSinCambiosPendientes();
-              await this.showToast(this.transloco.translate('invoices.issued.cobros.success'));
-            } catch (e: any) {
-              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.cobros.error'), 'danger');
-            } finally {
-              this.marcandoCobrado = false;
-            }
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('invoices.issued.cobros.confirm'),
     });
-    await alert.present();
+    if (!confirmado || !medio || this.algoEnCurso) return;
+
+    this.marcandoCobrado = true;
+    try {
+      this.working = await this.invoicesRepo.marcarComoCobrado(this.facturaId!, medio, importe);
+      this.marcarSinCambiosPendientes();
+      await this.showToast(this.transloco.translate('invoices.issued.cobros.success'));
+    } catch (e: any) {
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.cobros.error'), 'danger');
+    } finally {
+      this.marcandoCobrado = false;
+    }
   }
 
   // Solo se ofrece si además de poder cobrarse (mismo criterio que el manual) Stripe Connect
@@ -780,31 +758,25 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   async confirmarFirmar() {
     if (!this.working || this.facturaId == null || this.algoEnCurso) return;
 
-    const alert = await this.alertCtrl.create({
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.sign.header'),
       message: this.transloco.translate('invoices.issued.detail.signConfirmMessage'),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('invoices.issued.actions.signConfirm'),
-          handler: async () => {
-            if (this.algoEnCurso) return;
-            this.firmando = true;
-            try {
-              this.working = await this.invoicesRepo.firmar(this.facturaId!);
-              this.marcarSinCambiosPendientes();
-              await this.showToast(this.transloco.translate('invoices.issued.detail.signedSuccess'));
-              this.volver();
-            } catch (e: any) {
-              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.sign.error'), 'danger');
-            } finally {
-              this.firmando = false;
-            }
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('invoices.issued.actions.signConfirm'),
     });
-    await alert.present();
+    if (!confirmado || this.algoEnCurso) return;
+
+    this.firmando = true;
+    try {
+      this.working = await this.invoicesRepo.firmar(this.facturaId!);
+      this.marcarSinCambiosPendientes();
+      await this.showToast(this.transloco.translate('invoices.issued.detail.signedSuccess'));
+      this.volver();
+    } catch (e: any) {
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.sign.error'), 'danger');
+    } finally {
+      this.firmando = false;
+    }
   }
 
   // Fase 7 (Anular, 2026-08-22): solo tiene sentido sobre una factura ya contabilizada/firmada
@@ -839,31 +811,25 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   async confirmarAnular() {
     if (!this.working || this.facturaId == null || this.algoEnCurso) return;
 
-    const alert = await this.alertCtrl.create({
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.detail.cancelHeader'),
       message: this.transloco.translate('invoices.issued.detail.cancelConfirmMessage', { num: this.working.numFactura }),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('invoices.issued.detail.cancelConfirm'),
-          role: 'destructive',
-          handler: async () => {
-            if (this.algoEnCurso) return;
-            this.anulando = true;
-            try {
-              this.working = await this.invoicesRepo.anular(this.facturaId!);
-              this.marcarSinCambiosPendientes();
-              await this.showToast(this.transloco.translate('invoices.issued.detail.cancelledSuccess'));
-            } catch (e: any) {
-              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.detail.cancelError'), 'danger');
-            } finally {
-              this.anulando = false;
-            }
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('invoices.issued.detail.cancelConfirm'),
+      rolConfirmar: 'destructive',
     });
-    await alert.present();
+    if (!confirmado || this.algoEnCurso) return;
+
+    this.anulando = true;
+    try {
+      this.working = await this.invoicesRepo.anular(this.facturaId!);
+      this.marcarSinCambiosPendientes();
+      await this.showToast(this.transloco.translate('invoices.issued.detail.cancelledSuccess'));
+    } catch (e: any) {
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.detail.cancelError'), 'danger');
+    } finally {
+      this.anulando = false;
+    }
   }
 
   // Facturas rectificativas (2026-09-03). Una rectificativa es una factura NUEVA que invierte
@@ -896,7 +862,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   async confirmarRectificar() {
     if (!this.working || this.facturaId == null || this.algoEnCurso || !this.puedeRectificar) return;
 
-    const alert = await this.alertCtrl.create({
+    const { confirmado, valor: motivo } = await pedirConfirmacion<string>(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.rectificativa.header'),
       message: this.transloco.translate('invoices.issued.rectificativa.message'),
       inputs: this.MOTIVOS_RECTIFICACION.map((codigo, i) => ({
@@ -905,30 +871,24 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
         value: codigo,
         checked: i === 0,
       })),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('invoices.issued.rectificativa.confirm'),
-          handler: async (motivo: string) => {
-            if (this.algoEnCurso || !motivo) return;
-            this.rectificando = true;
-            try {
-              const rectificativa = await this.invoicesRepo.rectificar(this.facturaId!, motivo);
-              await this.showToast(this.transloco.translate('invoices.issued.rectificativa.success', { num: rectificativa.numFactura }));
-              // Se abre la rectificativa recién creada: nace en borrador y lo siguiente que
-              // toca es revisarla y contabilizarla, que es un paso explícito aparte.
-              this.marcarSinCambiosPendientes();
-              this.router.navigate(['/app/emitidas', rectificativa.id], { replaceUrl: true });
-            } catch (e: any) {
-              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.rectificativa.error'), 'danger');
-            } finally {
-              this.rectificando = false;
-            }
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('invoices.issued.rectificativa.confirm'),
     });
-    await alert.present();
+    if (!confirmado || !motivo || this.algoEnCurso) return;
+
+    this.rectificando = true;
+    try {
+      const rectificativa = await this.invoicesRepo.rectificar(this.facturaId!, motivo);
+      await this.showToast(this.transloco.translate('invoices.issued.rectificativa.success', { num: rectificativa.numFactura }));
+      // Se abre la rectificativa recién creada: nace en borrador y lo siguiente que toca es
+      // revisarla y contabilizarla, que es un paso explícito aparte.
+      this.marcarSinCambiosPendientes();
+      this.router.navigate(['/app/emitidas', rectificativa.id], { replaceUrl: true });
+    } catch (e: any) {
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.rectificativa.error'), 'danger');
+    } finally {
+      this.rectificando = false;
+    }
   }
 
   // Fase 7 (Subsanar, 2026-08-24): navega a la pantalla dedicada de solo lectura — Subsanar no es
@@ -1032,44 +992,34 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   async confirmarEliminar() {
     if (!this.working) return;
     const f = this.working;
-    const alert = await this.alertCtrl.create({
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.deleteDraft.header'),
       message: this.transloco.translate('invoices.issued.deleteDraft.message', { num: f.numFactura, cliente: f.destinatario.nombre }),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('common.actions.delete'),
-          role: 'destructive',
-          handler: async () => {
-            try {
-              // Bug real encontrado en revisión (2026-09-02): esto llamaba siempre a eliminar(),
-              // que lanza un DELETE /api/FacturaEmitida/{id} y solo cae al almacén local si
-              // recibe un 404 — pero el id de un borrador local es un contador propio del mock
-              // (arranca en 100), no un id real, así que ese DELETE puede acertar por
-              // casualidad con una factura REAL de la misma empresa. La lista ya lo hacía bien
-              // (ver facturas-emitidas.page.ts); el detalle se había quedado atrás. Además, si
-              // el id coincide con una factura ya contabilizada el backend responde 400 (no
-              // 404), el fallback local no se activa y el usuario no podía ni borrar su propio
-              // borrador.
-              if (f.esBorradorLocal) {
-                await this.invoicesRepo.descartarLocal(f.id);
-              } else {
-                await this.invoicesRepo.eliminar(f.id);
-              }
-              // La factura ya no existe: lo que hubiera a medio escribir en pantalla ya no es
-              // "trabajo sin guardar" que proteger, o el guard preguntaria por algo que se acaba
-              // de borrar a proposito.
-              this.marcarSinCambiosPendientes();
-              await this.showToast(this.transloco.translate('invoices.issued.deleteDraft.success'));
-              this.volver();
-            } catch (e: any) {
-              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.deleteDraft.error'), 'danger');
-            }
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('common.actions.delete'),
+      rolConfirmar: 'destructive',
     });
-    await alert.present();
+    if (!confirmado) return;
+
+    try {
+      // Bug real encontrado en revisión (2026-09-02): esto llamaba siempre a eliminar(), que
+      // lanza un DELETE y solo cae al almacén local si recibe un 404 — pero el id de un borrador
+      // local es un contador propio del mock, no un id real, así que ese DELETE podía acertar por
+      // casualidad con una factura REAL de la misma empresa. La lista ya lo hacía bien.
+      if (f.esBorradorLocal) {
+        await this.invoicesRepo.descartarLocal(f.id);
+      } else {
+        await this.invoicesRepo.eliminar(f.id);
+      }
+      // La factura ya no existe: lo que hubiera a medio escribir en pantalla ya no es "trabajo
+      // sin guardar" que proteger, o el guard preguntaria por algo que se acaba de borrar a
+      // proposito.
+      this.marcarSinCambiosPendientes();
+      await this.showToast(this.transloco.translate('invoices.issued.deleteDraft.success'));
+      this.volver();
+    } catch (e: any) {
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.deleteDraft.error'), 'danger');
+    }
   }
 
   // Facturas simplificadas emitidas (MVP, 2026-08-31): envía (o reenvía, misma llamada) el PDF

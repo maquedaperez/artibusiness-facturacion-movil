@@ -15,6 +15,7 @@ import { arrowBackOutline } from 'ionicons/icons';
 import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
 import { FacturaEmitida } from '../../services/mock-facturas.service';
 import { DiferenciaCampoFiscal, IssuedInvoicesRepository } from '../../core/ports';
+import { pedirConfirmacion } from '../../shared/utils/confirmacion';
 
 // Fase 7 (Subsanar, 2026-08-24): pantalla DEDICADA y de solo lectura para la factura y el
 // registro original — Subsanar no es un editor (ver issued-invoices.repository.ts), así que a
@@ -133,30 +134,24 @@ export class FacturaSubsanarPage implements OnInit {
     }
     this.errorMsg = '';
 
-    const alert = await this.alertCtrl.create({
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.correct.title'),
       message: this.transloco.translate('invoices.issued.correct.confirmMessage', { num: this.factura.numFactura }),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('invoices.issued.correct.confirm'),
-          handler: async () => {
-            if (this.procesando) return;
-            this.procesando = true;
-            try {
-              this.factura = await this.invoicesRepo.subsanar(this.facturaId, this.motivo.trim());
-              await this.showToast(this.transloco.translate('invoices.issued.correct.registeredSuccess'));
-              this.router.navigate(['/app/emitidas', this.facturaId], { replaceUrl: true });
-            } catch (e: any) {
-              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.correct.error'), 'danger');
-            } finally {
-              this.procesando = false;
-            }
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('invoices.issued.correct.confirm'),
     });
-    await alert.present();
+    if (!confirmado || this.procesando) return;
+
+    this.procesando = true;
+    try {
+      this.factura = await this.invoicesRepo.subsanar(this.facturaId, this.motivo.trim());
+      await this.showToast(this.transloco.translate('invoices.issued.correct.registeredSuccess'));
+      this.router.navigate(['/app/emitidas', this.facturaId], { replaceUrl: true });
+    } catch (e: any) {
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.correct.error'), 'danger');
+    } finally {
+      this.procesando = false;
+    }
   }
 
   volver() {

@@ -6,6 +6,7 @@ import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { IssuedInvoicesRepository } from '../../core/ports';
 import { FacturaEmitida } from '../../services/mock-facturas.service';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
+import { simularConfirmacion } from '../../shared/utils/testing/confirmacion-testing';
 
 const TRADUCCIONES_TEST = {
   es: {
@@ -90,11 +91,7 @@ describe('FacturasEmitidasPage', () => {
   // depender de que eliminar() reciba un 404 del servidor para caer al mismo sitio.
   describe('confirmarEliminar()', () => {
     function mockearConfirmacionDestructiva() {
-      const alertCtrl = TestBed.inject(AlertController);
-      spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
-        const boton = opts.buttons.find((b: any) => b.role === 'destructive');
-        return { present: async () => { await boton.handler(); } } as any;
-      });
+      simularConfirmacion(TestBed.inject(AlertController));
     }
 
     it('para un borrador puramente local, descarta sin llamar a invoicesRepo.eliminar() ni al backend', async () => {

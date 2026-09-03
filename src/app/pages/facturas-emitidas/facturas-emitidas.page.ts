@@ -24,6 +24,7 @@ import { IssuedInvoicesRepository } from '../../core/ports';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 import { PagosService } from '../../services/pagos.service';
+import { pedirConfirmacion } from '../../shared/utils/confirmacion';
 
 @Component({
   selector: 'app-facturas-emitidas',
@@ -365,34 +366,29 @@ export class FacturasEmitidasPage implements OnInit {
 
   async confirmarEliminar(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
-    const alert = await this.alertCtrl.create({
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.deleteDraft.header'),
       message: this.transloco.translate('invoices.issued.deleteDraft.message', { num: f.numFactura, cliente: f.destinatario.nombre }),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('common.actions.delete'),
-          role: 'destructive',
-          handler: async () => {
-            try {
-              // Un borrador puramente local (nunca guardado de verdad) todavia no ha consumido
-              // ningun numero fiscal — se descarta sin llamar al backend en absoluto, en vez de
-              // depender de que eliminar() reciba un 404 para caer al mismo sitio.
-              if (f.esBorradorLocal) {
-                await this.invoicesRepo.descartarLocal(f.id);
-              } else {
-                await this.invoicesRepo.eliminar(f.id);
-              }
-              await this.refresh();
-              await this.showToast(this.transloco.translate('invoices.issued.deleteDraft.success'));
-            } catch (e: any) {
-              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.deleteDraft.error'), 'danger');
-            }
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('common.actions.delete'),
+      rolConfirmar: 'destructive',
     });
-    await alert.present();
+    if (!confirmado) return;
+
+    try {
+      // Un borrador puramente local (nunca guardado de verdad) todavia no ha consumido ningun
+      // numero fiscal — se descarta sin llamar al backend en absoluto, en vez de depender de que
+      // eliminar() reciba un 404 para caer al mismo sitio.
+      if (f.esBorradorLocal) {
+        await this.invoicesRepo.descartarLocal(f.id);
+      } else {
+        await this.invoicesRepo.eliminar(f.id);
+      }
+      await this.refresh();
+      await this.showToast(this.transloco.translate('invoices.issued.deleteDraft.success'));
+    } catch (e: any) {
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.deleteDraft.error'), 'danger');
+    }
   }
 
   // Fase 7 del plan de integración (2026-08-21): llama de verdad a FacturaE/AEAT — deja de ser
@@ -401,67 +397,55 @@ export class FacturasEmitidasPage implements OnInit {
   async confirmarContabilizar(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
     if (this.procesandoAeatIds.has(f.id)) return;
-    const alert = await this.alertCtrl.create({
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.post.header'),
       message: this.transloco.translate('invoices.issued.post.message', { cliente: f.destinatario.nombre, importe: this.formatEuros(this.totalFactura(f)) }),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('invoices.issued.actions.post'),
-          handler: async () => {
-            if (this.procesandoAeatIds.has(f.id)) return;
-            this.procesandoAeatIds.add(f.id);
-            try {
-              await this.invoicesRepo.contabilizar(f.id);
-              await this.refresh();
-              await this.showToast(this.transloco.translate('invoices.issued.post.success', { cliente: f.destinatario.nombre }));
-            } catch (e: any) {
-              if (this.esCreditosAgotados(e)) {
-                await this.mostrarAvisoCreditosAgotados();
-              } else {
-                await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.post.error'), 'danger');
-              }
-            } finally {
-              this.procesandoAeatIds.delete(f.id);
-            }
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('invoices.issued.actions.post'),
     });
-    await alert.present();
+    if (!confirmado || this.procesandoAeatIds.has(f.id)) return;
+
+    this.procesandoAeatIds.add(f.id);
+    try {
+      await this.invoicesRepo.contabilizar(f.id);
+      await this.refresh();
+      await this.showToast(this.transloco.translate('invoices.issued.post.success', { cliente: f.destinatario.nombre }));
+    } catch (e: any) {
+      if (this.esCreditosAgotados(e)) {
+        await this.mostrarAvisoCreditosAgotados();
+      } else {
+        await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.post.error'), 'danger');
+      }
+    } finally {
+      this.procesandoAeatIds.delete(f.id);
+    }
   }
 
   async confirmarFirmar(event: Event, f: FacturaEmitida) {
     event.stopPropagation();
     if (this.procesandoAeatIds.has(f.id)) return;
-    const alert = await this.alertCtrl.create({
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.sign.header'),
       message: this.transloco.translate('invoices.issued.sign.message', { cliente: f.destinatario.nombre }),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('invoices.issued.actions.sign'),
-          handler: async () => {
-            if (this.procesandoAeatIds.has(f.id)) return;
-            this.procesandoAeatIds.add(f.id);
-            try {
-              await this.invoicesRepo.firmar(f.id);
-              await this.refresh();
-              await this.showToast(this.transloco.translate('invoices.issued.sign.success', { cliente: f.destinatario.nombre }));
-            } catch (e: any) {
-              if (this.esCreditosAgotados(e)) {
-                await this.mostrarAvisoCreditosAgotados();
-              } else {
-                await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.sign.error'), 'danger');
-              }
-            } finally {
-              this.procesandoAeatIds.delete(f.id);
-            }
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('invoices.issued.actions.sign'),
     });
-    await alert.present();
+    if (!confirmado || this.procesandoAeatIds.has(f.id)) return;
+
+    this.procesandoAeatIds.add(f.id);
+    try {
+      await this.invoicesRepo.firmar(f.id);
+      await this.refresh();
+      await this.showToast(this.transloco.translate('invoices.issued.sign.success', { cliente: f.destinatario.nombre }));
+    } catch (e: any) {
+      if (this.esCreditosAgotados(e)) {
+        await this.mostrarAvisoCreditosAgotados();
+      } else {
+        await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.sign.error'), 'danger');
+      }
+    } finally {
+      this.procesandoAeatIds.delete(f.id);
+    }
   }
 
   private async showToast(message: string, color: 'success' | 'danger' = 'success') {

@@ -9,6 +9,7 @@ import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 import { IssuedInvoicesRepository } from '../../core/ports';
 import { FacturaEmitida, Numerador } from '../../services/mock-facturas.service';
+import { simularConfirmacion, simularConfirmacionDiferida } from '../../shared/utils/testing/confirmacion-testing';
 
 describe('FacturaDetallePage', () => {
   let component: FacturaDetallePage;
@@ -59,10 +60,7 @@ describe('FacturaDetallePage', () => {
 
     function mockearConfirmacion() {
       const alertCtrl = TestBed.inject(AlertController);
-      spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
-        const boton = opts.buttons.find((b: any) => b.text !== undefined && b.role !== 'cancel');
-        return { present: async () => { await boton.handler(); } } as any;
-      });
+      simularConfirmacion(alertCtrl);
     }
 
     function mockearSeleccionDeClienteReal() {
@@ -312,10 +310,7 @@ describe('FacturaDetallePage', () => {
       const spy = spyOn(repo, 'marcarComoCobrado').and.resolveTo(facturaBorrador({ cobrada: true }));
 
       const alertCtrl = TestBed.inject(AlertController);
-      spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
-        const boton = opts.buttons.find((b: any) => b.role !== 'cancel');
-        return { present: async () => { await boton.handler('EFECTIVO'); } } as any;
-      });
+      simularConfirmacion(alertCtrl, 'EFECTIVO');
 
       await component.confirmarCobro();
 
@@ -605,12 +600,14 @@ describe('FacturaDetallePage', () => {
       spyOn(repo, 'firmar').and.returnValue(new Promise<FacturaEmitida>(resolve => { resolverFirmar = resolve; }));
 
       const alertCtrl = TestBed.inject(AlertController);
-      spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
-        const boton = opts.buttons.find((b: any) => b.role !== 'cancel');
-        return { present: async () => { boton.handler(); } } as any; // sin await: deja la firma "en vuelo"
-      });
+      simularConfirmacion(alertCtrl);
 
-      await component.confirmarFirmar();
+      // Sin await: confirmarFirmar() ya no vuelve hasta que la firma termina (el trabajo salió
+      // del handler del diálogo, ver shared/utils/confirmacion.ts), así que para mirar el estado
+      // MIENTRAS está en vuelo hay que dejarla corriendo y ceder el turno.
+      const enVuelo = component.confirmarFirmar();
+      await new Promise(r => setTimeout(r, 0));
+
       // firmar() todavía no se ha resuelto en este punto — es justo la ventana donde antes el
       // botón de Anular (visible a la vez en 'contabilizada') mostraba spinner/texto de más.
       expect(component.firmando).toBeTrue();
@@ -623,6 +620,7 @@ describe('FacturaDetallePage', () => {
       // aquí exigiría esperar a la cadena completa showToast()/volver() (Router real, sin rutas
       // configuradas en este spec), lo que lo haría frágil sin aportar cobertura nueva.
       resolverFirmar(facturaContabilizada());
+      await enVuelo.catch(() => {});
     });
   });
   // Correcciones de la revision de la auditoria (2026-09-02) — cada test cubre un bug real
@@ -653,10 +651,7 @@ describe('FacturaDetallePage', () => {
 
     function confirmarEnElAlert() {
       const alertCtrl = TestBed.inject(AlertController);
-      spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
-        const boton = opts.buttons.find((b: any) => b.role !== 'cancel');
-        return { present: async () => { await boton.handler(); } } as any;
-      });
+      simularConfirmacion(alertCtrl);
     }
 
     // G01 — un borrador puramente local no tiene id real en el backend: su id sale de un
@@ -946,10 +941,7 @@ describe('FacturaDetallePage', () => {
 
     function confirmarEnElAlert() {
       const alertCtrl = TestBed.inject(AlertController);
-      spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
-        const boton = opts.buttons.find((b: any) => b.role !== 'cancel');
-        return { present: async () => { await boton.handler(); } } as any;
-      });
+      simularConfirmacion(alertCtrl);
     }
 
     async function cargar(f: FacturaEmitida) {
