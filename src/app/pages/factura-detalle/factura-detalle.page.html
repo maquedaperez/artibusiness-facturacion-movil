@@ -97,19 +97,23 @@
       <ion-card-content>
         <div class="section-title">{{ 'invoices.issued.detail.client' | transloco }}</div>
         <p class="ion-no-margin"><strong>{{ f.destinatario.nombre }}</strong></p>
-        <p class="ion-no-margin">
-          <ng-container *ngIf="f.destinatario.nif">{{ f.destinatario.nif }} · </ng-container>
-          {{ (f.destinatario.esEmpresa ? 'profile.typeCompany' : 'invoices.issued.detail.individual') | transloco }}
-        </p>
-        <p class="ion-no-margin" *ngIf="f.destinatario.direccion">
-          {{ f.destinatario.direccion }}, {{ f.destinatario.cp }} {{ f.destinatario.poblacion }} ({{ f.destinatario.provincia }})
-        </p>
+
+        <!-- En un TICKET el destinatario es siempre "Consumidor final" y no hay nada mas que
+             contar: ni tipo, ni NIF, ni direccion (no los tiene, es una venta sin comprador
+             identificado). Antes se pintaba "Particular" y un parrafo explicando que no se
+             identifica al comprador ante la AEAT — informacion que no cambia ninguna decision
+             del usuario y que hacia que la tarjeta ocupara toda la pantalla de entrada. -->
+        <ng-container *ngIf="!f.esSimplificada">
+          <p class="ion-no-margin">
+            <ng-container *ngIf="f.destinatario.nif">{{ f.destinatario.nif }} · </ng-container>
+            {{ (f.destinatario.esEmpresa ? 'profile.typeCompany' : 'invoices.issued.detail.individual') | transloco }}
+          </p>
+          <p class="ion-no-margin" *ngIf="f.destinatario.direccion">
+            {{ f.destinatario.direccion }}, {{ f.destinatario.cp }} {{ f.destinatario.poblacion }} ({{ f.destinatario.provincia }})
+          </p>
+        </ng-container>
 
         <ng-container *ngIf="f.esSimplificada">
-          <ion-text color="medium">
-            <p class="ion-no-margin simplified-note">{{ 'invoices.issued.simplified.genericClientNote' | transloco }}</p>
-          </ion-text>
-
           <!-- Decisión de negocio (2026-09-02): Guardar ya reserva un número real de la serie FS
                (ver Numerador.Incrementar, llamado dentro de Create()) — convertir DESPUÉS de ese
                punto dejaría un hueco permanente en la secuencia, que no se autoriza. Por eso el
@@ -126,7 +130,7 @@
               <p class="ion-no-margin pie-de-boton">{{ 'invoices.issued.simplified.convertOnlyBeforeSave' | transloco }}</p>
             </ion-text>
           </ng-container>
-          <ion-text color="medium" *ngIf="!f.esBorradorLocal">
+          <ion-text color="medium" *ngIf="!f.esBorradorLocal && f.estado === 'borrador'">
             <p class="ion-no-margin simplified-note convert-blocked-note">{{ 'invoices.issued.simplified.convertBlockedAlreadyNumbered' | transloco }}</p>
           </ion-text>
         </ng-container>
@@ -243,9 +247,24 @@
       <ion-card-content>
         <div class="section-title">{{ 'invoices.issued.simplified.emailSection' | transloco }}</div>
 
-        <a *ngIf="f.urlQr" [href]="f.urlQr" target="_blank" rel="noopener" class="qr-link">
-          {{ 'invoices.issued.simplified.verifyQrLink' | transloco }}
-        </a>
+        <!-- Sustituye al enlace "Ver codigo de verificacion QR" (2026-09-03, reportado probando
+             la app): apuntaba a urlQr, que es el PNG del QR publicado en Blob Storage, no una
+             pagina de verificacion — abrirlo no llevaba a ninguna parte util. El QR real ya va
+             incrustado DENTRO del PDF (ver GeneratePdfSimplificada en el backend), asi que lo
+             que de verdad quiere el usuario aqui es el PDF. Boton primario y a lo ancho porque
+             es la accion principal de esta pantalla una vez contabilizado: el icono de descarga
+             del pie existe, pero no lo encuentra nadie.
+             expand="block" y no un enlace: se comparte el mismo descargar() que el pie, con su
+             control de errores y su aviso de "PDF todavia no disponible". -->
+        <ion-button
+          expand="block"
+          class="ion-margin-bottom"
+          [disabled]="descargaDeshabilitada(f)"
+          (click)="descargar()"
+        >
+          <ion-icon slot="start" name="download-outline"></ion-icon>
+          {{ 'invoices.issued.simplified.downloadInvoice' | transloco }}
+        </ion-button>
 
         <ion-item>
           <ion-input

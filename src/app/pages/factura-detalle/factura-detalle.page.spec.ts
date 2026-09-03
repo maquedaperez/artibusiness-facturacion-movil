@@ -9,6 +9,10 @@ import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 import { IssuedInvoicesRepository } from '../../core/ports';
 import { FacturaEmitida, Numerador } from '../../services/mock-facturas.service';
+// Traducciones REALES: los tests que comprueban lo que VE el usuario no sirven de nada contra un
+// provideTranslocoTesting() vacio (el pipe devuelve cadena vacia, asi que cualquier
+// 'not.toContain' pasa trivialmente). Mismo criterio que factura-subsanar.page.spec.ts.
+import ES from '../../../assets/i18n/es.json';
 import { simularConfirmacion, simularConfirmacionDiferida } from '../../shared/utils/testing/confirmacion-testing';
 
 describe('FacturaDetallePage', () => {
@@ -18,7 +22,7 @@ describe('FacturaDetallePage', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [FacturaDetallePage, RouterTestingModule],
-      providers: [...MOCK_REPOSITORY_PROVIDERS, ...provideTranslocoTesting(), provideIonicAngular()],
+      providers: [...MOCK_REPOSITORY_PROVIDERS, ...provideTranslocoTesting({ es: ES }), provideIonicAngular()],
     });
     fixture = TestBed.createComponent(FacturaDetallePage);
     component = fixture.componentInstance;
@@ -211,13 +215,13 @@ describe('FacturaDetallePage', () => {
       component.esSimplificada = true;
       component.working = null;
 
-      expect(component.tituloCabecera).toBe('invoices.issued.detail.newTicketTitle');
+      expect(component.tituloCabecera).toBe(ES.invoices.issued.detail.newTicketTitle);
     });
 
     it('sigue mostrando "Nuevo ticket" tras iniciar un borrador local todavía sin guardar', () => {
       component.working = ticketLocal();
 
-      expect(component.tituloCabecera).toBe('invoices.issued.detail.newTicketTitle');
+      expect(component.tituloCabecera).toBe(ES.invoices.issued.detail.newTicketTitle);
     });
 
     it('muestra el número real una vez el ticket ya se guardó de verdad', () => {
@@ -230,7 +234,7 @@ describe('FacturaDetallePage', () => {
       component.esSimplificada = false;
       component.working = null;
 
-      expect(component.tituloCabecera).toBe('invoices.issued.detail.newInvoice');
+      expect(component.tituloCabecera).toBe(ES.invoices.issued.detail.newInvoice);
     });
   });
 
@@ -1173,6 +1177,98 @@ describe('FacturaDetallePage', () => {
       expect(component.algoEnCurso).toBeFalse();
       component.rectificando = true;
       expect(component.algoEnCurso).toBeTrue();
+    });
+  });
+  // Ajustes reportados probando la app (2026-09-03). Son decisiones de producto, no detalles de
+  // maquetacion: por eso se fijan aqui.
+  describe('la pantalla de un ticket no se llena de texto que no cambia nada', () => {
+    function ticket(overrides: Partial<FacturaEmitida> = {}): FacturaEmitida {
+      return {
+        id: 70,
+        numFactura: 'FS10',
+        numeradorId: 1,
+        fecha: '2026-09-03',
+        vencimiento: '2026-09-03',
+        concepto: 'Prueba',
+        medioPago: 'Contado',
+        idMedioPago: 1,
+        destinatario: { nombre: 'Consumidor final', nif: '', esEmpresa: false },
+        lineas: [],
+        estado: 'contabilizada',
+        operacionId: 'op-70',
+        esSimplificada: true,
+        esBorradorLocal: false,
+        tienePdf: true,
+        ...overrides,
+      };
+    }
+
+    // TranslocoPipe resuelve de forma ASINCRONA: en la primera pasada devuelve cadena vacia y
+    // solo se rellena cuando emite su suscripcion. Sin el whenStable + segundo detectChanges,
+    // el DOM llega sin ningun texto traducido y cualquier comprobacion sobre el es falsa
+    // (mismo tropiezo ya documentado en documento-bancario.component.spec.ts).
+    async function textoEnPantalla(f: FacturaEmitida): Promise<string> {
+      component.working = f;
+      // La pantalla arranca en 'cargando' (ngOnInit lanza la carga real): sin esto el bloque de
+      // contenido no se pinta y el test comprobaria un DOM vacio.
+      component.cargando = false;
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return fixture.nativeElement.textContent as string;
+    }
+
+    it('el destinatario de un ticket es solo "Consumidor final", sin tipo ni explicaciones', async () => {
+      const texto = await textoEnPantalla(ticket());
+
+      expect(texto).toContain('Consumidor final');
+      // "Particular" es el tipo de sujeto: en un ticket no aporta nada, el destinatario siempre
+      // es el mismo por definicion.
+      expect(texto).not.toContain('Particular');
+      // Y tampoco el parrafo sobre la AEAT, que llenaba la tarjeta de entrada.
+      expect(texto).not.toContain('No se identifica al comprador');
+    });
+
+    it('una factura COMPLETA sigue mostrando el tipo y el NIF del cliente', async () => {
+      const texto = await textoEnPantalla(ticket({
+        esSimplificada: false,
+        destinatario: { nombre: 'Cliente SL', nif: 'B12345678', esEmpresa: true },
+      }));
+
+      expect(texto).toContain('B12345678');
+    });
+
+    // Ese aviso solo ayuda a quien esta buscando el boton de convertir, y eso solo pasa en un
+    // borrador ya guardado. En una contabilizada nadie piensa en convertir nada.
+    it('no avisa de "ya tiene numero" en un ticket ya contabilizado', async () => {
+      const texto = await textoEnPantalla(ticket({ estado: 'contabilizada' }));
+      expect(texto).not.toContain('Ya tiene número');
+    });
+
+    it('si avisa en un borrador que ya reservo su numero', async () => {
+      const texto = await textoEnPantalla(ticket({ estado: 'borrador', esBorradorLocal: false }));
+      expect(texto).toContain('Ya tiene número');
+    });
+
+    // El enlace anterior apuntaba al PNG del QR en Blob Storage, no a una pagina de
+    // verificacion: no llevaba a ninguna parte util. El QR real va dentro del PDF.
+    it('ofrece descargar la factura en vez del enlace al QR', async () => {
+      const texto = await textoEnPantalla(ticket());
+
+      expect(texto).toContain('Descargar factura');
+      expect(texto).not.toContain('QR');
+    });
+
+    it('el boton de descargar llama a descargar()', async () => {
+      await textoEnPantalla(ticket());
+      const descargarSpy = spyOn(component, 'descargar');
+
+      const botones = fixture.debugElement.queryAll(By.css('ion-button'));
+      const boton = botones.find(b => (b.nativeElement.textContent as string).includes('Descargar factura'));
+      expect(boton).withContext('debe existir el boton de descarga').toBeDefined();
+      boton!.nativeElement.click();
+
+      expect(descargarSpy).toHaveBeenCalled();
     });
   });
 });

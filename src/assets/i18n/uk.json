@@ -293,7 +293,6 @@
         "startWithGenericClient": "Почати з Кінцевого споживача",
         "serieNoConfigurada": "Серію «FS» не налаштовано. Попросіть створити її.",
         "genericClientName": "Кінцевий споживач",
-        "genericClientNote": "Продаж кінцевому споживачу. Покупця не ідентифіковано перед AEAT.",
         "convertToComplete": "Перетворити на повний рахунок",
         "convertHeader": "Перетворити на повний рахунок",
         "convertConfirmMessage": "Стане повним рахунком, і вам треба буде обрати клієнта. Продовжити?",
@@ -302,7 +301,6 @@
         "convertBlockedAlreadyNumbered": "Вже має номер серії FS. Щоб змінити, створіть новий повний рахунок.",
         "limitExceeded": "Спрощений рахунок не може перевищувати {{limite}} (з ПДВ). Цей рахунок становить {{total}}.",
         "emailSection": "Надсилання електронною поштою",
-        "verifyQrLink": "Переглянути код перевірки (QR) AEAT",
         "emailLabel": "Email клієнта",
         "emailPlaceholder": "email@example.com",
         "sending": "Надсилання…",
@@ -313,7 +311,8 @@
         "sentError": "Помилка: {{motivo}}",
         "sendSuccess": "Лист надіслано.",
         "sendError": "Не вдалося надіслати лист.",
-        "loadingSeries": "Завантаження серії…"
+        "loadingSeries": "Завантаження серії…",
+        "downloadInvoice": "Завантажити рахунок"
       },
       "detail": {
         "newInvoice": "Новий рахунок",

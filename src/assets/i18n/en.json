@@ -293,7 +293,6 @@
         "startWithGenericClient": "Start with Final consumer",
         "serieNoConfigurada": "No “FS” series is set up. Ask for one before issuing tickets.",
         "genericClientName": "Final consumer",
-        "genericClientNote": "Sale to an end consumer. The buyer is not identified to the tax authority.",
         "convertToComplete": "Convert to full invoice",
         "convertHeader": "Convert to full invoice",
         "convertConfirmMessage": "It becomes a full invoice and you will have to pick a customer. Continue?",
@@ -302,7 +301,6 @@
         "convertBlockedAlreadyNumbered": "It already has an FS series number. To change it, create a new full invoice.",
         "limitExceeded": "A simplified invoice cannot exceed {{limite}} (VAT included). This invoice totals {{total}}.",
         "emailSection": "Email delivery",
-        "verifyQrLink": "View AEAT verification code (QR)",
         "emailLabel": "Customer email",
         "emailPlaceholder": "email@example.com",
         "sending": "Sending…",
@@ -313,7 +311,8 @@
         "sentError": "Failed: {{motivo}}",
         "sendSuccess": "Email sent.",
         "sendError": "Could not send the email.",
-        "loadingSeries": "Loading series…"
+        "loadingSeries": "Loading series…",
+        "downloadInvoice": "Download invoice"
       },
       "detail": {
         "newInvoice": "New invoice",

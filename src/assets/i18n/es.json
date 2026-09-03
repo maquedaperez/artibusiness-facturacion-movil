@@ -293,7 +293,6 @@
         "startWithGenericClient": "Empezar con Consumidor final",
         "serieNoConfigurada": "No hay serie «FS» configurada. Pide que se cree antes de emitir tickets.",
         "genericClientName": "Consumidor final",
-        "genericClientNote": "Venta a consumidor final. No se identifica al comprador ante la AEAT.",
         "convertToComplete": "Convertir en factura completa",
         "convertHeader": "Convertir en factura completa",
         "convertConfirmMessage": "Pasa a factura completa y tendrás que elegir un cliente. ¿Continuar?",
@@ -302,7 +301,6 @@
         "convertBlockedAlreadyNumbered": "Ya tiene número de la serie FS. Para cambiarla, crea una factura completa nueva.",
         "limitExceeded": "Una factura simplificada no puede superar {{limite}} (IVA incluido). Esta factura asciende a {{total}}.",
         "emailSection": "Envío por correo",
-        "verifyQrLink": "Ver código de verificación (QR) de la AEAT",
         "emailLabel": "Correo del cliente",
         "emailPlaceholder": "correo@ejemplo.com",
         "sending": "Enviando…",
@@ -313,7 +311,8 @@
         "sentError": "Fallo: {{motivo}}",
         "sendSuccess": "Correo enviado.",
         "sendError": "No se pudo enviar el correo.",
-        "loadingSeries": "Cargando la serie…"
+        "loadingSeries": "Cargando la serie…",
+        "downloadInvoice": "Descargar factura"
       },
       "detail": {
         "newInvoice": "Nueva factura",
