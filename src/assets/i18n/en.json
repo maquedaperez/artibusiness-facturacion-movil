@@ -355,7 +355,8 @@
         "cancelConfirmMessage": "Cancel invoice {{num}}? This creates a cancellation record in VERI*FACTU/AEAT. The original invoice is not deleted or modified, but it is marked as cancelled.",
         "cancelledSuccess": "Invoice cancelled.",
         "cancelError": "Could not cancel the invoice.",
-        "conceptRequired": "A description is required."
+        "conceptRequired": "A description is required.",
+        "paymentMethodRequired": "A payment method is required to post the invoice."
       },
       "correct": {
         "title": "Correct invoice record",

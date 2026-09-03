@@ -286,6 +286,11 @@ describe('FacturaDetallePage', () => {
         concepto: 'Venta', medioPago: '', destinatario: { nombre: 'Consumidor final', nif: '', esEmpresa: false },
         lineas: [{ id: 1, origen: 'manual', descripcion: 'Producto', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 }],
         estado: 'borrador', operacionId: 'op-3',
+        // Es un TICKET, y ahora lo dice: cobrar es un flujo de simplificada. Esta factoria ya
+        // describia uno (serie FS, 'Consumidor final', sin forma de pago) pero se dejaba la
+        // bandera sin poner, asi que pasaba por factura completa y el test tapaba el bug real:
+        // el boton de cobrar salia tambien en una factura completa recien creada.
+        esSimplificada: true,
         ...overrides,
       };
     }
@@ -297,6 +302,15 @@ describe('FacturaDetallePage', () => {
 
     it('puedeCobrar es false si ya tiene un cobro registrado', () => {
       component.working = facturaBorrador({ cobrada: true });
+      expect(component.puedeCobrar).toBeFalse();
+    });
+
+    // EL BUG QUE MOTIVA ESTO (reportado 2026-09-03): "se me muestra este boton de marcar como
+    // cobrada que no deberia estar". Cobrar es el flujo del TICKET — se cobra en el mostrador y
+    // se contabiliza despues. Una factura completa se emite primero y se cobra a su vencimiento,
+    // asi que ofrecerlo sobre un borrador que todavia no existe fiscalmente mezcla dos flujos.
+    it('NO se ofrece cobrar en una factura completa, solo en un ticket', () => {
+      component.working = facturaBorrador({ esSimplificada: false });
       expect(component.puedeCobrar).toBeFalse();
     });
 
@@ -345,6 +359,11 @@ describe('FacturaDetallePage', () => {
         concepto: 'Venta', medioPago: '', destinatario: { nombre: 'Consumidor final', nif: '', esEmpresa: false },
         lineas: [{ id: 1, origen: 'manual', descripcion: 'Producto', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 }],
         estado: 'borrador', operacionId: 'op-3',
+        // Es un TICKET, y ahora lo dice: cobrar es un flujo de simplificada. Esta factoria ya
+        // describia uno (serie FS, 'Consumidor final', sin forma de pago) pero se dejaba la
+        // bandera sin poner, asi que pasaba por factura completa y el test tapaba el bug real:
+        // el boton de cobrar salia tambien en una factura completa recien creada.
+        esSimplificada: true,
         ...overrides,
       };
     }

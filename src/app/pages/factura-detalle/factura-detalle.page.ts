@@ -484,6 +484,21 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
     return !this.working?.concepto?.trim();
   }
 
+  // Bug real reportado (2026-09-03): "pincho en Contabilizar y no hace nada". La forma de pago
+  // es obligatoria para contabilizar (se comprueba en confirmarContabilizar) pero NO se marcaba
+  // en pantalla de ninguna manera, a diferencia del concepto. Una factura completa nueva nace
+  // con medioPago vacío (crearBorrador), así que al pulsar Contabilizar el flujo salía por esa
+  // validación y lo único que ocurría era escribir errorMsg... que se pinta EN LA CABECERA del
+  // formulario, fuera de la vista de quien está mirando el botón al final del todo. Desde abajo
+  // el botón parecía sencillamente muerto.
+  //
+  // En un ticket no se pregunta (el campo está oculto y se autoselecciona, ver
+  // autoseleccionarFormaDePagoDeUnTicket), así que ahí nunca falta.
+  get faltaMedioPago(): boolean {
+    if (!this.working || this.working.esSimplificada) return false;
+    return !this.working.medioPago?.trim();
+  }
+
   // Un borrador incompleto se puede seguir guardando a medias a propósito (es un borrador), pero
   // nunca con datos imposibles: lo que se bloquea es lo que el servidor no puede aceptar.
   get noSePuedeGuardar(): boolean {
@@ -564,7 +579,12 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
     // El servidor real rechaza la factura (error AEAT 4102) si el concepto va vacío,
     // y el medio de pago es obligatorio en el modelo — se valida aquí antes de intentarlo.
     if (!this.working.concepto?.trim() || !this.working.medioPago?.trim()) {
-      this.errorMsg = this.transloco.translate('invoices.issued.detail.postValidationError');
+      const aviso = this.transloco.translate('invoices.issued.detail.postValidationError');
+      this.errorMsg = aviso;
+      // El toast es lo que de verdad ve el usuario (2026-09-03): errorMsg se pinta arriba del
+      // todo y quien acaba de pulsar Contabilizar está al final del formulario. Sin esto, la
+      // única señal de que el botón hizo algo aparecía fuera de pantalla.
+      await this.showToast(aviso, 'danger');
       return;
     }
     this.errorMsg = '';
@@ -601,12 +621,25 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
     }
   }
 
-  // Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): solo tiene sentido mientras sigue en
-  // borrador (cobrar algo ya contabilizado no es lo que dispara la contabilización; ver
+  // Cobro de tickets (Fase 2, 2026-09-02): solo tiene sentido mientras sigue en borrador (cobrar
+  // algo ya contabilizado no es lo que dispara la contabilización; ver
   // docs/FACTURAS_SIMPLIFICADAS_MVP.md) y todavía no se ha cobrado — el backend es quien de
   // verdad decide (MarcarComoCobradoAsync), esto es solo para no invitar a un intento redundante.
+  //
+  // Bug real reportado (2026-09-03): faltaba 'esSimplificada' y el botón salía también en una
+  // FACTURA COMPLETA recién creada, mezclando dos flujos que no son el mismo. En un ticket se
+  // cobra en el mostrador y se contabiliza después — de ahí el aviso "Pagado, pendiente de
+  // contabilizar". Una factura completa se emite primero y se cobra a su vencimiento: ofrecer
+  // "Marcar como cobrada" sobre un borrador que todavía no existe fiscalmente no significa nada.
+  //
+  // Es una restricción DE INTERFAZ, no fiscal: FacturaEmitidaCobrosService acepta el cobro de
+  // cualquier emitida, no distingue por tipo. Si algún día se decide cobrar facturas completas
+  // desde la app, se quita esta condición y el backend ya responde sin tocar nada.
   get puedeCobrar(): boolean {
-    return !!this.working && this.working.estado === 'borrador' && !this.working.cobrada;
+    return !!this.working
+      && this.working.esSimplificada === true
+      && this.working.estado === 'borrador'
+      && !this.working.cobrada;
   }
 
   // El importe se manda tal cual lo calcula el propio formulario (nunca uno editable a mano) —

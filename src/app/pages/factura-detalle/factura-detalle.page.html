@@ -179,12 +179,17 @@
              distintos, y ademas bloqueaba (el campo es obligatorio para poder guardar). La
              cabecera sigue llevando su idMedioPago, elegido automaticamente — ver
              autoseleccionarFormaDePagoDeUnTicket(). -->
-        <ion-item [disabled]="!esEditable" *ngIf="!f.esSimplificada">
+        <ion-item [disabled]="!esEditable" *ngIf="!f.esSimplificada" [class.campo-invalido]="esEditable && faltaMedioPago">
           <ion-select [label]="'invoices.issued.detail.paymentMethodLabel' | transloco" labelPlacement="stacked" interface="popover"
             [ngModel]="f.idMedioPago" (ngModelChange)="onMedioPagoChange($event)">
             <ion-select-option *ngFor="let m of mediosPago" [value]="m.id">{{ m.label }}</ion-select-option>
           </ion-select>
         </ion-item>
+        <!-- Mismo aviso que el del concepto (2026-09-03): es obligatorio para contabilizar y
+             antes no se marcaba de ninguna forma, asi que el boton de abajo parecia muerto. -->
+        <ion-text color="danger" *ngIf="esEditable && faltaMedioPago">
+          <p class="aviso-campo">{{ 'invoices.issued.detail.paymentMethodRequired' | transloco }}</p>
+        </ion-text>
       </ion-card-content>
     </ion-card>
 
@@ -368,7 +373,12 @@
       <p class="ion-no-margin aviso-pagado-pendiente">{{ 'invoices.issued.cobros.pagadoPendienteDeContabilizar' | transloco }}</p>
     </ion-text>
 
-    <ion-button *ngIf="f.estado === 'borrador'" expand="block" [disabled]="algoEnCurso || noSePuedeGuardar || faltaConcepto" (click)="confirmarContabilizar()">
+    <!-- 'faltaConcepto' NO deshabilita este boton a proposito (2026-09-03): deshabilitarlo dejaba
+         un boton muerto al final del formulario cuya unica explicacion estaba arriba del todo,
+         fuera de pantalla. Ahora el clic entra y confirmarContabilizar() responde con un toast
+         que dice exactamente que falta. Lo que si sigue bloqueando es 'noSePuedeGuardar', que son
+         datos que el servidor no puede aceptar (lineas invalidas, limite de simplificada). -->
+    <ion-button *ngIf="f.estado === 'borrador'" expand="block" [disabled]="algoEnCurso || noSePuedeGuardar" (click)="confirmarContabilizar()">
       <ion-spinner *ngIf="contabilizando" slot="start" name="dots"></ion-spinner>
       {{ (contabilizando ? 'invoices.issued.actions.posting' : 'invoices.issued.actions.post') | transloco }}
     </ion-button>

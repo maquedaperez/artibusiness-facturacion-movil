@@ -355,7 +355,8 @@
         "cancelConfirmMessage": "¿Anular la factura {{num}}? Esto crea un registro de anulación en VERI*FACTU/AEAT. La factura original no se borra ni se modifica, pero queda marcada como anulada.",
         "cancelledSuccess": "Factura anulada.",
         "cancelError": "No se pudo anular la factura.",
-        "conceptRequired": "El concepto es obligatorio."
+        "conceptRequired": "El concepto es obligatorio.",
+        "paymentMethodRequired": "La forma de pago es obligatoria para contabilizar."
       },
       "correct": {
         "title": "Subsanar factura",
