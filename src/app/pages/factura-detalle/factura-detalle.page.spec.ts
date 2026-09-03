@@ -610,6 +610,9 @@ describe('FacturaDetallePage', () => {
       // del handler del diálogo, ver shared/utils/confirmacion.ts), así que para mirar el estado
       // MIENTRAS está en vuelo hay que dejarla corriendo y ceder el turno.
       const enVuelo = component.confirmarFirmar();
+      // Dos turnos: uno para el cierre del dialogo (pedirConfirmacion cede uno a proposito, ver
+      // shared/utils/confirmacion.ts) y otro para llegar hasta el await de firmar().
+      await new Promise(r => setTimeout(r, 0));
       await new Promise(r => setTimeout(r, 0));
 
       // firmar() todavía no se ha resuelto en este punto — es justo la ventana donde antes el

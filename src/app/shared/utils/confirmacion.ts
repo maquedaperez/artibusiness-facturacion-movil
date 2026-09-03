@@ -58,6 +58,19 @@ export async function pedirConfirmacion<T = string>(
   await alert.present();
 
   const { role, data } = await alert.onDidDismiss();
+
+  // Cede un turno antes de devolver el control (2026-09-03). onDidDismiss resuelve cuando Ionic
+  // EMITE el evento didDismiss, y ese emit ocurre ANTES de que el overlay termine de retirarse
+  // del DOM y de que se libere su bloqueo interno (ver la funcion de dismiss en @ionic/core: el
+  // emit va varias lineas antes de el.remove()). Quien llama a esto puede abrir otro overlay a
+  // continuacion — convertirEnFacturaCompleta abre el selector de cliente justo despues — y
+  // encadenarlos en el mismo tick deja el segundo por debajo del backdrop del primero: la
+  // pantalla se ve pero no responde a nada.
+  //
+  // Un macrotask basta para que Ionic termine su limpieza. Es imperceptible para el usuario y
+  // solo ocurre al cerrar un dialogo, nunca durante la interaccion.
+  await new Promise(resolve => setTimeout(resolve, 0));
+
   const confirmado = role === ROL_CONFIRMAR || role === 'destructive';
 
   return { confirmado, valor: confirmado ? (data?.values as T) : undefined };
