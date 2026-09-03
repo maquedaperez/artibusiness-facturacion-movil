@@ -30,3 +30,15 @@
  * Para activarlo: que el backend sirva un documento de borrador/proforma de verdad.
  */
 export const DOCUMENTO_DE_BORRADOR_DISPONIBLE = false;
+
+/**
+ * Emitir una factura rectificativa desde una factura ya contabilizada.
+ *
+ * Bloqueado por: el endpoint POST /api/FacturaEmitida/{id}/Rectificar existe (PR 42) pero
+ * todavía no está desplegado, y hace falta ejecutar antes el script 015 que añade las columnas
+ * del motivo y el método. Con el flag en false no se ofrece un botón que daría 404.
+ *
+ * Para activarlo: en cuanto el backend esté publicado y el script ejecutado, poner true. No hay
+ * nada más que hacer — el resto del flujo (pantalla, validaciones, i18n) ya está.
+ */
+export const RECTIFICATIVAS_DISPONIBLES = false;

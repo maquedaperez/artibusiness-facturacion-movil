@@ -29,6 +29,7 @@ import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.compon
 import { LineasEditorComponent, lineaFacturaInvalida } from '../../shared/lineas-editor/lineas-editor.component';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 import { PuedeSalirDeLaPantalla } from '../../guards/cambios-sin-guardar.guard';
+import { RECTIFICATIVAS_DISPONIBLES } from '../../core/providers/funcionalidades-pendientes';
 
 @Component({
   selector: 'app-factura-detalle',
@@ -96,7 +97,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // SIN mostrar ningún mensaje (el comentario de ahí asume que guardar() ya avisó, y en esa
   // rama concreta no avisa). Resultado: un botón que no hacía absolutamente nada visible.
   get algoEnCurso(): boolean {
-    return this.guardando || this.contabilizando || this.firmando || this.anulando || this.marcandoCobrado || this.cobrandoStripe;
+    return this.guardando || this.contabilizando || this.firmando || this.anulando || this.marcandoCobrado || this.cobrandoStripe || this.rectificando;
   }
 
   numeradores: Numerador[] = [];
@@ -474,7 +475,12 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // podía emitir una factura con cantidad o precio negativo: ni el frontend ni el backend
   // comprobaban el signo.
   get hayLineasInvalidas(): boolean {
-    return !!this.working?.lineas.some(l => lineaFacturaInvalida(l));
+    return !!this.working?.lineas.some(l => lineaFacturaInvalida(l, this.esRectificativa));
+  }
+
+  // Una rectificativa invierte la factura original: sus cantidades en negativo son correctas.
+  get esRectificativa(): boolean {
+    return !!this.working?.esRectificativa;
   }
 
   // El concepto es obligatorio de verdad: la AEAT rechaza la factura sin él (error 4102) y el
@@ -852,6 +858,71 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
               await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.detail.cancelError'), 'danger');
             } finally {
               this.anulando = false;
+            }
+          },
+        },
+      ],
+    });
+    await alert.present();
+  }
+
+  // Facturas rectificativas (2026-09-03). Una rectificativa es una factura NUEVA que invierte
+  // esta: se emite cuando el CONTENIDO estaba mal (cliente, importes, IVA), a diferencia de
+  // subsanar, que solo reenvía el registro fiscal de una factura que ya es correcta.
+  //
+  // Mismas condiciones que anular (hace falta un Alta real y que no esté ya anulada), más: no
+  // se rectifica un ticket — el mapeo VERI*FACTU necesita los tipos R1/R2/R3/R5 y solo está
+  // implementado R4, así que ahí la vía sigue siendo anular y emitir uno nuevo — ni una factura
+  // que ya tiene su rectificativa emitida. El backend impone lo mismo por su cuenta; esto solo
+  // evita ofrecer un botón que se sabe que va a fallar.
+  readonly rectificativasDisponibles = RECTIFICATIVAS_DISPONIBLES;
+
+  get puedeRectificar(): boolean {
+    return this.rectificativasDisponibles
+      && this.puedeAnular
+      && !this.working?.esSimplificada
+      && !this.working?.esRectificativa
+      && !this.working?.numFacturaRectificada;
+  }
+
+  // Los códigos son los oficiales de Facturae (ReasonCode). Se ofrece el subconjunto que de
+  // verdad se usa a diario, no los 22 del esquema: una lista de 22 códigos fiscales en un
+  // desplegable no ayuda a nadie a elegir. El backend acepta todos, así que ampliar esto es
+  // añadir una línea aquí y su traducción.
+  readonly MOTIVOS_RECTIFICACION = ['10', '16', '11', '12', '05', '07'];
+
+  rectificando = false;
+
+  async confirmarRectificar() {
+    if (!this.working || this.facturaId == null || this.algoEnCurso || !this.puedeRectificar) return;
+
+    const alert = await this.alertCtrl.create({
+      header: this.transloco.translate('invoices.issued.rectificativa.header'),
+      message: this.transloco.translate('invoices.issued.rectificativa.message'),
+      inputs: this.MOTIVOS_RECTIFICACION.map((codigo, i) => ({
+        type: 'radio' as const,
+        label: this.transloco.translate(`invoices.issued.rectificativa.reasons.${codigo}`),
+        value: codigo,
+        checked: i === 0,
+      })),
+      buttons: [
+        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
+        {
+          text: this.transloco.translate('invoices.issued.rectificativa.confirm'),
+          handler: async (motivo: string) => {
+            if (this.algoEnCurso || !motivo) return;
+            this.rectificando = true;
+            try {
+              const rectificativa = await this.invoicesRepo.rectificar(this.facturaId!, motivo);
+              await this.showToast(this.transloco.translate('invoices.issued.rectificativa.success', { num: rectificativa.numFactura }));
+              // Se abre la rectificativa recién creada: nace en borrador y lo siguiente que
+              // toca es revisarla y contabilizarla, que es un paso explícito aparte.
+              this.marcarSinCambiosPendientes();
+              this.router.navigate(['/app/emitidas', rectificativa.id], { replaceUrl: true });
+            } catch (e: any) {
+              await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.rectificativa.error'), 'danger');
+            } finally {
+              this.rectificando = false;
             }
           },
         },

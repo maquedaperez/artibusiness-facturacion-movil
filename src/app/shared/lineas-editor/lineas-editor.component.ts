@@ -21,11 +21,18 @@ import { SuscripcionSelectorComponent } from '../../modals/suscripcion-selector/
 // campo y factura-detalle.page.ts para bloquear Guardar/Contabilizar, sin duplicarla en dos
 // sitios que puedan divergir. Una linea recien anadida (todo a 0) NO es invalida: 0 es el valor
 // de partida legitimo mientras el usuario todavia esta escribiendo.
-export function lineaFacturaInvalida(l: LineaFactura): boolean {
+//
+// permitirNegativos (2026-09-03): una factura RECTIFICATIVA lleva todas las cantidades en
+// negativo por diseno — es un abono, invierte la factura original. Sin esta excepcion, la
+// validacion de rango que se anadio esta misma manana marcaba todas sus lineas como invalidas y
+// deshabilitaba Guardar y Contabilizar: el flujo de rectificativa quedaba muerto en la app. El
+// precio unitario sigue sin poder ser negativo incluso ahi (el signo vive solo en la cantidad,
+// ver FacturaEmitidaRectificativaService en el backend), y el descuento sigue entre 0 y 100.
+export function lineaFacturaInvalida(l: LineaFactura, permitirNegativos = false): boolean {
   const cantidad = Number(l.cantidad);
   const precio = Number(l.precioUnitario);
   const descuento = Number(l.descuentoPct);
-  if (!Number.isFinite(cantidad) || cantidad < 0) return true;
+  if (!Number.isFinite(cantidad) || (!permitirNegativos && cantidad < 0)) return true;
   if (!Number.isFinite(precio) || precio < 0) return true;
   if (!Number.isFinite(descuento) || descuento < 0 || descuento > 100) return true;
   return false;
@@ -59,6 +66,8 @@ export class LineasEditorComponent {
   // Generador de ids único que inyecta la pantalla (issuedRepo.nuevoIdLinea() o
   // receivedRepo.nuevoIdLinea()) — este componente no sabe de qué tipo de factura es.
   @Input({ required: true }) generarId!: () => number;
+  // Solo lo activa una factura rectificativa — ver lineaFacturaInvalida.
+  @Input() permitirCantidadesNegativas = false;
 
   constructor() {
     addIcons({ addOutline, trashOutline });
@@ -162,7 +171,7 @@ export class LineasEditorComponent {
   // llegaba. Una línea recién añadida (todo a 0) NO se considera inválida: 0 es el valor de
   // partida legítimo mientras el usuario todavía está escribiendo.
   lineaInvalida(l: LineaFactura): boolean {
-    return lineaFacturaInvalida(l);
+    return lineaFacturaInvalida(l, this.permitirCantidadesNegativas);
   }
 
   // Base de la línea (cantidad × precio − descuento), sin IVA — misma fórmula exacta que

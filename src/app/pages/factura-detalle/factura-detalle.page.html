@@ -82,6 +82,9 @@
     </ion-badge>
     <ion-badge color="danger" class="estado-badge" *ngIf="f.anulada">{{ 'invoices.issued.badges.cancelled' | transloco }}{{ f.fechaAnulacion ? (' · ' + f.fechaAnulacion) : '' }}</ion-badge>
     <ion-badge color="warning" class="estado-badge" *ngIf="f.subsanada">{{ estadoSubsanacionLabel() }}</ion-badge>
+    <ion-badge color="tertiary" class="estado-badge" *ngIf="f.esRectificativa && f.numFacturaRectificada">
+      {{ 'invoices.issued.rectificativa.badge' | transloco: { num: f.numFacturaRectificada } }}
+    </ion-badge>
 
     <!-- Blindaje Fase 7 (2026-08-21): motivo real que da la AEAT cuando el estado no es
          "Correcto" — antes no había ninguna pista de qué había fallado. -->
@@ -187,6 +190,7 @@
       [ivaRates]="ivaRates"
       [permitirCatalogo]="true"
       [permitirSuscripcion]="!f.esSimplificada"
+      [permitirCantidadesNegativas]="esRectificativa"
       [generarId]="generarIdLinea"
     ></app-lineas-editor>
 
@@ -356,6 +360,11 @@
 
     <ion-button *ngIf="puedeSubsanar" expand="block" fill="outline" color="warning" [disabled]="algoEnCurso" (click)="irASubsanar()">
       {{ 'invoices.issued.detail.correctInvoice' | transloco }}
+    </ion-button>
+
+    <ion-button *ngIf="puedeRectificar" expand="block" fill="outline" color="warning" [disabled]="algoEnCurso" (click)="confirmarRectificar()">
+      <ion-spinner *ngIf="rectificando" slot="start" name="dots"></ion-spinner>
+      {{ 'invoices.issued.rectificativa.action' | transloco }}
     </ion-button>
 
     <ion-button *ngIf="puedeAnular" expand="block" fill="outline" color="danger" [disabled]="algoEnCurso" (click)="confirmarAnular()">

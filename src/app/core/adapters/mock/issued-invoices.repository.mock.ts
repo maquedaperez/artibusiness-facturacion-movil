@@ -90,6 +90,14 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return factura;
   }
 
+  // El modo mock puro no emite rectificativas: es un circuito fiscal real, no algo que tenga
+  // sentido simular. Mismo criterio que el resto de acciones de VERI*FACTU aqui.
+  async rectificar(id: number, _motivo: string): Promise<FacturaEmitida> {
+    const f = this.mock.getFacturaById(id);
+    if (!f) throw new Error('Factura no encontrada.');
+    throw new Error(this.transloco.translate('verifactu.errors.rectificarBorrador'));
+  }
+
   async subsanar(id: number, motivo: string): Promise<FacturaEmitida> {
     this.mock.subsanar(id, motivo);
     const factura = this.mock.getFacturaById(id);

@@ -1082,4 +1082,105 @@ describe('FacturaDetallePage', () => {
       });
     });
   });
+  // Facturas rectificativas (2026-09-03).
+  describe('rectificativas', () => {
+    function contabilizada(overrides: Partial<FacturaEmitida> = {}): FacturaEmitida {
+      return {
+        id: 60,
+        numFactura: 'FAR/26-341',
+        numeradorId: 2,
+        fecha: '2026-09-01',
+        vencimiento: '2026-09-30',
+        concepto: 'Servicios',
+        medioPago: 'Transferencia',
+        idMedioPago: 3,
+        destinatario: { nombre: 'Cliente SL', nif: 'B12345678', esEmpresa: true },
+        lineas: [],
+        estado: 'contabilizada',
+        operacionId: 'op-60',
+        esSimplificada: false,
+        ...overrides,
+      };
+    }
+
+    // EL BUG QUE MOTIVA ESTE BLOQUE: la validacion de rango que se anadio el 2026-09-02 marca
+    // como invalida cualquier linea con cantidad negativa. Una rectificativa las lleva TODAS en
+    // negativo (es un abono, invierte la original), asi que sin la excepcion se deshabilitaban
+    // Guardar y Contabilizar y el flujo quedaba muerto nada mas abrirla.
+    describe('las cantidades en negativo son validas en una rectificativa', () => {
+      const lineaNegativa = {
+        id: 1, origen: 'manual' as const, descripcion: 'Servicio',
+        cantidad: -3, precioUnitario: 30, descuentoPct: 0, ivaPct: 21,
+      };
+
+      it('en una rectificativa NO se marcan como invalidas', () => {
+        component.working = contabilizada({ estado: 'borrador', esRectificativa: true, lineas: [lineaNegativa] });
+        expect(component.hayLineasInvalidas).toBeFalse();
+      });
+
+      it('en una factura normal se siguen marcando como invalidas', () => {
+        component.working = contabilizada({ estado: 'borrador', esRectificativa: false, lineas: [lineaNegativa] });
+        expect(component.hayLineasInvalidas).toBeTrue();
+      });
+
+      // El signo vive SOLO en la cantidad: un precio negativo sigue estando mal incluso aqui.
+      it('un precio negativo sigue siendo invalido aunque sea una rectificativa', () => {
+        component.working = contabilizada({
+          estado: 'borrador', esRectificativa: true,
+          lineas: [{ ...lineaNegativa, cantidad: 1, precioUnitario: -30 }],
+        });
+        expect(component.hayLineasInvalidas).toBeTrue();
+      });
+
+      it('un descuento fuera de rango sigue siendo invalido aunque sea una rectificativa', () => {
+        component.working = contabilizada({
+          estado: 'borrador', esRectificativa: true,
+          lineas: [{ ...lineaNegativa, descuentoPct: 150 }],
+        });
+        expect(component.hayLineasInvalidas).toBeTrue();
+      });
+    });
+
+    describe('puedeRectificar', () => {
+      // Con el flag apagado no se ofrece el boton: el endpoint existe pero todavia no esta
+      // desplegado, y un boton que da 404 es peor que no tenerlo.
+      it('respeta el flag de disponibilidad', () => {
+        component.working = contabilizada();
+        expect(component.puedeRectificar).toBe(component.rectificativasDisponibles);
+      });
+
+      it('nunca se ofrece sobre un borrador', () => {
+        component.working = contabilizada({ estado: 'borrador' });
+        expect(component.puedeRectificar).toBeFalse();
+      });
+
+      it('nunca se ofrece sobre una factura ya anulada', () => {
+        component.working = contabilizada({ anulada: true });
+        expect(component.puedeRectificar).toBeFalse();
+      });
+
+      // El mapeo VERI*FACTU necesita R1/R2/R3/R5 y solo esta implementado R4: para un ticket la
+      // via sigue siendo anular y emitir uno nuevo.
+      it('nunca se ofrece sobre un ticket', () => {
+        component.working = contabilizada({ esSimplificada: true });
+        expect(component.puedeRectificar).toBeFalse();
+      });
+
+      it('nunca se ofrece sobre una rectificativa (no se rectifica una rectificativa)', () => {
+        component.working = contabilizada({ esRectificativa: true });
+        expect(component.puedeRectificar).toBeFalse();
+      });
+
+      it('nunca se ofrece si la factura ya tiene su rectificativa emitida', () => {
+        component.working = contabilizada({ numFacturaRectificada: 'R-2026-1' });
+        expect(component.puedeRectificar).toBeFalse();
+      });
+    });
+
+    it('rectificando entra en la exclusion mutua de acciones', () => {
+      expect(component.algoEnCurso).toBeFalse();
+      component.rectificando = true;
+      expect(component.algoEnCurso).toBeTrue();
+    });
+  });
 });

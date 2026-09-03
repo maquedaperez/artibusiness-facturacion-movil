@@ -119,6 +119,12 @@ export abstract class IssuedInvoicesRepository {
   // deja ver qué campos van a cambiar antes de confirmar, y si no hay ninguno, subsanar() lo
   // rechazará igualmente (esto es solo para no hacer descubrir el rechazo tras confirmar).
   abstract previsualizarSubsanacion(id: number): Promise<PrevisualizacionSubsanacion>;
+
+  // Facturas rectificativas (2026-09-03): crea una factura NUEVA (con su propio numero) que
+  // invierte los importes de esta y queda enlazada con ella. NO la contabiliza — se devuelve en
+  // borrador y contabilizarla es el paso explicito de siempre. 'motivo' es un codigo oficial de
+  // Facturae ("01"-"16" u "80"-"85"), no texto libre: el backend lo valida.
+  abstract rectificar(id: number, motivo: string): Promise<FacturaEmitida>;
   abstract estadoAeatLabel(estado?: EstadoAeat): string;
   abstract estadoSubsanacionLabel(estado?: string): string;
 

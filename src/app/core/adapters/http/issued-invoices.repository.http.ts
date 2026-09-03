@@ -171,6 +171,11 @@ type FacturaEmitidaDetalleApi = {
   fechaSubsanacion: string | null;
   estadoSubsanacion: string | null;
   motivoSubsanacion: string | null;
+  // Facturas rectificativas (2026-09-03) — ver FacturaEmitidaDetalleModel.cs. numAbono es el
+  // número de la factura rectificada (enlace heredado, ver FacturaEmitidaRectificativaService).
+  esRectificativa: number | null;
+  numAbono: string | null;
+  motivoRectificacion: string | null;
   // Descarga del PDF real (2026-08-27) — ver FacturaEmitidaDetalleModel.TienePdf.
   tienePdf: boolean;
   // Descarga del .xsig real (2026-08-27) — ver FacturaEmitidaDetalleModel.TieneXsig.
@@ -468,6 +473,9 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       fechaSubsanacion: dto.fechaSubsanacion ? dto.fechaSubsanacion.slice(0, 10) : undefined,
       estadoSubsanacion: dto.estadoSubsanacion ?? undefined,
       motivoSubsanacion: dto.motivoSubsanacion ?? undefined,
+      esRectificativa: dto.esRectificativa === 1,
+      numFacturaRectificada: dto.numAbono ?? undefined,
+      motivoRectificacion: dto.motivoRectificacion ?? undefined,
       tienePdf: dto.tienePdf,
       tieneXsig: dto.tieneXsig,
       esSimplificada: dto.esSimplificada,
@@ -802,6 +810,18 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   // (FacturaEmitidaAeatService.SubsanarAsync). No manda "campos corregidos": el backend
   // reconstruye el registro a partir de los mismos datos de la factura ya guardados — solo se
   // envía el motivo, obligatorio.
+  async rectificar(id: number, motivo: string): Promise<FacturaEmitida> {
+    if (await this.esBorradorLocalSinGuardar(id)) {
+      throw new Error(this.transloco.translate('verifactu.errors.rectificarBorrador'));
+    }
+
+    const [dto, mediosPago] = await Promise.all([
+      this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Rectificar`, { motivo }),
+      this.obtenerMediosPagoApi(),
+    ]);
+    return this.mapearDetalle(dto, mediosPago ?? []);
+  }
+
   async subsanar(id: number, motivo: string): Promise<FacturaEmitida> {
     if (await this.esBorradorLocalSinGuardar(id)) {
       throw new Error(this.transloco.translate('verifactu.errors.subsanarBorrador'));

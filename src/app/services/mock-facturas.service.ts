@@ -160,6 +160,14 @@ export type FacturaEmitida = {
   fechaSubsanacion?: string;
   estadoSubsanacion?: string;
   motivoSubsanacion?: string;
+  // Facturas rectificativas (2026-09-03): esta factura ES una rectificativa de otra. Importa
+  // para dos cosas en la interfaz — poder decirlo en pantalla, y saber que sus cantidades en
+  // negativo son CORRECTAS (ver lineaFacturaInvalida en lineas-editor.component.ts, que en
+  // cualquier otra factura las rechaza). numFacturaRectificada es el numAbono del backend: el
+  // número de la factura a la que rectifica.
+  esRectificativa?: boolean;
+  numFacturaRectificada?: string;
+  motivoRectificacion?: string;
   // Descarga del PDF real (2026-08-27): solo lo rellena HttpIssuedInvoicesRepository, a partir
   // de FacturaEmitidaCabeceraModel/DetalleModel.TienePdf — nunca la URL del blob en sí, solo si
   // existe o no. Un borrador siempre es false; el modo mock puro tampoco lo rellena (no hay

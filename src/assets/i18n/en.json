@@ -428,6 +428,24 @@
         "message": "If you leave now you will lose the changes to this invoice.",
         "keepEditing": "Keep editing",
         "discard": "Leave without saving"
+      },
+      "rectificativa": {
+        "header": "Issue a corrective invoice",
+        "message": "A new invoice will be created cancelling this one. It stays as a draft for you to review before posting.",
+        "reasonLabel": "What was wrong?",
+        "confirm": "Issue",
+        "success": "Corrective invoice {{num}} created as a draft.",
+        "error": "The corrective invoice could not be issued.",
+        "badge": "Corrective of {{num}}",
+        "action": "Issue corrective",
+        "reasons": {
+          "10": "The operation details",
+          "16": "The taxable base",
+          "11": "The VAT rate",
+          "12": "The VAT amount",
+          "05": "The customer name",
+          "07": "The customer tax ID"
+        }
       }
     },
     "received": {
@@ -609,7 +627,8 @@
       "sinCambiosFiscales": "The fiscal content has not changed since the last correction — there is nothing to correct.",
       "firmarBorrador": "This invoice has not been saved or posted yet — it cannot be signed.",
       "guardarAntesDeContabilizar": "Save the invoice before posting it.",
-      "guardarAntesDeCobrar": "Save the invoice before marking it as paid."
+      "guardarAntesDeCobrar": "Save the invoice before marking it as paid.",
+      "rectificarBorrador": "This invoice has not been posted yet — it cannot be corrected."
     },
     "aeatWarningPrefix": "AEAT notice:"
   },

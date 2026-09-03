@@ -428,6 +428,24 @@
         "message": "Si sales ahora perderás los cambios de esta factura.",
         "keepEditing": "Seguir editando",
         "discard": "Salir sin guardar"
+      },
+      "rectificativa": {
+        "header": "Emitir rectificativa",
+        "message": "Se creará una factura nueva que anula esta. Quedará en borrador para que la revises antes de contabilizarla.",
+        "reasonLabel": "¿Qué estaba mal?",
+        "confirm": "Emitir",
+        "success": "Rectificativa {{num}} creada en borrador.",
+        "error": "No se pudo emitir la rectificativa.",
+        "badge": "Rectificativa de {{num}}",
+        "action": "Emitir rectificativa",
+        "reasons": {
+          "10": "El detalle de la operación",
+          "16": "La base imponible",
+          "11": "El porcentaje de IVA",
+          "12": "La cuota de IVA",
+          "05": "El nombre o razón social del cliente",
+          "07": "El NIF del cliente"
+        }
       }
     },
     "received": {
@@ -609,7 +627,8 @@
       "sinCambiosFiscales": "El contenido fiscal no ha cambiado desde la última subsanación — no hay nada que corregir.",
       "firmarBorrador": "Esta factura todavía no se ha guardado ni contabilizado — no se puede firmar.",
       "guardarAntesDeContabilizar": "Guarda la factura antes de contabilizarla.",
-      "guardarAntesDeCobrar": "Guarda la factura antes de marcarla como cobrada."
+      "guardarAntesDeCobrar": "Guarda la factura antes de marcarla como cobrada.",
+      "rectificarBorrador": "Esta factura todavía no se ha contabilizado — no se puede rectificar."
     },
     "aeatWarningPrefix": "Aviso de la AEAT:"
   },
