@@ -24,11 +24,16 @@ import { HttpCustomersRepository } from '../adapters/http/customers.repository.h
  * docs/SERVICE_CONTRACT_GAPS.md), este es el único archivo que cambia para pasar a HTTP;
  * ninguna pantalla ni componente se toca.
  *
- * QUÉ SIGUE SIENDO MOCK (y por tanto oculto en la interfaz, ver
- * funcionalidades-pendientes.ts): EmisorRepository (ficha de la empresa), CatalogRepository
- * (catálogo de productos) y SubscriptionsRepository (suscripciones). Los tres muestran datos
- * inventados, así que sus entradas en la interfaz están ocultas hasta que exista el endpoint
- * real. Mantener esta lista al día: es el mapa que se consulta para saber qué es de verdad.
+ * QUÉ SIGUE SIENDO MOCK: EmisorRepository (ficha fiscal de la empresa), CatalogRepository
+ * (catálogo de productos) y SubscriptionsRepository (suscripciones). Los tres muestran datos de
+ * ejemplo, y los tres siguen VISIBLES en la interfaz a propósito (decisión de producto,
+ * 2026-09-02): son pantallas que se quieren usar en cuanto el backend las sirva, y esconderlas
+ * solo retrasaría detectar sus problemas. Lo que falta en los tres casos es el endpoint, no la
+ * pantalla:
+ *   - Emisor: los datos existen en la tabla de empresas (el backend ya los usa al contabilizar,
+ *     ver FacturaEmitidaAeatService), pero no hay ningún endpoint que los exponga a la app.
+ *   - Catálogo y suscripciones: no hay ni endpoint ni tabla identificada todavía.
+ * Mantener esta lista al día: es el mapa que se consulta para saber qué es de verdad.
  *
  * Deliberadamente NO hay todavía un `environment.production ? HTTP_PROVIDERS : MOCK_PROVIDERS`
  * — eso llega cuando haya más de un HttpXxxRepository real. Netlify sigue desplegando con

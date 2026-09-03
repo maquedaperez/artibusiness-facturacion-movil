@@ -29,7 +29,6 @@ import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.compon
 import { LineasEditorComponent, lineaFacturaInvalida } from '../../shared/lineas-editor/lineas-editor.component';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 import { PuedeSalirDeLaPantalla } from '../../guards/cambios-sin-guardar.guard';
-import { CATALOGO_DISPONIBLE, DOCUMENTO_DE_BORRADOR_DISPONIBLE, SUSCRIPCIONES_DISPONIBLES } from '../../core/providers/funcionalidades-pendientes';
 
 @Component({
   selector: 'app-factura-detalle',
@@ -53,11 +52,6 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   private toastCtrl = inject(ToastController);
   private transloco = inject(TranslocoService);
   private location = inject(Location);
-
-  // Funciones todavia sin servicio real detras — ver funcionalidades-pendientes.ts.
-  readonly catalogoDisponible = CATALOGO_DISPONIBLE;
-  readonly suscripcionesDisponibles = SUSCRIPCIONES_DISPONIBLES;
-  readonly documentoDeBorradorDisponible = DOCUMENTO_DE_BORRADOR_DISPONIBLE;
 
   facturaId: number | null = null;
   esNueva = false;
