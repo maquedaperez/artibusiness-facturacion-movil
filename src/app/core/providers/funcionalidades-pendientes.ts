@@ -34,11 +34,14 @@ export const DOCUMENTO_DE_BORRADOR_DISPONIBLE = false;
 /**
  * Emitir una factura rectificativa desde una factura ya contabilizada.
  *
- * Bloqueado por: el endpoint POST /api/FacturaEmitida/{id}/Rectificar existe (PR 42) pero
- * todavía no está desplegado, y hace falta ejecutar antes el script 015 que añade las columnas
- * del motivo y el método. Con el flag en false no se ofrece un botón que daría 404.
+ * ACTIVADA el 2026-09-03. POST /api/FacturaEmitida/{id}/Rectificar está desplegado (PR 42,
+ * mergeado en upgrade-to-NET10 como 7cce320) y el script 015 está ejecutado.
  *
- * Para activarlo: en cuanto el backend esté publicado y el script ejecutado, poner true. No hay
- * nada más que hacer — el resto del flujo (pantalla, validaciones, i18n) ya está.
+ * Cómo se comprobó que el script estaba puesto, que es el requisito que de verdad importaba: las
+ * columnas MotivoRectificacion y MetodoRectificacion se mapean por convención en
+ * FacturacionFacturasEmitidasCabecera (sin [NotMapped] ni exclusión fluent), así que EF las
+ * incluye en el SELECT de CUALQUIER consulta de emitidas. Si faltaran, el listado entero
+ * respondería 500 con "Invalid column name" — no solo rectificar. Que el listado cargue es la
+ * prueba de que las columnas existen.
  */
-export const RECTIFICATIVAS_DISPONIBLES = false;
+export const RECTIFICATIVAS_DISPONIBLES = true;
