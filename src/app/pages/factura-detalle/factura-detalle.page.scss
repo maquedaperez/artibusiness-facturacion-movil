@@ -168,3 +168,10 @@
   margin: 4px 0 0;
   font-size: 12px;
 }
+
+// Letra pequena que cuelga de un boton, no un parrafo suelto: pegada a el y mas tenue.
+.pie-de-boton {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.3;
+}

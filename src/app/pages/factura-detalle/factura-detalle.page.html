@@ -115,13 +115,16 @@
                punto dejaría un hueco permanente en la secuencia, que no se autoriza. Por eso el
                botón desaparece en cuanto f.esBorradorLocal es false, en vez de solo fallar al
                pulsarlo (esa comprobación se mantiene en el .ts como red de seguridad). -->
-          <ng-container *ngIf="f.esBorradorLocal">
-            <ion-text color="medium">
-              <p class="ion-no-margin simplified-note">{{ 'invoices.issued.simplified.convertOnlyBeforeSave' | transloco }}</p>
-            </ion-text>
-            <ion-button *ngIf="esEditable" size="small" fill="outline" class="ion-margin-top convert-to-complete-btn" (click)="convertirEnFacturaCompleta()">
+          <ng-container *ngIf="f.esBorradorLocal && esEditable">
+            <ion-button size="small" fill="outline" class="ion-margin-top convert-to-complete-btn" (click)="convertirEnFacturaCompleta()">
               {{ 'invoices.issued.simplified.convertToComplete' | transloco }}
             </ion-button>
+            <!-- DEBAJO del boton y no encima: es la letra pequena de ESE boton (se puede
+                 convertir solo mientras el ticket no tenga numero real asignado). Suelta arriba
+                 se leia como una frase huerfana que no explicaba nada. -->
+            <ion-text color="medium">
+              <p class="ion-no-margin pie-de-boton">{{ 'invoices.issued.simplified.convertOnlyBeforeSave' | transloco }}</p>
+            </ion-text>
           </ng-container>
           <ion-text color="medium" *ngIf="!f.esBorradorLocal">
             <p class="ion-no-margin simplified-note convert-blocked-note">{{ 'invoices.issued.simplified.convertBlockedAlreadyNumbered' | transloco }}</p>

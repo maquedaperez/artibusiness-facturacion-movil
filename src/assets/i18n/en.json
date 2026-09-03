@@ -298,7 +298,7 @@
         "convertHeader": "Convert to full invoice",
         "convertConfirmMessage": "It becomes a full invoice and you will have to pick a customer. Continue?",
         "convertConfirm": "Yes, convert",
-        "convertOnlyBeforeSave": "Only before saving.",
+        "convertOnlyBeforeSave": "Only while the ticket has no number assigned yet.",
         "convertBlockedAlreadyNumbered": "It already has an FS series number. To change it, create a new full invoice.",
         "limitExceeded": "A simplified invoice cannot exceed {{limite}} (VAT included). This invoice totals {{total}}.",
         "emailSection": "Email delivery",

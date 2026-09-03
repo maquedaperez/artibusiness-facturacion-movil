@@ -298,7 +298,7 @@
         "convertHeader": "Convertir en factura completa",
         "convertConfirmMessage": "Pasa a factura completa y tendrás que elegir un cliente. ¿Continuar?",
         "convertConfirm": "Sí, convertir",
-        "convertOnlyBeforeSave": "Solo antes de guardar.",
+        "convertOnlyBeforeSave": "Solo mientras el ticket no tenga número asignado.",
         "convertBlockedAlreadyNumbered": "Ya tiene número de la serie FS. Para cambiarla, crea una factura completa nueva.",
         "limitExceeded": "Una factura simplificada no puede superar {{limite}} (IVA incluido). Esta factura asciende a {{total}}.",
         "emailSection": "Envío por correo",
