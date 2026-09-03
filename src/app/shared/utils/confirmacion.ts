@@ -46,7 +46,15 @@ export async function pedirConfirmacion<T = string>(
   const alert = await alertCtrl.create({
     header: opciones.header,
     message: opciones.message,
-    inputs: opciones.inputs,
+    // '?? []' NO es cosmético (2026-09-03): pasar 'inputs: undefined' ANULA el valor por defecto
+    // [] del prop de Ionic, y componentWillLoad() del ion-alert llama a inputsChanged(), que hace
+    // inputs.find(...) sin comprobar nada. Con undefined eso LANZA dentro del ciclo de vida: el
+    // elemento y su backdrop ya están en el DOM pero el componente no llega a renderizar sus
+    // botones, así que queda un diálogo invisible e imposible de cerrar y la app entera se
+    // bloquea. Rompió Contabilizar, Firmar, Anular, Subsanar y Convertir en factura completa
+    // (todos los diálogos SIN opciones); Cobrar y Rectificar se salvaron solo porque llevan
+    // radios. Ver alert.js en @ionic/core, inputsChanged() y componentWillLoad().
+    inputs: opciones.inputs ?? [],
     buttons: [
       // 'cancel' es también el rol que Ionic asigna al cerrar tocando fuera o con Escape: ante
       // la duda, no se hace nada.
