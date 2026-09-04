@@ -32,16 +32,24 @@
 export const DOCUMENTO_DE_BORRADOR_DISPONIBLE = false;
 
 /**
- * Emitir una factura rectificativa desde una factura ya contabilizada.
+ * Emitir una factura rectificativa (R4 por diferencias) desde una factura ya contabilizada.
  *
- * ACTIVADA el 2026-09-03. POST /api/FacturaEmitida/{id}/Rectificar está desplegado (PR 42,
- * mergeado en upgrade-to-NET10 como 7cce320) y el script 015 está ejecutado.
+ * DESACTIVADA el 2026-09-04 por DECISIÓN DE NEGOCIO, no por un fallo técnico. El endpoint
+ * POST /api/FacturaEmitida/{id}/Rectificar funciona y está desplegado (PR 42), y el script 015
+ * está ejecutado — pero en la reunión del 2026-09-03 Jose y Abraham acordaron resolver la
+ * rectificación de otra manera mucho más simple (issue #73 de Azure DevOps):
  *
- * Cómo se comprobó que el script estaba puesto, que es el requisito que de verdad importaba: las
- * columnas MotivoRectificacion y MetodoRectificacion se mapean por convención en
- * FacturacionFacturasEmitidasCabecera (sin [NotMapped] ni exclusión fluent), así que EF las
- * incluye en el SELECT de CUALQUIER consulta de emitidas. Si faltaran, el listado entero
- * respondería 500 con "Invalid column name" — no solo rectificar. Que el listado cargue es la
- * prueba de que las columnas existen.
+ *     "Para rectificar una factura: anular y registrar la factura antigua · crear una copia
+ *      de la factura antigua y dejarla en borrador"
+ *
+ * Es decir: NO se emite una rectificativa enlazada con importes en negativo. Se anula la
+ * original (que ya se registra como Anulación en VERI*FACTU) y el usuario emite una factura
+ * nueva e independiente partiendo de una copia editable. Menos conceptos fiscales que explicar
+ * al usuario y ningún caso especial (concurso, crédito incobrable) que exponer de momento.
+ *
+ * Se apaga en vez de borrar el código: el endpoint y su servicio siguen ahí, cubiertos por sus
+ * tests, por si se recupera el modelo R4 cuando algún cliente lo pida de verdad. Mientras esté
+ * en false no se ofrece el botón, que es lo que importa — con él encendido se seguirían creando
+ * registros R4 reales en la AEAT que ya no encajan con el modelo acordado.
  */
-export const RECTIFICATIVAS_DISPONIBLES = true;
+export const RECTIFICATIVAS_DISPONIBLES = false;
