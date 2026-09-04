@@ -794,6 +794,28 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   // borrador local que contabilizar/firmar; las guardas de negocio (factura nunca contabilizada,
   // ya anulada) las hace el backend y llegan aquí como HTTP 400 (ver BadRequest en el
   // controller), que ApiService ya convierte en Error con el mensaje real.
+  // Refresco del estado AEAT (2026-09-04). Se traga CUALQUIER fallo y devuelve null a propósito:
+  // esto se llama solo, sin que el usuario lo pida, al abrir una factura que quedó pendiente. Un
+  // error aquí no debe interrumpir nada — la factura ya se ha cargado y se ve igual de bien con
+  // el estado viejo.
+  //
+  // Eso es además lo que permite desplegarlo SIN coordinar con el backend: mientras el endpoint
+  // no esté publicado responde 404, se ignora, y todo sigue exactamente como antes. El día que
+  // se publique empieza a funcionar solo, sin tener que acordarse de encender ningún flag.
+  async refrescarEstadoAeat(id: number): Promise<FacturaEmitida | null> {
+    if (await this.esBorradorLocalSinGuardar(id)) return null;
+
+    try {
+      const [dto, mediosPago] = await Promise.all([
+        this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/RefrescarEstadoAeat`, {}),
+        this.obtenerMediosPagoApi(),
+      ]);
+      return this.mapearDetalle(dto, mediosPago ?? []);
+    } catch {
+      return null;
+    }
+  }
+
   async anular(id: number): Promise<FacturaEmitida> {
     if (await this.esBorradorLocalSinGuardar(id)) {
       throw new Error(this.transloco.translate('verifactu.errors.anularBorrador'));

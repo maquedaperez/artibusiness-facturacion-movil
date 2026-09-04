@@ -90,6 +90,13 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return factura;
   }
 
+  // En el modo mock no hay ninguna AEAT a la que volver a preguntar: el estado que hay es el
+  // unico que va a haber. Devolver null (que es "no se ha podido refrescar") es exactamente lo
+  // que espera quien llama, y deja la factura tal cual.
+  async refrescarEstadoAeat(_id: number): Promise<FacturaEmitida | null> {
+    return null;
+  }
+
   // El modo mock puro no emite rectificativas: es un circuito fiscal real, no algo que tenga
   // sentido simular. Mismo criterio que el resto de acciones de VERI*FACTU aqui.
   async rectificar(id: number, _motivo: string): Promise<FacturaEmitida> {

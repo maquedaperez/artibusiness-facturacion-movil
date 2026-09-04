@@ -186,11 +186,44 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       this.working = structuredClone(factura);
       this.marcarSinCambiosPendientes();
       this.emailEnvio = factura.emailUltimoEnvio ?? '';
+
+      // Sin esperar: la factura ya está en pantalla y esto solo puede mejorar lo que se ve.
+      this.refrescarEstadoAeatSiSigueEnVuelo();
     } catch (e: any) {
       this.errorMsg = e?.message ?? this.transloco.translate('invoices.issued.detail.loadError');
     } finally {
       this.cargando = false;
     }
+  }
+
+  // Bug real reportado probando un ticket (2026-09-04): "Contabilizada · Estado AEAT: Pendiente
+  // de envío" y ahí se quedaba para siempre. El estado que se guarda al contabilizar es una FOTO
+  // del instante en que FacturaE contestó, y la AEAT confirma DESPUÉS — pero no había nada en la
+  // aplicación que volviera a preguntarlo.
+  //
+  // Se pregunta SOLO si sigue en vuelo: una factura ya resuelta (Correcto, Rechazada...) no
+  // cambia de estado nunca más, así que consultarla sería una llamada gratis en cada apertura.
+  //
+  // Deliberadamente en segundo plano y sin avisar de nada: la factura ya está en pantalla, esto
+  // solo puede mejorar lo que se ve. Si falla —sin conexión, o el endpoint todavía sin
+  // desplegar— el repositorio devuelve null y aquí no pasa nada.
+  private async refrescarEstadoAeatSiSigueEnVuelo() {
+    if (this.facturaId == null || this.working?.estadoAeat !== 'PendienteEnvio') return;
+
+    const actualizada = await this.invoicesRepo.refrescarEstadoAeat(this.facturaId);
+    if (!actualizada) return;
+
+    // Si mientras tanto el usuario ha lanzado una acción (firmar, corregir, anular...), no se le
+    // cambia 'working' por debajo: esa acción está trabajando sobre la factura que tenía delante
+    // y va a devolver ella misma la versión buena al terminar.
+    //
+    // No hace falta comprobar además si hay cambios sin guardar: aquí solo se llega con una
+    // factura contabilizada (es la única que puede estar en PendienteEnvio) y esas se muestran
+    // en modo lectura, así que no hay nada que el usuario pueda haber tocado.
+    if (this.algoEnCurso) return;
+
+    this.working = structuredClone(actualizada);
+    this.marcarSinCambiosPendientes();
   }
 
   // Fase 1 del plan de integración de Emitidas (2026-08-20): sustituye IVA_RATES/

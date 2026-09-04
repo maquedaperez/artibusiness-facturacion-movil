@@ -110,6 +110,18 @@ export abstract class IssuedInvoicesRepository {
   // el Alta original nunca se modifica ni se borra. Solo tiene sentido sobre una factura ya
   // contabilizada (con registro VERI*FACTU); el backend rechaza cualquier otro caso.
   abstract anular(id: number): Promise<FacturaEmitida>;
+  /**
+   * Vuelve a preguntar por el estado AEAT de una factura ya contabilizada (2026-09-04).
+   *
+   * El estado que se guarda al contabilizar es una FOTO del instante en que FacturaE contestó,
+   * y la AEAT confirma DESPUÉS: una factura que salió "PendienteEnvio" se quedaba diciendo eso
+   * para siempre, aunque ya estuviera aceptada. Bug real reportado probando un ticket.
+   *
+   * Devuelve null —nunca lanza— si no se puede refrescar: sin conexión, o con el endpoint
+   * todavía sin desplegar. Eso es lo que permite llamarlo sin coordinar nada: hoy no hace nada
+   * y el día que el backend esté publicado empieza a funcionar solo.
+   */
+  abstract refrescarEstadoAeat(id: number): Promise<FacturaEmitida | null>;
   // Fase 7 (Subsanar, 2026-08-24): NO es un editor de la factura — cliente/líneas/importes no
   // cambian (si de verdad están mal, corresponde una rectificativa, no esto). Vuelve a emitir el
   // registro fiscal a partir de los mismos datos ya guardados, con un motivo obligatorio, y

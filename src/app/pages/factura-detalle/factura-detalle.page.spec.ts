@@ -1107,6 +1107,90 @@ describe('FacturaDetallePage', () => {
     });
   });
   // Facturas rectificativas (2026-09-03).
+  // Refresco del estado AEAT (2026-09-04). BUG QUE LO MOTIVA: un ticket contabilizado y aceptado
+  // por la AEAT se enseñaba como "Pendiente de envio" indefinidamente, porque el estado que se
+  // guarda al contabilizar es una FOTO del instante en que FacturaE contesto y no habia nada que
+  // volviera a preguntarlo.
+  describe('refresco del estado AEAT al abrir la factura', () => {
+    let repo: IssuedInvoicesRepository;
+
+    beforeEach(() => {
+      repo = TestBed.inject(IssuedInvoicesRepository);
+    });
+
+    function contabilizada(estadoAeat: FacturaEmitida['estadoAeat']): FacturaEmitida {
+      return {
+        id: 80,
+        numFactura: 'FS14',
+        numeradorId: 2,
+        fecha: '2026-09-04',
+        vencimiento: '2026-09-04',
+        concepto: 'Venta',
+        medioPago: 'Efectivo',
+        idMedioPago: 1,
+        destinatario: { nombre: 'Consumidor final', nif: '', esEmpresa: false },
+        lineas: [],
+        estado: 'contabilizada',
+        operacionId: 'op-80',
+        esSimplificada: true,
+        estadoAeat,
+      };
+    }
+
+    function prepararComponente(factura: FacturaEmitida) {
+      component.working = structuredClone(factura);
+      component.facturaId = factura.id;
+      component['marcarSinCambiosPendientes']();
+    }
+
+    it('pregunta de nuevo si la factura sigue en vuelo', async () => {
+      prepararComponente(contabilizada('PendienteEnvio'));
+      const spy = spyOn(repo, 'refrescarEstadoAeat').and.resolveTo(contabilizada('Correcto'));
+
+      await component['refrescarEstadoAeatSiSigueEnVuelo']();
+
+      expect(spy).toHaveBeenCalledWith(80);
+      expect(component.working!.estadoAeat).toBe('Correcto');
+    });
+
+    // Una factura ya resuelta no cambia de estado nunca mas: preguntarlo seria una llamada
+    // gratis en cada apertura.
+    it('NO pregunta si el estado ya esta resuelto', async () => {
+      prepararComponente(contabilizada('Correcto'));
+      const spy = spyOn(repo, 'refrescarEstadoAeat');
+
+      await component['refrescarEstadoAeatSiSigueEnVuelo']();
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    // Esto es lo que permite desplegarlo sin coordinar con el backend: mientras el endpoint no
+    // este publicado responde 404, el repositorio devuelve null y aqui no pasa nada.
+    it('si no se puede refrescar, la factura se queda exactamente como estaba', async () => {
+      prepararComponente(contabilizada('PendienteEnvio'));
+      spyOn(repo, 'refrescarEstadoAeat').and.resolveTo(null);
+
+      await component['refrescarEstadoAeatSiSigueEnVuelo']();
+
+      expect(component.working!.estadoAeat).toBe('PendienteEnvio');
+    });
+
+    // Este refresco va en segundo plano y sin que nadie lo haya pedido, asi que no puede cambiar
+    // 'working' por debajo de una accion en curso: esa accion trabaja sobre la factura que el
+    // usuario tenia delante y devuelve ella misma la version buena al terminar.
+    it('no pisa la factura si hay una accion en curso', async () => {
+      prepararComponente(contabilizada('PendienteEnvio'));
+      spyOn(repo, 'refrescarEstadoAeat').and.callFake(async () => {
+        component.firmando = true;   // el usuario ha pulsado Firmar mientras se refrescaba
+        return contabilizada('Correcto');
+      });
+
+      await component['refrescarEstadoAeatSiSigueEnVuelo']();
+
+      expect(component.working!.estadoAeat).toBe('PendienteEnvio');
+    });
+  });
+
   // "Corregir factura" — issues #73 (completas) y #74 (tickets), acordado en la reunion del
   // 2026-09-03. Sustituye a la rectificativa R4: anula la original y abre una copia en borrador.
   describe('corregir factura (anular + copia en borrador)', () => {
