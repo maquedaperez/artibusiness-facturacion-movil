@@ -5,6 +5,7 @@ import { LanguageService } from '../../core/i18n/language.service';
 import { PagosService, EstadoPagos } from '../../services/pagos.service';
 import { PagosConnectService, EstadoPagosConnect } from '../../services/pagos-connect.service';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
+import { VERSION_APP } from '../../../environments/version';
 
 describe('PerfilPage', () => {
   let component: PerfilPage;
@@ -138,6 +139,21 @@ describe('PerfilPage', () => {
       await component.conectarStripe();
 
       expect(abrirSpy).toHaveBeenCalledWith('https://connect.stripe.com/setup/abc');
+    });
+  });
+
+  // Version de la app (2026-09-04, peticion de Jose): poder mirar el Perfil y saber que version
+  // tiene instalada cada uno, sin depender de los numeros de App Store ni Google Play.
+  describe('version de la app', () => {
+    it('expone la version sellada en el build', () => {
+      expect(component.versionApp).toBe(VERSION_APP);
+    });
+
+    // Lo que de verdad importa: que sea una FECHA. Si alguien rompe el generador y deja una
+    // cadena vacia o un marcador de plantilla, el Perfil enseñaria una version que no dice nada
+    // — y una version que miente es peor que no tener ninguna.
+    it('tiene formato AAAA.MM.DD, con un sufijo opcional', () => {
+      expect(component.versionApp).toMatch(/^\d{4}\.\d{2}\.\d{2}(\.\d+)?$/);
     });
   });
 });

@@ -158,6 +158,15 @@
     </ion-card-content>
   </ion-card>
 
+  <!-- Version de la app (2026-09-04, peticion de Jose): saber de un vistazo que version tiene
+       instalada cada uno, sin depender de los numeros de App Store ni Google Play, que van por
+       su cuenta y encima difieren entre TestFlight y la version publicada. Es la fecha de
+       COMPILACION, sellada en cada build (ver scripts/generar-version.mjs).
+       Discreta y al final a proposito: es un dato de soporte, no algo que el usuario necesite. -->
+  <ion-text color="medium">
+    <p class="version-app">{{ 'profile.version' | transloco }} {{ versionApp }}</p>
+  </ion-text>
+
 </ion-content>
 
 <ion-footer>

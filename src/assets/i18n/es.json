@@ -164,7 +164,8 @@
       "cnae": "CNAE:",
       "iban": "IBAN:",
       "swift": "SWIFT:"
-    }
+    },
+    "version": "Versión"
   },
   "invoices": {
     "issued": {

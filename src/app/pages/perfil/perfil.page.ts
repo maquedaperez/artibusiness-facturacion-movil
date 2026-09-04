@@ -32,6 +32,7 @@ import {
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { chevronForwardOutline } from 'ionicons/icons';
+import { VERSION_APP } from '../../../environments/version';
 
 @Component({
   selector: 'app-perfil',
@@ -83,6 +84,10 @@ export class PerfilPage {
   // nada de esto sin haber confirmado antes que el módulo responde de verdad — mientras
   // StripeConnect:Enabled=false (todo el MVP), el endpoint de estado da 503 y esta sección
   // completa permanece oculta, nunca aparece un botón que fuera a fallar al pulsarlo.
+  // Version de la app (2026-09-04): la fecha en que se compilo lo que el usuario tiene
+  // instalado. Constante, no una llamada — se sella en el build (scripts/generar-version.mjs).
+  readonly versionApp = VERSION_APP;
+
   estadoConnect: EstadoPagosConnect | null = null;
   moduloConnectDisponible = false;
   cargandoConnect = true;

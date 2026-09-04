@@ -36,3 +36,11 @@
     font-size: 16px;
   }
 }
+
+/* Version de la app (2026-09-04): dato de soporte, no algo que el usuario necesite mirar.
+   Discreta, centrada y al final del contenido — visible si la buscas, invisible si no. */
+.version-app {
+  margin: 24px 0 8px;
+  text-align: center;
+  font-size: 0.75rem;
+}
