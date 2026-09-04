@@ -8,6 +8,7 @@ import { FacturaDetallePage } from './factura-detalle.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 import { IssuedInvoicesRepository } from '../../core/ports';
+import { SUBSANACION_DISPONIBLE } from '../../core/providers/funcionalidades-pendientes';
 import { FacturaEmitida, Numerador } from '../../services/mock-facturas.service';
 // Traducciones REALES: los tests que comprueban lo que VE el usuario no sirven de nada contra un
 // provideTranslocoTesting() vacio (el pipe devuelve cadena vacia, asi que cualquier
@@ -163,10 +164,15 @@ describe('FacturaDetallePage', () => {
       expect(component.puedeSubsanar).toBeFalse();
     });
 
-    it('puedeSubsanar sigue siendo true para una factura completa en las mismas condiciones', () => {
+    // Desde el 2026-09-04 la subsanacion esta OCULTA por decision de producto
+    // (SUBSANACION_DISPONIBLE): en una contabilizada solo se ofrecen Firmar, Corregir factura y
+    // Anular. La regla fiscal que este test fija sigue viva detras del flag —una completa SI
+    // puede subsanarse y una simplificada NO— asi que se comprueba contra el flag en vez de
+    // fijar 'true' a pelo: cuando se reactive, este test vuelve a proteger la regla sin tocarlo.
+    it('para una factura completa solo depende del flag de disponibilidad', () => {
       component.working = facturaSimplificadaContabilizada({ esSimplificada: false });
 
-      expect(component.puedeSubsanar).toBeTrue();
+      expect(component.puedeSubsanar).toBe(SUBSANACION_DISPONIBLE);
     });
   });
 

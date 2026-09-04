@@ -30,7 +30,7 @@ import { LineasEditorComponent, lineaFacturaInvalida } from '../../shared/lineas
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 import { PuedeSalirDeLaPantalla } from '../../guards/cambios-sin-guardar.guard';
 import { pedirConfirmacion } from '../../shared/utils/confirmacion';
-import { RECTIFICATIVAS_DISPONIBLES } from '../../core/providers/funcionalidades-pendientes';
+import { RECTIFICATIVAS_DISPONIBLES, SUBSANACION_DISPONIBLE } from '../../core/providers/funcionalidades-pendientes';
 
 @Component({
   selector: 'app-factura-detalle',
@@ -825,8 +825,11 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // MVP (ver docs/FACTURAS_SIMPLIFICADAS_MVP.md) — el backend ya la rechaza con un error
   // estable, pero se oculta también el botón para no invitar a un intento que se sabe que va a
   // fallar. Anular SÍ sigue disponible para una simplificada (funciona sin cambios).
+  // Oculta por decisión de producto desde el 2026-09-04 (ver SUBSANACION_DISPONIBLE): en una
+  // factura contabilizada el usuario ve solo Firmar, Corregir factura y Anular factura. El flujo
+  // de subsanación sigue completo detrás del flag.
   get puedeSubsanar(): boolean {
-    return this.puedeAnular && !this.working?.esSimplificada;
+    return SUBSANACION_DISPONIBLE && this.puedeAnular && !this.working?.esSimplificada;
   }
 
   // Bug real encontrado en revisión (2026-09-02): el botón de Firmar solo miraba el estado y

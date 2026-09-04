@@ -53,3 +53,25 @@ export const DOCUMENTO_DE_BORRADOR_DISPONIBLE = false;
  * registros R4 reales en la AEAT que ya no encajan con el modelo acordado.
  */
 export const RECTIFICATIVAS_DISPONIBLES = false;
+
+/**
+ * Subsanar una factura ya contabilizada (reenviar el registro VERI*FACTU con Subsanacion=S).
+ *
+ * OCULTA el 2026-09-04 por DECISIÓN DE PRODUCTO. Funciona y está probada de punta a punta: la
+ * pantalla, la previsualización de diferencias reales y el endpoint del backend siguen ahí.
+ *
+ * El motivo es que confunde. Subsanar NO corrige la factura: corrige lo que se ENVIÓ a Hacienda
+ * cuando el registro no coincide con la factura (típicamente un dato del emisor mal puesto, como
+ * la dirección). La factura no cambia y el cliente no recibe nada nuevo. Puesto al lado de
+ * "Corregir factura" —que sí cambia la factura— son dos botones que el usuario no puede
+ * distinguir sin saber de fiscalidad, y equivocarse tiene consecuencias.
+ *
+ * Así que en una factura contabilizada se ofrecen SOLO tres acciones, y cada una se entiende sin
+ * explicación: Firmar, Corregir factura (anula y abre una copia editable) y Anular factura.
+ *
+ * Para reactivarla: poner true. No hay nada más que hacer — el flujo entero está construido y
+ * cubierto por sus tests. Se recuperará cuando algún cliente tenga el caso de verdad, o cuando
+ * la pantalla de datos de emisor deje de ser de solo lectura (hoy el usuario ni siquiera puede
+ * corregir el dato que motivaría la subsanación).
+ */
+export const SUBSANACION_DISPONIBLE = false;
