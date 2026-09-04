@@ -429,6 +429,16 @@
         "keepEditing": "Seguir editando",
         "discard": "Salir sin guardar"
       },
+      "correctFlow": {
+        "action": "Corregir factura",
+        "working": "Corrigiendo…",
+        "header": "Corregir factura",
+        "confirmMessage": "Se anulará la factura {{num}} y se abrirá una copia en borrador para que la edites y la emitas de nuevo.\n\nLa anulación no se puede deshacer y el número {{num}} no se reutiliza: la copia llevará uno nuevo de la misma serie.",
+        "confirm": "Anular y corregir",
+        "success": "Factura {{num}} anulada. Edita la copia y contabilízala cuando esté lista.",
+        "copyError": "No se pudo crear la copia. La factura NO se ha anulado — vuelve a intentarlo.",
+        "error": "No se pudo corregir la factura."
+      },
       "rectificativa": {
         "header": "Emitir rectificativa",
         "message": "Se creará una factura nueva que anula esta. Quedará en borrador para que la revises antes de contabilizarla.",

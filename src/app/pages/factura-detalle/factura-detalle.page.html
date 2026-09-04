@@ -390,6 +390,15 @@
       {{ (firmando ? 'invoices.issued.actions.signing' : 'invoices.issued.actions.sign') | transloco }}
     </ion-button>
 
+    <!-- "Corregir factura" (issues #73 y #74): anula la original y abre una copia en borrador.
+         SOLIDO y no fill="outline" a proposito — un boton amarillo hueco se lee como
+         deshabilitado sobre fondo blanco. Va entre Firmar y Anular porque es la accion
+         intermedia: corrige sin renunciar a cobrar, mientras que anular cierra el documento. -->
+    <ion-button *ngIf="puedeCorregir" expand="block" color="warning" [disabled]="algoEnCurso" (click)="confirmarCorregir()">
+      <ion-spinner *ngIf="corrigiendo" slot="start" name="dots"></ion-spinner>
+      {{ (corrigiendo ? 'invoices.issued.correctFlow.working' : 'invoices.issued.correctFlow.action') | transloco }}
+    </ion-button>
+
     <ion-button *ngIf="puedeSubsanar" expand="block" fill="outline" color="warning" [disabled]="algoEnCurso" (click)="irASubsanar()">
       {{ 'invoices.issued.detail.correctInvoice' | transloco }}
     </ion-button>

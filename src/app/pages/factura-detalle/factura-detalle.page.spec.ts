@@ -14,7 +14,7 @@ import { FacturaEmitida, Numerador } from '../../services/mock-facturas.service'
 // provideTranslocoTesting() vacio (el pipe devuelve cadena vacia, asi que cualquier
 // 'not.toContain' pasa trivialmente). Mismo criterio que factura-subsanar.page.spec.ts.
 import ES from '../../../assets/i18n/es.json';
-import { simularConfirmacion, simularConfirmacionDiferida } from '../../shared/utils/testing/confirmacion-testing';
+import { simularConfirmacion, simularCancelacion, simularConfirmacionDiferida } from '../../shared/utils/testing/confirmacion-testing';
 
 describe('FacturaDetallePage', () => {
   let component: FacturaDetallePage;
@@ -1107,6 +1107,155 @@ describe('FacturaDetallePage', () => {
     });
   });
   // Facturas rectificativas (2026-09-03).
+  // "Corregir factura" — issues #73 (completas) y #74 (tickets), acordado en la reunion del
+  // 2026-09-03. Sustituye a la rectificativa R4: anula la original y abre una copia en borrador.
+  describe('corregir factura (anular + copia en borrador)', () => {
+    function contabilizada(overrides: Partial<FacturaEmitida> = {}): FacturaEmitida {
+      return {
+        id: 70,
+        numFactura: 'FAR/26-350',
+        numeradorId: 2,
+        fecha: '2026-09-04',
+        vencimiento: '2026-10-04',
+        concepto: 'Servicios',
+        medioPago: 'Transferencia',
+        idMedioPago: 3,
+        destinatario: { nombre: 'Cliente SL', nif: 'B12345678', esEmpresa: true },
+        lineas: [],
+        estado: 'contabilizada',
+        operacionId: 'op-70',
+        esSimplificada: false,
+        ...overrides,
+      };
+    }
+
+    function prepararComponente(factura: FacturaEmitida) {
+      component.working = factura;
+      component.facturaId = factura.id;
+    }
+
+    // El resto del spec inyecta estos dos dentro de cada test; aqui se comparten porque casi
+    // todos los de este bloque los necesitan.
+    let repo: IssuedInvoicesRepository;
+    let alertCtrl: AlertController;
+
+    beforeEach(() => {
+      repo = TestBed.inject(IssuedInvoicesRepository);
+      alertCtrl = TestBed.inject(AlertController);
+    });
+
+    describe('cuando se ofrece', () => {
+      it('se ofrece en una factura completa contabilizada', () => {
+        component.working = contabilizada();
+        expect(component.puedeCorregir).toBeTrue();
+      });
+
+      // Issue #74: la misma via sirve para el ticket, que es justo lo que hacia falta — su
+      // rectificativa fiscal (R5) no esta implementada, pero este flujo no la necesita.
+      it('se ofrece igual en un ticket contabilizado', () => {
+        component.working = contabilizada({ esSimplificada: true });
+        expect(component.puedeCorregir).toBeTrue();
+      });
+
+      it('no se ofrece sobre un borrador: todavia se puede editar sin anular nada', () => {
+        component.working = contabilizada({ estado: 'borrador' });
+        expect(component.puedeCorregir).toBeFalse();
+      });
+
+      it('no se ofrece sobre una factura ya anulada', () => {
+        component.working = contabilizada({ anulada: true });
+        expect(component.puedeCorregir).toBeFalse();
+      });
+    });
+
+    it('corrigiendo entra en la exclusion mutua de acciones', () => {
+      expect(component.algoEnCurso).toBeFalse();
+      component.corrigiendo = true;
+      expect(component.algoEnCurso).toBeTrue();
+    });
+
+    it('si el usuario cancela el aviso, no se anula ni se copia nada', async () => {
+      prepararComponente(contabilizada());
+      simularCancelacion(alertCtrl);
+      const duplicar = spyOn(repo, 'duplicar');
+      const anular = spyOn(repo, 'anular');
+
+      await component.confirmarCorregir();
+
+      expect(duplicar).not.toHaveBeenCalled();
+      expect(anular).not.toHaveBeenCalled();
+    });
+
+    // EL ORDEN ES LA PARTE DELICADA (decidido con Abraham, 2026-09-04): si se anulara primero y
+    // la copia fallase, el usuario se quedaria con su factura anulada —irreversible, numero
+    // quemado— y sin nada con lo que seguir.
+    it('crea la COPIA antes de anular, nunca al reves', async () => {
+      prepararComponente(contabilizada());
+      simularConfirmacion(alertCtrl);
+      const llamadas: string[] = [];
+      spyOn(repo, 'duplicar').and.callFake(async () => {
+        llamadas.push('duplicar');
+        return contabilizada({ id: 71, numFactura: 'FAR/26-351', estado: 'borrador' });
+      });
+      spyOn(repo, 'anular').and.callFake(async () => {
+        llamadas.push('anular');
+        return contabilizada({ anulada: true });
+      });
+
+      await component.confirmarCorregir();
+
+      expect(llamadas).toEqual(['duplicar', 'anular']);
+    });
+
+    it('al terminar navega a la COPIA, no a la factura anulada', async () => {
+      prepararComponente(contabilizada());
+      simularConfirmacion(alertCtrl);
+      spyOn(repo, 'duplicar').and.resolveTo(contabilizada({ id: 71, estado: 'borrador' }));
+      spyOn(repo, 'anular').and.resolveTo(contabilizada({ anulada: true }));
+      const navigate = spyOn(component['router'], 'navigate');
+
+      await component.confirmarCorregir();
+
+      expect(navigate).toHaveBeenCalledWith(['/app/emitidas', 71], { replaceUrl: true });
+    });
+
+    it('si falla la copia, la factura NO se anula', async () => {
+      prepararComponente(contabilizada());
+      simularConfirmacion(alertCtrl);
+      spyOn(repo, 'duplicar').and.rejectWith(new Error('sin conexion'));
+      const anular = spyOn(repo, 'anular');
+
+      await component.confirmarCorregir();
+
+      expect(anular).not.toHaveBeenCalled();
+      expect(component.working!.anulada).toBeFalsy();
+    });
+
+    // Si la anulacion falla despues de haber creado la copia, dejarla ahi seria sembrar un
+    // duplicado que mas tarde nadie sabria de donde salio.
+    it('si falla la anulacion, se retira la copia que ya se habia creado', async () => {
+      prepararComponente(contabilizada());
+      simularConfirmacion(alertCtrl);
+      spyOn(repo, 'duplicar').and.resolveTo(contabilizada({ id: 71, estado: 'borrador' }));
+      spyOn(repo, 'anular').and.rejectWith(new Error('la AEAT no responde'));
+      const eliminar = spyOn(repo, 'eliminar').and.resolveTo();
+
+      await component.confirmarCorregir();
+
+      expect(eliminar).toHaveBeenCalledWith(71);
+    });
+
+    it('deja de estar en curso aunque falle', async () => {
+      prepararComponente(contabilizada());
+      simularConfirmacion(alertCtrl);
+      spyOn(repo, 'duplicar').and.rejectWith(new Error('sin conexion'));
+
+      await component.confirmarCorregir();
+
+      expect(component.corrigiendo).toBeFalse();
+    });
+  });
+
   describe('rectificativas', () => {
     function contabilizada(overrides: Partial<FacturaEmitida> = {}): FacturaEmitida {
       return {

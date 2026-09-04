@@ -89,6 +89,10 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   contabilizando = false;
   firmando = false;
   anulando = false;
+  // "Corregir factura" (issues #73 y #74, 2026-09-04). Bandera propia como el resto: mientras
+  // corrige, ningún otro botón debe poder dispararse — este flujo hace DOS operaciones fiscales
+  // seguidas y a medias dejaría la factura en un estado difícil de explicar.
+  corrigiendo = false;
   marcandoCobrado = false;
 
   // Bug real encontrado en revisión (2026-09-02): faltaba 'guardando'. Guardar y Contabilizar
@@ -98,7 +102,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // SIN mostrar ningún mensaje (el comentario de ahí asume que guardar() ya avisó, y en esa
   // rama concreta no avisa). Resultado: un botón que no hacía absolutamente nada visible.
   get algoEnCurso(): boolean {
-    return this.guardando || this.contabilizando || this.firmando || this.anulando || this.marcandoCobrado || this.cobrandoStripe || this.rectificando;
+    return this.guardando || this.contabilizando || this.firmando || this.anulando || this.marcandoCobrado || this.cobrandoStripe || this.rectificando || this.corrigiendo;
   }
 
   numeradores: Numerador[] = [];
@@ -937,6 +941,73 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   accionesPermitidas(): AccionesPermitidas {
     if (!this.working) return { editar: false, eliminar: false, copiar: false, descargar: false, compartir: false };
     return this.invoicesRepo.accionesPermitidas(this.working);
+  }
+
+  // "Corregir factura" — issues #73 (facturas completas) y #74 (tickets), acordado en la reunión
+  // del 2026-09-03. Sustituye a la rectificativa R4 como forma de corregir una factura ya
+  // enviada a la AEAT:
+  //
+  //     anular la original  +  crear una copia editable en borrador
+  //
+  // La original queda anulada (su Anulación se registra en VERI*FACTU como cualquier otra) y el
+  // usuario emite una factura NUEVA e independiente partiendo de la copia. Se ofrece igual en
+  // facturas completas y en tickets, que es justo lo que hace falta para el ticket: su
+  // rectificativa fiscal (R5) no está implementada, pero esta vía no la necesita.
+  //
+  // El número NO se reutiliza, y no hay que hacer nada para conseguirlo: una vez anulada, la
+  // clave fiscal queda quemada para siempre (VerifactuChainStore lanza
+  // FacturaAnuladaNoReemitibleException si alguien lo intenta: "emite una factura nueva con un
+  // identificador fiscal nuevo"). La copia se guarda con el mismo NUMERADOR —la misma serie— y
+  // FacturaEmitidaCabecera.Create() le compone un número secuencial nuevo al insertarla.
+  get puedeCorregir(): boolean {
+    return this.puedeAnular;
+  }
+
+  async confirmarCorregir() {
+    if (!this.working || this.facturaId == null || this.algoEnCurso || !this.puedeCorregir) return;
+
+    const numOriginal = this.working.numFactura;
+
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
+      header: this.transloco.translate('invoices.issued.correctFlow.header'),
+      message: this.transloco.translate('invoices.issued.correctFlow.confirmMessage', { num: numOriginal }),
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('invoices.issued.correctFlow.confirm'),
+    });
+    if (!confirmado || this.algoEnCurso) return;
+
+    this.corrigiendo = true;
+    try {
+      // ORDEN DELIBERADO: primero la COPIA, después la anulación (decidido con Abraham,
+      // 2026-09-04). Si se anulara primero y la copia fallase, el usuario se quedaría con su
+      // factura anulada —irreversible, número quemado— y sin nada con lo que seguir. Al revés,
+      // lo peor que puede pasar es que sobre un borrador, que no tiene ningún efecto fiscal y se
+      // borra sin dejar rastro.
+      const copia = await this.invoicesRepo.duplicar(this.facturaId!);
+      if (!copia) {
+        await this.showToast(this.transloco.translate('invoices.issued.correctFlow.copyError'), 'danger');
+        return;
+      }
+
+      try {
+        this.working = await this.invoicesRepo.anular(this.facturaId!);
+      } catch (e: any) {
+        // La copia existe pero la original sigue viva: dejarla sería sembrar un duplicado que
+        // más tarde nadie sabría de dónde salió. Se retira antes de informar del fallo real.
+        await this.invoicesRepo.eliminar(copia.id).catch(() => { /* si tampoco se puede borrar, manda el error de anular */ });
+        throw e;
+      }
+
+      this.marcarSinCambiosPendientes();
+      await this.showToast(this.transloco.translate('invoices.issued.correctFlow.success', { num: numOriginal }));
+      // replaceUrl: volver atrás desde la copia debe llevar al listado, nunca a la factura que
+      // se acaba de anular.
+      this.router.navigate(['/app/emitidas', copia.id], { replaceUrl: true });
+    } catch (e: any) {
+      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.correctFlow.error'), 'danger');
+    } finally {
+      this.corrigiendo = false;
+    }
   }
 
   async duplicar() {

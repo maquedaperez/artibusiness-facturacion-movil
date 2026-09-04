@@ -429,6 +429,16 @@
         "keepEditing": "Keep editing",
         "discard": "Leave without saving"
       },
+      "correctFlow": {
+        "action": "Correct invoice",
+        "working": "Correcting…",
+        "header": "Correct invoice",
+        "confirmMessage": "Invoice {{num}} will be cancelled and a draft copy will open so you can edit it and issue it again.\n\nCancelling cannot be undone and number {{num}} is never reused: the copy gets a new one from the same series.",
+        "confirm": "Cancel and correct",
+        "success": "Invoice {{num}} cancelled. Edit the copy and post it when it is ready.",
+        "copyError": "The copy could not be created. The invoice has NOT been cancelled — please try again.",
+        "error": "The invoice could not be corrected."
+      },
       "rectificativa": {
         "header": "Issue a corrective invoice",
         "message": "A new invoice will be created cancelling this one. It stays as a draft for you to review before posting.",
