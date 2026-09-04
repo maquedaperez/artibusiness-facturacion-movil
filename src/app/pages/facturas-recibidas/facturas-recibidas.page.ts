@@ -281,7 +281,13 @@ export class FacturasRecibidasPage {
   // técnica ya usada en motivoBorradorLocal, pero sobre un código en inglés, no sobre el texto
   // en español (informe de revisión previa: "no tomes decisiones mediante textos españoles").
   private static readonly CODIGOS_ERROR_OCR_TICKET = [
-    'OCR_RECIPIENT_MISMATCH', 'OCR_TICKET_PROVISIONING_FAILED', 'OCR_DOCUMENT_DUPLICATE',
+    // 'OCR_RECIPIENT_MISMATCH' estuvo aqui hasta el 2026-09-04. El backend dejo de emitirlo
+    // (commit d0c0b3e, "el destinatario no coincidente pasa de bloqueo a aviso de revision"):
+    // ahora la factura SE GUARDA con los datos reales extraidos y el desajuste viaja como aviso,
+    // que es lo que muestra ocr.recipientMismatchWarning al abrir el detalle. Mantener aqui el
+    // codigo viejo dejaba una rama inalcanzable con un mensaje que decia justo lo contrario de lo
+    // que pasa ("no puede guardarse automaticamente").
+    'OCR_TICKET_PROVISIONING_FAILED', 'OCR_DOCUMENT_DUPLICATE',
     // Estabilización post-demo (2026-08-27): fallo de DISPONIBILIDAD del lector externo (5xx
     // suyo, o inalcanzable) — nunca consume crédito (ver ResolverConsumoCreditoAsync en el
     // backend), reintentable a mano, nunca automático (informe: "no reintentes hasta demostrar
@@ -296,7 +302,6 @@ export class FacturasRecibidasPage {
 
   private claveErrorOcrTicket(codigo: string): string {
     switch (codigo) {
-      case 'OCR_RECIPIENT_MISMATCH': return 'ocr.recipientMismatch';
       case 'OCR_TICKET_PROVISIONING_FAILED': return 'ocr.ticketProvisioningFailed';
       case 'OCR_DOCUMENT_DUPLICATE': return 'ocr.documentDuplicate';
       case 'OCR_SERVICE_UNAVAILABLE': return 'ocr.serviceUnavailable';
