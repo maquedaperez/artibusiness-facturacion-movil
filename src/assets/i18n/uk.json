@@ -206,13 +206,6 @@
         "error": "Не вдалося зареєструвати оплату.",
         "pagadoPendienteDeContabilizar": "Оплачено — очікує на проведення",
         "badgePagado": "Оплачено",
-        "medios": {
-          "EFECTIVO": "Готівка",
-          "TRANSFERENCIA": "Банківський переказ",
-          "TPV_EXTERNA": "Зовнішній термінал",
-          "TARJETA": "Картка",
-          "BIZUM": "Bizum"
-        },
         "errors": {
           "soloBorrador": "Оплаченим можна позначити лише чернетку рахунку.",
           "yaCobrada": "Для цього рахунку вже зареєстровано оплату.",

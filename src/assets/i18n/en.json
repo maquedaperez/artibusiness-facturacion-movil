@@ -206,13 +206,6 @@
         "error": "Could not record the payment.",
         "pagadoPendienteDeContabilizar": "Paid — pending posting",
         "badgePagado": "Paid",
-        "medios": {
-          "EFECTIVO": "Cash",
-          "TRANSFERENCIA": "Bank transfer",
-          "TPV_EXTERNA": "External card reader",
-          "TARJETA": "Card",
-          "BIZUM": "Bizum"
-        },
         "errors": {
           "soloBorrador": "Only a draft invoice can be marked as paid.",
           "yaCobrada": "This invoice already has a payment recorded.",

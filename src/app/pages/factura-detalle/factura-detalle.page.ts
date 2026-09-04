@@ -136,8 +136,6 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
 
   // Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): catálogo fijo de medios manuales —
   // coincide exactamente con lo que valida el backend (FacturacionFacturasEmitidasCobros.Medio).
-  readonly MEDIOS_COBRO = ['EFECTIVO', 'TRANSFERENCIA', 'TPV_EXTERNA', 'TARJETA', 'BIZUM'];
-
   /**
    * Medios de pago que se ofrecen AL COBRAR (issue #76, 2026-09-04).
    *
@@ -478,8 +476,8 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   }
 
   // Forma de pago de un TICKET (2026-09-02, encontrado probando la demo): en un ticket el pago
-  // es inmediato y el medio real queda registrado en el cobro (MEDIOS_COBRO, ver
-  // confirmarCobro), que es la fila que de verdad guarda como se pago
+  // es inmediato y el medio real queda registrado en el cobro (ver confirmarCobro, que ofrece el
+  // catalogo real de la empresa), que es la fila que de verdad guarda como se pago
   // (FacturacionFacturasEmitidasCobros.Medio). Pedir ADEMAS la "forma de pago" de la cabecera
   // era preguntar dos veces por lo mismo con dos vocabularios distintos —  y encima bloqueaba:
   // el campo es obligatorio para guardar (el backend exige IdMedioPago), asi que no elegirlo

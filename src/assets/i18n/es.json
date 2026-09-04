@@ -206,13 +206,6 @@
         "error": "No se pudo registrar el cobro.",
         "pagadoPendienteDeContabilizar": "Pagado — pendiente de contabilizar",
         "badgePagado": "Pagado",
-        "medios": {
-          "EFECTIVO": "Efectivo",
-          "TRANSFERENCIA": "Transferencia",
-          "TPV_EXTERNA": "TPV externa",
-          "TARJETA": "Tarjeta",
-          "BIZUM": "Bizum"
-        },
         "errors": {
           "soloBorrador": "Solo se puede marcar como cobrada una factura en borrador.",
           "yaCobrada": "Esta factura ya tiene un cobro registrado.",
