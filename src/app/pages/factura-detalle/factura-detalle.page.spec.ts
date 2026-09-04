@@ -1107,6 +1107,89 @@ describe('FacturaDetallePage', () => {
     });
   });
   // Facturas rectificativas (2026-09-03).
+  // Cobros a plazos (issues #71 y #75, 2026-09-04). Lo que importa de este bloque es que el
+  // comportamiento NUEVO solo aparece cuando el backend manda el pendiente: asi la pantalla se
+  // pudo desplegar antes que el backend, sin flags ni coordinacion.
+  describe('cobros parciales', () => {
+    function ticketBorrador(overrides: Partial<FacturaEmitida> = {}): FacturaEmitida {
+      return {
+        id: 90,
+        numFactura: 'FS-90',
+        numeradorId: 1,
+        fecha: '2026-09-04',
+        vencimiento: '2026-09-04',
+        concepto: 'Venta',
+        medioPago: 'Efectivo',
+        idMedioPago: 1,
+        destinatario: { nombre: 'Consumidor final', nif: '', esEmpresa: false },
+        lineas: [{ id: 1, origen: 'manual', descripcion: 'Producto', cantidad: 1, precioUnitario: 100, descuentoPct: 0, ivaPct: 21 }],
+        estado: 'borrador',
+        operacionId: 'op-90',
+        esSimplificada: true,
+        ...overrides,
+      };
+    }
+
+    describe('con un backend ANTERIOR al PR 46 (no manda el pendiente)', () => {
+      it('se comporta igual que antes: un ticket en borrador si se puede cobrar', () => {
+        component.working = ticketBorrador();
+        expect(component.soportaCobrosParciales).toBeFalse();
+        expect(component.puedeCobrar).toBeTrue();
+      });
+
+      it('se comporta igual que antes: una factura completa NO', () => {
+        component.working = ticketBorrador({ esSimplificada: false });
+        expect(component.puedeCobrar).toBeFalse();
+      });
+
+      it('se comporta igual que antes: una contabilizada NO', () => {
+        component.working = ticketBorrador({ estado: 'contabilizada' });
+        expect(component.puedeCobrar).toBeFalse();
+      });
+    });
+
+    describe('con el backend nuevo', () => {
+      // El caso que era IMPOSIBLE antes: una factura completa se emite, se manda al cliente y se
+      // cobra a vencimiento, cuando ya esta contabilizada.
+      it('una factura completa CONTABILIZADA se puede cobrar', () => {
+        component.working = ticketBorrador({
+          esSimplificada: false, estado: 'contabilizada', importeCobrado: 0, importePendiente: 121,
+        });
+        expect(component.puedeCobrar).toBeTrue();
+      });
+
+      it('sin nada pendiente ya no se ofrece cobrar', () => {
+        component.working = ticketBorrador({ importeCobrado: 121, importePendiente: 0 });
+        expect(component.puedeCobrar).toBeFalse();
+      });
+
+      it('una factura anulada nunca se cobra', () => {
+        component.working = ticketBorrador({ anulada: true, importeCobrado: 0, importePendiente: 121 });
+        expect(component.puedeCobrar).toBeFalse();
+      });
+
+      // Un borrador que todavia no existe en el backend no tiene nada que cobrar: primero hay que
+      // guardarlo.
+      it('un borrador sin guardar no se puede cobrar', () => {
+        component.working = ticketBorrador({ esBorradorLocal: true, importeCobrado: 0, importePendiente: 121 });
+        expect(component.puedeCobrar).toBeFalse();
+      });
+
+      it('reconoce el estado PARCIALMENTE cobrada', () => {
+        component.working = ticketBorrador({ importeCobrado: 50, importePendiente: 71 });
+        expect(component.estaParcialmenteCobrada).toBeTrue();
+      });
+
+      it('ni sin cobrar ni cobrada del todo cuentan como parcial', () => {
+        component.working = ticketBorrador({ importeCobrado: 0, importePendiente: 121 });
+        expect(component.estaParcialmenteCobrada).toBeFalse();
+
+        component.working = ticketBorrador({ importeCobrado: 121, importePendiente: 0 });
+        expect(component.estaParcialmenteCobrada).toBeFalse();
+      });
+    });
+  });
+
   // Refresco del estado AEAT (2026-09-04). BUG QUE LO MOTIVA: un ticket contabilizado y aceptado
   // por la AEAT se enseñaba como "Pendiente de envio" indefinidamente, porque el estado que se
   // guarda al contabilizar es una FOTO del instante en que FacturaE contesto y no habia nada que

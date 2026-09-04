@@ -77,7 +77,11 @@ describe('Ficheros de traducción reales (src/assets/i18n)', () => {
   });
 
   it('ningún valor es un placeholder sin traducir (TODO/TRANSLATE/FIXME)', () => {
-    const patronPendiente = /\b(TODO|TRANSLATE|FIXME)\b/i;
+    // Sin la /i a propósito (2026-09-04): los marcadores de "pendiente de traducir" se escriben
+    // SIEMPRE en mayúsculas, mientras que "todo" es una palabra corrientísima en español — con la
+    // /i, una frase tan normal como "puedes cobrarlo todo o una parte" hacía fallar este test.
+    // Buscar solo mayúsculas mantiene la protección y deja de castigar al castellano.
+    const patronPendiente = /\b(TODO|TRANSLATE|FIXME)\b/;
     for (const [nombre, json] of [['es', es], ['en', en], ['uk', uk]] as const) {
       const pendientes = clavesPlanas(json).filter(clave => {
         const partes = clave.split('.');

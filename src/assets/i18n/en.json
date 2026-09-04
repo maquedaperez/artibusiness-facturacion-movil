@@ -5,7 +5,8 @@
       "close": "Close",
       "delete": "Delete",
       "yesContinue": "Yes, continue",
-      "back": "Back"
+      "back": "Back",
+      "continue": "Continue"
     },
     "states": {
       "calculating": "Calculating…"
@@ -227,7 +228,11 @@
           "noDisponibleDemo": "Card payment not available in demo mode.",
           "compartir": "Share payment link",
           "enlaceCopiado": "Payment link copied to clipboard."
-        }
+        },
+        "amountHeader": "How much have you collected?",
+        "amountMessage": "{{pendiente}} outstanding. You can collect all of it or part.",
+        "amountInvalid": "The amount must be greater than zero and no more than {{pendiente}}.",
+        "partiallyPaid": "Collected {{cobrado}} · {{pendiente}} outstanding"
       },
       "actions": {
         "posting": "Posting…",

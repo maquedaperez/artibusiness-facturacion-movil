@@ -195,6 +195,17 @@ export type FacturaEmitida = {
   // es esa tabla, esto nunca se fija a mano localmente salvo justo tras confirmar un cobro.
   // "Pagado, pendiente de contabilizar" = cobrada && estado==='borrador'.
   cobrada?: boolean;
+
+  // Cobros a plazos (issues #71 y #75, 2026-09-04). Vienen del LIBRO DE CAJA, que es la fuente de
+  // verdad compartida con el ARTIBusiness web — 'cobrada' es solo un resumen de si se llego al
+  // total, y con pagos parciales no basta: el usuario necesita ver cuanto lleva pagado y cuanto
+  // le falta.
+  //
+  // OPCIONALES a proposito: un backend anterior al PR 46 no los manda, y en ese caso la pantalla
+  // se comporta exactamente como antes. Eso es lo que permite desplegar esto sin coordinar nada:
+  // el dia que se publique el backend, los plazos aparecen solos.
+  importeCobrado?: number;
+  importePendiente?: number;
   // Envío por correo — solo último estado (sin histórico completo, ver
   // docs/FACTURAS_SIMPLIFICADAS_MVP.md del backend). Undefined si nunca se ha intentado enviar.
   emailUltimoEnvio?: string;

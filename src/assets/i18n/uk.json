@@ -5,7 +5,8 @@
       "close": "Закрити",
       "delete": "Видалити",
       "yesContinue": "Так, продовжити",
-      "back": "Назад"
+      "back": "Назад",
+      "continue": "Продовжити"
     },
     "states": {
       "calculating": "Обчислення…"
@@ -227,7 +228,11 @@
           "noDisponibleDemo": "Оплата карткою недоступна в демо-режимі.",
           "compartir": "Поділитися посиланням на оплату",
           "enlaceCopiado": "Посилання на оплату скопійовано в буфер обміну."
-        }
+        },
+        "amountHeader": "Скільки отримано?",
+        "amountMessage": "Залишається {{pendiente}}. Можна отримати все або частину.",
+        "amountInvalid": "Сума має бути більшою за нуль і не перевищувати {{pendiente}}.",
+        "partiallyPaid": "Отримано {{cobrado}} · залишається {{pendiente}}"
       },
       "actions": {
         "posting": "Проведення…",

@@ -152,6 +152,9 @@ type FacturaEmitidaDetalleApi = {
   suplidos: number;
   irpf: number;
   cobrada: number;
+  // Cobros a plazos (PR 46). Opcionales: un backend anterior no los manda.
+  importeCobrado?: number;
+  importePendiente?: number;
   fechaFactura: string;
   fechaVencimiento: string;
   idNumerador: number;
@@ -489,6 +492,10 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       estadoUltimoEnvio: dto.estadoUltimoEnvio === 'Enviado' || dto.estadoUltimoEnvio === 'Fallido' ? dto.estadoUltimoEnvio : undefined,
       errorUltimoEnvio: dto.errorUltimoEnvio ?? undefined,
       cobrada: dto.cobrada === 1,
+      // Se dejan en undefined si el backend no los manda (anterior al PR 46) — es lo que hace
+      // que la pantalla siga comportandose como antes hasta que se publique, sin ningun flag.
+      importeCobrado: dto.importeCobrado,
+      importePendiente: dto.importePendiente,
     };
   }
 

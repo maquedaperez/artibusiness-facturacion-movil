@@ -5,7 +5,8 @@
       "close": "Cerrar",
       "delete": "Eliminar",
       "yesContinue": "Sí, continuar",
-      "back": "Volver"
+      "back": "Volver",
+      "continue": "Continuar"
     },
     "states": {
       "calculating": "Calculando…"
@@ -227,7 +228,11 @@
           "noDisponibleDemo": "Cobro con tarjeta no disponible en modo demo.",
           "compartir": "Compartir enlace de pago",
           "enlaceCopiado": "Enlace de pago copiado al portapapeles."
-        }
+        },
+        "amountHeader": "¿Cuánto has cobrado?",
+        "amountMessage": "Queda pendiente {{pendiente}}. Puedes cobrarlo todo o una parte.",
+        "amountInvalid": "El importe tiene que ser mayor que cero y no pasar de {{pendiente}}.",
+        "partiallyPaid": "Cobrado {{cobrado}} · quedan {{pendiente}}"
       },
       "actions": {
         "posting": "Contabilizando…",

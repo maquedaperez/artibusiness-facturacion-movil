@@ -678,10 +678,42 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // cualquier emitida, no distingue por tipo. Si algún día se decide cobrar facturas completas
   // desde la app, se quita esta condición y el backend ya responde sin tocar nada.
   get puedeCobrar(): boolean {
-    return !!this.working
-      && this.working.esSimplificada === true
-      && this.working.estado === 'borrador'
-      && !this.working.cobrada;
+    if (!this.working || this.working.anulada) return false;
+
+    // Con un backend anterior al PR 46 no llega el pendiente, y entonces se mantiene EXACTAMENTE
+    // el comportamiento de antes: solo un ticket en borrador y sin cobrar. Es lo que permite
+    // desplegar esto sin coordinar con Jose — el dia que se publique el backend, los plazos y el
+    // cobro de facturas completas aparecen solos, sin encender ningun flag.
+    if (!this.soportaCobrosParciales) {
+      return this.working.esSimplificada === true
+        && this.working.estado === 'borrador'
+        && !this.working.cobrada;
+    }
+
+    // Ya con el backend nuevo: se cobra cualquier factura o ticket que no sea un borrador SIN
+    // GUARDAR y a la que le quede algo pendiente. Incluidas las CONTABILIZADAS — para una factura
+    // completa ese es justo el caso normal: se emite, se manda al cliente y se cobra a
+    // vencimiento.
+    return this.working.esBorradorLocal !== true && this.importePendiente > 0;
+  }
+
+  /** El backend manda el pendiente calculado desde el libro de caja (PR 46). */
+  get soportaCobrosParciales(): boolean {
+    return this.working?.importePendiente !== undefined;
+  }
+
+  get importeCobrado(): number {
+    return this.working?.importeCobrado ?? 0;
+  }
+
+  /** Lo que falta por cobrar. Sin backend nuevo se cae al total, que es lo que se cobraba antes. */
+  get importePendiente(): number {
+    return this.working?.importePendiente ?? this.totales().total;
+  }
+
+  /** Ni sin cobrar ni cobrada del todo: hay dinero dentro y todavia falta. */
+  get estaParcialmenteCobrada(): boolean {
+    return this.soportaCobrosParciales && this.importeCobrado > 0 && this.importePendiente > 0;
   }
 
   // El importe se manda tal cual lo calcula el propio formulario (nunca uno editable a mano) —
@@ -690,8 +722,46 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   async confirmarCobro() {
     if (!this.working || this.facturaId == null || this.algoEnCurso || !this.puedeCobrar) return;
 
-    const importe = this.totales().total;
+    // PASO 1 — cuanto. Solo con el backend nuevo: sin el no hay cobros parciales que pedir y el
+    // flujo se queda exactamente como estaba, en un solo dialogo.
+    //
+    // Va en un dialogo APARTE y no junto a los medios de pago por una limitacion de Ionic, no por
+    // gusto: su ion-alert no admite radios y campos de texto a la vez ("they cannot be mixed",
+    // dice su propio codigo). Y el importe viene ya escrito con el pendiente, asi que el caso
+    // normal —cobrarlo todo— sigue siendo aceptar.
+    let importe = this.importePendiente;
+    if (this.soportaCobrosParciales) {
+      const { confirmado: importeConfirmado, valor } = await pedirConfirmacion<{ importe: string }>(this.alertCtrl, {
+        header: this.transloco.translate('invoices.issued.cobros.amountHeader'),
+        message: this.transloco.translate('invoices.issued.cobros.amountMessage', {
+          pendiente: this.formatEuros(this.importePendiente),
+        }),
+        inputs: [{
+          name: 'importe',
+          type: 'number' as const,
+          value: this.importePendiente,
+          min: 0.01,
+          max: this.importePendiente,
+        }],
+        textoCancelar: this.transloco.translate('common.actions.cancel'),
+        textoConfirmar: this.transloco.translate('common.actions.continue'),
+      });
+      if (!importeConfirmado || this.algoEnCurso) return;
 
+      const escrito = Math.round(Number(valor?.importe) * 100) / 100;
+      // El 'max' del input es una ayuda, no una garantia: en varios navegadores se puede escribir
+      // por encima igualmente. La comprobacion de verdad la hace el backend; esto solo evita el
+      // viaje y da un mensaje mejor.
+      if (!Number.isFinite(escrito) || escrito <= 0 || escrito > this.importePendiente + 0.005) {
+        await this.showToast(this.transloco.translate('invoices.issued.cobros.amountInvalid', {
+          pendiente: this.formatEuros(this.importePendiente),
+        }), 'danger');
+        return;
+      }
+      importe = escrito;
+    }
+
+    // PASO 2 — como. Igual que siempre.
     const { confirmado, valor: medio } = await pedirConfirmacion<string>(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.cobros.header'),
       message: this.transloco.translate('invoices.issued.cobros.confirmMessage', { importe: this.formatEuros(importe) }),

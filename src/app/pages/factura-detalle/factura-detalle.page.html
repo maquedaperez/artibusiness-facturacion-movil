@@ -373,6 +373,16 @@
       <p class="ion-no-margin aviso-pagado-pendiente">{{ 'invoices.issued.cobros.pagadoPendienteDeContabilizar' | transloco }}</p>
     </ion-text>
 
+    <!-- Cobro a plazos (issues #71 y #75): ni sin cobrar ni cobrada del todo. Sin este aviso, una
+         factura con la mitad pagada se ve igual que una sin pagar nada, y el usuario no tiene
+         forma de saber cuanto le queda por cobrar. En 'warning' a proposito: no es un exito
+         (todavia falta dinero) pero tampoco un problema. -->
+    <ion-text color="warning" *ngIf="estaParcialmenteCobrada">
+      <p class="ion-no-margin aviso-pagado-pendiente">
+        {{ 'invoices.issued.cobros.partiallyPaid' | transloco: { cobrado: formatEuros(importeCobrado), pendiente: formatEuros(importePendiente) } }}
+      </p>
+    </ion-text>
+
     <!-- 'faltaConcepto' NO deshabilita este boton a proposito (2026-09-03): deshabilitarlo dejaba
          un boton muerto al final del formulario cuya unica explicacion estaba arriba del todo,
          fuera de pantalla. Ahora el clic entra y confirmarContabilizar() responde con un toast
