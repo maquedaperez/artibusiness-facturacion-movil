@@ -232,7 +232,8 @@
         "amountHeader": "¿Cuánto has cobrado?",
         "amountMessage": "Queda pendiente {{pendiente}}. Puedes cobrarlo todo o una parte.",
         "amountInvalid": "El importe tiene que ser mayor que cero y no pasar de {{pendiente}}.",
-        "partiallyPaid": "Cobrado {{cobrado}} · quedan {{pendiente}}"
+        "partiallyPaid": "Cobrado {{cobrado}} · quedan {{pendiente}}",
+        "sinMediosDisponibles": "No hay ningún medio de pago disponible para cobrar esto. Revísalo en la configuración de la empresa."
       },
       "actions": {
         "posting": "Contabilizando…",

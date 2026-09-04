@@ -211,7 +211,10 @@ describe('HttpIssuedInvoicesRepository — Fase 2 (listar/obtenerPorId reales)',
 
   it('obtenerMediosPago() devuelve {id, label}, no string[] (Fase 4)', async () => {
     const catalogo = await repo.obtenerMediosPago();
-    expect(catalogo).toEqual([{ id: 1, label: 'Transferencia' }]);
+    // formaPago y visibleEnTickets se anaden en el issue #76: la primera es lo que se guarda como
+    // "medio" al cobrar (la etiqueta completa no cabe en VARCHAR(30)); la segunda decide si el
+    // medio se ofrece en un ticket. Ambas quedan en undefined con un backend anterior.
+    expect(catalogo).toEqual([{ id: 1, label: 'Transferencia', formaPago: 'Transferencia', visibleEnTickets: undefined }]);
   });
 
   it('obtenerNumeradores() mapea el catálogo real de series', async () => {

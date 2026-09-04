@@ -112,7 +112,8 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return factura;
   }
 
-  async marcarComoCobrado(id: number, medio: string, importe: number): Promise<FacturaEmitida> {
+  // idMedioPago se ignora aqui a proposito: el modo mock no tiene libro de caja al que apuntarlo.
+  async marcarComoCobrado(id: number, medio: string, importe: number, _idMedioPago?: number): Promise<FacturaEmitida> {
     this.mock.marcarComoCobrado(id, medio, importe);
     const factura = this.mock.getFacturaById(id);
     if (!factura) throw new Error(`Factura ${id} no encontrada.`);

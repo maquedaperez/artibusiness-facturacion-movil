@@ -232,7 +232,8 @@
         "amountHeader": "How much have you collected?",
         "amountMessage": "{{pendiente}} outstanding. You can collect all of it or part.",
         "amountInvalid": "The amount must be greater than zero and no more than {{pendiente}}.",
-        "partiallyPaid": "Collected {{cobrado}} · {{pendiente}} outstanding"
+        "partiallyPaid": "Collected {{cobrado}} · {{pendiente}} outstanding",
+        "sinMediosDisponibles": "There is no payment method available for this. Check the company settings."
       },
       "actions": {
         "posting": "Posting…",

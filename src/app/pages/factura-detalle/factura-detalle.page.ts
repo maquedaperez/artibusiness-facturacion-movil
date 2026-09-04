@@ -114,6 +114,13 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // tarda o falla.
   mediosPago: MedioPagoOpcion[] = MEDIO_PAGO_OPTIONS.map((label, i) => ({ id: i + 1, label }));
 
+  // Si lo de arriba es el catalogo REAL de la empresa o el de respaldo (2026-09-04). Importa al
+  // cobrar: los ids del respaldo son inventados (1, 2, 3...) y mandarlos como idMedioPago
+  // apuntaria a medios de pago reales equivocados — el backend los aceptaria, porque existen, y
+  // el libro de caja quedaria con un medio que el usuario nunca eligio. Mejor no mandar ninguno y
+  // que la caja use el de la factura, como hacia antes.
+  catalogoMediosEsReal = false;
+
   working: FacturaEmitida | null = null;
   errorMsg = '';
 
@@ -130,6 +137,23 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): catálogo fijo de medios manuales —
   // coincide exactamente con lo que valida el backend (FacturacionFacturasEmitidasCobros.Medio).
   readonly MEDIOS_COBRO = ['EFECTIVO', 'TRANSFERENCIA', 'TPV_EXTERNA', 'TARJETA', 'BIZUM'];
+
+  /**
+   * Medios de pago que se ofrecen AL COBRAR (issue #76, 2026-09-04).
+   *
+   * Es el catalogo REAL de la empresa, no la lista fija de arriba. La lista fija se invento en el
+   * frontend y sus cinco valores no existen en ag_medios_pago, asi que no habia ningun id que
+   * mandar — y el libro de caja acababa guardando el medio de pago DE LA FACTURA en vez del que
+   * el usuario acababa de elegir. Con el catalogo real se manda el id y la caja dice la verdad.
+   *
+   * En un TICKET se filtra por visibleEnTickets: en el mostrador no tiene sentido ofrecer una
+   * domiciliacion. Si el backend todavia no manda esa marca (script 017 sin ejecutar), no se
+   * filtra nada y se comporta como hasta ahora.
+   */
+  get mediosDeCobroDisponibles(): MedioPagoOpcion[] {
+    if (!this.working?.esSimplificada) return this.mediosPago;
+    return this.mediosPago.filter(m => m.visibleEnTickets !== false);
+  }
 
   // Cobro con Stripe Connect (Fase 3, 2026-09-02) — NUNCA se muestra el botón sin haber
   // comprobado antes obtenerEstadoStripeConnect() (ver EstadoStripeConnect): mientras
@@ -248,7 +272,10 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
     }
     try {
       const mediosPago = await this.invoicesRepo.obtenerMediosPago();
-      if (mediosPago.length > 0) this.mediosPago = mediosPago;
+      if (mediosPago.length > 0) {
+        this.mediosPago = mediosPago;
+        this.catalogoMediosEsReal = true;
+      }
       // El ticket puede haberse creado antes de que llegara el catalogo real.
       this.autoseleccionarFormaDePagoDeUnTicket();
     } catch {
@@ -761,24 +788,47 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       importe = escrito;
     }
 
-    // PASO 2 — como. Igual que siempre.
-    const { confirmado, valor: medio } = await pedirConfirmacion<string>(this.alertCtrl, {
+    // PASO 2 — como. Con el catalogo REAL de la empresa (issue #76), no con una lista fija.
+    const medios = this.mediosDeCobroDisponibles;
+    if (medios.length === 0) {
+      await this.showToast(this.transloco.translate('invoices.issued.cobros.sinMediosDisponibles'), 'danger');
+      return;
+    }
+
+    const { confirmado, valor: idElegido } = await pedirConfirmacion<number>(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.cobros.header'),
       message: this.transloco.translate('invoices.issued.cobros.confirmMessage', { importe: this.formatEuros(importe) }),
-      inputs: this.MEDIOS_COBRO.map((m, i) => ({
+      inputs: medios.map((m, i) => ({
         type: 'radio' as const,
-        label: this.transloco.translate(`invoices.issued.cobros.medios.${m}`),
-        value: m,
+        label: m.label,
+        value: m.id,
         checked: i === 0,
       })),
       textoCancelar: this.transloco.translate('common.actions.cancel'),
       textoConfirmar: this.transloco.translate('invoices.issued.cobros.confirm'),
     });
-    if (!confirmado || !medio || this.algoEnCurso) return;
+    if (!confirmado || idElegido == null || this.algoEnCurso) return;
+
+    const elegido = medios.find(m => m.id === idElegido);
+    // No deberia pasar —el id sale de la propia lista— pero si pasara, el backend rechazaria el
+    // cobro con "el medio de pago es obligatorio" y el usuario no sabria por que. Mejor cortar
+    // aqui con un mensaje que tenga sentido.
+    if (!elegido) {
+      await this.showToast(this.transloco.translate('invoices.issued.cobros.sinMediosDisponibles'), 'danger');
+      return;
+    }
+
+    // 'medio' es la etiqueta legible que se guarda en nuestra tabla; el dato con el que se apunta
+    // en caja es el ID. Se recorta a 30 porque esa es la anchura real de la columna
+    // (Facturacion$FacturasEmitidasCobros.Medio es VARCHAR(30)) y la etiqueta completa, que
+    // incluye la cuenta, no cabria. Se prefiere la FORMA de pago —"Transferencia"— que es lo que
+    // de verdad significa "medio" aqui, y solo si no viniera se cae a la etiqueta entera.
+    const medio = (elegido.formaPago ?? elegido.label).slice(0, 30);
 
     this.marcandoCobrado = true;
     try {
-      this.working = await this.invoicesRepo.marcarComoCobrado(this.facturaId!, medio, importe);
+      this.working = await this.invoicesRepo.marcarComoCobrado(
+        this.facturaId!, medio, importe, this.catalogoMediosEsReal ? idElegido : undefined);
       this.marcarSinCambiosPendientes();
       await this.showToast(this.transloco.translate('invoices.issued.cobros.success'));
     } catch (e: any) {

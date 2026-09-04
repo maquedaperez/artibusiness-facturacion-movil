@@ -159,7 +159,7 @@ export abstract class IssuedInvoicesRepository {
   // ni registro fiscal por sí solo; devuelve la factura actualizada (con cobrada=true) para que
   // la pantalla la refresque sin tener que recargar la lista entera. medio: 'EFECTIVO' |
   // 'TRANSFERENCIA' | 'TPV_EXTERNA' | 'TARJETA' | 'BIZUM'.
-  abstract marcarComoCobrado(id: number, medio: string, importe: number): Promise<FacturaEmitida>;
+  abstract marcarComoCobrado(id: number, medio: string, importe: number, idMedioPago?: number): Promise<FacturaEmitida>;
 
   // Stripe Connect (Fase 3, 2026-09-02) — cobro de un ticket con tarjeta. A diferencia del
   // manual, aquí SIEMPRE hay que consultar obtenerEstadoStripeConnect() antes de ofrecer la

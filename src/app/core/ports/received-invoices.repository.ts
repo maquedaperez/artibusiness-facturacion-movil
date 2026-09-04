@@ -20,7 +20,16 @@ import { DocumentoBancarioAnalizado } from '../models/documento-bancario';
 // que haya devuelto listar() — ver facturas-recibidas.page.ts.
 // Opción del desplegable "Forma de pago" — id real del catálogo de la empresa (POST
 // /api/MediosPago/Enumerar) + una etiqueta ya lista para mostrar.
-export type MedioPagoOpcion = { id: number; label: string };
+// visibleEnTickets (issue #76, 2026-09-04): si este medio se ofrece al cobrar un TICKET. El
+// catalogo es UNO solo y hasta ahora se ofrecia entero en los dos sitios, asi que en el mostrador
+// aparecian formas de cobro sin sentido para una venta al publico (una domiciliacion, por
+// ejemplo). Opcional: un backend anterior al script 017 no lo manda, y entonces se trata como
+// visible — mismo criterio que el resto de campos nuevos, la pantalla no cambia hasta que el
+// backend este publicado.
+// 'formaPago' es el TIPO (Efectivo, Transferencia, Tarjeta...), mientras que 'label' anade ademas
+// la cuenta. Se expone aparte porque es lo que de verdad significa "medio de pago" al registrar un
+// cobro, y porque la columna que lo guarda es VARCHAR(30): la etiqueta completa no cabria.
+export type MedioPagoOpcion = { id: number; label: string; formaPago?: string; visibleEnTickets?: boolean };
 
 export type FiltrosListarRecibidas = {
   // Busca por nombre de proveedor (Enumerar: NombreProveedor, LIKE) — a diferencia del

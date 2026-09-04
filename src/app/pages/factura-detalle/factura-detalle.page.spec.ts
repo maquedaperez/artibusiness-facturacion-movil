@@ -325,21 +325,79 @@ describe('FacturaDetallePage', () => {
       expect(component.puedeCobrar).toBeFalse();
     });
 
-    it('confirmarCobro llama a marcarComoCobrado con el importe total real y el medio elegido, y refresca working', async () => {
+    // Issue #76 (2026-09-04): el dialogo ofrece el CATALOGO REAL de la empresa, no una lista fija
+    // inventada en el frontend, y manda el ID del medio elegido. Sin ese id, el libro de caja
+    // guardaba el medio de pago DE LA FACTURA en vez del que el usuario acababa de elegir.
+    it('confirmarCobro manda el ID del medio elegido y su forma de pago, y refresca working', async () => {
       component.facturaId = 3001;
       component.working = facturaBorrador();
+      component.mediosPago = [
+        { id: 7, label: 'Efectivo — Caja', formaPago: 'Efectivo' },
+        { id: 9, label: 'Transferencia — Banco', formaPago: 'Transferencia' },
+      ];
+      component.catalogoMediosEsReal = true;
       const importeEsperado = component.totales().total;
 
       const repo = TestBed.inject(IssuedInvoicesRepository);
       const spy = spyOn(repo, 'marcarComoCobrado').and.resolveTo(facturaBorrador({ cobrada: true }));
 
       const alertCtrl = TestBed.inject(AlertController);
-      simularConfirmacion(alertCtrl, 'EFECTIVO');
+      simularConfirmacion(alertCtrl, 9);
 
       await component.confirmarCobro();
 
-      expect(spy).toHaveBeenCalledWith(3001, 'EFECTIVO', importeEsperado);
+      // 'Transferencia' y no la etiqueta entera: la columna que lo guarda es VARCHAR(30) y lo que
+      // significa "medio" aqui es la FORMA de pago, no la cuenta.
+      expect(spy).toHaveBeenCalledWith(3001, 'Transferencia', importeEsperado, 9);
       expect(component.working?.cobrada).toBeTrue();
+    });
+
+    // Si el catalogo real no llego a cargar, el de respaldo tiene ids INVENTADOS (1, 2, 3...).
+    // Mandarlos como idMedioPago apuntaria a medios de pago reales equivocados —el backend los
+    // aceptaria, porque existen— y la caja quedaria con un medio que el usuario nunca eligio.
+    it('con el catalogo de respaldo NO se manda ningun id: la caja usa el de la factura', async () => {
+      component.facturaId = 3001;
+      component.working = facturaBorrador();
+      component.catalogoMediosEsReal = false;
+
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const spy = spyOn(repo, 'marcarComoCobrado').and.resolveTo(facturaBorrador({ cobrada: true }));
+      simularConfirmacion(TestBed.inject(AlertController), component.mediosPago[0].id);
+
+      await component.confirmarCobro();
+
+      expect(spy).toHaveBeenCalledWith(3001, jasmine.any(String), component.totales().total, undefined);
+    });
+
+    // En el mostrador no tiene sentido ofrecer una domiciliacion. El filtro es por tipo de
+    // documento, que es justo lo que pedia el issue #76.
+    it('en un TICKET solo se ofrecen los medios marcados como visibles en tickets', () => {
+      component.working = facturaBorrador({ esSimplificada: true });
+      component.mediosPago = [
+        { id: 7, label: 'Efectivo', visibleEnTickets: true },
+        { id: 9, label: 'Domiciliacion', visibleEnTickets: false },
+      ];
+
+      expect(component.mediosDeCobroDisponibles.map(m => m.id)).toEqual([7]);
+    });
+
+    it('en una factura COMPLETA se ofrecen todos, tambien los ocultos en tickets', () => {
+      component.working = facturaBorrador({ esSimplificada: false });
+      component.mediosPago = [
+        { id: 7, label: 'Efectivo', visibleEnTickets: true },
+        { id: 9, label: 'Domiciliacion', visibleEnTickets: false },
+      ];
+
+      expect(component.mediosDeCobroDisponibles.map(m => m.id)).toEqual([7, 9]);
+    });
+
+    // Con un backend anterior al script 017 no llega la marca, y entonces no se filtra nada: la
+    // pantalla se comporta exactamente como antes.
+    it('sin la marca del backend no se filtra nada', () => {
+      component.working = facturaBorrador({ esSimplificada: true });
+      component.mediosPago = [{ id: 7, label: 'Efectivo' }, { id: 9, label: 'Domiciliacion' }];
+
+      expect(component.mediosDeCobroDisponibles.map(m => m.id)).toEqual([7, 9]);
     });
 
     it('confirmarCobro no hace nada si la factura ya no se puede cobrar', async () => {

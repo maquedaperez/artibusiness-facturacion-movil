@@ -232,7 +232,8 @@
         "amountHeader": "Скільки отримано?",
         "amountMessage": "Залишається {{pendiente}}. Можна отримати все або частину.",
         "amountInvalid": "Сума має бути більшою за нуль і не перевищувати {{pendiente}}.",
-        "partiallyPaid": "Отримано {{cobrado}} · залишається {{pendiente}}"
+        "partiallyPaid": "Отримано {{cobrado}} · залишається {{pendiente}}",
+        "sinMediosDisponibles": "Немає доступного способу оплати. Перевірте налаштування компанії."
       },
       "actions": {
         "posting": "Проведення…",

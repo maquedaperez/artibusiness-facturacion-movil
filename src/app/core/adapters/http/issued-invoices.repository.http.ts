@@ -303,6 +303,8 @@ type MedioPagoApi = {
   idMedioPago: number;
   descFormaPago: string | null;
   descripcion: string | null;
+  // Issue #76. Opcional: un backend anterior al script 017 no lo manda.
+  visibleEnTickets?: boolean;
 };
 
 function etiquetaMedioPago(m: MedioPagoApi): string {
@@ -368,7 +370,12 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
   async obtenerMediosPago(): Promise<MedioPagoOpcion[]> {
     const catalogo = await this.obtenerMediosPagoApi();
-    return (catalogo ?? []).map(m => ({ id: m.idMedioPago, label: etiquetaMedioPago(m) }));
+    return (catalogo ?? []).map(m => ({
+      id: m.idMedioPago,
+      label: etiquetaMedioPago(m),
+      formaPago: m.descFormaPago?.trim() || undefined,
+      visibleEnTickets: m.visibleEnTickets,
+    }));
   }
 
   // Fase 4 del plan de integración (2026-08-20): catálogo real de series — sustituye los 2
@@ -874,14 +881,16 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   // contabilizar/firmar/anular/subsanar. idempotencyKey generada aquí mismo: un doble-tap en el
   // botón de confirmar reintenta con la MISMA clave (crypto.randomUUID por intento de usuario,
   // no por click) — ver confirmarCobro() en factura-detalle.page.ts.
-  async marcarComoCobrado(id: number, medio: string, importe: number): Promise<FacturaEmitida> {
+  async marcarComoCobrado(id: number, medio: string, importe: number, idMedioPago?: number): Promise<FacturaEmitida> {
     if (await this.esBorradorLocalSinGuardar(id)) {
       throw new Error(this.transloco.translate('verifactu.errors.guardarAntesDeCobrar'));
     }
 
     const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${id}-${Date.now()}`;
     const [dto, mediosPago] = await Promise.all([
-      this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Cobros`, { medio, importe, idempotencyKey }),
+      // idMedioPago es lo que acaba en el libro de caja (issue #76): sin el, la caja guardaba el
+      // medio de pago DE LA FACTURA en vez del que el usuario acaba de elegir al cobrar.
+      this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Cobros`, { medio, importe, idempotencyKey, idMedioPago }),
       this.obtenerMediosPagoApi(),
     ]);
     return this.mapearDetalle(dto, mediosPago ?? []);
