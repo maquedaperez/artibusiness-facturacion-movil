@@ -614,6 +614,7 @@
   "verifactu": {
     "estados": {
       "pendienteEnvio": "Pendiente de envío",
+      "pendienteReenvioTecnico": "Pendiente de reenvío (se reintenta solo)",
       "correcto": "Correcto",
       "aceptadoConErrores": "Aceptado con errores",
       "rechazadoAeat": "Rechazado por AEAT",

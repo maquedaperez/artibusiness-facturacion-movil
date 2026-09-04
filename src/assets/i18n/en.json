@@ -614,6 +614,7 @@
   "verifactu": {
     "estados": {
       "pendienteEnvio": "Pending submission",
+      "pendienteReenvioTecnico": "Pending resend (retries automatically)",
       "correcto": "Accepted",
       "aceptadoConErrores": "Accepted with errors",
       "rechazadoAeat": "Rejected by the AEAT",

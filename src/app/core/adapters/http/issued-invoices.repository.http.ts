@@ -63,6 +63,10 @@ function estadoAeatDesdeApi(valor: string | null | undefined): EstadoAeat | unde
   if (v === 'AceptadoConErrores') return 'AceptadoConErrores';
   if (v === 'Incorrecto') return 'RechazadoAeat';
   if (v === 'PendienteEnvio') return 'PendienteEnvio';
+  // Mismo caso que el anterior y por el mismo motivo (2026-09-04): un fallo de red al
+  // enviar, que FacturaE reintenta solo. Sin esto caia en el 'default' de abajo y se
+  // mostraba como "Requiere revision manual", alarmando por algo que se arregla solo.
+  if (v === 'PendienteReenvioTecnico') return 'PendienteReenvioTecnico';
   return 'RequiereRevisionManual';
 }
 

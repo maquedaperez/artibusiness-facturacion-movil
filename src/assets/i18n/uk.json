@@ -614,6 +614,7 @@
   "verifactu": {
     "estados": {
       "pendienteEnvio": "Очікує відправлення",
+      "pendienteReenvioTecnico": "Очікує повторного надсилання (автоматично)",
       "correcto": "Прийнято",
       "aceptadoConErrores": "Прийнято з помилками",
       "rechazadoAeat": "Відхилено AEAT",

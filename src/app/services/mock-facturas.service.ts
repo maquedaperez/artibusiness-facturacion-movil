@@ -4,7 +4,13 @@ import { PaginaResultado } from '../shared/types/pagination';
 import { DOCUMENTO_DE_BORRADOR_DISPONIBLE } from '../core/providers/funcionalidades-pendientes';
 
 export type EstadoFactura = 'borrador' | 'contabilizada' | 'firmada';
-export type EstadoAeat = 'PendienteEnvio' | 'Correcto' | 'AceptadoConErrores' | 'RechazadoAeat' | 'RequiereRevisionManual';
+// 'PendienteReenvioTecnico' (2026-09-04): fallo de RED al enviar a la AEAT, que el propio
+// FacturaE reintenta solo (VerifactuRetryDispatcher). Es tan transitorio y tan normal como
+// 'PendienteEnvio' — su codigo los trata juntos: `estadoReal is "PendienteEnvio" or
+// "PendienteReenvioTecnico"`. Faltaba aqui, asi que caia en el 'default' del mapeo y se le
+// enseñaba al usuario como "Requiere revision manual": exactamente el mismo mensaje
+// engañoso que ya se corrigio en su dia para PendienteEnvio.
+export type EstadoAeat = 'PendienteEnvio' | 'PendienteReenvioTecnico' | 'Correcto' | 'AceptadoConErrores' | 'RechazadoAeat' | 'RequiereRevisionManual';
 
 export type Numerador = {
   id: number;
@@ -403,6 +409,7 @@ export type FacturaRecibida = {
 // al usuario pasa por Transloco.
 const ESTADO_AEAT_LABEL_KEYS: Record<EstadoAeat, string> = {
   PendienteEnvio: 'verifactu.estados.pendienteEnvio',
+  PendienteReenvioTecnico: 'verifactu.estados.pendienteReenvioTecnico',
   Correcto: 'verifactu.estados.correcto',
   AceptadoConErrores: 'verifactu.estados.aceptadoConErrores',
   RechazadoAeat: 'verifactu.estados.rechazadoAeat',

@@ -20,7 +20,7 @@ import {
 } from 'ionicons/icons';
 
 import {
-  AccionesPermitidas, FacturaEmitida, Destinatario, Numerador,
+  AccionesPermitidas, EstadoAeat, FacturaEmitida, Destinatario, Numerador,
   IVA_RATES, MEDIO_PAGO_OPTIONS,
 } from '../../services/mock-facturas.service';
 import { IssuedInvoicesRepository, MedioPagoOpcion } from '../../core/ports';
@@ -208,7 +208,12 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // solo puede mejorar lo que se ve. Si falla —sin conexión, o el endpoint todavía sin
   // desplegar— el repositorio devuelve null y aquí no pasa nada.
   private async refrescarEstadoAeatSiSigueEnVuelo() {
-    if (this.facturaId == null || this.working?.estadoAeat !== 'PendienteEnvio') return;
+    // Los DOS estados en vuelo, no solo uno: 'PendienteReenvioTecnico' es un fallo de red al
+    // enviar que FacturaE reintenta por su cuenta, y su propio código los trata juntos
+    // (`estadoReal is "PendienteEnvio" or "PendienteReenvioTecnico"`). Refrescar solo el primero
+    // habría dejado el segundo congelado para siempre, que es justo el bug que esto corrige.
+    const enVuelo: (EstadoAeat | undefined)[] = ['PendienteEnvio', 'PendienteReenvioTecnico'];
+    if (this.facturaId == null || !enVuelo.includes(this.working?.estadoAeat)) return;
 
     const actualizada = await this.invoicesRepo.refrescarEstadoAeat(this.facturaId);
     if (!actualizada) return;

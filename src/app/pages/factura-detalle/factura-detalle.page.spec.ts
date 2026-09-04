@@ -1153,6 +1153,19 @@ describe('FacturaDetallePage', () => {
       expect(component.working!.estadoAeat).toBe('Correcto');
     });
 
+    // Hallazgo de la segunda revision del PR 44: 'PendienteReenvioTecnico' es el OTRO estado en
+    // vuelo (un fallo de red al enviar, que FacturaE reintenta solo) y el codigo de FacturaE los
+    // trata juntos. Refrescar solo 'PendienteEnvio' lo habria dejado congelado para siempre.
+    it('tambien pregunta si esta pendiente de reenvio tecnico', async () => {
+      prepararComponente(contabilizada('PendienteReenvioTecnico'));
+      const spy = spyOn(repo, 'refrescarEstadoAeat').and.resolveTo(contabilizada('Correcto'));
+
+      await component['refrescarEstadoAeatSiSigueEnVuelo']();
+
+      expect(spy).toHaveBeenCalledWith(80);
+      expect(component.working!.estadoAeat).toBe('Correcto');
+    });
+
     // Una factura ya resuelta no cambia de estado nunca mas: preguntarlo seria una llamada
     // gratis en cada apertura.
     it('NO pregunta si el estado ya esta resuelto', async () => {
