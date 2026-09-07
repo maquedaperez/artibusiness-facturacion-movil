@@ -112,6 +112,30 @@ export class TenantService {
     }
   }
 
+  /**
+   * Si el backend al que se está hablando es un entorno de PRUEBAS (2026-09-07).
+   *
+   * Lo decide la URL que ha resuelto el dispatcher para esta empresa, NO el build: la misma
+   * build de producción puede acabar en Development o en Producción según la clave, así que
+   * mirar `environment.production` mentiría en la mitad de los casos.
+   *
+   * SE DECIDE EN NEGATIVO A PROPÓSITO — "es de pruebas salvo que se demuestre lo contrario" no
+   * vale aquí, pero lo contrario tampoco: si no hay configuración resuelta todavía, se asume
+   * pruebas. Vale más un cartel de más en producción que un cliente real creyendo que sus
+   * facturas son simuladas... o al revés: alguien probando sin darse cuenta de que está
+   * emitiendo contra la AEAT de verdad.
+   *
+   * El criterio es el nombre del host. Es simple pero es el que hay: los backends por empresa
+   * los reparte el dispatcher y no existe ninguna marca en la respuesta que diga el entorno. Si
+   * algún día se añade una, esto debería leerla en vez de mirar la URL.
+   */
+  async esEntornoDePruebas(): Promise<boolean> {
+    const config = await this.getTenantConfig();
+    const url = (config?.baseUrl ?? '').toLowerCase();
+    if (!url) return true;
+    return url.includes('development') || url.includes('localhost') || url.includes('staging');
+  }
+
   async isTenantKeyValid(clave: string): Promise<boolean> {
     try {
       await this.fetchAndCacheConfig(clave);

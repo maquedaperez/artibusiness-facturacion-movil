@@ -1,9 +1,10 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonChip, IonIcon, IonLabel } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { informationCircleOutline } from 'ionicons/icons';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { TenantService } from '../../services/tenant.service';
 
 // Indicador único y reutilizable del entorno de esta demo: por defecto avisa de que los
 // datos son simulados (la mayoría de módulos todavía lo son), pero el texto es
@@ -16,7 +17,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
   standalone: true,
   imports: [CommonModule, TranslocoPipe, IonChip, IonIcon, IonLabel],
   template: `
-    <ion-chip color="medium" class="demo-banner">
+    <ion-chip color="medium" class="demo-banner" *ngIf="esEntornoDePruebas">
       <ion-icon name="information-circle-outline"></ion-icon>
       <ion-label>{{ titulo || ('common.demoBanner.default' | transloco) }}<ng-container *ngIf="detalle">, {{ detalle }}</ng-container></ion-label>
     </ion-chip>
@@ -33,7 +34,22 @@ import { TranslocoPipe } from '@jsverse/transloco';
     }
   `],
 })
-export class DemoBannerComponent {
+export class DemoBannerComponent implements OnInit {
+  private tenant = inject(TenantService);
+
+  // SOLO se pinta si el backend resuelto es de pruebas (2026-09-07). Antes estaba fijo: se veia
+  // "Modo demo: entorno de pruebas" pasara lo que pasara, en cinco pantallas. En cuanto la app
+  // paso a apuntar a Produccion, eso significaba un cliente real —y el revisor de Apple— leyendo
+  // que sus facturas, las que se registran en la AEAT de verdad, son simuladas.
+  //
+  // Arranca en true: si por lo que sea no se llega a resolver, mejor un cartel de mas que dejar a
+  // alguien probando sin saber que esta emitiendo contra la AEAT real.
+  esEntornoDePruebas = true;
+
+  async ngOnInit() {
+    this.esEntornoDePruebas = await this.tenant.esEntornoDePruebas();
+  }
+
   // Configurable por página, no por un flag global: distintos módulos pueden estar en
   // estados distintos a la vez (Recibidas ya habla con el backend real de Development;
   // otros siguen siendo mock puro) — cada página sabe la verdad sobre sus propios datos,
