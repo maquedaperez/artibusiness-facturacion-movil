@@ -247,8 +247,15 @@
 
     <!-- Facturas simplificadas emitidas (MVP, 2026-08-31): QR de cotejo AEAT + envío/reenvío
          del PDF por correo — solo tiene sentido una vez contabilizada (el PDF/QR se generan y
-         publican al contabilizar, ver FacturaEmitidaAeatService.ContabilizarAsync). -->
-    <ion-card *ngIf="f.esSimplificada && f.estado !== 'borrador'">
+         publican al contabilizar, ver FacturaEmitidaAeatService.ContabilizarAsync).
+
+         YA NO SOLO EN TICKETS (2026-09-07). Nació en la fase de simplificadas y se quedó atada a
+         ellas, pero el issue #72 pide mandarle la factura al cliente sin distinguir tipo, y el
+         backend nunca ha hecho esa distinción: FacturaEmitidaEmailService solo exige que exista
+         el PDF, y ContabilizarAsync lo publica para cualquier factura. Era el front el que no
+         ofrecía el botón en una completa — justo donde más falta hace, porque un ticket se
+         entrega en mano y una factura completa hay que hacérsela llegar al cliente. -->
+    <ion-card *ngIf="f.estado !== 'borrador'">
       <ion-card-content>
         <div class="section-title">{{ 'invoices.issued.simplified.emailSection' | transloco }}</div>
 
@@ -286,6 +293,10 @@
              DEBAJO del envio por correo (2026-09-07, pedido probando la app): la tarjeta se
              titula "Envio por correo", asi que abrirla con un boton de descargar descolocaba —
              ahora se lee en orden, primero a quien se le manda y luego la copia para uno mismo. -->
+        <!-- El texto cambia en una FIRMADA porque lo que se descarga cambia: descargar() da el
+             .xsig, no el PDF. Con la tarjeta atada a tickets esto no podia pasar —una
+             simplificada no se firma nunca— y al abrirla a completas un boton que pone
+             "Descargar factura" habria entregado un XML de firma. -->
         <ion-button
           expand="block"
           class="ion-margin-top"
@@ -293,7 +304,7 @@
           (click)="descargar()"
         >
           <ion-icon slot="start" name="download-outline"></ion-icon>
-          {{ 'invoices.issued.simplified.downloadInvoice' | transloco }}
+          {{ (f.estado === 'firmada' ? 'invoices.issued.actions.downloadXsigAria' : 'invoices.issued.simplified.downloadInvoice') | transloco }}
         </ion-button>
       </ion-card-content>
     </ion-card>

@@ -1906,6 +1906,51 @@ describe('FacturaDetallePage', () => {
       return fixture.nativeElement.textContent as string;
     }
 
+    // ISSUE #72 — mandarle la factura al cliente. La tarjeta de envio nacio en la fase de
+    // simplificadas y se quedo atada a ellas, pero el issue no distingue tipo y el backend
+    // tampoco: FacturaEmitidaEmailService solo exige que exista el PDF, y ContabilizarAsync lo
+    // publica para cualquier factura. Era el front el que no ofrecia el boton en una completa,
+    // justo donde mas falta hace — un ticket se entrega en mano; una factura completa hay que
+    // hacersela llegar al cliente.
+    describe('envio por correo (#72)', () => {
+      it('una factura COMPLETA contabilizada ofrece enviarla por correo', async () => {
+        const texto = await textoEnPantalla(ticket({ esSimplificada: false }));
+
+        expect(texto).toContain('Envío por correo');
+      });
+
+      it('un ticket contabilizado la sigue ofreciendo', async () => {
+        const texto = await textoEnPantalla(ticket());
+
+        expect(texto).toContain('Envío por correo');
+      });
+
+      // Antes de contabilizar no hay PDF que mandar: lo genera y publica ContabilizarAsync.
+      it('un borrador NO la ofrece: todavia no hay documento que enviar', async () => {
+        const texto = await textoEnPantalla(ticket({ estado: 'borrador' }));
+
+        expect(texto).not.toContain('Envío por correo');
+      });
+
+      // descargar() da el .xsig en una firmada, no el PDF. Mientras la tarjeta era solo de
+      // tickets esto no podia pasar —una simplificada no se firma nunca— y al abrirla a
+      // completas un boton que pusiera "Descargar factura" habria entregado un XML de firma.
+      it('en una FIRMADA el boton dice que lo que baja es el .xsig', async () => {
+        const texto = await textoEnPantalla(ticket({
+          esSimplificada: false, estado: 'firmada', tieneXsig: true,
+        }));
+
+        expect(texto).toContain('.xsig');
+        expect(texto).not.toContain('Descargar factura');
+      });
+
+      it('en una CONTABILIZADA sigue diciendo "Descargar factura"', async () => {
+        const texto = await textoEnPantalla(ticket({ esSimplificada: false }));
+
+        expect(texto).toContain('Descargar factura');
+      });
+    });
+
     it('el destinatario de un ticket es solo "Consumidor final", sin tipo ni explicaciones', async () => {
       const texto = await textoEnPantalla(ticket());
 
