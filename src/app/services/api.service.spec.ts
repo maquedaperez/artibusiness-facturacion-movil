@@ -71,4 +71,56 @@ describe('ApiService — a qué backend habla la app', () => {
 
     expect(await resolver()).toBe('https://con-barra.example.com');
   });
+
+  // El desvio por el proxy de Netlify en el despliegue de la rama de pruebas (2026-09-07).
+  //
+  // Los App Service tienen una lista blanca de CORS que no incluye https://pruebas--..., asi que
+  // desde ahi el navegador corta hasta el login. Reenviando por el propio origen no hay CORS.
+  //
+  // Lo que de verdad importa de estos tests no es que el desvio funcione, sino que NO SE ACTIVE
+  // en ningun otro sitio: si se colara en produccion, todo el trafico real pasaria por un proxy
+  // que solo existe para probar.
+  describe('proxy de la rama de pruebas', () => {
+    const DEV = 'https://webapiartibusinessdevelopment-e8htgkdhhhfpbeem.westeurope-01.azurewebsites.net';
+    const PRO = 'https://webapiartibusiness-dvh6d7b8a7c9dsfr.westeurope-01.azurewebsites.net';
+    const HOST_PRUEBAS = 'pruebas--artibusiness-facturacion.netlify.app';
+
+    function desviar(baseUrl: string, hostname: string): string {
+      return (service as unknown as {
+        baseUrlDePruebas(b: string, h: string): string;
+      }).baseUrlDePruebas(baseUrl, hostname);
+    }
+
+    it('en la URL de pruebas, Development va por su proxy', () => {
+      expect(desviar(DEV, HOST_PRUEBAS)).toBe('/be-dev');
+    });
+
+    // El nombre de Development CONTIENE el de produccion como prefijo. Si el orden de las
+    // comprobaciones se invirtiera, una prueba acabaria hablando con el backend real.
+    it('en la URL de pruebas, Producción va por el SUYO, no por el de Development', () => {
+      expect(desviar(PRO, HOST_PRUEBAS)).toBe('/be-pro');
+    });
+
+    it('en producción NO se desvía nada', () => {
+      expect(desviar(DEV, 'artibusiness-facturacion.netlify.app')).toBe(DEV);
+      expect(desviar(PRO, 'artibusiness-facturacion.netlify.app')).toBe(PRO);
+    });
+
+    it('en local NO se desvía nada', () => {
+      expect(desviar(DEV, 'localhost')).toBe(DEV);
+    });
+
+    // En nativo no hay CORS que esquivar y 'location' no significa lo mismo: se sale antes.
+    it('en móvil NO se desvía nada, aunque el host lo pareciera', () => {
+      spyOn(Capacitor, 'isNativePlatform').and.returnValue(true);
+
+      expect(desviar(DEV, HOST_PRUEBAS)).toBe(DEV);
+    });
+
+    // El dispatcher puede devolver el backend de otra empresa. No lo conocemos, no hay proxy
+    // para el: se deja pasar tal cual en vez de mandarlo a un prefijo que no existe.
+    it('un backend desconocido se deja pasar directo', () => {
+      expect(desviar('https://otro-backend.example.com', HOST_PRUEBAS)).toBe('https://otro-backend.example.com');
+    });
+  });
 });

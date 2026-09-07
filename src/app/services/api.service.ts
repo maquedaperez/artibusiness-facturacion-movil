@@ -67,7 +67,51 @@ export class ApiService {
     // por /setup) cae al mismo fallback fijo que usaba el proxy hasta ahora, para no dejar
     // la app completamente inutilizable.
     const config = await this.tenant.getTenantConfig();
-    return (config?.baseUrl ?? environment.defaultBaseUrl ?? '').replace(/\/$/, '');
+    const baseUrl = (config?.baseUrl ?? environment.defaultBaseUrl ?? '').replace(/\/$/, '');
+    return this.baseUrlDePruebas(baseUrl);
+  }
+
+  /**
+   * Desvia las llamadas por el proxy de Netlify CUANDO Y SOLO CUANDO se esta en el despliegue de
+   * la rama de pruebas (2026-09-07). En cualquier otro sitio devuelve la URL tal cual.
+   *
+   * POR QUE HACE FALTA. Los dos App Service tienen activada la funcion CORS de Azure, que anula
+   * el AllowAnyOrigin del codigo de la API. La lista blanca de Development solo tiene dada de
+   * alta la URL de produccion de Netlify, asi que desde https://pruebas--... el navegador corta
+   * la llamada antes de que salga y no se puede ni entrar.
+   *
+   * Reenviando por el propio origen no hay CORS: Netlify hace la llamada al backend desde su
+   * servidor, y entre servidores esto no existe. Mismo truco que ya usa el dispatcher.
+   *
+   * SE MIRA EL HOST, NO UNA BANDERA DE BUILD, a proposito: es la misma build de produccion la
+   * que se despliega en las dos URLs, asi que environment.production no distingue nada. El host
+   * si, y ademas hace imposible que esto se active donde no debe — en produccion, en local o en
+   * el movil la condicion es simplemente falsa. En nativo se sale antes de tocar 'location',
+   * que ahi no significa lo mismo.
+   *
+   * ES UN APAÑO TEMPORAL. La solucion de verdad es dar de alta el origen en el App Service
+   * (Azure Portal -> API -> CORS). En cuanto Jose lo haga, esto y
+   * scripts/generar-redirects-de-pruebas.mjs se borran los dos: son las dos mitades de la misma
+   * tuberia, y los prefijos tienen que coincidir.
+   *
+   * El host entra por parametro y no se lee dentro para que los tests puedan probar las dos
+   * situaciones: 'location' es global y sobreescribirlo en Karma rompe mas de lo que arregla.
+   */
+  private baseUrlDePruebas(
+    baseUrl: string,
+    hostname = typeof location !== 'undefined' ? location.hostname : '',
+  ): string {
+    if (Capacitor.isNativePlatform()) return baseUrl;
+    if (!hostname.startsWith('pruebas--')) return baseUrl;
+
+    const url = baseUrl.toLowerCase();
+    // Development primero: su nombre CONTIENE el de produccion como prefijo, asi que al reves
+    // una prueba acabaria hablando con el backend real.
+    if (url.includes('webapiartibusinessdevelopment')) return '/be-dev';
+    if (url.includes('webapiartibusiness-')) return '/be-pro';
+    // Un backend que no conocemos (otra empresa del dispatcher): se deja pasar directo. Fallara
+    // por CORS igual que ahora, pero no se rompe nada que hoy funcione.
+    return baseUrl;
   }
 
   private buildHeaders(extra?: Record<string, string>, opts?: { defaultJson?: boolean }): Record<string, string> {
