@@ -450,6 +450,66 @@ describe('FacturaDetallePage', () => {
       expect(inputs.filter(i => i.checked).map(i => i.value)).toEqual([7]);
     });
 
+    // EL BUG (reportado probando la app, 2026-09-07): "en tickets sale ya en borrador marcar como
+    // cobrado, y si lo pulsas te sale un toast de aviso en rojo de debe guardar una factura antes
+    // de darla como cobrada". Un boton que solo servia para dar un error.
+    it('un ticket sin guardar se guarda solo antes de cobrar, en vez de fallar', async () => {
+      component.facturaId = -1;
+      component.working = facturaBorrador({ id: -1, esBorradorLocal: true });
+      component.mediosPago = [{ id: 7, label: 'Efectivo — Caja', formaPago: 'Efectivo' }];
+      component.catalogoMediosEsReal = true;
+
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      // guardar() devuelve la factura YA con su id real del servidor, y confirmarCobro tiene que
+      // cobrar contra ESE id, no contra el -1 local.
+      spyOn(repo, 'guardar').and.resolveTo(facturaBorrador({ id: 4002 }));
+      const cobrar = spyOn(repo, 'marcarComoCobrado').and.resolveTo(facturaBorrador({ id: 4002, cobrada: true }));
+
+      simularConfirmacion(TestBed.inject(AlertController), 7);
+
+      await component.confirmarCobro();
+
+      expect(cobrar).toHaveBeenCalledWith(4002, 'Efectivo', jasmine.any(Number), 7);
+    });
+
+    // Si el guardado falla no se cobra: guardar() ya ha explicado el motivo con su propio toast, y
+    // seguir adelante daria el error confuso de antes.
+    it('si el guardado previo falla, no se registra el cobro', async () => {
+      component.facturaId = -1;
+      component.working = facturaBorrador({ id: -1, esBorradorLocal: true });
+      component.mediosPago = [{ id: 7, label: 'Efectivo — Caja', formaPago: 'Efectivo' }];
+
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      spyOn(repo, 'guardar').and.rejectWith(new Error('el servidor no la acepta'));
+      const cobrar = spyOn(repo, 'marcarComoCobrado');
+
+      simularConfirmacion(TestBed.inject(AlertController), 7);
+
+      await component.confirmarCobro();
+
+      expect(cobrar).not.toHaveBeenCalled();
+    });
+
+    // A DIFERENCIA DE CONTABILIZAR, aqui no basta con que haya cambios sin guardar: una factura a
+    // plazos con un cobro ya registrado no admite ediciones (el backend responde 409), asi que un
+    // Guardar de mas justo antes del segundo plazo abortaria el cobro entero. Solo se guarda lo
+    // que NO EXISTE todavia en el servidor.
+    it('una factura ya guardada no se vuelve a guardar, aunque tenga cambios sin guardar', async () => {
+      component.facturaId = 3001;
+      component.working = facturaBorrador({ concepto: 'editado y sin guardar' });
+      component.mediosPago = [{ id: 7, label: 'Efectivo — Caja', formaPago: 'Efectivo' }];
+
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const guardar = spyOn(repo, 'guardar');
+      spyOn(repo, 'marcarComoCobrado').and.resolveTo(facturaBorrador({ cobrada: true }));
+
+      simularConfirmacion(TestBed.inject(AlertController), 7);
+
+      await component.confirmarCobro();
+
+      expect(guardar).not.toHaveBeenCalled();
+    });
+
     it('confirmarCobro no hace nada si la factura ya no se puede cobrar', async () => {
       component.facturaId = 3001;
       component.working = facturaBorrador({ cobrada: true });

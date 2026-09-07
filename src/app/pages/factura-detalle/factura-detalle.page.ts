@@ -837,6 +837,27 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
     // de verdad significa "medio" aqui, y solo si no viniera se cae a la etiqueta entera.
     const medio = (elegido.formaPago ?? elegido.label).slice(0, 30);
 
+    // Se guarda antes si hace falta, IGUAL QUE CONTABILIZAR (2026-09-07). Reportado probando la
+    // app: en un ticket recien creado salia "Marcar como cobrado", y al pulsarlo respondia con un
+    // toast rojo de "guarda la factura antes de darla como cobrada" — un boton que solo servia
+    // para dar un error. La factura todavia no existia en el servidor, asi que no habia nada a lo
+    // que enganchar el cobro.
+    //
+    // Se resuelve guardando y no escondiendo el boton porque el ticket es justo el flujo del
+    // mostrador —crear, cobrar, contabilizar, seguido— y obligar a pasar por "Guardar borrador"
+    // en medio es un paso que no aporta nada. Es lo que ya hace confirmarContabilizar() desde el
+    // 2026-09-02; aqui faltaba.
+    //
+    // SOLO el borrador local, y NO 'hayCambiosSinGuardar' como en Contabilizar: aqui esa segunda
+    // condicion seria peligrosa. Una factura a plazos con un cobro ya registrado no admite
+    // ediciones —el backend responde 409— asi que un Guardar de mas justo antes del segundo plazo
+    // abortaria el cobro entero. Contabilizar puede permitirselo porque para entonces la factura
+    // o no tiene cobros o ya esta cobrada del todo y deja de ser editable.
+    if (this.working?.esBorradorLocal === true) {
+      const guardadoOk = await this.guardar(false);
+      if (!guardadoOk) return; // guardar() ya mostro el motivo del fallo
+    }
+
     this.marcandoCobrado = true;
     try {
       this.working = await this.invoicesRepo.marcarComoCobrado(
