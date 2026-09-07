@@ -84,6 +84,13 @@
   white-space: nowrap;
 }
 
+// El numero identifica la factura, pero el cliente es lo que se busca primero: mismo renglon,
+// mas ligero y en gris, para que se lea despues sin competir con el nombre.
+.num-factura {
+  font-weight: 400;
+  color: var(--ion-color-medium);
+}
+
 .total {
   font-weight: 700;
   font-size: 14.5px;

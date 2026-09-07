@@ -666,3 +666,27 @@ describe('duplicar() fecha la copia con el dia LOCAL, no con el UTC', () => {
     if (mismaFranja) expect(local).toBe(utc);
   });
 });
+
+// Orden por CONTABILIZACION (2026-09-07, segunda vuelta). Reportado probando la app: "al pasar
+// cualquier borrador a contabilizadas se pierde en la lista". Contabilizar no cambia la fecha de
+// la factura, asi que un borrador fechado en julio sigue apareciendo en julio aunque lo acabes de
+// registrar. idVerifactu si marca ese momento: lo asigna la AEAT al contabilizar y es secuencial.
+describe('masRecientePrimero — ordena por cuando se contabilizo', () => {
+  const f = (id: number, fecha: string, idVerifactu?: number) => ({ id, fecha, idVerifactu } as any);
+
+  const ordenar = (...xs: any[]) => [...xs].sort(masRecientePrimero).map(x => x.id);
+
+  // EL CASO DEL BUG: una factura vieja contabilizada AHORA tiene que salir arriba.
+  it('lo contabilizado despues va primero, aunque su fecha sea mas antigua', () => {
+    expect(ordenar(f(1, '2026-09-07', 100), f(2, '2026-07-01', 200))).toEqual([2, 1]);
+  });
+
+  // Se activa solo: mientras Enumerar no mande idVerifactu, manda la fecha como hasta ahora.
+  it('sin idVerifactu el orden es el de antes, por fecha', () => {
+    expect(ordenar(f(1, '2026-07-01'), f(2, '2026-09-07'))).toEqual([2, 1]);
+  });
+
+  it('los borradores, que nunca lo tienen, siguen ordenandose por fecha', () => {
+    expect(ordenar(f(1, '2026-09-01'), f(2, '2026-09-05'))).toEqual([2, 1]);
+  });
+});

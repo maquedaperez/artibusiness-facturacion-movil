@@ -1356,6 +1356,43 @@ describe('FacturaDetallePage', () => {
         expect(component.estaParcialmenteCobrada).toBeFalse();
       });
 
+      // EL RESTO DE REDONDEO (visto probando la app, 2026-09-07): al abrir una factura ya
+      // cobrada entera salia "quedan 0,00 €" y AUN ASI seguia ofreciendo cobrar, con el dialogo
+      // proponiendo 0,0022. El pendiente sale de restar el total real —guardado con mas decimales
+      // de los que se enseñan— menos lo apuntado en caja, que va al centimo.
+      describe('un resto por debajo del centimo no es dinero pendiente', () => {
+        const CON_RESTO = { estado: 'contabilizada' as const, importeCobrado: 95.37, importePendiente: 0.0022 };
+
+        it('el pendiente se redondea a 0', () => {
+          component.working = ticketBorrador(CON_RESTO);
+
+          expect(component.importePendiente).toBe(0);
+        });
+
+        it('ya no se ofrece cobrar', () => {
+          component.working = ticketBorrador({ ...CON_RESTO, esSimplificada: false });
+
+          expect(component.puedeCobrar).toBeFalse();
+        });
+
+        it('y cuenta como cobrada del todo', () => {
+          component.working = ticketBorrador(CON_RESTO);
+
+          expect(component.estaCobradaDelTodo).toBeTrue();
+          expect(component.estaParcialmenteCobrada).toBeFalse();
+        });
+
+        // Un centimo SI es dinero: el redondeo no puede tragarse una deuda real.
+        it('un centimo pendiente sigue siendo cobrable', () => {
+          component.working = ticketBorrador({
+            estado: 'contabilizada', esSimplificada: false, importeCobrado: 95.36, importePendiente: 0.01,
+          });
+
+          expect(component.importePendiente).toBe(0.01);
+          expect(component.puedeCobrar).toBeTrue();
+        });
+      });
+
       // EL BUG DEL HTTP 500 (reproducido en la app, 2026-09-07): con un borrador cobrado a
       // medias seguia saliendo la papelera, y al pulsarla el backend respondia 500 — choca con
       // la clave foranea de Facturacion$FacturasEmitidasCobros, que no tiene ON DELETE CASCADE.

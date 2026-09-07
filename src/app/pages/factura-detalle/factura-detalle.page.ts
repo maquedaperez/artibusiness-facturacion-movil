@@ -33,6 +33,14 @@ import { PuedeSalirDeLaPantalla } from '../../guards/cambios-sin-guardar.guard';
 import { pedirConfirmacion } from '../../shared/utils/confirmacion';
 import { RECTIFICATIVAS_DISPONIBLES, SUBSANACION_DISPONIBLE } from '../../core/providers/funcionalidades-pendientes';
 
+/**
+ * Redondea a centimos. El euro no tiene mas divisiones, asi que cualquier resto por debajo de eso
+ * es aritmetica, no dinero (2026-09-07). Ver importePendiente() para el caso real que lo motiva.
+ */
+function aCentimos(importe: number): number {
+  return Math.round(importe * 100) / 100;
+}
+
 @Component({
   selector: 'app-factura-detalle',
   templateUrl: './factura-detalle.page.html',
@@ -749,12 +757,25 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   }
 
   get importeCobrado(): number {
-    return this.working?.importeCobrado ?? 0;
+    return aCentimos(this.working?.importeCobrado ?? 0);
   }
 
-  /** Lo que falta por cobrar. Sin backend nuevo se cae al total, que es lo que se cobraba antes. */
+  /**
+   * Lo que falta por cobrar, REDONDEADO A CENTIMOS. Sin backend nuevo se cae al total, que es lo
+   * que se cobraba antes.
+   *
+   * EL REDONDEO NO ES COSMETICO (2026-09-07, visto probando la app). Al abrir una factura ya
+   * cobrada entera salia "Cobrado 95,37 € · quedan 0,00 €" y AUN ASI seguia ofreciendo cobrar,
+   * con el dialogo diciendo "Queda pendiente 0,00 €" y 0,0022 escrito en el importe. Es un resto
+   * de redondeo: el pendiente sale de restar el total real —que se guarda con mas decimales de
+   * los que se enseñan— menos lo apuntado en caja, que va al centimo. Quedaba una fraccion de
+   * centimo y "mayor que cero" la tomaba por dinero pendiente.
+   *
+   * No existe una deuda de 0,0022 €. Redondeando aqui, todo lo que depende del pendiente
+   * —ofrecer cobrar, darla por cobrada, el aviso de cobro parcial— dice lo mismo que la pantalla.
+   */
   get importePendiente(): number {
-    return this.working?.importePendiente ?? this.totales().total;
+    return aCentimos(this.working?.importePendiente ?? this.totales().total);
   }
 
   /** Ni sin cobrar ni cobrada del todo: hay dinero dentro y todavia falta. */

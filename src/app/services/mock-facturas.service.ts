@@ -206,6 +206,11 @@ export type FacturaEmitida = {
   // el dia que se publique el backend, los plazos aparecen solos.
   importeCobrado?: number;
   importePendiente?: number;
+  // Id del registro VERI*FACTU que la AEAT asigna AL CONTABILIZAR — secuencial y global para la
+  // empresa. Es la unica marca de "cuando se contabilizo" que existe: la fecha de la factura no
+  // cambia al contabilizarla. Lo usa el orden del listado (ver masRecientePrimero). Solo lo
+  // rellena el adaptador real, y solo desde que Enumerar lo devuelva.
+  idVerifactu?: number;
   // Envío por correo — solo último estado (sin histórico completo, ver
   // docs/FACTURAS_SIMPLIFICADAS_MVP.md del backend). Undefined si nunca se ha intentado enviar.
   emailUltimoEnvio?: string;

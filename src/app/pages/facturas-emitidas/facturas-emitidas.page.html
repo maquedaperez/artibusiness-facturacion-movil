@@ -81,8 +81,16 @@
   <div class="facturas-list" *ngIf="!cargando && !errorCarga">
     <ion-card *ngFor="let f of facturasFiltradas" button (click)="abrir(f)" class="factura-card">
       <ion-card-content>
+        <!-- El numero, al lado del cliente (2026-09-07, pedido probando la app). Media lista son
+             "Consumidor final" —todos los tickets lo son— asi que sin el numero las tarjetas no
+             se distinguen entre si, y localizar una concreta obligaba a abrirlas una por una.
+             En gris y detras del cliente: identifica, pero el cliente sigue siendo lo primero
+             que se lee. -->
         <div class="row-top">
-          <div class="titulo">{{ clienteNombre(f) }}</div>
+          <div class="titulo">
+            {{ clienteNombre(f) }}
+            <span class="num-factura" *ngIf="f.numFactura">· {{ f.numFactura }}</span>
+          </div>
           <div class="total">{{ formatEuros(totalFactura(f)) }}</div>
         </div>
 

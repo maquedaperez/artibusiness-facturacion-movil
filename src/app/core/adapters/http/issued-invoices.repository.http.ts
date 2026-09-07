@@ -92,19 +92,35 @@ const PAGINA_TAMANO = 50;
  * ser por clave primaria ascendente, o sea el más antiguo primero. El recién contabilizado
  * quedaba al final del bloque de hoy, que es justo donde no se busca.
  *
- * Tres criterios, en este orden:
+ * SEGUNDA VUELTA (2026-09-07): con solo la fecha seguía perdiéndose lo recién contabilizado.
+ * "Al pasar cualquier borrador a contabilizadas se pierde en la lista y tengo que hacer scroll
+ * para buscarla". El motivo: contabilizar NO cambia la fecha de la factura, así que un borrador
+ * fechado el 1 de julio sigue apareciendo en julio aunque lo acabes de registrar ahora mismo.
+ *
+ * Lo que sí marca el momento de contabilizar es `idVerifactu`: el id del registro VERI*FACTU,
+ * que lo asigna la AEAT al contabilizar y es secuencial y global para la empresa (lo pone
+ * FacturaEmitidaAeatService al contabilizar). Ordenar por él es literalmente "por orden de
+ * contabilización", que es lo que se pidió, y no depende de la serie — a diferencia del número
+ * de factura, donde cada serie lleva su propio contador y FAR-290 y FS-120 no son comparables.
+ *
+ * Cuatro criterios, en este orden:
  *   1. Un borrador local sin guardar es lo más nuevo que existe: acaba de crearse en este
  *      dispositivo y todavía no está en el servidor.
- *   2. Fecha de factura, la más reciente primero — el criterio de siempre.
- *   3. A igualdad de fecha, el id más alto. `id_FacturaEmitida` es IDENTITY, así que un id mayor
- *      es una factura creada después. Es lo que ordena el bloque de hoy.
+ *   2. Orden de contabilización (idVerifactu), el más alto primero. Un borrador no lo tiene, así
+ *      que entre borradores este criterio no desempata nada y se pasa al siguiente.
+ *   3. Fecha de factura, la más reciente primero — el criterio de siempre, y el único que ordena
+ *      la pestaña de borradores.
+ *   4. A igualdad de todo, el id más alto: `id_FacturaEmitida` es IDENTITY, un id mayor es una
+ *      factura creada después.
  *
- * OJO CON LO QUE ESTO *NO* ES: no es "última modificación" de verdad. Contabilizar o cobrar una
- * factura con fecha antigua no la sube — su fecha sigue siendo la que es. Para eso haría falta
- * que el backend devolviera una fecha de modificación en Enumerar, que hoy no existe.
+ * El criterio 2 SE ACTIVA SOLO: mientras Enumerar no mande idVerifactu, vale 0 para todas y el
+ * orden es exactamente el de antes. En cuanto el backend lo incluya, las contabilizadas pasan a
+ * ordenarse por cuándo se contabilizaron sin tocar nada aquí.
  */
 export function masRecientePrimero(a: FacturaEmitida, b: FacturaEmitida): number {
   if (!!a.esBorradorLocal !== !!b.esBorradorLocal) return a.esBorradorLocal ? -1 : 1;
+  const porContabilizacion = (b.idVerifactu ?? 0) - (a.idVerifactu ?? 0);
+  if (porContabilizacion !== 0) return porContabilizacion;
   const porFecha = b.fecha.localeCompare(a.fecha);
   if (porFecha !== 0) return porFecha;
   return b.id - a.id;
@@ -134,6 +150,10 @@ type FacturaEmitidaCabeceraApi = {
   // solo vale 1 al llegar al total, asi que en el listado un borrador a medias cobrado pasa por
   // no cobrado y se sigue ofreciendo borrarlo (el backend lo rechaza, pero es un boton muerto).
   importeCobrado?: number;
+  // Id del registro VERI*FACTU, que la AEAT asigna AL CONTABILIZAR y es secuencial y global para
+  // la empresa. Es la unica señal de "cuando se contabilizo" que existe hoy — la fecha no vale,
+  // porque contabilizar no la cambia. Opcional mientras Enumerar no lo mande (2026-09-07).
+  idFacturaVerifactu?: number | null;
   estado: number;
   estadoAeat: string | null;
   // Blindaje Fase 7 (2026-08-21): mismo motivo real que ya trae el detalle.
@@ -464,6 +484,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       idCliente: dto.idCliente,
       totalesReales: this.totalesDesdeApi(dto.total, dto.iva, dto.irpf, dto.totalFactura),
       importeCobrado: dto.importeCobrado,
+      idVerifactu: dto.idFacturaVerifactu ?? undefined,
       anulada: dto.idAnulacionVerifactu != null,
       fechaAnulacion: dto.fechaAnulacion ? dto.fechaAnulacion.slice(0, 10) : undefined,
       subsanada: dto.idSubsanacionVerifactu != null,
