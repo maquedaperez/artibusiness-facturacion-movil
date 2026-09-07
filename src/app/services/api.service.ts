@@ -41,19 +41,21 @@ export class ApiService {
     return Number.isFinite(empresaId) ? empresaId : null;
   }
 
+  // MISMA RESOLUCIÓN EN MÓVIL Y EN WEB (2026-09-07). Hasta hoy el nativo NO miraba lo que
+  // devolvía el dispatcher: se iba directo a environment.defaultBaseUrl, que apuntaba a
+  // Development. Era un atajo puesto a propósito, con su aviso de "revertir en cuanto el jefe
+  // publique OCR en Producción".
+  //
+  // BUG REAL QUE PROVOCABA (reportado por Jose, 2026-09-06): tras publicar todo en Producción,
+  // el iPhone seguía ejecutando contra Development aunque el dispatcher devolviera Producción.
+  // Y con una clave RECIÉN CREADA ('artisoftware'), que nunca había estado en Development,
+  // también. Eso es lo que descartaba la caché y señalaba aquí: con ese atajo, la URL no
+  // dependía de la clave en absoluto — NINGUNA clave podía llevar el móvil a Producción.
+  //
+  // Ahora las dos plataformas resuelven igual: la URL sale del dispatcher, según la clave de
+  // empresa. Que es lo que el dispatcher existe para hacer.
   private async resolveBaseUrl(): Promise<string> {
-    if (Capacitor.isNativePlatform()) {
-      // ⚠️ TEMPORAL: forzamos Development porque DocumentoController (OCR) todavía no está
-      // publicado en Producción. Sin esto, el nativo resolvía el baseUrl real (Producción)
-      // vía la clave de empresa mientras Netlify seguía apuntando a Development — mismo
-      // usuario/clave, dos bases de datos distintas, y el login fallaba solo en el móvil.
-      // Revertir a `(await this.tenant.getTenantConfig())?.baseUrl` en cuanto el jefe
-      // publique OCR en Producción.
-      return (environment.defaultBaseUrl ?? '').replace(/\/$/, '');
-    }
-
-    // Web (2026-08-20): resuelve la URL real contra el dispatcher, mismo mecanismo que ya
-    // usa nativo — TenantService.getTenantConfig() ya cachea lo que devolvió
+    // TenantService.getTenantConfig() ya cachea lo que devolvió
     // /config-api/configuration para la clave introducida en /setup (Netlify lo proxea sin
     // CORS, ver netlify.toml). Ya no depende del redirect estático /api/* (retirado):
     // ahora la llamada va directa, cross-origin, al backend real que haya resuelto la
