@@ -14,10 +14,26 @@
 # Ya no hace falta: api.service.ts resuelve la URL real del backend contra este mismo
 # dispatcher (TenantService.getTenantConfig(), según la clave introducida en /setup) y llama
 # directo, cross-origin, sin pasar por Netlify — ver el comentario en
-# ApiService.resolveBaseUrl(). El backend (WebAPIARTIBusiness) ya admite CORS de cualquier
-# origen (AllowAnyOrigin/AllowAnyMethod/AllowAnyHeader) y la app ya no manda
-# credentials:'include' (no hace falta, la sesión va por Bearer token) — esa combinación es
-# la que antes habría bloqueado la respuesta por CORS.
+# ApiService.resolveBaseUrl(). La app ya no manda credentials:'include' (no hace falta, la
+# sesión va por Bearer token), que es lo que antes habría bloqueado la respuesta por CORS.
+#
+# CORRECCIÓN 2026-09-07 — aquí ponía que "el backend ya admite CORS de cualquier origen
+# (AllowAnyOrigin/AllowAnyMethod/AllowAnyHeader)". ES FALSO, y costó una tarde. Ese
+# AllowAnyOrigin está en el código de la API pero NO SE APLICA: los dos App Service tienen
+# activada la función CORS de Azure, y cuando eso pasa Azure la impone y anula por completo
+# el CORS de la aplicación (dicho en la propia documentación de App Service: "App Service CORS
+# takes precedence and your own CORS code has no effect").
+#
+# Lo que hay de verdad es una LISTA BLANCA en Azure, por App Service. Comprobado con
+# preflights reales el 2026-09-07:
+#   - Development admite https://artibusiness-facturacion.netlify.app y nada más de lo probado.
+#   - Producción NO admite ese origen. La web no puede hablar con producción desde el navegador.
+# El móvil no se entera de nada de esto: en nativo las llamadas van por CapacitorHttp, que no
+# es el fetch del navegador y no hace preflight.
+#
+# Para dar de alta un origen: Azure Portal -> App Service -> API -> CORS. Los comodines de
+# subdominio (https://*.netlify.app) SÍ se admiten, pero solo desde la CLI
+# (az webapp cors add --allowed-origins '...'), el portal no deja escribirlos.
 [[redirects]]
   from = "/config-api/configuration"
   to = "https://configurationapidispatcher-h2g0g4amcgdmaddh.westeurope-01.azurewebsites.net/api/configuration"
