@@ -1319,22 +1319,49 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // (el documento legalmente vigente a partir de ahí) en vez del PDF -- sin un botón aparte
   // para esto, que confundía con un icono de seguridad genérico (2026-08-28). Compartir sigue
   // mandando siempre el PDF, sea cual sea el estado.
+  /**
+   * El boton del pie: da lo que corresponde al estado. En una firmada, el .xsig.
+   *
+   * Se mantiene tal cual estaba para no cambiar el comportamiento del icono de siempre, pero
+   * ahora delega en los dos metodos explicitos de abajo, que son los que usa la tarjeta de envio
+   * — ahi si hace falta pedir un documento CONCRETO y no "lo que toque".
+   */
   async descargar() {
     if (!this.working) return;
-    if (this.working.estado === 'firmada') {
-      if (!this.working.tieneXsig) {
-        await this.showToast(this.transloco.translate('invoices.issued.download.xsigNotReady'), 'danger');
-        return;
-      }
-      try {
-        const blob = await this.invoicesRepo.obtenerXsigReal(this.working.id);
-        descargarBlob(blob, `Factura-${this.working.numFactura}.xsig`);
-        await this.showToast(this.transloco.translate('invoices.issued.download.xsigSuccess'));
-      } catch {
-        await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
-      }
+    if (this.working.estado === 'firmada') return this.descargarXsig();
+    return this.descargarPdf();
+  }
+
+  /**
+   * El .xsig: el XML de Facturae ya firmado. Es lo que piden las administraciones y las
+   * plataformas de facturacion electronica, no algo que se lea.
+   */
+  async descargarXsig() {
+    if (!this.working) return;
+    if (!this.working.tieneXsig) {
+      await this.showToast(this.transloco.translate('invoices.issued.download.xsigNotReady'), 'danger');
       return;
     }
+    try {
+      const blob = await this.invoicesRepo.obtenerXsigReal(this.working.id);
+      descargarBlob(blob, `Factura-${this.working.numFactura}.xsig`);
+      await this.showToast(this.transloco.translate('invoices.issued.download.xsigSuccess'));
+    } catch {
+      await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
+    }
+  }
+
+  /**
+   * El PDF: la factura que se lee, se imprime y se le manda al cliente.
+   *
+   * EXISTE TAMBIEN EN UNA FIRMADA (2026-09-07). UrlPdf solo se escribe al contabilizar y firmar
+   * no la toca, asi que el PDF sigue ahi. Hasta ahora no habia forma de bajarlo desde la
+   * pantalla: en firmada, tanto el icono del pie como el boton de la tarjeta daban el .xsig. El
+   * resultado era absurdo — el usuario podia MANDARLE el PDF al cliente por correo (que es lo
+   * que adjunta FacturaEmitidaEmailService, siempre el PDF) pero no podia verlo el.
+   */
+  async descargarPdf() {
+    if (!this.working) return;
     if (this.working.estado !== 'borrador' && !this.working.tienePdf) {
       await this.showToast(this.transloco.translate('invoices.issued.download.pdfNotReady'), 'danger');
       return;

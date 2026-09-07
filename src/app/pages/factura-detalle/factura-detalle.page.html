@@ -293,18 +293,34 @@
              DEBAJO del envio por correo (2026-09-07, pedido probando la app): la tarjeta se
              titula "Envio por correo", asi que abrirla con un boton de descargar descolocaba —
              ahora se lee en orden, primero a quien se le manda y luego la copia para uno mismo. -->
-        <!-- El texto cambia en una FIRMADA porque lo que se descarga cambia: descargar() da el
-             .xsig, no el PDF. Con la tarjeta atada a tickets esto no podia pasar —una
-             simplificada no se firma nunca— y al abrirla a completas un boton que pone
-             "Descargar factura" habria entregado un XML de firma. -->
+        <!-- LOS DOS DOCUMENTOS, no uno u otro (2026-09-07). Antes, en una firmada tanto este
+             boton como el icono del pie daban el .xsig, y el PDF se quedaba sin forma de
+             bajarlo — cuando el PDF SIGUE AHI (UrlPdf se escribe al contabilizar y firmar no la
+             toca) y es justo lo que el correo de al lado le manda al cliente. O sea que se podia
+             enviar la factura y no verla uno mismo.
+
+             El PDF primero porque es el documento que se lee y se imprime; el .xsig es el XML
+             firmado que piden las administraciones, util pero no para mirarlo. -->
         <ion-button
           expand="block"
           class="ion-margin-top"
-          [disabled]="descargaDeshabilitada(f)"
-          (click)="descargar()"
+          [disabled]="f.estado !== 'borrador' && !f.tienePdf"
+          (click)="descargarPdf()"
         >
           <ion-icon slot="start" name="download-outline"></ion-icon>
-          {{ (f.estado === 'firmada' ? 'invoices.issued.actions.downloadXsigAria' : 'invoices.issued.simplified.downloadInvoice') | transloco }}
+          {{ 'invoices.issued.simplified.downloadInvoice' | transloco }}
+        </ion-button>
+
+        <ion-button
+          *ngIf="f.estado === 'firmada'"
+          expand="block"
+          fill="outline"
+          class="ion-margin-top"
+          [disabled]="!f.tieneXsig"
+          (click)="descargarXsig()"
+        >
+          <ion-icon slot="start" name="download-outline"></ion-icon>
+          {{ 'invoices.issued.actions.downloadXsigAria' | transloco }}
         </ion-button>
       </ion-card-content>
     </ion-card>

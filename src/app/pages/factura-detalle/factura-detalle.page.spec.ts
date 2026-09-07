@@ -1932,22 +1932,49 @@ describe('FacturaDetallePage', () => {
         expect(texto).not.toContain('Envío por correo');
       });
 
-      // descargar() da el .xsig en una firmada, no el PDF. Mientras la tarjeta era solo de
-      // tickets esto no podia pasar —una simplificada no se firma nunca— y al abrirla a
-      // completas un boton que pusiera "Descargar factura" habria entregado un XML de firma.
-      it('en una FIRMADA el boton dice que lo que baja es el .xsig', async () => {
+      // EL ABSURDO QUE HABIA (2026-09-07): en una firmada, tanto el icono del pie como el boton
+      // de la tarjeta daban el .xsig, asi que el PDF no habia forma de bajarlo. Y el PDF sigue
+      // ahi —UrlPdf se escribe al contabilizar y firmar no la toca— y es justo lo que el correo
+      // de al lado le manda al cliente: se podia ENVIAR la factura y no verla uno mismo.
+      it('una FIRMADA ofrece los DOS documentos, el PDF y el .xsig', async () => {
         const texto = await textoEnPantalla(ticket({
-          esSimplificada: false, estado: 'firmada', tieneXsig: true,
+          esSimplificada: false, estado: 'firmada', tienePdf: true, tieneXsig: true,
         }));
 
+        expect(texto).toContain('Descargar factura');
         expect(texto).toContain('.xsig');
-        expect(texto).not.toContain('Descargar factura');
       });
 
-      it('en una CONTABILIZADA sigue diciendo "Descargar factura"', async () => {
+      // El .xsig solo existe despues de firmar: en una contabilizada ofrecerlo seria un boton
+      // muerto.
+      it('una CONTABILIZADA ofrece el PDF y NO el .xsig', async () => {
         const texto = await textoEnPantalla(ticket({ esSimplificada: false }));
 
         expect(texto).toContain('Descargar factura');
+        expect(texto).not.toContain('.xsig');
+      });
+
+      it('descargarPdf pide el PDF real aunque la factura este firmada', async () => {
+        component.working = ticket({ esSimplificada: false, estado: 'firmada', tienePdf: true, tieneXsig: true });
+        const repo = TestBed.inject(IssuedInvoicesRepository);
+        const pdf = spyOn(repo, 'obtenerPdfReal').and.resolveTo(new Blob(['pdf']));
+        const xsig = spyOn(repo, 'obtenerXsigReal');
+
+        await component.descargarPdf();
+
+        expect(pdf).toHaveBeenCalledWith(70);
+        expect(xsig).not.toHaveBeenCalled();
+      });
+
+      // El icono del pie no cambia: sigue dando lo que corresponde al estado.
+      it('el boton de siempre sigue dando el .xsig en una firmada', async () => {
+        component.working = ticket({ esSimplificada: false, estado: 'firmada', tienePdf: true, tieneXsig: true });
+        const repo = TestBed.inject(IssuedInvoicesRepository);
+        const xsig = spyOn(repo, 'obtenerXsigReal').and.resolveTo(new Blob(['xsig']));
+
+        await component.descargar();
+
+        expect(xsig).toHaveBeenCalledWith(70);
       });
     });
 
@@ -1992,16 +2019,19 @@ describe('FacturaDetallePage', () => {
       expect(texto).not.toContain('QR');
     });
 
-    it('el boton de descargar llama a descargar()', async () => {
+    // Antes llamaba a descargar(), que decide segun el estado. Ahora pide el PDF EXPLICITAMENTE
+    // (2026-09-07): en una firmada, "lo que toque" era el .xsig, y este boton pone "Descargar
+    // factura". Un boton que promete una factura tiene que dar una factura.
+    it('el boton de la tarjeta pide el PDF, no "lo que toque"', async () => {
       await textoEnPantalla(ticket());
-      const descargarSpy = spyOn(component, 'descargar');
+      const pdfSpy = spyOn(component, 'descargarPdf');
 
       const botones = fixture.debugElement.queryAll(By.css('ion-button'));
       const boton = botones.find(b => (b.nativeElement.textContent as string).includes('Descargar factura'));
       expect(boton).withContext('debe existir el boton de descarga').toBeDefined();
       boton!.nativeElement.click();
 
-      expect(descargarSpy).toHaveBeenCalled();
+      expect(pdfSpy).toHaveBeenCalled();
     });
   });
 });
