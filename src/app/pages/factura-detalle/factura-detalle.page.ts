@@ -793,14 +793,28 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       return;
     }
 
+    // Llega marcada la forma de pago DE LA FACTURA (2026-09-07). Antes era 'i === 0', que no
+    // significaba nada: el primero del catalogo resulta ser "Sin Cargo", asi que el valor por
+    // defecto de un cobro era justo el que dice que no se cobra nada.
+    //
+    // La cabecera de la factura y este dialogo preguntan contra el MISMO catalogo, y chirria que
+    // se pregunte dos veces. No son lo mismo —la cabecera es como se acordo cobrar y va impresa
+    // en la factura; esto es por donde ha entrado el dinero de verdad, que es lo que se apunta en
+    // caja, y a plazos cada plazo puede entrar por una via distinta— pero en el caso normal
+    // coinciden. Trayendola ya marcada, cobrar vuelve a ser simplemente aceptar, y solo hay que
+    // tocar algo cuando la realidad fue otra. Por eso se mantienen los dos sitios.
+    const preseleccionado = medios.some(m => m.id === this.working?.idMedioPago)
+      ? this.working!.idMedioPago
+      : medios[0].id;
+
     const { confirmado, valor: idElegido } = await pedirConfirmacion<number>(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.cobros.header'),
       message: this.transloco.translate('invoices.issued.cobros.confirmMessage', { importe: this.formatEuros(importe) }),
-      inputs: medios.map((m, i) => ({
+      inputs: medios.map(m => ({
         type: 'radio' as const,
         label: m.label,
         value: m.id,
-        checked: i === 0,
+        checked: m.id === preseleccionado,
       })),
       textoCancelar: this.transloco.translate('common.actions.cancel'),
       textoConfirmar: this.transloco.translate('invoices.issued.cobros.confirm'),

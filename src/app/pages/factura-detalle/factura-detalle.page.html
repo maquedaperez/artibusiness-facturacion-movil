@@ -375,9 +375,11 @@
 
     <!-- Cobro a plazos (issues #71 y #75): ni sin cobrar ni cobrada del todo. Sin este aviso, una
          factura con la mitad pagada se ve igual que una sin pagar nada, y el usuario no tiene
-         forma de saber cuanto le queda por cobrar. En 'warning' a proposito: no es un exito
-         (todavia falta dinero) pero tampoco un problema. -->
-    <ion-text color="warning" *ngIf="estaParcialmenteCobrada">
+         forma de saber cuanto le queda por cobrar.
+
+         En 'primary' y no en 'warning' (2026-09-07): el amarillo sobre blanco no se leia. Y de
+         paso dice mejor lo que es —un dato del estado del cobro, no un aviso de que algo va mal. -->
+    <ion-text color="primary" *ngIf="estaParcialmenteCobrada">
       <p class="ion-no-margin aviso-pagado-pendiente">
         {{ 'invoices.issued.cobros.partiallyPaid' | transloco: { cobrado: formatEuros(importeCobrado), pendiente: formatEuros(importePendiente) } }}
       </p>

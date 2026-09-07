@@ -400,6 +400,56 @@ describe('FacturaDetallePage', () => {
       expect(component.mediosDeCobroDisponibles.map(m => m.id)).toEqual([7, 9]);
     });
 
+    // REPORTADO PROBANDO LA APP (2026-09-07): "al confirmar el cobro vuelve a preguntar el metodo
+    // de pago, que ya lo recogia en el formulario inicial". Se mantienen los dos sitios —la
+    // cabecera es como se ACORDO cobrar y va impresa en la factura; esto es por donde entro el
+    // dinero de verdad, que es lo que se apunta en caja— pero el dialogo llega ya marcado con el
+    // de la factura, asi que en el caso normal cobrar es solo aceptar.
+    //
+    // Y de paso arregla algo peor que se veia en esa misma captura: 'checked: i === 0' marcaba el
+    // primero del catalogo, que resulta ser "Sin Cargo". El valor por defecto de un cobro era el
+    // que dice que no se cobra nada.
+    it('el dialogo llega marcado con la forma de pago de la factura, no con el primero', async () => {
+      component.facturaId = 3001;
+      component.working = facturaBorrador({ idMedioPago: 9 });
+      component.mediosPago = [
+        { id: 4, label: 'Sin Cargo — _' },
+        { id: 7, label: 'Efectivo — Caja', formaPago: 'Efectivo' },
+        { id: 9, label: 'Transferencia — Banco', formaPago: 'Transferencia' },
+      ];
+
+      const alertCtrl = TestBed.inject(AlertController);
+      const create = spyOn(alertCtrl, 'create').and.resolveTo({
+        present: async () => {}, onDidDismiss: async () => ({ role: 'cancel' }),
+      } as any);
+
+      await component.confirmarCobro();
+
+      const inputs = create.calls.mostRecent().args[0]!.inputs as any[];
+      expect(inputs.filter(i => i.checked).map(i => i.value)).toEqual([9]);
+    });
+
+    // Si la factura trae una forma de pago que no esta entre las cobrables (o no trae ninguna),
+    // hay que marcar algo igualmente: se cae al primero, como antes.
+    it('si la forma de pago de la factura no esta en la lista, marca la primera', async () => {
+      component.facturaId = 3001;
+      component.working = facturaBorrador({ idMedioPago: 999 });
+      component.mediosPago = [
+        { id: 7, label: 'Efectivo — Caja' },
+        { id: 9, label: 'Transferencia — Banco' },
+      ];
+
+      const alertCtrl = TestBed.inject(AlertController);
+      const create = spyOn(alertCtrl, 'create').and.resolveTo({
+        present: async () => {}, onDidDismiss: async () => ({ role: 'cancel' }),
+      } as any);
+
+      await component.confirmarCobro();
+
+      const inputs = create.calls.mostRecent().args[0]!.inputs as any[];
+      expect(inputs.filter(i => i.checked).map(i => i.value)).toEqual([7]);
+    });
+
     it('confirmarCobro no hace nada si la factura ya no se puede cobrar', async () => {
       component.facturaId = 3001;
       component.working = facturaBorrador({ cobrada: true });
