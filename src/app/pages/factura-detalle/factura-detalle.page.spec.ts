@@ -1355,6 +1355,51 @@ describe('FacturaDetallePage', () => {
         component.working = ticketBorrador({ importeCobrado: 121, importePendiente: 0 });
         expect(component.estaParcialmenteCobrada).toBeFalse();
       });
+
+      // A PLAZOS SOLO LA FACTURA COMPLETA (confirmado por Abraham, 2026-09-07). Un ticket es una
+      // venta de mostrador: se cobra entero en el momento. Preguntarle el importe a cada ticket
+      // mete un paso de mas en el flujo mas rapido y mas repetido de la app.
+      describe('a un ticket no se le cobran plazos', () => {
+        it('el ticket NO cobra a plazos, aunque el backend sepa de pendientes', () => {
+          component.working = ticketBorrador({ estado: 'contabilizada', importeCobrado: 0, importePendiente: 121 });
+
+          expect(component.soportaCobrosParciales).toBeTrue();
+          expect(component.cobraAPlazos).toBeFalse();
+        });
+
+        it('la factura completa si', () => {
+          component.working = ticketBorrador({
+            esSimplificada: false, estado: 'contabilizada', importeCobrado: 0, importePendiente: 121,
+          });
+
+          expect(component.cobraAPlazos).toBeTrue();
+        });
+
+        // Que no se pregunte el importe no significa cobrar el total a ciegas: se cobra lo que
+        // quede pendiente. Importa si alguna vez llega un ticket con un cobro hecho desde la web
+        // antigua, que apunta en la misma caja.
+        it('cobrar un ticket no pregunta el importe y manda el pendiente', async () => {
+          component.working = ticketBorrador({ estado: 'contabilizada', importeCobrado: 21, importePendiente: 100 });
+          component.facturaId = component.working.id;
+          component.mediosPago = [{ id: 1, label: 'Efectivo — Caja', formaPago: 'Efectivo' }];
+
+          const repo = TestBed.inject(IssuedInvoicesRepository);
+          const cobrar = spyOn(repo, 'marcarComoCobrado').and.resolveTo(ticketBorrador({ cobrada: true }));
+          const alertCtrl = TestBed.inject(AlertController);
+          const create = spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => ({
+            present: async () => {},
+            onDidDismiss: async () => ({
+              role: opts.buttons.find((b: any) => b.role !== 'cancel').role, data: { values: 1 },
+            }),
+          } as any));
+
+          await component.confirmarCobro();
+
+          // UN solo dialogo: el de elegir medio. Si volviera el de "cuanto has cobrado" serian dos.
+          expect(create).toHaveBeenCalledTimes(1);
+          expect(cobrar).toHaveBeenCalledWith(90, 'Efectivo', 100, undefined);
+        });
+      });
     });
   });
 

@@ -726,6 +726,22 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   get soportaCobrosParciales(): boolean {
     return this.working?.importePendiente !== undefined;
   }
+  /**
+   * Si a ESTA factura se le puede cobrar una parte (2026-09-07).
+   *
+   * Un TICKET no. Es una venta de mostrador: se cobra entera en el momento y se entrega. Nadie
+   * paga un ticket a plazos, asi que preguntar "cuanto has cobrado" mete un paso de mas justo en
+   * el flujo mas rapido y mas repetido de la app. Los plazos son de la factura completa, que se
+   * emite, se manda al cliente y se cobra a vencimiento — que es de donde salen #71 y #75.
+   *
+   * Ojo, esto NO es lo mismo que soportaCobrosParciales, que dice si el BACKEND sabe de plazos.
+   * Esa sigue mandando en si el boton de cobrar aparece o no; esta solo decide si se pregunta el
+   * importe. Un ticket sigue cobrandose por su pendiente, no por el total, por si alguna vez
+   * llegara con un cobro parcial hecho desde otro sitio (la web antigua apunta en la misma caja).
+   */
+  get cobraAPlazos(): boolean {
+    return this.soportaCobrosParciales && this.working?.esSimplificada !== true;
+  }
 
   get importeCobrado(): number {
     return this.working?.importeCobrado ?? 0;
@@ -747,15 +763,17 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   async confirmarCobro() {
     if (!this.working || this.facturaId == null || this.algoEnCurso || !this.puedeCobrar) return;
 
-    // PASO 1 — cuanto. Solo con el backend nuevo: sin el no hay cobros parciales que pedir y el
-    // flujo se queda exactamente como estaba, en un solo dialogo.
+    // PASO 1 — cuanto. Solo donde hay plazos de verdad: con el backend nuevo Y en una factura
+    // completa. Sin backend nuevo no hay pendiente que repartir, y en un TICKET no se cobra a
+    // plazos —es una venta de mostrador— asi que en los dos casos el flujo se queda en un solo
+    // dialogo, como estaba.
     //
     // Va en un dialogo APARTE y no junto a los medios de pago por una limitacion de Ionic, no por
     // gusto: su ion-alert no admite radios y campos de texto a la vez ("they cannot be mixed",
     // dice su propio codigo). Y el importe viene ya escrito con el pendiente, asi que el caso
     // normal —cobrarlo todo— sigue siendo aceptar.
     let importe = this.importePendiente;
-    if (this.soportaCobrosParciales) {
+    if (this.cobraAPlazos) {
       const { confirmado: importeConfirmado, valor } = await pedirConfirmacion<{ importe: string }>(this.alertCtrl, {
         header: this.transloco.translate('invoices.issued.cobros.amountHeader'),
         message: this.transloco.translate('invoices.issued.cobros.amountMessage', {
