@@ -19,6 +19,31 @@
 //
 //     APP_VERSION_SUFIJO=.1 npm run build
 //
+// ── ANDROID: la misma idea, pero fuera de git ────────────────────────────────────────────────
+//
+// android/ e ios/ estan en .gitignore (son proyectos regenerables de Capacitor), asi que la
+// version nativa NO se puede versionar aqui. Queda apuntada para poder rehacerla en 30 segundos
+// si alguna vez se regenera la carpeta.
+//
+// android/app/build.gradle venia con 'versionCode 1' fijo desde que Capacitor genero el
+// proyecto. Google Play RECHAZA un AAB con un versionCode ya subido, asi que la segunda
+// publicacion habria sido un rechazo. Se cambio el 2026-09-07 por esto, justo encima del
+// bloque `android {`:
+//
+//     def fechaDeCompilacion = new Date()
+//     def codigoDeVersion = System.getenv("ANDROID_VERSION_CODE")?.toInteger()
+//                           ?: fechaDeCompilacion.format('yyyyMMdd').toInteger()
+//     def nombreDeVersion = System.getenv("ANDROID_VERSION_NAME")
+//                           ?: fechaDeCompilacion.format('yyyy.MM.dd')
+//
+// ...y dentro de defaultConfig:
+//
+//     versionCode codigoDeVersion
+//     versionName nombreDeVersion
+//
+// Da 20260907 / "2026.09.07": crece solo, no hay que acordarse de nada y coincide con lo que se
+// ve en Perfil. Para dos publicaciones el mismo dia, las variables de entorno de arriba.
+//
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
