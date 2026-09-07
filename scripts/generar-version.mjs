@@ -30,11 +30,14 @@
 // publicacion habria sido un rechazo. Se cambio el 2026-09-07 por esto, justo encima del
 // bloque `android {`:
 //
-//     def fechaDeCompilacion = new Date()
+//     def hoy = java.time.LocalDate.now()
 //     def codigoDeVersion = System.getenv("ANDROID_VERSION_CODE")?.toInteger()
-//                           ?: fechaDeCompilacion.format('yyyyMMdd').toInteger()
+//             ?: Integer.parseInt(hoy.format(java.time.format.DateTimeFormatter.ofPattern('yyyyMMdd')))
 //     def nombreDeVersion = System.getenv("ANDROID_VERSION_NAME")
-//                           ?: fechaDeCompilacion.format('yyyy.MM.dd')
+//             ?: hoy.format(java.time.format.DateTimeFormatter.ofPattern('yyyy.MM.dd'))
+//
+// (java.time y no new Date().format(...): ese format() es de groovy-dateutil, que no siempre
+//  esta en el runtime de Gradle. java.time es JDK puro.)
 //
 // ...y dentro de defaultConfig:
 //
