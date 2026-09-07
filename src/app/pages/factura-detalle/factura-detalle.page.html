@@ -371,8 +371,10 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-text color="success" *ngIf="f.cobrada && f.estado === 'borrador'">
-      <p class="ion-no-margin aviso-pagado-pendiente">{{ 'invoices.issued.cobros.pagadoPendienteDeContabilizar' | transloco }}</p>
+    <!-- Sin color="success": en este tema ese color es AZUL a proposito (ver variables.scss).
+         El verde de "esto esta cobrado" es un token propio, --color-cobrado. -->
+    <ion-text *ngIf="f.cobrada && f.estado === 'borrador'">
+      <p class="ion-no-margin aviso-pagado-pendiente texto-cobrado">{{ 'invoices.issued.cobros.pagadoPendienteDeContabilizar' | transloco }}</p>
     </ion-text>
 
     <!-- Cobro a plazos (issues #71 y #75): ni sin cobrar ni cobrada del todo. Sin este aviso, una
@@ -395,8 +397,8 @@
          Es un AVISO, no un boton, aunque se pidiera "un boton verde": no hay nada que pulsar, y
          algo con forma de boton que no hace nada acaba pulsandose igual. Va aqui arriba, encima
          de Firmar, que es donde se pidio y donde ya viven los otros dos avisos de cobro. -->
-    <ion-text color="success" *ngIf="estaCobradaDelTodo">
-      <p class="ion-no-margin aviso-pagado-pendiente aviso-cobrada">
+    <ion-text *ngIf="estaCobradaDelTodo">
+      <p class="ion-no-margin aviso-pagado-pendiente aviso-cobrada texto-cobrado">
         <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
         {{ 'invoices.issued.cobros.badgeCobrada' | transloco }}
       </p>

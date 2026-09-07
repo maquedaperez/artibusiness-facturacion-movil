@@ -71,6 +71,16 @@ ion-tab-button.tab-selected ion-label {
   /* Toolbar */
   --ion-toolbar-background: #2F6FA3;
   --ion-toolbar-color: #ffffff;
+
+  /* 💚 COBRADO → el único verde de la app (2026-09-07).
+     NO se toca --ion-color-success, que aquí es azul a propósito ("SUCCESS igual que primary,
+     estilo unificado", arriba): cambiarlo repintaría de verde todo lo que en la app es un
+     "success" —el estado AEAT "Correcto", los toasts de acción terminada— y eso es media
+     aplicación. Lo que se quiere en verde es solo una cosa muy concreta: que el dinero está
+     cobrado. Por eso va en un token propio y no se hereda de nadie.
+     Es #137333 y no un verde más vivo porque el texto que lo usa es pequeño y en negrita
+     (11,5px en la lista): sobre blanco da ~6,4:1 de contraste, legible de sobra. */
+  --color-cobrado: #137333;
 }
 
 ion-toolbar {

@@ -27,6 +27,14 @@
   padding: 8px;
 }
 
+// El unico verde de la app (2026-09-07). Va por token y no por color="success" de Ionic porque
+// en este tema SUCCESS es AZUL a proposito ("estilo unificado", ver variables.scss): pintar de
+// verde ese color repintaria tambien el estado AEAT "Correcto" y los toasts de accion terminada.
+// Aqui solo se quiere decir una cosa: que el dinero esta cobrado.
+.texto-cobrado {
+  color: var(--color-cobrado);
+}
+
 // El icono al lado del texto, no encima ni descolgado: 'inline-flex' porque <p> es de bloque y
 // el ion-icon, en linea, se apoyaria en la linea base y quedaria bajo.
 .aviso-cobrada {

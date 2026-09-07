@@ -108,7 +108,7 @@
 
                El texto sí cambia: en un borrador lo que importa es que falta contabilizarlo;
                en una ya contabilizada, que el dinero está cobrado. -->
-          <span class="aeat aeat-success" *ngIf="f.cobrada && !f.anulada">
+          <span class="aeat aeat-cobrado" *ngIf="f.cobrada && !f.anulada">
             {{ (f.estado === 'borrador' ? 'invoices.issued.cobros.badgePagado' : 'invoices.issued.cobros.badgeCobrada') | transloco }}
           </span>
         </div>

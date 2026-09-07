@@ -121,6 +121,10 @@
 .aeat-warning { color: var(--ion-color-warning); }
 .aeat-danger { color: var(--ion-color-danger); }
 .aeat-medium { color: var(--ion-color-medium); }
+// El verde de "cobrado" NO sale de --ion-color-success: en este tema ese color es AZUL a
+// proposito (ver variables.scss), el mismo que ya usa el estado AEAT "Correcto" de al lado. Si
+// la etiqueta de cobrada compartiera color con el estado AEAT, las dos dirian lo mismo de lejos.
+.aeat-cobrado { color: var(--color-cobrado); }
 
 .row-actions {
   margin-top: 8px;
