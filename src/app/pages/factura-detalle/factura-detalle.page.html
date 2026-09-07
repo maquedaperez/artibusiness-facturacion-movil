@@ -304,7 +304,7 @@
         <ion-button
           expand="block"
           class="ion-margin-top"
-          [disabled]="f.estado !== 'borrador' && !f.tienePdf"
+          [disabled]="!f.tienePdf"
           (click)="descargarPdf()"
         >
           <ion-icon slot="start" name="download-outline"></ion-icon>
