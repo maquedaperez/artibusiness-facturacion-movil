@@ -33,6 +33,24 @@ export class TenantService {
     await Preferences.remove({ key: this.CONFIG_CACHE_KEY });
   }
 
+  /**
+   * PENDIENTE (2026-09-07): la configuración cacheada NO SE REVALIDA NUNCA.
+   *
+   * Una vez guardada, se devuelve tal cual en cada arranque. Solo se borra al cerrar sesión o al
+   * cambiar de empresa (clearTenantKey). Consecuencia: si Jose remapea una clave a otro entorno
+   * en el dispatcher, los móviles que ya la tuvieran configurada SIGUEN yendo al entorno viejo
+   * indefinidamente, y hay que ir uno por uno haciendo "Cambiar empresa".
+   *
+   * Ya ha pasado: la app de RRHH con la clave de Artisero 1 se quedó apuntando a Development
+   * después de que el dispatcher pasara a devolver Producción (reunión del 2026-09-03).
+   *
+   * ARREGLO ACORDADO, pendiente de hablarlo con Jose: revalidar contra el dispatcher al arrancar
+   * (o al iniciar sesión) y quedarse con la caché SOLO si esa consulta falla. Así un cambio de
+   * mapeo se propaga solo. Es un cambio de comportamiento en el arranque, por eso no se hizo
+   * sobre la marcha.
+   *
+   * Mismo pendiente en la app de RRHH (ARTIBusinessRRHH), que tiene este servicio casi idéntico.
+   */
   async getTenantConfig(): Promise<TenantConfig | null> {
     const cached = await Preferences.get({ key: this.CONFIG_CACHE_KEY });
     if (cached.value) return JSON.parse(cached.value) as TenantConfig;
