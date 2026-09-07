@@ -206,6 +206,7 @@
         "error": "Could not record the payment.",
         "pagadoPendienteDeContabilizar": "Paid — pending posting",
         "badgePagado": "Paid",
+        "badgeCobrada": "Paid in full",
         "errors": {
           "soloBorrador": "Only a draft invoice can be marked as paid.",
           "yaCobrada": "This invoice already has a payment recorded.",

@@ -17,6 +17,7 @@ import { addIcons } from 'ionicons';
 import {
   arrowBackOutline, personCircleOutline, documentTextOutline,
   copyOutline, downloadOutline, shareSocialOutline, trashOutline, receiptOutline,
+  checkmarkCircleOutline,
 } from 'ionicons/icons';
 
 import {
@@ -170,6 +171,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
     addIcons({
       arrowBackOutline, personCircleOutline, documentTextOutline,
       copyOutline, downloadOutline, shareSocialOutline, trashOutline, receiptOutline,
+      checkmarkCircleOutline,
     });
   }
 
@@ -755,6 +757,29 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   /** Ni sin cobrar ni cobrada del todo: hay dinero dentro y todavia falta. */
   get estaParcialmenteCobrada(): boolean {
     return this.soportaCobrosParciales && this.importeCobrado > 0 && this.importePendiente > 0;
+  }
+  /**
+   * Si esta factura ya esta cobrada ENTERA (2026-09-07).
+   *
+   * EL HUECO QUE TAPA, encontrado probando la app: al terminar de cobrar desaparecian las dos
+   * unicas señales de que habia dinero de por medio —el boton de cobrar (ya no queda nada
+   * pendiente) y el aviso de "quedan X" (ya no queda X)—, asi que una factura cobrada del todo
+   * se veia EXACTAMENTE IGUAL que una que no ha pagado nadie. Justo en el estado que mas
+   * interesa distinguir.
+   *
+   * Se deja fuera el borrador a proposito: ahi ya lo dice "Pagado — pendiente de contabilizar",
+   * que ademas informa de lo que falta por hacer. Dos avisos verdes seguidos no aclaran nada.
+   *
+   * Y se deja fuera la anulada: el dinero se devolvio o se quedo sin factura a la que pertenecer
+   * (el apunte de caja se desvincula, no se borra), asi que llamarla "cobrada" seria mentir.
+   */
+  get estaCobradaDelTodo(): boolean {
+    if (!this.working || this.working.anulada) return false;
+    if (this.working.estado === 'borrador') return false;
+    // Con el backend nuevo manda lo que dice la caja. Sin el, el resumen de la cabecera, que el
+    // backend solo pone a 1 cuando se ha llegado al total.
+    if (!this.soportaCobrosParciales) return this.working.cobrada === true;
+    return this.importeCobrado > 0 && this.importePendiente <= 0;
   }
 
   // El importe se manda tal cual lo calcula el propio formulario (nunca uno editable a mano) —

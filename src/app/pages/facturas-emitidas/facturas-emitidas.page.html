@@ -97,8 +97,20 @@
           <span class="aeat aeat-warning" *ngIf="f.subsanada && !f.anulada">{{ 'invoices.issued.badges.corrected' | transloco }}</span>
           <!-- Cobro de tickets/facturas emitidas (Fase 2, 2026-09-02): "sección claramente
                visible" — aquí, en cada tarjeta de la lista de borradores, para que no se pierda
-               de vista aunque el usuario cierre la app entre cobrar y contabilizar. -->
-          <span class="aeat aeat-success" *ngIf="f.cobrada && f.estado === 'borrador'">{{ 'invoices.issued.cobros.badgePagado' | transloco }}</span>
+               de vista aunque el usuario cierre la app entre cobrar y contabilizar.
+
+               2026-09-07: ya no solo en borradores. La condición llevaba '&& borrador' desde
+               que cobrar era cosa de tickets, y con las facturas completas cobrándose YA
+               CONTABILIZADAS eso dejaba la lista sin decir cuáles están pagadas justo donde más
+               falta hace: una factura emitida y cobrada se veía igual que una a la espera de
+               que el cliente pague. 'cobrada' vale para las dos porque el backend solo la pone
+               a 1 al llegar al total (ver FacturaEmitidaCobrosService), nunca a mitad de plazos.
+
+               El texto sí cambia: en un borrador lo que importa es que falta contabilizarlo;
+               en una ya contabilizada, que el dinero está cobrado. -->
+          <span class="aeat aeat-success" *ngIf="f.cobrada && !f.anulada">
+            {{ (f.estado === 'borrador' ? 'invoices.issued.cobros.badgePagado' : 'invoices.issued.cobros.badgeCobrada') | transloco }}
+          </span>
         </div>
 
         <div class="row-actions">

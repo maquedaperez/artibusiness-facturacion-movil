@@ -27,6 +27,20 @@
   padding: 8px;
 }
 
+// El icono al lado del texto, no encima ni descolgado: 'inline-flex' porque <p> es de bloque y
+// el ion-icon, en linea, se apoyaria en la linea base y quedaria bajo.
+.aviso-cobrada {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  justify-content: center;
+
+  ion-icon {
+    font-size: 1.25em;
+  }
+}
+
 .lineas-title {
   margin-top: 20px;
   margin-left: 4px;

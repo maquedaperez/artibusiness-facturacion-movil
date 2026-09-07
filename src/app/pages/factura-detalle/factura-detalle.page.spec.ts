@@ -1356,6 +1356,58 @@ describe('FacturaDetallePage', () => {
         expect(component.estaParcialmenteCobrada).toBeFalse();
       });
 
+      // "Cobrada" (2026-09-07, pedido probando la app). EL HUECO: al terminar de cobrar
+      // desaparecian las dos unicas señales de que habia dinero de por medio —el boton de cobrar
+      // y el aviso de "quedan X"— y una factura cobrada entera se veia IGUAL que una que no ha
+      // pagado nadie, justo en el estado que mas interesa distinguir.
+      describe('cobrada del todo', () => {
+        it('una contabilizada sin nada pendiente esta cobrada', () => {
+          component.working = ticketBorrador({ estado: 'contabilizada', importeCobrado: 121, importePendiente: 0 });
+
+          expect(component.estaCobradaDelTodo).toBeTrue();
+        });
+
+        it('a medias todavia NO', () => {
+          component.working = ticketBorrador({ estado: 'contabilizada', importeCobrado: 50, importePendiente: 71 });
+
+          expect(component.estaCobradaDelTodo).toBeFalse();
+          expect(component.estaParcialmenteCobrada).toBeTrue();
+        });
+
+        it('sin cobrar nada, NO', () => {
+          component.working = ticketBorrador({ estado: 'contabilizada', importeCobrado: 0, importePendiente: 121 });
+
+          expect(component.estaCobradaDelTodo).toBeFalse();
+        });
+
+        // El dinero se devolvio, o el apunte de caja se quedo sin factura a la que pertenecer
+        // (se desvincula, no se borra). Llamarla "cobrada" seria mentir.
+        it('una anulada NUNCA sale como cobrada', () => {
+          component.working = ticketBorrador({
+            estado: 'contabilizada', anulada: true, importeCobrado: 121, importePendiente: 0,
+          });
+
+          expect(component.estaCobradaDelTodo).toBeFalse();
+        });
+
+        // En un borrador ya lo dice "Pagado — pendiente de contabilizar", que ademas informa de
+        // lo que falta por hacer. Dos avisos verdes seguidos no aclaran nada.
+        it('en un borrador no sale: ya lo dice el otro aviso', () => {
+          component.working = ticketBorrador({ cobrada: true, importeCobrado: 121, importePendiente: 0 });
+
+          expect(component.estaCobradaDelTodo).toBeFalse();
+        });
+
+        // Con un backend anterior al PR 46 no llega el pendiente, pero la cabecera trae el
+        // resumen — que el backend solo pone a 1 al llegar al total, nunca a mitad de plazos.
+        it('sin el backend nuevo se cae al resumen de la cabecera', () => {
+          component.working = ticketBorrador({ estado: 'contabilizada', cobrada: true });
+
+          expect(component.soportaCobrosParciales).toBeFalse();
+          expect(component.estaCobradaDelTodo).toBeTrue();
+        });
+      });
+
       // A PLAZOS SOLO LA FACTURA COMPLETA (confirmado por Abraham, 2026-09-07). Un ticket es una
       // venta de mostrador: se cobra entero en el momento. Preguntarle el importe a cada ticket
       // mete un paso de mas en el flujo mas rapido y mas repetido de la app.

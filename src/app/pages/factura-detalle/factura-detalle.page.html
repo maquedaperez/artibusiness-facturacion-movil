@@ -387,6 +387,21 @@
       </p>
     </ion-text>
 
+    <!-- Cobrada del todo (2026-09-07, pedido probando la app). EL HUECO QUE TAPA: al terminar de
+         cobrar desaparecian las dos unicas señales de que habia dinero de por medio —el boton de
+         cobrar, porque ya no queda nada pendiente, y el aviso de "quedan X", porque ya no queda
+         X— y una factura cobrada entera se veia IGUAL que una que no ha pagado nadie.
+
+         Es un AVISO, no un boton, aunque se pidiera "un boton verde": no hay nada que pulsar, y
+         algo con forma de boton que no hace nada acaba pulsandose igual. Va aqui arriba, encima
+         de Firmar, que es donde se pidio y donde ya viven los otros dos avisos de cobro. -->
+    <ion-text color="success" *ngIf="estaCobradaDelTodo">
+      <p class="ion-no-margin aviso-pagado-pendiente aviso-cobrada">
+        <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+        {{ 'invoices.issued.cobros.badgeCobrada' | transloco }}
+      </p>
+    </ion-text>
+
     <!-- 'faltaConcepto' NO deshabilita este boton a proposito (2026-09-03): deshabilitarlo dejaba
          un boton muerto al final del formulario cuya unica explicacion estaba arriba del todo,
          fuera de pantalla. Ahora el clic entra y confirmarContabilizar() responde con un toast
