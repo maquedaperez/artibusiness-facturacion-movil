@@ -252,25 +252,6 @@
       <ion-card-content>
         <div class="section-title">{{ 'invoices.issued.simplified.emailSection' | transloco }}</div>
 
-        <!-- Sustituye al enlace "Ver codigo de verificacion QR" (2026-09-03, reportado probando
-             la app): apuntaba a urlQr, que es el PNG del QR publicado en Blob Storage, no una
-             pagina de verificacion — abrirlo no llevaba a ninguna parte util. El QR real ya va
-             incrustado DENTRO del PDF (ver GeneratePdfSimplificada en el backend), asi que lo
-             que de verdad quiere el usuario aqui es el PDF. Boton primario y a lo ancho porque
-             es la accion principal de esta pantalla una vez contabilizado: el icono de descarga
-             del pie existe, pero no lo encuentra nadie.
-             expand="block" y no un enlace: se comparte el mismo descargar() que el pie, con su
-             control de errores y su aviso de "PDF todavia no disponible". -->
-        <ion-button
-          expand="block"
-          class="ion-margin-bottom"
-          [disabled]="descargaDeshabilitada(f)"
-          (click)="descargar()"
-        >
-          <ion-icon slot="start" name="download-outline"></ion-icon>
-          {{ 'invoices.issued.simplified.downloadInvoice' | transloco }}
-        </ion-button>
-
         <ion-item>
           <ion-input
             [label]="'invoices.issued.simplified.emailLabel' | transloco"
@@ -293,6 +274,27 @@
             <span *ngIf="f.estadoUltimoEnvio === 'Fallido'" class="envio-error">{{ 'invoices.issued.simplified.sentError' | transloco: { motivo: f.errorUltimoEnvio } }}</span>
           </p>
         </ion-text>
+
+        <!-- Sustituye al enlace "Ver codigo de verificacion QR" (2026-09-03, reportado probando
+             la app): apuntaba a urlQr, que es el PNG del QR publicado en Blob Storage, no una
+             pagina de verificacion — abrirlo no llevaba a ninguna parte util. El QR real ya va
+             incrustado DENTRO del PDF (ver GeneratePdfSimplificada en el backend), asi que lo
+             que de verdad quiere el usuario aqui es el PDF. A lo ancho y en primario porque el
+             icono de descarga del pie existe pero no lo encuentra nadie.
+             expand="block" y no un enlace: se comparte el mismo descargar() que el pie, con su
+             control de errores y su aviso de "PDF todavia no disponible".
+             DEBAJO del envio por correo (2026-09-07, pedido probando la app): la tarjeta se
+             titula "Envio por correo", asi que abrirla con un boton de descargar descolocaba —
+             ahora se lee en orden, primero a quien se le manda y luego la copia para uno mismo. -->
+        <ion-button
+          expand="block"
+          class="ion-margin-top"
+          [disabled]="descargaDeshabilitada(f)"
+          (click)="descargar()"
+        >
+          <ion-icon slot="start" name="download-outline"></ion-icon>
+          {{ 'invoices.issued.simplified.downloadInvoice' | transloco }}
+        </ion-button>
       </ion-card-content>
     </ion-card>
 
