@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
-import { HttpIssuedInvoicesRepository } from './issued-invoices.repository.http';
+import { HttpIssuedInvoicesRepository, masRecientePrimero } from './issued-invoices.repository.http';
 import { MockIssuedInvoicesRepository } from '../mock/issued-invoices.repository.mock';
 import { MockFacturasService } from '../../../services/mock-facturas.service';
 import { ApiService } from '../../../services/api.service';
@@ -609,5 +609,38 @@ describe('HttpIssuedInvoicesRepository — un id real nunca se confunde con un b
   it('los ids de borrador local viven fuera del rango de los ids reales', () => {
     const local = mock.crearBorrador(1, { nombre: 'Cliente', nif: 'B1', esEmpresa: true });
     expect(local.id).toBeGreaterThan(100_000_000);
+  });
+});
+
+// Orden del listado (2026-09-07). EL PROBLEMA, reportado probando la app: "si genero un nuevo
+// ticket y lo contabilizo se me pierde en la lista". Ordenar solo por fecha no basta: todo lo
+// que se emite hoy comparte fecha, y dentro de ese bloque mandaba lo que devolviera SQL — que
+// suele ser por clave primaria ascendente, o sea el mas antiguo primero.
+describe('masRecientePrimero — lo ultimo que has tocado, arriba', () => {
+  const f = (id: number, fecha: string, esBorradorLocal = false) =>
+    ({ id, fecha, esBorradorLocal } as any);
+
+  function ordenar(...facturas: any[]): number[] {
+    return [...facturas].sort(masRecientePrimero).map(x => x.id);
+  }
+
+  it('la fecha manda: lo mas reciente primero', () => {
+    expect(ordenar(f(1, '2026-09-01'), f(2, '2026-09-05'))).toEqual([2, 1]);
+  });
+
+  // EL CASO DEL BUG: mismo dia, y el que acabo de crear tiene que salir arriba.
+  it('a igualdad de fecha, la creada despues va primero', () => {
+    expect(ordenar(f(10, '2026-09-07'), f(30, '2026-09-07'), f(20, '2026-09-07'))).toEqual([30, 20, 10]);
+  });
+
+  // Acaba de crearse en este dispositivo y ni siquiera esta en el servidor: no hay nada mas
+  // nuevo. Su id sale de un contador local y no es comparable con los del backend, asi que la
+  // regla es explicita en vez de fiarse del numero.
+  it('un borrador local sin guardar va el primero de todos', () => {
+    expect(ordenar(f(999, '2026-09-07'), f(3, '2026-09-07', true))).toEqual([3, 999]);
+  });
+
+  it('la fecha antigua no sube por contabilizarla: sigue ordenando su fecha', () => {
+    expect(ordenar(f(500, '2026-01-15'), f(1, '2026-09-07'))).toEqual([1, 500]);
   });
 });

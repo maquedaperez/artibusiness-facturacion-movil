@@ -82,6 +82,33 @@ function esEmpresaDesdeNif(nif: string | null | undefined): boolean {
 // Límite de facturas a traer en el listado — mismo criterio que Recibidas (PAGINA_TAMANO).
 const PAGINA_TAMANO = 50;
 
+/**
+ * Orden del listado: lo último que has tocado, arriba (2026-09-07).
+ *
+ * EL PROBLEMA, reportado probando la app: "si genero un nuevo ticket y lo contabilizo se me
+ * pierde en la lista". Ordenar solo por `fecha` no basta porque TODO lo que se emite hoy comparte
+ * la misma fecha, y dentro de ese bloque el orden lo decidía lo que devolviera SQL — que suele
+ * ser por clave primaria ascendente, o sea el más antiguo primero. El recién contabilizado
+ * quedaba al final del bloque de hoy, que es justo donde no se busca.
+ *
+ * Tres criterios, en este orden:
+ *   1. Un borrador local sin guardar es lo más nuevo que existe: acaba de crearse en este
+ *      dispositivo y todavía no está en el servidor.
+ *   2. Fecha de factura, la más reciente primero — el criterio de siempre.
+ *   3. A igualdad de fecha, el id más alto. `id_FacturaEmitida` es IDENTITY, así que un id mayor
+ *      es una factura creada después. Es lo que ordena el bloque de hoy.
+ *
+ * OJO CON LO QUE ESTO *NO* ES: no es "última modificación" de verdad. Contabilizar o cobrar una
+ * factura con fecha antigua no la sube — su fecha sigue siendo la que es. Para eso haría falta
+ * que el backend devolviera una fecha de modificación en Enumerar, que hoy no existe.
+ */
+export function masRecientePrimero(a: FacturaEmitida, b: FacturaEmitida): number {
+  if (!!a.esBorradorLocal !== !!b.esBorradorLocal) return a.esBorradorLocal ? -1 : 1;
+  const porFecha = b.fecha.localeCompare(a.fecha);
+  if (porFecha !== 0) return porFecha;
+  return b.id - a.id;
+}
+
 function esHttp404(e: unknown): boolean {
   return e instanceof Error && /^HTTP 404\b/.test(e.message);
 }
@@ -571,7 +598,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     const borradoresLocales = locales.filter(f => f.esBorradorLocal === true);
 
     const todas = [...reales, ...borradoresLocales];
-    todas.sort((a, b) => b.fecha.localeCompare(a.fecha));
+    todas.sort(masRecientePrimero);
     return todas;
   }
 
