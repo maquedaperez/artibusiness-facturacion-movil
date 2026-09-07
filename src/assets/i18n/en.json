@@ -207,6 +207,7 @@
         "pagadoPendienteDeContabilizar": "Paid — pending posting",
         "badgePagado": "Paid",
         "badgeCobrada": "Paid in full",
+        "avisoAlAnular": "WARNING: {{importe}} has already been collected on this invoice. The cash entry stays in the books —the money really moved— but it will no longer be linked to any invoice. If the copy gets paid too, you will have to record the payment again.",
         "errors": {
           "soloBorrador": "Only a draft invoice can be marked as paid.",
           "yaCobrada": "This invoice already has a payment recorded.",

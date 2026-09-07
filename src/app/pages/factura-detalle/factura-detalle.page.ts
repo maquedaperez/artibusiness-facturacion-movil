@@ -22,7 +22,7 @@ import {
 
 import {
   AccionesPermitidas, EstadoAeat, FacturaEmitida, Destinatario, Numerador,
-  IVA_RATES, MEDIO_PAGO_OPTIONS,
+  IVA_RATES, MEDIO_PAGO_OPTIONS, tieneAlgunCobro,
 } from '../../services/mock-facturas.service';
 import { IssuedInvoicesRepository, MedioPagoOpcion } from '../../core/ports';
 import { ClienteSelectorComponent, SeleccionCliente } from '../../modals/cliente-selector/cliente-selector.component';
@@ -340,7 +340,10 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // aviso. El backend (FacturaEmitidaService.GuardarAsync) es quien de verdad lo impone con un
   // 409; esto solo evita mostrar un formulario editable que se sabe que va a fallar al guardar.
   get esEditable(): boolean {
-    return this.esNueva || (this.working?.estado === 'borrador' && !this.working?.cobrada);
+    // 'tieneAlgunCobro' y no '!cobrada' (2026-09-07): 'cobrada' solo se pone a 1 al llegar al
+    // total, asi que un borrador con 50 € de 121 € pagados se dejaba editar — podias bajar el
+    // importe por debajo de lo ya cobrado y quedarte con mas dinero cobrado que factura.
+    return this.esNueva || (this.working?.estado === 'borrador' && !tieneAlgunCobro(this.working));
   }
 
   // Renombrado visual a "Ticket" (2026-09-01): antes del primer guardado real (esBorradorLocal),
@@ -773,6 +776,25 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
    * Y se deja fuera la anulada: el dinero se devolvio o se quedo sin factura a la que pertenecer
    * (el apunte de caja se desvincula, no se borra), asi que llamarla "cobrada" seria mentir.
    */
+  /**
+   * Lo que hay que advertir antes de anular una factura que YA TIENE DINERO COBRADO (2026-09-07).
+   *
+   * Anular desvincula sus apuntes de caja: `UPDATE agt_caja SET id_facturaEmitida = NULL`. Eso
+   * esta bien y es el criterio del sistema heredado —el dinero se movio de verdad y la caja tiene
+   * que seguir cuadrando, lo unico que deja de ser cierto es a que factura pertenece— pero hasta
+   * ahora no se decia en ninguna parte. El usuario anulaba una factura con 121 € cobrados y esos
+   * 121 € se quedaban en la caja sin dueño, mientras la copia nacia sin cobros y aparentaba estar
+   * sin pagar. Dos numeros que dejan de cuadrar sin que nadie avise.
+   *
+   * Devuelve cadena vacia cuando no hay nada cobrado, para no meter ruido en el caso normal.
+   */
+  private avisoDeCobrosAlAnular(): string {
+    if (this.importeCobrado <= 0) return '';
+    return `\n\n${this.transloco.translate('invoices.issued.cobros.avisoAlAnular', {
+      importe: this.formatEuros(this.importeCobrado),
+    })}`;
+  }
+
   get estaCobradaDelTodo(): boolean {
     if (!this.working || this.working.anulada) return false;
     if (this.working.estado === 'borrador') return false;
@@ -1087,7 +1109,8 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
 
     const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.detail.cancelHeader'),
-      message: this.transloco.translate('invoices.issued.detail.cancelConfirmMessage', { num: this.working.numFactura }),
+      message: this.transloco.translate('invoices.issued.detail.cancelConfirmMessage', { num: this.working.numFactura })
+        + this.avisoDeCobrosAlAnular(),
       textoCancelar: this.transloco.translate('common.actions.cancel'),
       textoConfirmar: this.transloco.translate('invoices.issued.detail.cancelConfirm'),
       rolConfirmar: 'destructive',
@@ -1204,7 +1227,8 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
 
     const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.issued.correctFlow.header'),
-      message: this.transloco.translate('invoices.issued.correctFlow.confirmMessage', { num: numOriginal }),
+      message: this.transloco.translate('invoices.issued.correctFlow.confirmMessage', { num: numOriginal })
+        + this.avisoDeCobrosAlAnular(),
       textoCancelar: this.transloco.translate('common.actions.cancel'),
       textoConfirmar: this.transloco.translate('invoices.issued.correctFlow.confirm'),
     });

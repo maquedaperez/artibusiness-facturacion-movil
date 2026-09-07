@@ -207,6 +207,7 @@
         "pagadoPendienteDeContabilizar": "Pagado — pendiente de contabilizar",
         "badgePagado": "Pagado",
         "badgeCobrada": "Cobrada",
+        "avisoAlAnular": "ATENCIÓN: esta factura tiene {{importe}} ya cobrados. El apunte seguirá en la caja —el dinero se movió de verdad— pero dejará de estar asociado a ninguna factura. Si la copia también se cobra, tendrás que registrar el cobro otra vez.",
         "errors": {
           "soloBorrador": "Solo se puede marcar como cobrada una factura en borrador.",
           "yaCobrada": "Esta factura ya tiene un cobro registrado.",

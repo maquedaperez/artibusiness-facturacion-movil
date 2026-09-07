@@ -270,7 +270,7 @@ function redondearCentimos(v: number): number {
 // convierte a UTC) — usado donde el valor debe coincidir con lo que el usuario ve en su propio
 // reloj, no con el día UTC (relevante cerca de medianoche). Ver crearBorrador() para el caso que
 // motivó esto: la fecha de un ticket, validada por el backend contra Europe/Madrid.
-function fechaLocalHoy(): string {
+export function fechaLocalHoy(): string {
   const hoy = new Date();
   const anio = hoy.getFullYear();
   const mes = String(hoy.getMonth() + 1).padStart(2, '0');
@@ -471,6 +471,19 @@ function accionesEmitidaPorEstado(esBorrador: boolean, estadoReconocido: boolean
   return { editar: false, eliminar: false, copiar: true, descargar: true, compartir: true };
 }
 
+/**
+ * Si esta factura tiene dinero cobrado, aunque sea una parte (2026-09-07).
+ *
+ * 'importeCobrado' es el dato bueno —sale de la suma real de agt_caja— pero solo viaja en el
+ * DETALLE de una factura; en el listado todavia no. Por eso se mira tambien 'cobrada', que llega
+ * en los dos sitios: no distingue un cobro parcial, pero al menos tapa el caso del todo pagado.
+ * Cuando Enumerar devuelva el importe cobrado, la lista quedara igual de protegida que el detalle
+ * sin tocar nada mas aqui.
+ */
+export function tieneAlgunCobro(f: FacturaEmitida): boolean {
+  return (f.importeCobrado ?? 0) > 0 || f.cobrada === true;
+}
+
 export function accionesFacturaEmitida(f: FacturaEmitida): AccionesPermitidas {
   const reconocido = f.estado === 'borrador' || f.estado === 'contabilizada' || f.estado === 'firmada';
   const acciones = accionesEmitidaPorEstado(f.estado === 'borrador', reconocido);
@@ -481,7 +494,14 @@ export function accionesFacturaEmitida(f: FacturaEmitida): AccionesPermitidas {
   // 'eliminar', ver accionesFacturaRecibida más abajo). El backend (FacturaEmitidaService.
   // GuardarAsync/EliminarAsync) es quien de verdad lo impone con un 409 — esto solo evita
   // ofrecer un botón que se sabe que va a fallar.
-  if (f.cobrada) {
+  //
+  // 2026-09-07: la pregunta ya no es "¿está cobrada?" sino "¿tiene ALGÚN cobro?". 'cobrada' solo
+  // se pone a 1 al llegar al total, así que desde que existen los cobros a plazos un borrador con
+  // 50 € de 121 € pagados pasaba por aquí como si nadie hubiera pagado nada: se dejaba editar
+  // (podías bajar el importe por debajo de lo ya cobrado) y borrar — y borrar reventaba con un
+  // HTTP 500, porque la clave foránea de Facturacion$FacturasEmitidasCobros no tiene ON DELETE
+  // CASCADE. Reproducido en la app el 2026-09-07.
+  if (tieneAlgunCobro(f)) {
     return { ...acciones, editar: false, eliminar: false };
   }
   return acciones;

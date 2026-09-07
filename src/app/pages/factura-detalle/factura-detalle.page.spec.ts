@@ -1356,6 +1356,35 @@ describe('FacturaDetallePage', () => {
         expect(component.estaParcialmenteCobrada).toBeFalse();
       });
 
+      // EL BUG DEL HTTP 500 (reproducido en la app, 2026-09-07): con un borrador cobrado a
+      // medias seguia saliendo la papelera, y al pulsarla el backend respondia 500 — choca con
+      // la clave foranea de Facturacion$FacturasEmitidasCobros, que no tiene ON DELETE CASCADE.
+      //
+      // La causa: las dos defensas preguntaban '¿Cobrada vale 1?', y 'Cobrada' solo se pone a 1
+      // al llegar al TOTAL. Desde que existen los cobros a plazos, un borrador con 50 € de 121 €
+      // pagados pasaba por no cobrado. La pregunta correcta es '¿tiene ALGUN cobro?'.
+      describe('un borrador cobrado a medias ya no se toca', () => {
+        it('no se puede editar', () => {
+          component.working = ticketBorrador({ importeCobrado: 50, importePendiente: 71 });
+
+          expect(component.esEditable).toBeFalse();
+        });
+
+        it('no se ofrece borrarlo', () => {
+          component.working = ticketBorrador({ importeCobrado: 50, importePendiente: 71 });
+
+          expect(component.accionesPermitidas().eliminar).toBeFalse();
+        });
+
+        // El caso de siempre sigue funcionando: sin un euro cobrado se edita y se borra.
+        it('sin ningun cobro se sigue pudiendo editar y borrar', () => {
+          component.working = ticketBorrador({ importeCobrado: 0, importePendiente: 121 });
+
+          expect(component.esEditable).toBeTrue();
+          expect(component.accionesPermitidas().eliminar).toBeTrue();
+        });
+      });
+
       // "Cobrada" (2026-09-07, pedido probando la app). EL HUECO: al terminar de cobrar
       // desaparecian las dos unicas señales de que habia dinero de por medio —el boton de cobrar
       // y el aviso de "quedan X"— y una factura cobrada entera se veia IGUAL que una que no ha

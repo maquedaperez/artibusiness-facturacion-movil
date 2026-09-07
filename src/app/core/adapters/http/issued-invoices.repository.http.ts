@@ -6,6 +6,7 @@ import { MockIssuedInvoicesRepository } from '../mock/issued-invoices.repository
 import { ApiService } from '../../../services/api.service';
 import {
   AccionesPermitidas, Destinatario, EstadoAeat, EstadoFactura, FacturaEmitida, LineaFactura, Numerador, TotalesFactura,
+  fechaLocalHoy,
 } from '../../../services/mock-facturas.service';
 
 // Mismos endpoints que ya usa el adaptador real de Recibidas (ImpuestoController/
@@ -128,6 +129,11 @@ type FacturaEmitidaCabeceraApi = {
   irpf: number;
   totalFactura: number;
   cobrada: number;
+  // Todavia NO lo manda Enumerar (2026-09-07). Se declara opcional para que el dia que el backend
+  // lo incluya, la lista sepa distinguir un cobro PARCIAL sin tocar nada mas aqui: hoy 'cobrada'
+  // solo vale 1 al llegar al total, asi que en el listado un borrador a medias cobrado pasa por
+  // no cobrado y se sigue ofreciendo borrarlo (el backend lo rechaza, pero es un boton muerto).
+  importeCobrado?: number;
   estado: number;
   estadoAeat: string | null;
   // Blindaje Fase 7 (2026-08-21): mismo motivo real que ya trae el detalle.
@@ -457,6 +463,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       operacionId: '',
       idCliente: dto.idCliente,
       totalesReales: this.totalesDesdeApi(dto.total, dto.iva, dto.irpf, dto.totalFactura),
+      importeCobrado: dto.importeCobrado,
       anulada: dto.idAnulacionVerifactu != null,
       fechaAnulacion: dto.fechaAnulacion ? dto.fechaAnulacion.slice(0, 10) : undefined,
       subsanada: dto.idSubsanacionVerifactu != null,
@@ -761,7 +768,12 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     if (!original) return undefined;
 
     return this.guardarReal({
-      fecha: new Date().toISOString().slice(0, 10),
+      // Fecha LOCAL, no UTC (2026-09-07). toISOString() convierte a UTC primero, asi que entre
+      // medianoche y la 1 (las 2 en verano) hora española devolvia el DIA ANTERIOR: corriges una
+      // factura a las 00:30 y la copia nace fechada ayer. Es el mismo fallo que ya se arreglo en
+      // crearBorrador(), donde ademas esta explicado que el backend valida la fecha de un ticket
+      // contra Europe/Madrid; aqui no habia llegado el arreglo.
+      fecha: fechaLocalHoy(),
       vencimiento: '',
       concepto: original.concepto,
       medioPago: original.medioPago,

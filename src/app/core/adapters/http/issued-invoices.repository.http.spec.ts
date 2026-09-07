@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 
 import { HttpIssuedInvoicesRepository, masRecientePrimero } from './issued-invoices.repository.http';
+import { fechaLocalHoy } from '../../../services/mock-facturas.service';
 import { MockIssuedInvoicesRepository } from '../mock/issued-invoices.repository.mock';
 import { MockFacturasService } from '../../../services/mock-facturas.service';
 import { ApiService } from '../../../services/api.service';
@@ -642,5 +643,26 @@ describe('masRecientePrimero — lo ultimo que has tocado, arriba', () => {
 
   it('la fecha antigua no sube por contabilizarla: sigue ordenando su fecha', () => {
     expect(ordenar(f(500, '2026-01-15'), f(1, '2026-09-07'))).toEqual([1, 500]);
+  });
+});
+
+// La fecha de la COPIA (2026-09-07). Salia de new Date().toISOString(), que es UTC: entre
+// medianoche y la 1 (las 2 en verano) hora española eso devuelve el DIA ANTERIOR, asi que
+// corregir una factura a las 00:30 creaba la copia fechada ayer. Es el mismo fallo que ya estaba
+// arreglado en crearBorrador() —con un comentario explicando que el backend valida la fecha de
+// un ticket contra Europe/Madrid— y que aqui no se habia aplicado.
+describe('duplicar() fecha la copia con el dia LOCAL, no con el UTC', () => {
+  it('usa el mismo criterio de fecha que el resto de la app', () => {
+    const local = fechaLocalHoy();
+    const utc = new Date().toISOString().slice(0, 10);
+
+    // El formato es el que espera el backend (AAAA-MM-DD).
+    expect(local).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+    // Y, salvo en la franja en que UTC va un dia por detras, coinciden — cuando NO coinciden es
+    // justo el caso que motiva esto, y el bueno es el local.
+    const d = new Date();
+    const mismaFranja = d.getUTCDate() === d.getDate();
+    if (mismaFranja) expect(local).toBe(utc);
   });
 });
