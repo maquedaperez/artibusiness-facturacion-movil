@@ -33,6 +33,7 @@ import {
 import { addIcons } from 'ionicons';
 import { chevronForwardOutline } from 'ionicons/icons';
 import { VERSION_APP } from '../../../environments/version';
+import { STRIPE_CONNECT_DISPONIBLE } from '../../core/providers/funcionalidades-pendientes';
 
 @Component({
   selector: 'app-perfil',
@@ -90,6 +91,10 @@ export class PerfilPage {
 
   estadoConnect: EstadoPagosConnect | null = null;
   moduloConnectDisponible = false;
+  // Manda por encima de lo que conteste el backend: el modulo responde que esta disponible pero
+  // el flujo de conexion falla al pulsarlo, y eso en la App Store es un rechazo. Ver el porque
+  // en funcionalidades-pendientes.ts.
+  readonly stripeConnectDisponible = STRIPE_CONNECT_DISPONIBLE;
   cargandoConnect = true;
   conectandoStripe = false;
 

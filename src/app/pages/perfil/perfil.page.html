@@ -109,7 +109,7 @@
        confirmó que el módulo responde de verdad (moduloConnectDisponible) — mientras
        StripeConnect:Enabled=false (todo el MVP), esta tarjeta entera está ausente, nunca
        aparece deshabilitada ni con un mensaje de error. -->
-  <ion-card class="compact-card" *ngIf="!cargandoConnect && moduloConnectDisponible">
+  <ion-card class="compact-card" *ngIf="stripeConnectDisponible && !cargandoConnect && moduloConnectDisponible">
     <ion-card-header>
       <ion-card-title>{{ 'profile.stripeConnect.title' | transloco }}</ion-card-title>
     </ion-card-header>

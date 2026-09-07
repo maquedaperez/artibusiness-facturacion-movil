@@ -31,7 +31,7 @@ import { LineasEditorComponent, lineaFacturaInvalida } from '../../shared/lineas
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 import { PuedeSalirDeLaPantalla } from '../../guards/cambios-sin-guardar.guard';
 import { pedirConfirmacion } from '../../shared/utils/confirmacion';
-import { RECTIFICATIVAS_DISPONIBLES, SUBSANACION_DISPONIBLE } from '../../core/providers/funcionalidades-pendientes';
+import { RECTIFICATIVAS_DISPONIBLES, STRIPE_CONNECT_DISPONIBLE, SUBSANACION_DISPONIBLE } from '../../core/providers/funcionalidades-pendientes';
 
 /**
  * Redondea a centimos. El euro no tiene mas divisiones, asi que cualquier resto por debajo de eso
@@ -961,7 +961,9 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // está realmente operativo para esta empresa (ver cargarEstadoStripeConnect) — nunca se
   // muestra un botón que el backend fuera a rechazar con 503.
   get puedeCobrarStripe(): boolean {
-    return this.puedeCobrar && this.stripeConnectDisponible;
+    // Si no se puede conectar la cuenta, cobrar con tarjeta tampoco puede funcionar: se apagan
+    // las dos entradas a la vez o el rechazo de Apple llega por la otra pantalla.
+    return this.stripeConnectHabilitado && this.puedeCobrar && this.stripeConnectDisponible;
   }
 
   async iniciarCobroStripe() {
@@ -1160,6 +1162,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // que ya tiene su rectificativa emitida. El backend impone lo mismo por su cuenta; esto solo
   // evita ofrecer un botón que se sabe que va a fallar.
   readonly rectificativasDisponibles = RECTIFICATIVAS_DISPONIBLES;
+  readonly stripeConnectHabilitado = STRIPE_CONNECT_DISPONIBLE;
 
   get puedeRectificar(): boolean {
     return this.rectificativasDisponibles

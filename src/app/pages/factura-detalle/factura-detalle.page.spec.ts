@@ -573,9 +573,22 @@ describe('FacturaDetallePage', () => {
     });
 
     describe('activado (módulo configurado y cuenta lista para cobrar)', () => {
+      // EL QUE PROTEGE LA PUBLICACION (2026-09-07). Conectar la cuenta de Stripe falla al
+      // pulsarlo, asi que cobrar con tarjeta tampoco puede funcionar: si se dejara este boton
+      // visible, el rechazo de Apple llegaria por esta pantalla en vez de por el Perfil. Con el
+      // interruptor apagado no sale NI AUNQUE todo lo demas este listo.
+      it('con el interruptor apagado no se ofrece, aunque el modulo y la cuenta esten listos', () => {
+        component.working = facturaBorrador();
+        component.stripeConnectDisponible = true;
+
+        expect(component.stripeConnectHabilitado).withContext('apagado a proposito').toBeFalse();
+        expect(component.puedeCobrarStripe).toBeFalse();
+      });
+
       it('puedeCobrarStripe es true para un borrador cobrable', () => {
         component.working = facturaBorrador();
         component.stripeConnectDisponible = true;
+        (component as unknown as { stripeConnectHabilitado: boolean }).stripeConnectHabilitado = true;
 
         expect(component.puedeCobrarStripe).toBeTrue();
       });
@@ -583,6 +596,7 @@ describe('FacturaDetallePage', () => {
       it('el botón "Cobrar con tarjeta" se renderiza en el DOM', () => {
         component.working = facturaBorrador();
         component.stripeConnectDisponible = true;
+        (component as unknown as { stripeConnectHabilitado: boolean }).stripeConnectHabilitado = true;
         fixture.detectChanges();
 
         const boton = fixture.debugElement.query(By.css('.boton-cobrar-stripe'));
@@ -593,6 +607,7 @@ describe('FacturaDetallePage', () => {
         component.facturaId = 3001;
         component.working = facturaBorrador();
         component.stripeConnectDisponible = true;
+        (component as unknown as { stripeConnectHabilitado: boolean }).stripeConnectHabilitado = true;
         const repo = TestBed.inject(IssuedInvoicesRepository);
         const spy = spyOn(repo, 'iniciarCobroStripe').and.resolveTo({ checkoutUrl: 'https://checkout.stripe.com/session_1' });
 
@@ -606,6 +621,7 @@ describe('FacturaDetallePage', () => {
         component.facturaId = 3001;
         component.working = facturaBorrador();
         component.stripeConnectDisponible = true;
+        (component as unknown as { stripeConnectHabilitado: boolean }).stripeConnectHabilitado = true;
         const repo = TestBed.inject(IssuedInvoicesRepository);
         spyOn(repo, 'iniciarCobroStripe').and.resolveTo({ checkoutUrl: null });
 

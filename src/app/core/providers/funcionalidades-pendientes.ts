@@ -75,3 +75,28 @@ export const RECTIFICATIVAS_DISPONIBLES = false;
  * corregir el dato que motivaría la subsanación).
  */
 export const SUBSANACION_DISPONIBLE = false;
+
+/**
+ * Cobro con tarjeta a clientes vía Stripe Connect: conectar la cuenta desde Perfil y cobrar una
+ * factura con tarjeta.
+ *
+ * APAGADO el 2026-09-07 antes de mandar la app a Apple. Probándolo se vio que el botón
+ * "Conectar con Stripe" del Perfil falla al pulsarlo: el módulo responde, pero el flujo de
+ * conexión no está terminado detrás.
+ *
+ * Un botón que falla al pulsarlo es motivo de rechazo directo en la App Store (guía 2.1, App
+ * Completeness) — al revisor no le vale que sea "una fase futura", lo prueba y lo ve romperse.
+ *
+ * NO BASTABA CON LO QUE YA HABÍA. Las dos entradas —la tarjeta del Perfil y el botón "Cobrar con
+ * tarjeta" del detalle— ya estaban condicionadas a que el backend dijera que el módulo está
+ * disponible, con la idea de que con StripeConnect:Enabled=false no aparecieran. Pero el módulo
+ * SÍ responde que está disponible, así que la comprobación no las oculta y ambas se enseñan. Este
+ * interruptor manda por encima de lo que conteste el backend.
+ *
+ * Se apagan LAS DOS a la vez a propósito: si no se puede conectar la cuenta, cobrar con tarjeta
+ * tampoco puede funcionar, y dejar la segunda visible sería el mismo rechazo por otra pantalla.
+ *
+ * Para activarlo: poner true cuando el flujo de conexión funcione de punta a punta contra Stripe.
+ * No hay nada más que tocar — la pantalla, el servicio y los tests siguen ahí.
+ */
+export const STRIPE_CONNECT_DISPONIBLE = false;

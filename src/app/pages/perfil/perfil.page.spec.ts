@@ -117,18 +117,36 @@ describe('PerfilPage', () => {
       expect(boton).toBeNull();
     });
 
+    // El interruptor se fuerza ENCENDIDO en los tests del flujo. Podrian escribirse para que
+    // siguieran al flag, pero entonces mientras esta apagado no comprobarian nada y la pantalla
+    // se quedaria sin cubrir justo el tiempo que tarde en volver a encenderse.
+    function conStripeEncendido() {
+      (component as unknown as { stripeConnectDisponible: boolean }).stripeConnectDisponible = true;
+    }
+
     it('con el módulo activo y sin conectar todavía, aparece el botón de conectar', async () => {
+      conStripeEncendido();
       await cargarConEstadoConnect({ conectado: false, estado: null, chargesEnabled: false, detailsSubmitted: false });
 
-      const boton = fixture.nativeElement.querySelector('[data-testid="boton-conectar-stripe"]');
-      expect(boton).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="boton-conectar-stripe"]')).not.toBeNull();
     });
 
     it('con el módulo activo y la conexión pendiente de completar, aparece el botón de continuar', async () => {
+      conStripeEncendido();
       await cargarConEstadoConnect({ conectado: true, estado: 'Pendiente', chargesEnabled: false, detailsSubmitted: false });
 
-      const boton = fixture.nativeElement.querySelector('[data-testid="boton-conectar-stripe"]');
-      expect(boton).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="boton-conectar-stripe"]')).not.toBeNull();
+    });
+
+    // EL QUE PROTEGE LA PUBLICACION (2026-09-07). El boton falla al pulsarlo, y un boton que
+    // falla es rechazo directo en la App Store. Con el interruptor apagado no puede salir NI
+    // AUNQUE el backend conteste que el modulo esta disponible — que es justo lo que contesta
+    // hoy, y por eso la comprobacion del backend por si sola no bastaba.
+    it('con el interruptor apagado NO sale, aunque el backend diga que el modulo va', async () => {
+      await cargarConEstadoConnect({ conectado: false, estado: null, chargesEnabled: false, detailsSubmitted: false });
+
+      expect(component.moduloConnectDisponible).withContext('el backend dice que si').toBeTrue();
+      expect(fixture.nativeElement.querySelector('[data-testid="boton-conectar-stripe"]')).toBeNull();
     });
 
     it('conectarStripe() llama al onboarding y abre la URL devuelta', async () => {
