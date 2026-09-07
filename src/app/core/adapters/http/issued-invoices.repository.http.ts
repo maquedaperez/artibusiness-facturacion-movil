@@ -689,6 +689,12 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       // Guardar (GuardarFacturaEmitidaRequest -> FacturaEmitidaDetalleModel), así que esto solo
       // faltaba aquí.
       cobrada: dto.cobrada === 1,
+      // Mismo motivo, encontrado probando la app (2026-09-07): sin estos dos, una factura completa
+      // recién guardada no ofrecía "Marcar como cobrado" —la pantalla deduce que el backend sabe
+      // de pendientes justamente porque llegan— y sí lo ofrecía al salir y volver a entrar, que es
+      // cuando pasa por mapearDetalle. Misma factura, mismo estado, dos comportamientos.
+      importeCobrado: dto.importeCobrado,
+      importePendiente: dto.importePendiente,
     };
   }
 

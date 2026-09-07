@@ -380,6 +380,30 @@ describe('HttpIssuedInvoicesRepository.guardar — Fase 4 (alta/edición real)',
 
     expect(guardada.cobrada).toBeTrue();
   });
+
+  // MISMO FALLO, ENCONTRADO PROBANDO LA APP (2026-09-07): una factura completa recien guardada no
+  // ofrecia "Marcar como cobrado", y si salias al listado y volvias a entrar si. La pantalla
+  // deduce que el backend sabe de cobros parciales justamente porque llegan estos dos campos, y
+  // aqui no se copiaban — solo los ponia mapearDetalle, que es por donde pasa abrir una factura.
+  it('propaga el cobrado y el pendiente que devuelve Guardar', async () => {
+    apiSpy.post.and.callFake((path: string) => {
+      if (path === '/api/MediosPago/Enumerar') return Promise.resolve(MEDIOS_PAGO_API as any);
+      if (path === '/api/Impuesto/Enumerar') return Promise.resolve(IMPUESTOS_API as any);
+      if (path === '/api/FacturaEmitida/Guardar') {
+        return Promise.resolve(respuestaGuardar({ importeCobrado: 40, importePendiente: 81 }) as any);
+      }
+      throw new Error(`POST no esperado en el test: ${path}`);
+    });
+
+    const guardada = await repo.guardar(501, {
+      fecha: '2026-08-20', vencimiento: '2026-09-20', concepto: 'Servicio',
+      medioPago: 'Transferencia', idMedioPago: 1, destinatario, idCliente: 3,
+      numeradorId: 1, lineas: [lineaBase],
+    });
+
+    expect(guardada.importeCobrado).toBe(40);
+    expect(guardada.importePendiente).toBe(81);
+  });
 });
 
 describe('HttpIssuedInvoicesRepository.eliminar/duplicar — Fase 6', () => {
