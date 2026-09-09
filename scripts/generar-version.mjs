@@ -38,6 +38,35 @@
 //
 // (java.time y no new Date().format(...): ese format() es de groovy-dateutil, que no siempre
 //  esta en el runtime de Gradle. java.time es JDK puro.)
+
+// ── iOS: EL MISMO PROBLEMA, Y ADEMAS DOS COSAS QUE SE OLVIDAN ───────────────────────────────
+//
+// 1) EL NUMERO DE BUILD. Capacitor genera el proyecto iOS con Version 1.0 y Build 1 fijos,
+//    igual que Android traia versionCode 1. App Store Connect DESCARTA EN SILENCIO un binario
+//    cuyo par Version+Build ya se haya subido: no da error, simplemente el build no aparece
+//    nunca en la lista para seleccionarlo. En Xcode: target App > General > Identity.
+//    Mismo criterio que Android — la fecha del dia:
+//
+//        Version (MARKETING_VERSION)      2026.09.09
+//        Build   (CURRENT_PROJECT_VERSION) 20260909
+//
+//    Para dos publicaciones el mismo dia, el Build va a 20260909.1 (o 2, 3...).
+//
+// 2) HAY QUE RECOMPILAR Y SINCRONIZAR ANTES DE ARCHIVAR. Es el fallo mas facil de cometer:
+//    www/ e ios/ estan en .gitignore, asi que un `git pull` en el Mac actualiza src/ y NO TOCA
+//    los assets que Xcode empaqueta. Si abres Xcode y le das a Archive sin mas, subes la web
+//    de la ultima vez que compilaste — con el codigo viejo, aunque el repo este al dia.
+//
+//        git pull origin main
+//        npm ci            # solo si cambio package-lock.json
+//        npm run build     # regenera version.ts y www/
+//        npx cap sync ios  # copia www/ dentro de ios/App/App/public/
+//
+//    Comprobacion de 5 segundos antes de archivar, que la fecha viaja como texto en el bundle:
+//
+//        grep -rl "$(node -p "require('./src/environments/version.ts')" 2>/dev/null || date +%Y.%m.%d)" ios/App/App/public/ | head
+//
+//    Si no devuelve nada, el sync no se ha hecho y Xcode va a empaquetar codigo viejo.
 //
 // ...y dentro de defaultConfig:
 //
