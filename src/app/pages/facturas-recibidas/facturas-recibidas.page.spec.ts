@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { AlertController, ModalController, ToastController, provideIonicAngular } from '@ionic/angular/standalone';
+import { AlertController, LoadingController, ModalController, ToastController, provideIonicAngular } from '@ionic/angular/standalone';
 import { FacturasRecibidasPage } from './facturas-recibidas.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { FacturaRecibida } from '../../services/mock-facturas.service';
@@ -243,6 +243,36 @@ describe('FacturasRecibidasPage', () => {
     await expectAsync(component.onFileSelected(eventoConArchivo())).toBeResolved();
     expect(component.processing).toBeFalse();
     expect(ocrSpy).not.toHaveBeenCalled();
+  });
+
+  // El OCR tarda (lector externo), y hasta 2026-09-09 el unico aviso era el spinner del boton,
+  // que se pierde de vista al desplazar la lista: la pantalla parecia colgada y se volvia a
+  // pulsar. Ahora sale un overlay que ademas dice que va a tardar.
+  it('avisa con un overlay mientras se procesa el documento', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    spyOn(repo, 'crearDesdeDocumentoDirecto').and.resolveTo({ ...facturaDe('Iberdrola', 'Luz'), id: 778 });
+    spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
+    const overlay = jasmine.createSpyObj('HTMLIonLoadingElement', ['present', 'dismiss']);
+    const crear = spyOn(TestBed.inject(LoadingController), 'create').and.resolveTo(overlay);
+
+    await component.onFileSelected(eventoConArchivo());
+
+    expect(crear).toHaveBeenCalled();
+    expect(overlay.present).toHaveBeenCalled();
+  });
+
+  // LO QUE DE VERDAD PROTEGE ESTE TEST: un overlay que no se cierra deja la app inservible —
+  // tapa la pantalla entera y no hay forma de quitarlo. Tiene que cerrarse tambien cuando el
+  // documento falla, que es justo cuando es facil olvidarse.
+  it('cierra el overlay aunque el documento falle', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    spyOn(repo, 'crearDesdeDocumentoDirecto').and.rejectWith(new Error('HTTP 500 - Error interno del servidor.'));
+    const overlay = jasmine.createSpyObj('HTMLIonLoadingElement', ['present', 'dismiss']);
+    spyOn(TestBed.inject(LoadingController), 'create').and.resolveTo(overlay);
+
+    await expectAsync(component.onFileSelected(eventoConArchivo())).toBeResolved();
+
+    expect(overlay.dismiss).toHaveBeenCalled();
   });
 
   // BUG crítico corregido 2026-08-18: antes de la consolidación del 2026-08-17, un proveedor

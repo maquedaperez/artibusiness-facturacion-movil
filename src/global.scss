@@ -79,3 +79,24 @@ ion-tab-bar {
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
 @import '@ionic/angular/css/palettes/dark.system.css';
+
+// Overlay de "extrayendo los datos del documento" al escanear o adjuntar una factura recibida
+// (2026-09-09). Va aqui y no en el SCSS de la pagina a proposito: los overlays de Ionic se
+// montan fuera del componente, donde su encapsulacion de estilos no llega.
+.cargando-documento {
+  --backdrop-opacity: 0.45;
+
+  .loading-wrapper {
+    border-radius: 16px;
+    padding: 28px 24px;
+    max-width: 300px;
+  }
+
+  .loading-content {
+    // Las dos frases llegan en una sola cadena, separadas por un salto de linea
+    // — ver mostrarCargandoDocumento() en facturas-recibidas.page.ts.
+    white-space: pre-line;
+    text-align: center;
+    line-height: 1.45;
+  }
+}

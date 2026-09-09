@@ -9,7 +9,7 @@ import {
   IonButton, IonIcon, IonCard, IonCardContent,
   IonText, IonSpinner, IonFab, IonFabButton,
   IonSearchbar, IonItem, IonSelect, IonSelectOption, IonInput,
-  ToastController, AlertController, ModalController,
+  ToastController, AlertController, ModalController, LoadingController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -49,6 +49,12 @@ export class FacturasRecibidasPage {
   private toastCtrl = inject(ToastController);
   private alertCtrl = inject(AlertController);
   private modalCtrl = inject(ModalController);
+  private loadingCtrl = inject(LoadingController);
+
+  // El overlay de "extrayendo datos" se guarda aqui, y no en una variable local, porque hay
+  // que poder cerrarlo desde sitios a los que no llega: el visor de documento bancario se
+  // abre desde dos caminos distintos y espera a que el usuario lo cierre.
+  private cargandoDocumento?: HTMLIonLoadingElement;
   private router = inject(Router);
   private transloco = inject(TranslocoService);
   private pagosService = inject(PagosService);
@@ -210,6 +216,7 @@ export class FacturasRecibidasPage {
     }
 
     this.processing = true;
+    await this.mostrarCargandoDocumento();
     try {
       const resultado = await this.invoicesRepo.crearDesdeDocumentoDirecto(file);
       // 2026-08-20 (correo de Alex): el lector puede clasificar el fichero como documento
@@ -272,8 +279,39 @@ export class FacturasRecibidasPage {
         await this.showToast(e?.message ?? this.transloco.translate('ocr.saveGenericError'), 'danger');
       }
     } finally {
+      await this.cerrarCargandoDocumento();
       this.processing = false;
     }
+  }
+
+  // El OCR tarda de verdad: es una llamada a un lector externo, no una consulta a la base.
+  // Hasta ahora el unico aviso era el spinner del propio boton, que se pierde de vista en
+  // cuanto la lista se desplaza — y sin nada que bloquee, la pantalla parece colgada y se
+  // vuelve a pulsar, mandando el mismo documento por segunda vez.
+  //
+  // Lo que de verdad importa de este overlay no es el spinner: es la segunda frase, la que
+  // avisa de que va a tardar. Eso es lo que evita el segundo intento (pedido 2026-09-09,
+  // mismo patron que la app de digitalizacion de DNIs).
+  private async mostrarCargandoDocumento() {
+    await this.cerrarCargandoDocumento();
+    this.cargandoDocumento = await this.loadingCtrl.create({
+      cssClass: 'cargando-documento',
+      spinner: 'crescent',
+      // Las dos frases viajan en una sola cadena: ion-loading trata 'message' como texto
+      // plano (no interpreta HTML salvo que se habilite globalmente, y no hace falta aqui),
+      // asi que el salto de linea se respeta con white-space: pre-line en global.scss.
+      message: this.transloco.translate('ocr.loadingTitle')
+        + '\n' + this.transloco.translate('ocr.loadingHint'),
+    });
+    await this.cargandoDocumento.present();
+  }
+
+  // Se puede llamar siempre, haya overlay o no: es lo que permite cerrarlo desde el visor
+  // bancario sin que a este le importe quien lo abrio.
+  private async cerrarCargandoDocumento() {
+    const cargando = this.cargandoDocumento;
+    this.cargandoDocumento = undefined;
+    await cargando?.dismiss();
   }
 
   // Backend: FacturasRecibidasController.CrearDesdeDocumento devuelve estos 3 códigos estables
@@ -417,6 +455,10 @@ export class FacturasRecibidasPage {
   // lista, mismo criterio que el resto de fallbacks de esta página). El fichero real se pasa
   // por el estado de navegación para que se pueda subir de verdad a Blob Storage al guardar.
   private async mostrarDocumentoBancario(documento: DocumentoBancarioAnalizado, archivoOriginal: File) {
+    // Antes de nada: este visor espera a que el usuario lo cierre, asi que el overlay de
+    // carga se quedaria debajo todo ese rato. Se cierra aqui y no en quien llama porque son
+    // dos caminos distintos los que llegan hasta aqui.
+    await this.cerrarCargandoDocumento();
     let borrador: FacturaRecibida | undefined;
     try {
       const datos = crearBorradorDesdeDocumentoBancario(documento, () => this.invoicesRepo.nuevoIdLinea());
