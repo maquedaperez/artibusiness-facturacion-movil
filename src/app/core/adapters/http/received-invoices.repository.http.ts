@@ -285,6 +285,12 @@ type FacturaRecibidaLineaApi = {
   precioUnitario: number;
   importe: number;
   idImpuesto: number;
+  // FacturaRecibidaLineaDto las devuelve desde siempre. No estaban declaradas aqui, asi que
+  // se tiraban al leer y no volvian al guardar — y el UPDATE del backend las ponia a NULL.
+  idProducto: number | null;
+  idProyecto: number | null;
+  idActividad: number | null;
+  idGrupo: number | null;
 };
 
 type FacturaRecibidaDetalleApi = FacturaRecibidaCabeceraApi & {
@@ -395,6 +401,13 @@ function mapearLinea(l: FacturaRecibidaLineaApi, nuevoId: () => number, catalogo
   return {
     id: nuevoId(),
     idLineaBackend: l.idFacturaRecibidaLinea,
+    // Se guardan tal cual para devolverlas intactas — ver DimensionesLinea.
+    dimensiones: {
+      idProducto: l.idProducto ?? null,
+      idProyecto: l.idProyecto ?? null,
+      idActividad: l.idActividad ?? null,
+      idGrupo: l.idGrupo ?? null,
+    },
     origen: 'manual',
     descripcion: l.descripcion?.trim() || 'Sin descripción',
     cantidad: l.cantidad,
@@ -1014,6 +1027,12 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
         cantidad: l.cantidad,
         precioUnitario: l.precioUnitario,
         idImpuesto: await this.resolverIdImpuesto(l.ivaPct),
+        // Se devuelven sin tocar. Una linea nueva anadida en esta sesion no las tiene y va
+        // sin ellas, que es lo correcto: todavia no esta clasificada.
+        idProducto: l.dimensiones?.idProducto ?? undefined,
+        idProyecto: l.dimensiones?.idProyecto ?? undefined,
+        idActividad: l.dimensiones?.idActividad ?? undefined,
+        idGrupo: l.dimensiones?.idGrupo ?? undefined,
       }))),
     ]);
 

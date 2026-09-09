@@ -1046,6 +1046,40 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       expect(segunda.id).toBe(primera.id);
     });
 
+    // BUG real encontrado 2026-09-09, el mismo dia que se desplego el autocompletado de
+    // dimensiones. La app leia las cuatro dimensiones analiticas que manda el backend, las
+    // tiraba, y al guardar devolvia la linea sin ellas — y el UPDATE de GuardarAsync asigna
+    // esas cuatro columnas SIN CONDICION, asi que las dejaba a NULL. Es decir: escanear una
+    // factura, abrir el borrador y guardarlo borraba la clasificacion contable que el backend
+    // acababa de rellenar solo. La app no las muestra ni las edita; lo unico correcto
+    // mientras tanto es transportarlas y devolverlas intactas.
+    it('guardar devuelve las dimensiones de la linea intactas, en vez de borrarlas', async () => {
+      stubCatalogos();
+      const conDimensiones = {
+        ...datosBase,
+        lineas: [{ ...datosBase.lineas[0], dimensiones: { idProducto: 3, idProyecto: 4, idActividad: 5, idGrupo: 6 } }],
+      };
+
+      await repo.crearManual(conDimensiones);
+
+      const cuerpo = apiSpy.post.calls.allArgs().find(([ruta]) => ruta === '/api/FacturasRecibidas/Guardar')![1] as any;
+      expect(cuerpo.lineas[0]).toEqual(jasmine.objectContaining({
+        idProducto: 3, idProyecto: 4, idActividad: 5, idGrupo: 6,
+      }));
+    });
+
+    // El reverso: una linea escrita a mano en esta sesion todavia no esta clasificada, y se
+    // manda SIN las dimensiones para que el backend la de de alta con NULL. Eso es correcto.
+    // Lo que no valia es mandar NULL sobre una linea que ya tenia clasificacion.
+    it('una linea sin dimensiones se manda sin ellas', async () => {
+      stubCatalogos();
+
+      await repo.crearManual(datosBase);
+
+      const cuerpo = apiSpy.post.calls.allArgs().find(([ruta]) => ruta === '/api/FacturasRecibidas/Guardar')![1] as any;
+      expect(cuerpo.lineas[0].idProducto).toBeUndefined();
+    });
+
     // Revisado 2026-08-28 (pedido explícito: dejar corregir el total a mano cuando el
     // documento original redondea distinto a como recalculamos las líneas — caso real: una
     // factura de Leroy Merlin con céntimos de diferencia). Antes 'guardarReal' SIEMPRE

@@ -92,6 +92,25 @@ export type LineaFactura = {
   // guardar, se manda de vuelta para que el backend actualice esa línea en vez de
   // borrarla y crear una nueva (GuardarAsync ya soporta esto por id_facturaRecibidaLinea).
   idLineaBackend?: number;
+  // Solo Facturas Recibidas. La app NO usa estas cuatro para nada: no las muestra ni deja
+  // editarlas. Se llevan y se devuelven tal cual para NO BORRARLAS al guardar.
+  //
+  // El backend las manda desde siempre y, desde 2026-09-09, ademas las rellena solo,
+  // copiandolas de facturas anteriores del mismo proveedor. Su UPDATE de linea asigna las
+  // cuatro columnas sin condicion, asi que una linea que vuelva sin ellas las deja a NULL:
+  // guardar un borrador escaneado desde la app borraba la clasificacion contable que el
+  // backend acababa de poner. Mientras la app no sepa mostrarlas, lo unico correcto es no
+  // tocarlas.
+  dimensiones?: DimensionesLinea;
+};
+
+// Las cuatro dimensiones analiticas de una linea de factura recibida (producto, proyecto,
+// actividad, grupo). Opacas a proposito: la app las transporta, no las entiende.
+export type DimensionesLinea = {
+  idProducto: number | null;
+  idProyecto: number | null;
+  idActividad: number | null;
+  idGrupo: number | null;
 };
 
 // Producto/servicio del catálogo de la empresa — buscado bajo demanda, nunca
