@@ -316,8 +316,9 @@ export class FacturasEmitidasPage implements OnInit {
       }
       try {
         const blob = await this.invoicesRepo.obtenerXsigReal(f.id);
-        descargarBlob(blob, `Factura-${f.numFactura}.xsig`);
-        await this.showToast(this.transloco.translate('invoices.issued.download.xsigSuccess'));
+        const entrega = await descargarBlob(blob, `Factura-${f.numFactura}.xsig`);
+        // 'cancelado' = cerro el dialogo del sistema sin elegir nada; no se avisa.
+        if (entrega !== 'cancelado') await this.showToast(this.transloco.translate('invoices.issued.download.xsigSuccess'));
       } catch {
         await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
       }
@@ -330,12 +331,14 @@ export class FacturasEmitidasPage implements OnInit {
     try {
       if (f.estado === 'borrador') {
         const { blob, nombre } = await this.invoicesRepo.generarDocumento(f.id);
-        descargarBlob(blob, nombre);
-        await this.showToast(this.transloco.translate('invoices.issued.download.success'));
+        const entrega = await descargarBlob(blob, nombre);
+        // 'cancelado' = cerro el dialogo del sistema sin elegir nada; no se avisa.
+        if (entrega !== 'cancelado') await this.showToast(this.transloco.translate('invoices.issued.download.success'));
       } else {
         const blob = await this.invoicesRepo.obtenerPdfReal(f.id);
-        descargarBlob(blob, `Factura-${f.numFactura}.pdf`);
-        await this.showToast(this.transloco.translate('invoices.issued.download.successReal'));
+        const entrega = await descargarBlob(blob, `Factura-${f.numFactura}.pdf`);
+        // 'cancelado' = cerro el dialogo del sistema sin elegir nada; no se avisa.
+        if (entrega !== 'cancelado') await this.showToast(this.transloco.translate('invoices.issued.download.successReal'));
       }
     } catch {
       await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');

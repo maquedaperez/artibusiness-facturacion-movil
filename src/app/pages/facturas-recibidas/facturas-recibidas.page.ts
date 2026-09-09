@@ -584,8 +584,9 @@ export class FacturasRecibidasPage {
     event.stopPropagation();
     try {
       const blob = await this.adjuntoABlob(f);
-      descargarBlob(blob, f.documentoNombre || 'documento-adjunto');
-      await this.showToast(this.transloco.translate('invoices.received.attachment.downloadSuccess'));
+      const entrega = await descargarBlob(blob, f.documentoNombre || 'documento-adjunto');
+      // 'cancelado' = cerro el dialogo del sistema sin elegir nada; no se avisa.
+      if (entrega !== 'cancelado') await this.showToast(this.transloco.translate('invoices.received.attachment.downloadSuccess'));
     } catch {
       await this.showToast(this.transloco.translate('invoices.received.attachment.downloadError'), 'danger');
     }

@@ -1347,8 +1347,9 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
     }
     try {
       const blob = await this.invoicesRepo.obtenerXsigReal(this.working.id);
-      descargarBlob(blob, `Factura-${this.working.numFactura}.xsig`);
-      await this.showToast(this.transloco.translate('invoices.issued.download.xsigSuccess'));
+      const entrega = await descargarBlob(blob, `Factura-${this.working.numFactura}.xsig`);
+      // 'cancelado' = cerro el dialogo del sistema sin elegir nada; no se avisa.
+      if (entrega !== 'cancelado') await this.showToast(this.transloco.translate('invoices.issued.download.xsigSuccess'));
     } catch {
       await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
     }
@@ -1372,12 +1373,14 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
     try {
       if (this.working.estado === 'borrador') {
         const { blob, nombre } = await this.invoicesRepo.generarDocumento(this.working.id);
-        descargarBlob(blob, nombre);
-        await this.showToast(this.transloco.translate('invoices.issued.download.success'));
+        const entrega = await descargarBlob(blob, nombre);
+        // 'cancelado' = cerro el dialogo del sistema sin elegir nada; no se avisa.
+        if (entrega !== 'cancelado') await this.showToast(this.transloco.translate('invoices.issued.download.success'));
       } else {
         const blob = await this.invoicesRepo.obtenerPdfReal(this.working.id);
-        descargarBlob(blob, `Factura-${this.working.numFactura}.pdf`);
-        await this.showToast(this.transloco.translate('invoices.issued.download.successReal'));
+        const entrega = await descargarBlob(blob, `Factura-${this.working.numFactura}.pdf`);
+        // 'cancelado' = cerro el dialogo del sistema sin elegir nada; no se avisa.
+        if (entrega !== 'cancelado') await this.showToast(this.transloco.translate('invoices.issued.download.successReal'));
       }
     } catch {
       await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
