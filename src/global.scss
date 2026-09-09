@@ -93,9 +93,6 @@ ion-tab-bar {
   }
 
   .loading-content {
-    // Las dos frases llegan en una sola cadena, separadas por un salto de linea
-    // — ver mostrarCargandoDocumento() en facturas-recibidas.page.ts.
-    white-space: pre-line;
     text-align: center;
     line-height: 1.45;
   }

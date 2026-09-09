@@ -648,8 +648,7 @@
   "ocr": {
     "scanUnavailableNotice": "Scanning invoices is not available right now — use \"New invoice\" to add it manually in the meantime.",
     "scanning": "Processing...",
-    "loadingTitle": "Extracting the document data…",
-    "loadingHint": "This may take a few seconds.",
+    "loadingTitle": "Extracting document data…",
     "scanButton": "Scan",
     "attachButton": "Attach",
     "fileTooLarge": "The file is too large (10 MB max). Try a lower-resolution photo or a lighter PDF.",

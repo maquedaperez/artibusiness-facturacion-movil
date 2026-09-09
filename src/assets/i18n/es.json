@@ -648,8 +648,7 @@
   "ocr": {
     "scanUnavailableNotice": "Escanear facturas no está disponible ahora mismo — usa \"Nueva factura\" para darla de alta a mano mientras tanto.",
     "scanning": "Procesando...",
-    "loadingTitle": "Extrayendo los datos del documento…",
-    "loadingHint": "Este proceso puede tardar unos segundos.",
+    "loadingTitle": "Extrayendo datos del documento…",
     "scanButton": "Escanear",
     "attachButton": "Adjuntar",
     "fileTooLarge": "El archivo pesa demasiado (máximo 10 MB). Prueba con una foto de menor resolución o un PDF más ligero.",

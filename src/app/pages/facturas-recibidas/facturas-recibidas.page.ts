@@ -289,19 +289,14 @@ export class FacturasRecibidasPage {
   // cuanto la lista se desplaza — y sin nada que bloquee, la pantalla parece colgada y se
   // vuelve a pulsar, mandando el mismo documento por segunda vez.
   //
-  // Lo que de verdad importa de este overlay no es el spinner: es la segunda frase, la que
-  // avisa de que va a tardar. Eso es lo que evita el segundo intento (pedido 2026-09-09,
-  // mismo patron que la app de digitalizacion de DNIs).
+  // Una sola linea a proposito (2026-09-09): con dos frases el texto envolvia al spinner y el
+  // cuadro ocupaba media pantalla para decir lo mismo.
   private async mostrarCargandoDocumento() {
     await this.cerrarCargandoDocumento();
     this.cargandoDocumento = await this.loadingCtrl.create({
       cssClass: 'cargando-documento',
       spinner: 'crescent',
-      // Las dos frases viajan en una sola cadena: ion-loading trata 'message' como texto
-      // plano (no interpreta HTML salvo que se habilite globalmente, y no hace falta aqui),
-      // asi que el salto de linea se respeta con white-space: pre-line en global.scss.
-      message: this.transloco.translate('ocr.loadingTitle')
-        + '\n' + this.transloco.translate('ocr.loadingHint'),
+      message: this.transloco.translate('ocr.loadingTitle'),
     });
     await this.cargandoDocumento.present();
   }
