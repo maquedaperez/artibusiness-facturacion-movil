@@ -31,7 +31,8 @@ import { LineasEditorComponent, lineaFacturaInvalida } from '../../shared/lineas
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 import { PuedeSalirDeLaPantalla } from '../../guards/cambios-sin-guardar.guard';
 import { pedirConfirmacion } from '../../shared/utils/confirmacion';
-import { RECTIFICATIVAS_DISPONIBLES, STRIPE_CONNECT_DISPONIBLE, SUBSANACION_DISPONIBLE } from '../../core/providers/funcionalidades-pendientes';
+import { RECTIFICATIVAS_DISPONIBLES, STRIPE_CONNECT_DISPONIBLE, SUBSANACION_DISPONIBLE } from '../../core/providers/funcionalidades-pendientes';
+import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
 
 /**
  * Redondea a centimos. El euro no tiene mas divisiones, asi que cualquier resto por debajo de eso
@@ -222,7 +223,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       // Sin esperar: la factura ya está en pantalla y esto solo puede mejorar lo que se ve.
       this.refrescarEstadoAeatSiSigueEnVuelo();
     } catch (e: any) {
-      this.errorMsg = e?.message ?? this.transloco.translate('invoices.issued.detail.loadError');
+      this.errorMsg = mensajeDeError(e, this.transloco.translate('invoices.issued.detail.loadError'));
     } finally {
       this.cargando = false;
     }
@@ -624,7 +625,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       }
       return true;
     } catch (e: any) {
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.detail.saveError'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.detail.saveError')), 'danger');
       return false;
     } finally {
       this.guardando = false;
@@ -695,7 +696,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       await this.showToast(this.transloco.translate('invoices.issued.detail.postedSuccess'));
       this.volver();
     } catch (e: any) {
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.post.error'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.post.error')), 'danger');
     } finally {
       this.contabilizando = false;
     }
@@ -951,7 +952,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       this.marcarSinCambiosPendientes();
       await this.showToast(this.transloco.translate('invoices.issued.cobros.success'));
     } catch (e: any) {
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.cobros.error'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.cobros.error')), 'danger');
     } finally {
       this.marcandoCobrado = false;
     }
@@ -979,7 +980,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       this.checkoutUrlStripe = checkoutUrl;
       this.iniciarSondeoCobroStripe();
     } catch (e: any) {
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.cobros.stripe.error'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.cobros.stripe.error')), 'danger');
     } finally {
       this.cobrandoStripe = false;
     }
@@ -1089,7 +1090,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       await this.showToast(this.transloco.translate('invoices.issued.detail.signedSuccess'));
       this.volver();
     } catch (e: any) {
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.sign.error'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.sign.error')), 'danger');
     } finally {
       this.firmando = false;
     }
@@ -1146,7 +1147,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       this.marcarSinCambiosPendientes();
       await this.showToast(this.transloco.translate('invoices.issued.detail.cancelledSuccess'));
     } catch (e: any) {
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.detail.cancelError'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.detail.cancelError')), 'danger');
     } finally {
       this.anulando = false;
     }
@@ -1206,7 +1207,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       this.marcarSinCambiosPendientes();
       this.router.navigate(['/app/emitidas', rectificativa.id], { replaceUrl: true });
     } catch (e: any) {
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.rectificativa.error'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.rectificativa.error')), 'danger');
     } finally {
       this.rectificando = false;
     }
@@ -1286,7 +1287,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       // se acaba de anular.
       this.router.navigate(['/app/emitidas', copia.id], { replaceUrl: true });
     } catch (e: any) {
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.correctFlow.error'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.correctFlow.error')), 'danger');
     } finally {
       this.corrigiendo = false;
     }
@@ -1300,7 +1301,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       await this.showToast(this.transloco.translate('invoices.issued.duplicate.success', { nuevo: copia.numFactura, original: this.working.numFactura }));
       this.router.navigate(['/app/emitidas', copia.id], { replaceUrl: true });
     } catch (e: any) {
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.duplicate.error'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.duplicate.error')), 'danger');
     }
   }
 
@@ -1350,8 +1351,8 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       const entrega = await descargarBlob(blob, `Factura-${this.working.numFactura}.xsig`);
       // 'cancelado' = cerro el dialogo del sistema sin elegir nada; no se avisa.
       if (entrega !== 'cancelado') await this.showToast(this.transloco.translate('invoices.issued.download.xsigSuccess'));
-    } catch {
-      await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
+    } catch (fallo) {
+      await this.showToast(mensajeDeError(fallo, this.transloco.translate('invoices.issued.download.error')), 'danger');
     }
   }
 
@@ -1382,8 +1383,8 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
         // 'cancelado' = cerro el dialogo del sistema sin elegir nada; no se avisa.
         if (entrega !== 'cancelado') await this.showToast(this.transloco.translate('invoices.issued.download.successReal'));
       }
-    } catch {
-      await this.showToast(this.transloco.translate('invoices.issued.download.error'), 'danger');
+    } catch (fallo) {
+      await this.showToast(mensajeDeError(fallo, this.transloco.translate('invoices.issued.download.error')), 'danger');
     }
   }
 
@@ -1403,8 +1404,8 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
         const blob = await this.invoicesRepo.obtenerPdfReal(this.working.id);
         await compartirBlob(blob, `Factura-${this.working.numFactura}.pdf`);
       }
-    } catch {
-      await this.showToast(this.transloco.translate('invoices.issued.share.error'), 'danger');
+    } catch (fallo) {
+      await this.showToast(mensajeDeError(fallo, this.transloco.translate('invoices.issued.share.error')), 'danger');
     }
   }
 
@@ -1437,7 +1438,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       await this.showToast(this.transloco.translate('invoices.issued.deleteDraft.success'));
       this.volver();
     } catch (e: any) {
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.deleteDraft.error'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.deleteDraft.error')), 'danger');
     }
   }
 
@@ -1453,7 +1454,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       this.marcarSinCambiosPendientes();
       await this.showToast(this.transloco.translate('invoices.issued.simplified.sendSuccess'));
     } catch (e: any) {
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.simplified.sendError'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.simplified.sendError')), 'danger');
       // El backend persiste el fallo (EstadoUltimoEnvio/ErrorUltimoEnvio) aunque la petición
       // termine en error — se relee para no dejar la tarjeta de correo con el estado anterior.
       try {

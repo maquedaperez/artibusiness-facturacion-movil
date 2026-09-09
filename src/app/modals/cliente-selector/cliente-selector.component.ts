@@ -14,7 +14,8 @@ import { addIcons } from 'ionicons';
 import { closeOutline, personAddOutline } from 'ionicons/icons';
 
 import { ClienteMock, Destinatario } from '../../services/mock-facturas.service';
-import { CustomersRepository, IssuedInvoicesRepository, MedioPagoOpcion } from '../../core/ports';
+import { CustomersRepository, IssuedInvoicesRepository, MedioPagoOpcion } from '../../core/ports';
+import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
 
 const MIN_CARACTERES_BUSQUEDA = 2;
 const DEBOUNCE_MS = 350;
@@ -253,7 +254,7 @@ export class ClienteSelectorComponent implements OnDestroy {
       const seleccion: SeleccionCliente = { cliente: creado, esNuevo: true };
       this.modalCtrl.dismiss(seleccion, 'confirm');
     } catch (e: any) {
-      this.errorMsg = e?.message ?? this.transloco.translate('invoices.issued.clientSelector.createError');
+      this.errorMsg = mensajeDeError(e, this.transloco.translate('invoices.issued.clientSelector.createError'));
     } finally {
       this.guardando = false;
     }

@@ -15,7 +15,8 @@ import { arrowBackOutline } from 'ionicons/icons';
 import { formatEuros as formatEurosUtil } from '../../shared/utils/format-euros';
 import { FacturaEmitida } from '../../services/mock-facturas.service';
 import { DiferenciaCampoFiscal, IssuedInvoicesRepository } from '../../core/ports';
-import { pedirConfirmacion } from '../../shared/utils/confirmacion';
+import { pedirConfirmacion } from '../../shared/utils/confirmacion';
+import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
 
 // Fase 7 (Subsanar, 2026-08-24): pantalla DEDICADA y de solo lectura para la factura y el
 // registro original — Subsanar no es un editor (ver issued-invoices.repository.ts), así que a
@@ -73,7 +74,7 @@ export class FacturaSubsanarPage implements OnInit {
       }
       await this.cargarPrevisualizacion();
     } catch (e: any) {
-      this.errorMsg = e?.message ?? this.transloco.translate('invoices.issued.detail.loadError');
+      this.errorMsg = mensajeDeError(e, this.transloco.translate('invoices.issued.detail.loadError'));
     } finally {
       this.cargando = false;
     }
@@ -86,7 +87,7 @@ export class FacturaSubsanarPage implements OnInit {
       this.hayDiferencias = previsualizacion.hayDiferencias;
       this.diferencias = previsualizacion.diferencias;
     } catch (e: any) {
-      this.errorMsg = e?.message ?? this.transloco.translate('invoices.issued.correct.previewError');
+      this.errorMsg = mensajeDeError(e, this.transloco.translate('invoices.issued.correct.previewError'));
     } finally {
       this.cargandoPrevisualizacion = false;
     }
@@ -148,7 +149,7 @@ export class FacturaSubsanarPage implements OnInit {
       await this.showToast(this.transloco.translate('invoices.issued.correct.registeredSuccess'));
       this.router.navigate(['/app/emitidas', this.facturaId], { replaceUrl: true });
     } catch (e: any) {
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.issued.correct.error'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.correct.error')), 'danger');
     } finally {
       this.procesando = false;
     }

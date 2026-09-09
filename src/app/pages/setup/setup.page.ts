@@ -10,7 +10,8 @@ import {
 } from '@ionic/angular/standalone';
 
 import { TenantService } from '../../services/tenant.service';
-import { LanguageSelectorComponent } from '../../shared/language-selector/language-selector.component';
+import { LanguageSelectorComponent } from '../../shared/language-selector/language-selector.component';
+import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
 
 @Component({
   selector: 'app-setup',
@@ -64,7 +65,7 @@ async submit() {
     await this.tenant.setTenantKey(key);
     await this.router.navigateByUrl('/login', { replaceUrl: true });
   } catch (e: any) {
-    this.errorMsg = e?.message ?? this.transloco.translate('auth.setup.errorServer');
+    this.errorMsg = mensajeDeError(e, this.transloco.translate('auth.setup.errorServer'));
   } finally {
     this.loading = false;
   }

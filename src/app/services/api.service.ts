@@ -170,6 +170,18 @@ export class ApiService {
       return codigo ? `${obj['message']} [${codigo}]` : (obj['message'] as string);
     }
 
+    // Forma en castellano que usa FacturaE y algún endpoint más: { error, detalle }. No la
+    // reconocía nadie, así que caía al texto crudo — y por eso un 502 de FacturaE llegaba al
+    // usuario como un volcado JSON anidado (visto en iPhone, 2026-09-09).
+    //
+    // 'detalle' solo se añade si es prosa: en ese mismo caso traía DENTRO otro JSON escapado
+    // con la respuesta de FacturaE, que es justo lo que no hay que enseñar.
+    if (typeof obj['error'] === 'string' && obj['error'].trim()) {
+      const detalle = obj['detalle'];
+      const esProsa = typeof detalle === 'string' && detalle.trim() && !/[{}]/.test(detalle) && !detalle.includes('\\"');
+      return esProsa ? `${obj['error']}: ${detalle}` : (obj['error'] as string);
+    }
+
     // ProblemDetails por defecto de ASP.NET Core (RFC 9110): { title, detail?, status, ... }
     // — sin 'message' ni 'code' propios, nunca comprobado por .includes() en ningún sitio.
     if (typeof obj['title'] === 'string' && obj['title'].trim()) {

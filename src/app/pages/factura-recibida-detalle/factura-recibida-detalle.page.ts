@@ -28,7 +28,8 @@ import { ProveedorSelectorComponent } from '../../modals/proveedor-selector/prov
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 import { LineasEditorComponent } from '../../shared/lineas-editor/lineas-editor.component';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
-import { PagosService } from '../../services/pagos.service';
+import { PagosService } from '../../services/pagos.service';
+import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
 
 type FacturaRecibidaForm = Omit<FacturaRecibida, 'id' | 'origenOcr'>;
 
@@ -124,7 +125,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
       this.origenOcr = factura.origenOcr;
       this.sincronizarWorkingDesde(factura);
     } catch (e: any) {
-      this.errorMsg = e?.message ?? this.transloco.translate('invoices.received.detail.loadError');
+      this.errorMsg = mensajeDeError(e, this.transloco.translate('invoices.received.detail.loadError'));
     } finally {
       this.cargando = false;
     }
@@ -198,7 +199,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
       await this.showToast(this.transloco.translate('invoices.received.duplicate.success', { proveedor: this.working.proveedor }));
       this.router.navigate(['/app/recibidas', copia.id], { replaceUrl: true });
     } catch (e: any) {
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.received.duplicate.error'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.duplicate.error')), 'danger');
     }
   }
 
@@ -254,8 +255,8 @@ export class FacturaRecibidaDetallePage implements OnInit {
       const entrega = await descargarBlob(blob, this.working.documentoNombre || 'documento-adjunto');
       // 'cancelado' = cerro el dialogo del sistema sin elegir nada; no se avisa.
       if (entrega !== 'cancelado') await this.showToast(this.transloco.translate('invoices.received.attachment.downloadSuccess'));
-    } catch {
-      await this.showToast(this.transloco.translate('invoices.received.attachment.downloadError'), 'danger');
+    } catch (fallo) {
+      await this.showToast(mensajeDeError(fallo, this.transloco.translate('invoices.received.attachment.downloadError')), 'danger');
     }
   }
 
@@ -263,8 +264,8 @@ export class FacturaRecibidaDetallePage implements OnInit {
     try {
       const blob = await this.adjuntoABlob();
       await compartirBlob(blob, this.working.documentoNombre || 'documento-adjunto');
-    } catch {
-      await this.showToast(this.transloco.translate('invoices.received.attachment.shareError'), 'danger');
+    } catch (fallo) {
+      await this.showToast(mensajeDeError(fallo, this.transloco.translate('invoices.received.attachment.shareError')), 'danger');
     }
   }
 
@@ -411,7 +412,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
       // BUG real encontrado en auditoría 2026-08-14: sin este catch, un fichero no legible
       // (corrupto, formato raro) dejaba desaparecer el spinner sin ningún aviso — el usuario
       // no se enteraba de que el adjunto había fallado.
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.received.detail.attachError'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.detail.attachError')), 'danger');
     } finally {
       this.adjuntando = false;
     }
@@ -543,7 +544,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
 
       await this.showToast(this.transloco.translate('invoices.received.detail.saveSuccess'));
     } catch (e) {
-      await this.mostrarError(e instanceof Error ? e.message : this.transloco.translate('invoices.received.detail.saveError'));
+      await this.mostrarError(mensajeDeError(e, this.transloco.translate('invoices.received.detail.saveError')));
     } finally {
       this.guardando = false;
     }
@@ -611,7 +612,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
               this.sincronizarWorkingDesde(guardada);
               await this.showToast(this.transloco.translate('invoices.received.post.success'));
             } catch (e) {
-              await this.showToast(e instanceof Error ? e.message : this.transloco.translate('invoices.received.post.error'), 'danger');
+              await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.post.error')), 'danger');
             }
           },
         },
@@ -649,7 +650,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
               await this.showToast(this.transloco.translate('invoices.received.delete.success'));
               this.volver();
             } catch (e) {
-              await this.showToast(e instanceof Error ? e.message : this.transloco.translate('invoices.received.delete.error'), 'danger');
+              await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.delete.error')), 'danger');
             }
           },
         },

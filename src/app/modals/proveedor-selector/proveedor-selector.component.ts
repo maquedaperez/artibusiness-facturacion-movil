@@ -14,7 +14,8 @@ import { addIcons } from 'ionicons';
 import { closeOutline, addOutline } from 'ionicons/icons';
 
 import { ProveedorMock } from '../../services/mock-facturas.service';
-import { SuppliersRepository } from '../../core/ports';
+import { SuppliersRepository } from '../../core/ports';
+import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
 
 const MIN_CARACTERES_BUSQUEDA = 2;
 const DEBOUNCE_MS = 350;
@@ -237,7 +238,7 @@ export class ProveedorSelectorComponent implements OnInit, OnDestroy {
       const creado = await this.suppliersRepo.crearAdHoc({ ...this.nuevo });
       this.modalCtrl.dismiss(creado, 'confirm');
     } catch (e) {
-      this.errorMsg = e instanceof Error ? e.message : this.transloco.translate('invoices.received.supplierSelector.createError');
+      this.errorMsg = mensajeDeError(e, this.transloco.translate('invoices.received.supplierSelector.createError'));
     } finally {
       this.guardando = false;
     }

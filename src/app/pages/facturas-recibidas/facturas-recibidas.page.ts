@@ -27,7 +27,8 @@ import { environment } from 'src/environments/environment';
 import {
   DocumentoBancarioAnalizado, crearBorradorDesdeDocumentoBancario, esDocumentoBancarioAnalizado,
 } from '../../core/models/documento-bancario';
-import { DocumentoBancarioComponent } from '../../modals/documento-bancario/documento-bancario.component';
+import { DocumentoBancarioComponent } from '../../modals/documento-bancario/documento-bancario.component';
+import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
 
 @Component({
   selector: 'app-facturas-recibidas',
@@ -113,7 +114,7 @@ export class FacturasRecibidasPage {
       this.facturas = resultado;
     } catch (e: any) {
       if (idPeticion !== this.peticionListarEnCurso) return;
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.received.list.loadError'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.list.loadError')), 'danger');
     } finally {
       if (idPeticion === this.peticionListarEnCurso) this.cargando = false;
     }
@@ -276,7 +277,7 @@ export class FacturasRecibidasPage {
       if (motivo) {
         await this.intentarBorradorLocal(file, motivo);
       } else {
-        await this.showToast(e?.message ?? this.transloco.translate('ocr.saveGenericError'), 'danger');
+        await this.showToast(mensajeDeError(e, this.transloco.translate('ocr.saveGenericError')), 'danger');
       }
     } finally {
       await this.cerrarCargandoDocumento();
@@ -505,7 +506,7 @@ export class FacturasRecibidasPage {
               await this.refresh();
               await this.showToast(this.transloco.translate('invoices.received.post.success'));
             } catch (e) {
-              await this.showToast(e instanceof Error ? e.message : this.transloco.translate('invoices.received.post.error'), 'danger');
+              await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.post.error')), 'danger');
             }
           },
         },
@@ -530,7 +531,7 @@ export class FacturasRecibidasPage {
       await this.refresh();
       await this.showToast(this.transloco.translate('invoices.received.duplicate.success', { proveedor: completa.proveedor }));
     } catch (e: any) {
-      await this.showToast(e?.message ?? this.transloco.translate('invoices.received.duplicate.error'), 'danger');
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.duplicate.error')), 'danger');
     }
   }
 
@@ -587,8 +588,8 @@ export class FacturasRecibidasPage {
       const entrega = await descargarBlob(blob, f.documentoNombre || 'documento-adjunto');
       // 'cancelado' = cerro el dialogo del sistema sin elegir nada; no se avisa.
       if (entrega !== 'cancelado') await this.showToast(this.transloco.translate('invoices.received.attachment.downloadSuccess'));
-    } catch {
-      await this.showToast(this.transloco.translate('invoices.received.attachment.downloadError'), 'danger');
+    } catch (fallo) {
+      await this.showToast(mensajeDeError(fallo, this.transloco.translate('invoices.received.attachment.downloadError')), 'danger');
     }
   }
 
@@ -597,8 +598,8 @@ export class FacturasRecibidasPage {
     try {
       const blob = await this.adjuntoABlob(f);
       await compartirBlob(blob, f.documentoNombre || 'documento-adjunto');
-    } catch {
-      await this.showToast(this.transloco.translate('invoices.received.attachment.shareError'), 'danger');
+    } catch (fallo) {
+      await this.showToast(mensajeDeError(fallo, this.transloco.translate('invoices.received.attachment.shareError')), 'danger');
     }
   }
 
@@ -631,7 +632,7 @@ export class FacturasRecibidasPage {
               await this.refresh();
               await this.showToast(this.transloco.translate('invoices.received.delete.success'));
             } catch (e) {
-              await this.showToast(e instanceof Error ? e.message : this.transloco.translate('invoices.received.delete.error'), 'danger');
+              await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.delete.error')), 'danger');
             }
           },
         },
