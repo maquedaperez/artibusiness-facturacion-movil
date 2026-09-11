@@ -268,7 +268,7 @@
         "header": "Sign invoice",
         "message": "Sign the invoice for {{cliente}}? This generates the XAdES electronic signature for the document already registered in VERI*FACTU.",
         "success": "Invoice for {{cliente}} signed.",
-        "error": "Could not sign the invoice."
+        "error": "The invoice could not be signed. Check that the company has a valid signing certificate configured."
       },
       "duplicate": {
         "success": "Draft {{nuevo}} created from {{original}}.",

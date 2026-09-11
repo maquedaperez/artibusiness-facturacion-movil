@@ -268,7 +268,7 @@
         "header": "Firmar factura",
         "message": "¿Firmar la factura de {{cliente}}? Esto genera la firma electrónica XAdES del documento ya registrado en VERI*FACTU.",
         "success": "Factura de {{cliente}} firmada.",
-        "error": "No se pudo firmar la factura."
+        "error": "No se ha podido firmar la factura. Comprueba que la empresa tenga configurado un certificado de firma válido."
       },
       "duplicate": {
         "success": "Borrador {{nuevo}} creado a partir de {{original}}.",
