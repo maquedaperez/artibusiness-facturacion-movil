@@ -80,6 +80,39 @@ describe('ApiService — a qué backend habla la app', () => {
   // Lo que de verdad importa de estos tests no es que el desvio funcione, sino que NO SE ACTIVE
   // en ningun otro sitio: si se colara en produccion, todo el trafico real pasaria por un proxy
   // que solo existe para probar.
+  // Qué mensaje se saca del cuerpo de error del backend (2026-09-11).
+  //
+  // El caso es literal: lo capturó Abraham en la demo al firmar. El backend envuelve el fallo
+  // de FacturaE en { error, detalle }, y el motivo de verdad viaja DENTRO de 'detalle', en un
+  // JSON escapado. Antes se tiraba entero y quedaba solo el envoltorio de arriba, que se limita
+  // a repetir la acción que ha fallado.
+  describe('mensaje de error del backend', () => {
+    function extraer(valor: unknown): string | null {
+      return (service as unknown as { extraerMensajeDeJson(v: unknown): string | null }).extraerMensajeDeJson(valor);
+    }
+
+    it('saca el motivo real de dentro de detalle, no el envoltorio', () => {
+      const cuerpo = {
+        error: 'FacturaE no pudo firmar la factura.',
+        detalle: 'FacturaE respondió 409 Conflict: {\"error\":\"El XML del lote (Id=229) no coincide con el registro fiscal de la factura \'ART60\'.\"}',
+      };
+
+      expect(extraer(cuerpo)).toBe("El XML del lote (Id=229) no coincide con el registro fiscal de la factura 'ART60'.");
+    });
+
+    it('si detalle es prosa, se añade al mensaje en vez de buscarle JSON', () => {
+      const cuerpo = { error: 'No se pudo generar el documento.', detalle: 'El proveedor no tiene dirección.' };
+
+      expect(extraer(cuerpo)).toBe('No se pudo generar el documento.: El proveedor no tiene dirección.');
+    });
+
+    it('si de detalle no se puede sacar nada, queda el error de arriba', () => {
+      const cuerpo = { error: 'FacturaE no pudo firmar la factura.', detalle: '{\"vacio\":true}' };
+
+      expect(extraer(cuerpo)).toBe('FacturaE no pudo firmar la factura.');
+    });
+  });
+
   describe('proxy de la rama de pruebas', () => {
     const DEV = 'https://webapiartibusinessdevelopment-e8htgkdhhhfpbeem.westeurope-01.azurewebsites.net';
     const PRO = 'https://webapiartibusiness-dvh6d7b8a7c9dsfr.westeurope-01.azurewebsites.net';

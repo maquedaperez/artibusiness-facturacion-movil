@@ -21,8 +21,10 @@
 // Más largo que esto no se lee en un toast: es un volcado, no un aviso.
 const LARGO_MAXIMO = 200;
 
-// "HTTP 500 - ", que antepone ApiService. Se usa para JUZGAR el mensaje, no para recortarlo:
-// el código de estado le sirve a quien da soporte cuando el usuario le lee el aviso en alto.
+// "HTTP 500 - ", que antepone ApiService. Se usa para juzgar el mensaje Y se recorta al
+// mostrarlo: un codigo de estado no le dice nada a nadie que no sea programador, y visto en un
+// movil ("HTTP 502 - FacturaE no pudo firmar la factura") hace que un aviso normal parezca un
+// error del sistema. El mensaje completo sigue dentro del Error, para el log.
 const PREFIJO_HTTP = /^HTTP\s*\d{3}\s*-?\s*/i;
 
 // Código de error entre corchetes al final ("... [OPERATION_IN_PROGRESS]"). Lo añade
@@ -57,5 +59,8 @@ export function esMensajePresentable(mensaje: string | null | undefined): boolea
 export function mensajeDeError(error: unknown, respaldo: string): string {
   const bruto = (error as { message?: string } | undefined)?.message;
   if (!esMensajePresentable(bruto)) return respaldo;
-  return (bruto as string).replace(CODIGO_AL_FINAL, '').trim() || respaldo;
+  return (bruto as string)
+    .replace(PREFIJO_HTTP, '')
+    .replace(CODIGO_AL_FINAL, '')
+    .trim() || respaldo;
 }

@@ -119,7 +119,7 @@ describe('FacturaRecibidaDetallePage', () => {
     beforeEach(async () => configurar('502', { get: jasmine.createSpy().and.rejectWith(new Error('HTTP 500 - Error interno del servidor.')) }));
 
     it('se muestra el error real, no "factura no encontrada"', () => {
-      expect(component.errorMsg).toContain('500');
+      expect(component.errorMsg).toContain('Error interno del servidor');
     });
   });
 

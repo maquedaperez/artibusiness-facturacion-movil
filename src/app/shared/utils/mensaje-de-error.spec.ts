@@ -27,10 +27,10 @@ describe('mensajeDeError', () => {
 
   // "HTTP 500 - Error interno del servidor." se enseña ENTERO, código incluido: distinguir un
   // fallo del servidor de un "no encontrado" importa, y el número le sirve a quien da soporte.
-  it('un HTTP con frase legible detrás se enseña tal cual, con el código', () => {
+  it('un HTTP con frase legible detrás se enseña sin el código', () => {
     const error = new Error('HTTP 500 - Error interno del servidor.');
 
-    expect(mensajeDeError(error, RESPALDO)).toBe('HTTP 500 - Error interno del servidor.');
+    expect(mensajeDeError(error, RESPALDO)).toBe('Error interno del servidor.');
   });
 
   // El código entre corchetes lo pone ApiService para que las pantallas reconozcan errores

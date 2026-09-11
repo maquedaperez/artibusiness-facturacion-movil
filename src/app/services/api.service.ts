@@ -177,9 +177,20 @@ export class ApiService {
     // 'detalle' solo se añade si es prosa: en ese mismo caso traía DENTRO otro JSON escapado
     // con la respuesta de FacturaE, que es justo lo que no hay que enseñar.
     if (typeof obj['error'] === 'string' && obj['error'].trim()) {
-      const detalle = obj['detalle'];
-      const esProsa = typeof detalle === 'string' && detalle.trim() && !/[{}]/.test(detalle) && !detalle.includes('\\"');
-      return esProsa ? `${obj['error']}: ${detalle}` : (obj['error'] as string);
+      const detalle = typeof obj['detalle'] === 'string' ? obj['detalle'].trim() : '';
+      if (detalle) {
+        // Prosa limpia: se añade tal cual.
+        if (!/[{}]/.test(detalle) && !detalle.includes('\\"')) return `${obj['error']}: ${detalle}`;
+
+        // 'detalle' con JSON dentro. Es la forma real que devuelve el backend al envolver un
+        // fallo de FacturaE: "FacturaE respondió 409 Conflict: {...}". Hasta ahora se tiraba
+        // entero, y lo que quedaba era el 'error' de arriba — que solo repite la acción que ha
+        // fallado ("FacturaE no pudo firmar la factura") y no dice nada que el usuario no sepa.
+        // El motivo de verdad está aquí dentro, así que se intenta sacar antes de rendirse.
+        const anidado = this.extraerMensajeDeJsonTexto(detalle.slice(detalle.indexOf('{')));
+        if (anidado) return anidado;
+      }
+      return obj['error'] as string;
     }
 
     // ProblemDetails por defecto de ASP.NET Core (RFC 9110): { title, detail?, status, ... }
