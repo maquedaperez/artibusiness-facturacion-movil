@@ -29,6 +29,33 @@ function conExtension(nombreArchivo: string, blob: Blob): string {
   return extension ? `${nombreArchivo}.${extension}` : nombreArchivo;
 }
 
+// Caracteres que no pueden ir en un nombre de fichero.
+const CARACTERES_PROHIBIDOS = /[\/\\:*?"<>|]+/g;
+
+/**
+ * Un nombre de fichero que el sistema no confunda con una ruta.
+ *
+ * BUG REAL (iPhone, 2026-09-14): descargar una factura EMITIDA daba "Missing parent directory
+ * - possibly recursive=false was passed". Los números de factura llevan serie con barra
+ * —"FAR/17-318"—, así que el nombre quedaba "Factura-FAR/17-318.pdf" y Filesystem interpretaba
+ * "Factura-FAR/" como una carpeta que no existe. En recibidas no pasaba porque sus nombres
+ * ("CZ0008526") no llevan barra.
+ *
+ * Lo provocó el arreglo del 2026-09-09: antes, en nativo, la descarga no hacía nada en
+ * silencio; al llevarla por Filesystem.writeFile empezó a romper con cualquier serie.
+ *
+ * Se limpia el nombre, no se crea la carpeta (recursive: true): eso guardaría el fichero como
+ * "17-318.pdf" dentro de una carpeta "Factura-FAR", y el usuario compartiría un fichero con un
+ * nombre que no dice qué es.
+ */
+export function nombreDeFicheroSeguro(nombre: string): string {
+  const limpio = (nombre ?? '')
+    .replace(CARACTERES_PROHIBIDOS, '-')
+    .replace(/-{2,}/g, '-')
+    .trim();
+  return limpio || 'documento';
+}
+
 function blobABase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -88,7 +115,7 @@ function descargarEnNavegador(blob: Blob, nombreArchivo: string): ResultadoDeEnt
 // escribe el archivo en caché y usa el diálogo de compartir del sistema; en web usa la Web
 // Share API si el navegador la soporta con ficheros, o descarga directa como último recurso.
 export async function compartirBlob(blob: Blob, nombreArchivoSolicitado: string): Promise<ResultadoDeEntrega> {
-  const nombreArchivo = conExtension(nombreArchivoSolicitado, blob);
+  const nombreArchivo = conExtension(nombreDeFicheroSeguro(nombreArchivoSolicitado), blob);
   if (Capacitor.isNativePlatform()) return entregarEnNativo(blob, nombreArchivo);
 
   const archivo = new File([blob], nombreArchivo, { type: blob.type });
@@ -117,7 +144,7 @@ export async function compartirBlob(blob: Blob, nombreArchivoSolicitado: string)
  * En nativo va por el mismo camino que compartir, que es el único que existe.
  */
 export async function descargarBlob(blob: Blob, nombreArchivoSolicitado: string): Promise<ResultadoDeEntrega> {
-  const nombreArchivo = conExtension(nombreArchivoSolicitado, blob);
+  const nombreArchivo = conExtension(nombreDeFicheroSeguro(nombreArchivoSolicitado), blob);
   if (Capacitor.isNativePlatform()) return entregarEnNativo(blob, nombreArchivo);
   return descargarEnNavegador(blob, nombreArchivo);
 }

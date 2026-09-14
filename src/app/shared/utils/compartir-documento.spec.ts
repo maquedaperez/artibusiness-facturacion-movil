@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { compartirBlob, descargarBlob, esCancelacion } from './compartir-documento';
+import { compartirBlob, descargarBlob, esCancelacion, nombreDeFicheroSeguro } from './compartir-documento';
 
 describe('compartirBlob / descargarBlob', () => {
   const blob = new Blob(['contenido de prueba'], { type: 'text/plain' });
@@ -120,6 +120,45 @@ describe('compartirBlob / descargarBlob', () => {
 
       const enlace = clickSpy.calls.mostRecent().object as HTMLAnchorElement;
       expect(enlace.download).toBe('documento-adjunto');
+    });
+  });
+
+  // BUG REAL (iPhone, 2026-09-14): descargar una factura EMITIDA daba "Missing parent directory".
+  // Los números de factura llevan serie con barra, y Filesystem tomaba "Factura-FAR/" por una
+  // carpeta que no existe. En recibidas no pasaba: sus nombres no llevan barra.
+  describe('nombre de fichero seguro', () => {
+    it('la barra de la serie de factura no se toma por una carpeta', () => {
+      expect(nombreDeFicheroSeguro('Factura-FAR/17-318.pdf')).toBe('Factura-FAR-17-318.pdf');
+    });
+
+    it('limpia el resto de caracteres que no pueden ir en un nombre de fichero', () => {
+      expect(nombreDeFicheroSeguro('a\\b:c*d?e"f<g>h|i.pdf')).toBe('a-b-c-d-e-f-g-h-i.pdf');
+    });
+
+    it('no deja guiones repetidos donde había varios caracteres seguidos', () => {
+      expect(nombreDeFicheroSeguro('Factura-FAR//17.pdf')).toBe('Factura-FAR-17.pdf');
+    });
+
+    it('un nombre que ya era correcto no se toca', () => {
+      expect(nombreDeFicheroSeguro('CZ0008526.pdf')).toBe('CZ0008526.pdf');
+    });
+
+    it('sin nombre, no deja el fichero anónimo', () => {
+      expect(nombreDeFicheroSeguro('')).toBe('documento');
+    });
+
+    // Y que de verdad llega limpio a la descarga, no solo que la función exista.
+    it('descargar una factura con serie usa el nombre ya limpio', async () => {
+      spyOn(Capacitor, 'isNativePlatform').and.returnValue(false);
+      spyOn(URL, 'createObjectURL').and.returnValue('blob:serie');
+      spyOn(URL, 'revokeObjectURL');
+      const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click');
+      const pdf = new Blob(['contenido'], { type: 'application/pdf' });
+
+      await descargarBlob(pdf, 'Factura-FAR/17-318.pdf');
+
+      const enlace = clickSpy.calls.mostRecent().object as HTMLAnchorElement;
+      expect(enlace.download).toBe('Factura-FAR-17-318.pdf');
     });
   });
 });
