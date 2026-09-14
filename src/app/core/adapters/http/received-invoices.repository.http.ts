@@ -121,10 +121,15 @@ function construirDocumentoBancario(
   adjunto?: { documentoUrl: string; documentoNombre: string },
 ): DocumentoBancarioAnalizado {
   const procesado = respuesta.document;
+  // ESTO PASA, Y ES LEGAL (2026-09-14). En el OpenAPI del lector, 'bank_document' es OPCIONAL:
+  // puede clasificar el fichero como extracto y aun así no devolver los movimientos. Hasta hoy
+  // eso se contaba con jerga nuestra ('no devolvió document.bank_document'), que al usuario no
+  // le dice nada y encima suena a que la app ha fallado. Se sigue cortando aquí —sin datos no
+  // hay nada que enseñar en el visor— pero explicando qué ha pasado y qué puede hacer.
   if (!procesado || !esObjeto(procesado.bank_document)) {
     throw new Error(
-      'El lector clasificó el fichero como documento bancario, pero no devolvió ' +
-      'document.bank_document con los datos extraídos.'
+      'El documento se ha reconocido como un extracto bancario, pero no se han podido leer los ' +
+      'movimientos. Crea la factura a mano y adjunta el documento.'
     );
   }
 

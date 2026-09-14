@@ -136,14 +136,18 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
     expect(resultado.avisos).toEqual(['Revisar la conciliación antes de contabilizar.']);
   });
 
-  it('rechaza una respuesta bank_document sin document.bank_document con un error de contrato claro', async () => {
+  // Un extracto reconocido pero SIN movimientos legibles se sigue rechazando: sin datos no hay
+  // nada que enseñar en el visor. Lo que cambió el 2026-09-14 es el mensaje — antes hablaba de
+  // 'document.bank_document', jerga nuestra que al usuario no le dice nada y suena a que la app
+  // ha reventado. Y no es un caso raro: en el OpenAPI del lector ese bloque es OPCIONAL.
+  it('rechaza un bank_document sin movimientos, y lo explica en cristiano', async () => {
     apiSpy.postMultipart.and.resolveTo({
       success: true,
       document: { document_type: 'bank_document', confidence: 0.9, bank_document: null },
     });
 
     await expectAsync(repo.crearDesdeOcr(archivoDePrueba()))
-      .toBeRejectedWithError(/document\.bank_document/);
+      .toBeRejectedWithError(/no se han podido leer los movimientos/);
   });
 
   it('respeta document_type como discriminante aunque una respuesta invoice traiga un bloque bancario residual', async () => {
