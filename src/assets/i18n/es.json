@@ -407,7 +407,9 @@
         "useThisClient": "Usar este cliente",
         "nameNifRequired": "Nombre y NIF/CIF son obligatorios.",
         "paymentMethodRequired": "Selecciona una forma de pago para el cliente.",
-        "createError": "No se pudo crear el cliente. Inténtalo de nuevo."
+        "createError": "No se pudo crear el cliente. Inténtalo de nuevo.",
+        "nifInvalidFormat": "El NIF/CIF no es válido. Revisa que esté completo: DNI 12345678Z, NIE X1234567L o CIF B12345674.",
+        "nifInvalidControl": "El NIF/CIF no es correcto: la letra o el número final no corresponde al resto. Revisa si hay una errata."
       },
       "catalogSelector": {
         "title": "Producto / servicio de catálogo",

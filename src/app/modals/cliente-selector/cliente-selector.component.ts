@@ -16,6 +16,7 @@ import { closeOutline, personAddOutline } from 'ionicons/icons';
 import { ClienteMock, Destinatario } from '../../services/mock-facturas.service';
 import { CustomersRepository, IssuedInvoicesRepository, MedioPagoOpcion } from '../../core/ports';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
+import { validarNif } from '../../shared/utils/validar-nif';
 
 const MIN_CARACTERES_BUSQUEDA = 2;
 const DEBOUNCE_MS = 350;
@@ -99,8 +100,11 @@ export type SeleccionCliente = { cliente: ClienteMock; esNuevo: boolean };
         </ion-item>
 
         <ion-item>
-          <ion-input [label]="(nuevo.esEmpresa ? 'invoices.issued.clientSelector.cif' : 'invoices.issued.clientSelector.nif') | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.nif"></ion-input>
+          <ion-input [label]="(nuevo.esEmpresa ? 'invoices.issued.clientSelector.cif' : 'invoices.issued.clientSelector.nif') | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.nif" (ionBlur)="comprobarNif()" (ionInput)="limpiarAvisoNif()"></ion-input>
         </ion-item>
+        <ion-text color="danger" *ngIf="avisoNif">
+          <p class="aviso-nif">{{ avisoNif }}</p>
+        </ion-text>
 
         <ion-item>
           <ion-input [label]="'invoices.issued.clientSelector.address' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.direccion"></ion-input>
@@ -145,6 +149,11 @@ export type SeleccionCliente = { cliente: ClienteMock; esNuevo: boolean };
       margin-top: 16px;
     }
 
+    .aviso-nif {
+      margin: 4px 0 0;
+      font-size: 13px;
+    }
+
     .estado-buscando {
       display: flex;
       align-items: center;
@@ -167,6 +176,9 @@ export class ClienteSelectorComponent implements OnDestroy {
   estado: EstadoBusqueda = 'inicial';
   modoNuevo = false;
   errorMsg = '';
+  // Aviso propio debajo del campo NIF (2026-09-14): se ve al salir del campo, sin esperar a
+  // pulsar "Usar este cliente", que queda al final del formulario.
+  avisoNif = '';
   guardando = false;
 
   nuevo: Destinatario = {
@@ -237,10 +249,44 @@ export class ClienteSelectorComponent implements OnDestroy {
     }
   }
 
+  // Validación del NIF/CIF (demo, 2026-09-14): un NIF mal escrito se daba de alta sin más y
+  // solo se descubría cuando la AEAT ya había rechazado la factura (error 1100), que entonces
+  // hay que subsanar. Ver shared/utils/validar-nif.ts.
+  //
+  // Un NIF correcto pero escrito con guiones o espacios NO es un error: se deja limpio en el
+  // propio campo, para que el usuario vea exactamente lo que se va a guardar.
+  comprobarNif(): boolean {
+    this.avisoNif = '';
+    if (!this.nuevo.nif.trim()) return false;
+
+    const resultado = validarNif(this.nuevo.nif);
+    if (resultado.valido) {
+      this.nuevo.nif = resultado.normalizado;
+      return true;
+    }
+    this.avisoNif = this.transloco.translate(
+      resultado.motivo === 'control'
+        ? 'invoices.issued.clientSelector.nifInvalidControl'
+        : 'invoices.issued.clientSelector.nifInvalidFormat'
+    );
+    return false;
+  }
+
+  // Mientras corrige el NIF, el aviso ya no aplica: ni el del campo ni su copia junto al botón.
+  limpiarAvisoNif() {
+    if (this.errorMsg && this.errorMsg === this.avisoNif) this.errorMsg = '';
+    this.avisoNif = '';
+  }
+
   async confirmarNuevo() {
     this.errorMsg = '';
     if (!this.nuevo.nombre.trim() || !this.nuevo.nif.trim()) {
       this.errorMsg = this.transloco.translate('invoices.issued.clientSelector.nameNifRequired');
+      return;
+    }
+    if (!this.comprobarNif()) {
+      // También abajo, junto al botón: es donde está mirando quien acaba de pulsarlo.
+      this.errorMsg = this.avisoNif;
       return;
     }
     if (!this.idMedioPago) {

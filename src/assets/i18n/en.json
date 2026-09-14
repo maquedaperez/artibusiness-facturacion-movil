@@ -407,7 +407,9 @@
         "useThisClient": "Use this customer",
         "nameNifRequired": "Name and tax ID are required.",
         "paymentMethodRequired": "Select a payment method for the customer.",
-        "createError": "Could not create the customer. Try again."
+        "createError": "Could not create the customer. Try again.",
+        "nifInvalidFormat": "The tax ID is not valid. Check that it is complete: DNI 12345678Z, NIE X1234567L or CIF B12345674.",
+        "nifInvalidControl": "The tax ID is not correct: the last letter or digit does not match the rest. Check for a typo."
       },
       "catalogSelector": {
         "title": "Catalog product / service",

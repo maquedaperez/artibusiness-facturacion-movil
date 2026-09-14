@@ -14,6 +14,8 @@ const TRADUCCIONES_TEST = {
           nameNifRequired: 'Nombre y NIF/CIF son obligatorios.',
           paymentMethodRequired: 'Selecciona una forma de pago para el cliente.',
           createError: 'No se pudo crear el cliente. Inténtalo de nuevo.',
+          nifInvalidFormat: 'El NIF/CIF no es válido.',
+          nifInvalidControl: 'El NIF/CIF no es correcto: la letra o el número final no corresponde al resto.',
         },
       },
     },
@@ -227,4 +229,79 @@ describe('ClienteSelectorComponent — alta rápida ("Cliente nuevo")', () => {
     expect(component.errorMsg).toBe('Ya existe un cliente con NIF B00000000.');
     expect(modalCtrlSpy.dismiss).not.toHaveBeenCalled();
   }));
+
+  // Validación del NIF/CIF (demo, 2026-09-14): Iberdrola se dio de alta como "A-95758389" y la
+  // AEAT rechazó la factura ya contabilizada con el error 1100.
+  describe('NIF/CIF', () => {
+    const datosBase = { nombre: 'Iberdrola Clientes, S.A.U.', esEmpresa: true, direccion: '', poblacion: '', cp: '', provincia: '' };
+
+    it('un NIF correcto escrito con guion se da de alta limpio, sin guion', fakeAsync(() => {
+      tick();
+      component.modoNuevo = true;
+      component.nuevo = { ...datosBase, nif: 'A-95758389' };
+
+      component.confirmarNuevo();
+      tick();
+
+      expect(customersRepoSpy.crearAdHoc).toHaveBeenCalledWith(jasmine.objectContaining({ nif: 'A95758389' }), 3);
+      expect(component.avisoNif).toBe('');
+    }));
+
+    it('con una errata en el control no crea el cliente y avisa junto al campo y junto al botón', fakeAsync(() => {
+      tick();
+      component.modoNuevo = true;
+      component.nuevo = { ...datosBase, nif: 'A95758381' };
+
+      component.confirmarNuevo();
+      tick();
+
+      expect(customersRepoSpy.crearAdHoc).not.toHaveBeenCalled();
+      expect(modalCtrlSpy.dismiss).not.toHaveBeenCalled();
+      expect(component.avisoNif).toContain('no es correcto');
+      expect(component.errorMsg).toBe(component.avisoNif);
+    }));
+
+    it('con algo que no tiene forma de NIF avisa del formato', fakeAsync(() => {
+      tick();
+      component.modoNuevo = true;
+      component.nuevo = { ...datosBase, nif: '123' };
+
+      component.confirmarNuevo();
+      tick();
+
+      expect(customersRepoSpy.crearAdHoc).not.toHaveBeenCalled();
+      expect(component.avisoNif).toBe('El NIF/CIF no es válido.');
+    }));
+
+    it('al salir del campo avisa ya, sin esperar a pulsar el botón', () => {
+      component.nuevo = { ...datosBase, nif: '12345678A' };
+
+      component.comprobarNif();
+
+      expect(component.avisoNif).toContain('no es correcto');
+      expect(customersRepoSpy.crearAdHoc).not.toHaveBeenCalled();
+    });
+
+    it('al volver a escribir en el NIF desaparecen los dos avisos', fakeAsync(() => {
+      tick();
+      component.modoNuevo = true;
+      component.nuevo = { ...datosBase, nif: 'A95758381' };
+      component.confirmarNuevo();
+      tick();
+      expect(component.errorMsg).not.toBe('');
+
+      component.limpiarAvisoNif();
+
+      expect(component.avisoNif).toBe('');
+      expect(component.errorMsg).toBe('');
+    }));
+
+    it('al salir del campo vacío no regaña: todavía no ha escrito nada', () => {
+      component.nuevo = { ...datosBase, nif: '' };
+
+      component.comprobarNif();
+
+      expect(component.avisoNif).toBe('');
+    });
+  });
 });
