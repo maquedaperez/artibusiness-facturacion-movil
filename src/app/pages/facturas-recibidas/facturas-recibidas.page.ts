@@ -27,7 +27,7 @@ import { environment } from 'src/environments/environment';
 import {
   DocumentoBancarioAnalizado, crearBorradorDesdeDocumentoBancario, esDocumentoBancarioAnalizado,
 } from '../../core/models/documento-bancario';
-import { DocumentoBancarioComponent } from '../../modals/documento-bancario/documento-bancario.component';
+import { DocumentoBancarioComponent } from '../../modals/documento-bancario/documento-bancario.component';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
 import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
 
@@ -218,8 +218,11 @@ export class FacturasRecibidasPage {
     }
 
     this.processing = true;
-    await this.mostrarCargandoDocumento();
     try {
+      // Dentro del try, no antes (2026-09-14). Si abrir el aviso fallaba, el finally de abajo
+      // no llegaba a ejecutarse: processing se quedaba en true y los dos botones desactivados
+      // hasta recargar la pantalla, sin ningún texto que explicara por qué.
+      await this.mostrarCargandoDocumento();
       const resultado = await this.invoicesRepo.crearDesdeDocumentoDirecto(file);
       // 2026-08-20 (correo de Alex): el lector puede clasificar el fichero como documento
       // bancario en vez de factura — HTTP 200 válido, no un error. No se crea ninguna

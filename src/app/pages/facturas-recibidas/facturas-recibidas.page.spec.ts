@@ -275,6 +275,18 @@ describe('FacturasRecibidasPage', () => {
     expect(overlay.dismiss).toHaveBeenCalled();
   });
 
+  // Si el propio aviso no se puede abrir, los botones no se pueden quedar bloqueados. La
+  // llamada estaba FUERA del try, así que el finally que desbloquea no llegaba a ejecutarse:
+  // dos botones grises hasta recargar, y desde el 2026-09-14 sin el "Procesando..." que al
+  // menos explicaba algo.
+  it('si no se puede abrir el aviso de carga, los botones no se quedan bloqueados', async () => {
+    spyOn(TestBed.inject(LoadingController), 'create').and.rejectWith(new Error('no se pudo crear el overlay'));
+
+    await expectAsync(component.onFileSelected(eventoConArchivo())).toBeResolved();
+
+    expect(component.processing).toBeFalse();
+  });
+
   // BUG crítico corregido 2026-08-18: antes de la consolidación del 2026-08-17, un proveedor
   // sin dar de alta (o un NIF/número de factura ilegible) SIEMPRE caía a un borrador local
   // para completar a mano. Al unificar a un único flujo (CrearDesdeDocumento, que guarda
