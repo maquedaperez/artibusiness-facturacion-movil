@@ -30,6 +30,7 @@ import { LineasEditorComponent } from '../../shared/lineas-editor/lineas-editor.
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 import { PagosService } from '../../services/pagos.service';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
+import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
 
 type FacturaRecibidaForm = Omit<FacturaRecibida, 'id' | 'origenOcr'>;
 
@@ -661,8 +662,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
 
   // Duración proporcional al texto (2026-08-28) — mismo criterio que facturas-recibidas.page.ts.
   private async showToast(message: string, color: 'success' | 'danger' = 'success') {
-    const duration = Math.max(3000, Math.min(8000, message.length * 60));
-    const toast = await this.toastCtrl.create({ message, duration, position: 'bottom', color });
+    const toast = await this.toastCtrl.create({ message, duration: duracionDeToast(message), position: 'bottom', color });
     await toast.present();
   }
 

@@ -33,6 +33,7 @@ import { PuedeSalirDeLaPantalla } from '../../guards/cambios-sin-guardar.guard';
 import { pedirConfirmacion } from '../../shared/utils/confirmacion';
 import { RECTIFICATIVAS_DISPONIBLES, STRIPE_CONNECT_DISPONIBLE, SUBSANACION_DISPONIBLE } from '../../core/providers/funcionalidades-pendientes';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
+import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
 
 /**
  * Redondea a centimos. El euro no tiene mas divisiones, asi que cualquier resto por debajo de eso
@@ -1469,7 +1470,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   }
 
   private async showToast(message: string, color: 'success' | 'danger' = 'success') {
-    const toast = await this.toastCtrl.create({ message, duration: 2500, position: 'bottom', color });
+    const toast = await this.toastCtrl.create({ message, duration: duracionDeToast(message), position: 'bottom', color });
     await toast.present();
   }
 

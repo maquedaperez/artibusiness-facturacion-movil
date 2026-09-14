@@ -29,6 +29,7 @@ import {
 } from '../../core/models/documento-bancario';
 import { DocumentoBancarioComponent } from '../../modals/documento-bancario/documento-bancario.component';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
+import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
 
 @Component({
   selector: 'app-facturas-recibidas',
@@ -646,8 +647,7 @@ export class FacturasRecibidasPage {
   // daba tiempo a leer. ~60ms por carácter, con un mínimo de 3s y un máximo de 8s para no dejar
   // un toast corto colgado ni uno larguísimo bloqueando la pantalla indefinidamente.
   private async showToast(message: string, color: 'success' | 'danger' = 'success') {
-    const duration = Math.max(3000, Math.min(8000, message.length * 60));
-    const toast = await this.toastCtrl.create({ message, duration, position: 'bottom', color });
+    const toast = await this.toastCtrl.create({ message, duration: duracionDeToast(message), position: 'bottom', color });
     await toast.present();
   }
 

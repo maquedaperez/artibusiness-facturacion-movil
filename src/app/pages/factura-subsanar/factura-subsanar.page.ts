@@ -17,6 +17,7 @@ import { FacturaEmitida } from '../../services/mock-facturas.service';
 import { DiferenciaCampoFiscal, IssuedInvoicesRepository } from '../../core/ports';
 import { pedirConfirmacion } from '../../shared/utils/confirmacion';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
+import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
 
 // Fase 7 (Subsanar, 2026-08-24): pantalla DEDICADA y de solo lectura para la factura y el
 // registro original — Subsanar no es un editor (ver issued-invoices.repository.ts), así que a
@@ -160,7 +161,7 @@ export class FacturaSubsanarPage implements OnInit {
   }
 
   private async showToast(message: string, color: 'success' | 'danger' = 'success') {
-    const toast = await this.toastCtrl.create({ message, duration: 2500, position: 'bottom', color });
+    const toast = await this.toastCtrl.create({ message, duration: duracionDeToast(message), position: 'bottom', color });
     await toast.present();
   }
 

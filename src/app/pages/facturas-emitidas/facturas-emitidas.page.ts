@@ -26,6 +26,7 @@ import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-docum
 import { PagosService } from '../../services/pagos.service';
 import { pedirConfirmacion } from '../../shared/utils/confirmacion';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
+import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
 
 @Component({
   selector: 'app-facturas-emitidas',
@@ -453,7 +454,7 @@ export class FacturasEmitidasPage implements OnInit {
   }
 
   private async showToast(message: string, color: 'success' | 'danger' = 'success') {
-    const toast = await this.toastCtrl.create({ message, duration: 2500, position: 'bottom', color });
+    const toast = await this.toastCtrl.create({ message, duration: duracionDeToast(message), position: 'bottom', color });
     await toast.present();
   }
 
