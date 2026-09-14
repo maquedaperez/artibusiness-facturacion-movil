@@ -18,6 +18,9 @@
 
   ion-button {
     flex: 1;
+    // Sin esto un elemento flex no encoge por debajo del ancho de su contenido, y un texto
+    // largo —otro idioma, un "Procesando..."— empujaba el segundo botón fuera de la pantalla.
+    min-width: 0;
     margin: 0;
   }
 }

@@ -39,6 +39,11 @@
     (change)="onFileSelected($event)"
   />
 
+  <!-- Mientras se lee el documento los botones solo se desactivan: ya NO cambian el texto a
+       "Procesando...". Ese texto es más largo que "Escanear" o "Adjuntar" y, con el spinner,
+       dejaba de caber en media pantalla y sacaba el segundo botón fuera (visto en iPhone,
+       2026-09-14). Además sobraba: desde el 2026-09-09 sale el aviso a pantalla completa
+       "Extrayendo datos del documento...", que es el que de verdad lo comunica. -->
   <div class="scan-actions" *ngIf="mostrarEscaneo">
     <ion-button
       expand="block"
@@ -46,9 +51,8 @@
       [disabled]="processing"
       (click)="triggerCamera()"
     >
-      <ion-spinner *ngIf="processing" slot="start" name="crescent"></ion-spinner>
-      <ion-icon *ngIf="!processing" slot="start" name="camera-outline"></ion-icon>
-      {{ (processing ? 'ocr.scanning' : 'ocr.scanButton') | transloco }}
+      <ion-icon slot="start" name="camera-outline"></ion-icon>
+      {{ 'ocr.scanButton' | transloco }}
     </ion-button>
 
     <ion-button
@@ -58,9 +62,8 @@
       [disabled]="processing"
       (click)="triggerUpload()"
     >
-      <ion-spinner *ngIf="processing" slot="start" name="crescent"></ion-spinner>
-      <ion-icon *ngIf="!processing" slot="start" name="attach-outline"></ion-icon>
-      {{ (processing ? 'ocr.scanning' : 'ocr.attachButton') | transloco }}
+      <ion-icon slot="start" name="attach-outline"></ion-icon>
+      {{ 'ocr.attachButton' | transloco }}
     </ion-button>
   </div>
 
