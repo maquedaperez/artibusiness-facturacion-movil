@@ -1975,6 +1975,11 @@ describe('FacturaDetallePage', () => {
         const repo = TestBed.inject(IssuedInvoicesRepository);
         const pdf = spyOn(repo, 'obtenerPdfReal').and.resolveTo(new Blob(['pdf']));
         const xsig = spyOn(repo, 'obtenerXsigReal');
+        // Sin esto la descarga ocurre DE VERDAD (2026-09-14): cada pasada de los tests dejaba un
+        // "Factura-FS10 (N).pdf" de 3 bytes en Descargas y Windows lo abria con Acrobat, que
+        // saltaba con "no se pudo abrir: esta danado". Mismo remedio que en
+        // factura-recibida-detalle.page.spec.ts.
+        spyOn(HTMLAnchorElement.prototype, 'click');
 
         await component.descargarPdf();
 
@@ -1987,6 +1992,8 @@ describe('FacturaDetallePage', () => {
         component.working = ticket({ esSimplificada: false, estado: 'firmada', tienePdf: true, tieneXsig: true });
         const repo = TestBed.inject(IssuedInvoicesRepository);
         const xsig = spyOn(repo, 'obtenerXsigReal').and.resolveTo(new Blob(['xsig']));
+        // Igual que arriba: sin esto se guardaba un "Factura-FS10 (N).xsig" en Descargas.
+        spyOn(HTMLAnchorElement.prototype, 'click');
 
         await component.descargar();
 
