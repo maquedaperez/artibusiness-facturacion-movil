@@ -78,6 +78,36 @@ describe('HttpCustomersRepository', () => {
     expect(resultado.items[0].esEmpresa).toBeFalse();
   });
 
+  // Tipo de cliente (2026-09-15): el backend ya devuelve sujeto.esEmpresa y manda sobre la
+  // deducción por el NIF. Antes un NIE (empieza por X) salía como empresa.
+  it('si el backend manda esEmpresa, se usa ese valor y no se adivina por el NIF', async () => {
+    apiSpy.post.and.resolveTo([
+      {
+        idCliente: 44, idEmpresa: 9, idSujeto: 102,
+        nombre: 'Iberdrola Clientes, S.A.U.', apellido1: null, apellido2: null,
+        nombreCompleto: 'Iberdrola Clientes, S.A.U.', dni: 'A95758389', esEmpresa: false,
+        direccionFacturacion: null,
+      },
+    ]);
+
+    const resultado = await repo.buscar('iberdrola');
+    expect(resultado.items[0].esEmpresa).toBeFalse();
+  });
+
+  it('sin esEmpresa del backend, un NIE es de particular aunque empiece por letra', async () => {
+    apiSpy.post.and.resolveTo([
+      {
+        idCliente: 45, idEmpresa: 9, idSujeto: 103,
+        nombre: 'Olena', apellido1: 'Kovalenko', apellido2: null,
+        nombreCompleto: 'Olena Kovalenko', dni: 'X1234567L',
+        direccionFacturacion: null,
+      },
+    ]);
+
+    const resultado = await repo.buscar('olena');
+    expect(resultado.items[0].esEmpresa).toBeFalse();
+  });
+
   it('crearAdHoc llama de verdad a POST /api/Clientes/Crear con idMedioPago', async () => {
     apiSpy.post.and.resolveTo({
       idCliente: 55, idEmpresa: 9, idSujeto: 200,
@@ -92,7 +122,7 @@ describe('HttpCustomersRepository', () => {
     );
 
     expect(apiSpy.post).toHaveBeenCalledWith('/api/Clientes/Crear', {
-      nombre: 'Cliente Nuevo', nif: 'B00000000',
+      nombre: 'Cliente Nuevo', nif: 'B00000000', esEmpresa: true,
       direccion: 'Calle 1', codigoPostal: '28001', poblacion: 'Madrid', provincia: 'Madrid',
       idMedioPago: 3,
     });

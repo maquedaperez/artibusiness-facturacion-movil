@@ -92,7 +92,10 @@ export type SeleccionCliente = { cliente: ClienteMock; esNuevo: boolean };
 
       <ng-container *ngIf="modoNuevo">
         <ion-item>
-          <ion-checkbox [(ngModel)]="nuevo.esEmpresa">{{ 'invoices.issued.clientSelector.isCompany' | transloco }}</ion-checkbox>
+          <!-- Con un NIF válido el tipo lo dice el propio número (2026-09-15): se marca sola y
+               no se deja cambiar: con el PR de clientes del backend, un CIF dado de alta como
+               particular o un DNI como empresa se rechaza. -->
+          <ion-checkbox [(ngModel)]="nuevo.esEmpresa" [disabled]="tipoDeducidoDelNif">{{ 'invoices.issued.clientSelector.isCompany' | transloco }}</ion-checkbox>
         </ion-item>
 
         <ion-item>
@@ -179,6 +182,9 @@ export class ClienteSelectorComponent implements OnDestroy {
   // Aviso propio debajo del campo NIF (2026-09-14): se ve al salir del campo, sin esperar a
   // pulsar "Usar este cliente", que queda al final del formulario.
   avisoNif = '';
+  // Si "¿Empresa?" ya lo ha decidido el NIF (2026-09-15). Mientras el NIF está vacío, a medio
+  // escribir o mal, la casilla sigue libre.
+  tipoDeducidoDelNif = false;
   guardando = false;
 
   nuevo: Destinatario = {
@@ -257,11 +263,17 @@ export class ClienteSelectorComponent implements OnDestroy {
   // propio campo, para que el usuario vea exactamente lo que se va a guardar.
   comprobarNif(): boolean {
     this.avisoNif = '';
+    this.tipoDeducidoDelNif = false;
     if (!this.nuevo.nif.trim()) return false;
 
     const resultado = validarNif(this.nuevo.nif);
     if (resultado.valido) {
       this.nuevo.nif = resultado.normalizado;
+      // Lo que pidió Jose (reunión 2026-09-14): validar también el tipo de identificación. Un
+      // CIF es de empresa y un DNI o NIE de una persona: la casilla se marca sola, sin
+      // preguntar.
+      this.nuevo.esEmpresa = resultado.tipo === 'CIF';
+      this.tipoDeducidoDelNif = true;
       return true;
     }
     this.avisoNif = this.transloco.translate(
@@ -276,6 +288,8 @@ export class ClienteSelectorComponent implements OnDestroy {
   limpiarAvisoNif() {
     if (this.errorMsg && this.errorMsg === this.avisoNif) this.errorMsg = '';
     this.avisoNif = '';
+    // Mientras se corrige el NIF, el tipo que decía el anterior ya no vale.
+    this.tipoDeducidoDelNif = false;
   }
 
   async confirmarNuevo() {

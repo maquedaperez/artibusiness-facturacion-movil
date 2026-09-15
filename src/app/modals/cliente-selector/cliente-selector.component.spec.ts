@@ -296,6 +296,49 @@ describe('ClienteSelectorComponent — alta rápida ("Cliente nuevo")', () => {
       expect(component.errorMsg).toBe('');
     }));
 
+    // Tipo de identificación (reunión 2026-09-14, lo pidió Jose): con un NIF válido, "¿Empresa?"
+    // lo decide el número. Iberdrola se había dado de alta como particular.
+    it('un CIF marca el cliente como empresa aunque no se marcara la casilla', fakeAsync(() => {
+      tick();
+      component.modoNuevo = true;
+      component.nuevo = { ...datosBase, esEmpresa: false, nif: 'A-95758389' };
+
+      component.confirmarNuevo();
+      tick();
+
+      expect(customersRepoSpy.crearAdHoc).toHaveBeenCalledWith(jasmine.objectContaining({ nif: 'A95758389', esEmpresa: true }), 3);
+    }));
+
+    it('un DNI marca el cliente como particular aunque se marcara la casilla de empresa', fakeAsync(() => {
+      tick();
+      component.modoNuevo = true;
+      component.nuevo = { ...datosBase, esEmpresa: true, nif: '12345678Z' };
+
+      component.confirmarNuevo();
+      tick();
+
+      expect(customersRepoSpy.crearAdHoc).toHaveBeenCalledWith(jasmine.objectContaining({ nif: '12345678Z', esEmpresa: false }), 3);
+    }));
+
+    it('con el NIF válido la casilla queda fijada, y se libera al volver a escribir', () => {
+      component.nuevo = { ...datosBase, esEmpresa: false, nif: 'X1234567L' };
+
+      component.comprobarNif();
+      expect(component.tipoDeducidoDelNif).toBeTrue();
+      expect(component.nuevo.esEmpresa).toBeFalse();
+
+      component.limpiarAvisoNif();
+      expect(component.tipoDeducidoDelNif).toBeFalse();
+    });
+
+    it('con un NIF mal escrito la casilla sigue libre', () => {
+      component.nuevo = { ...datosBase, nif: 'A95758381' };
+
+      component.comprobarNif();
+
+      expect(component.tipoDeducidoDelNif).toBeFalse();
+    });
+
     it('al salir del campo vacío no regaña: todavía no ha escrito nada', () => {
       component.nuevo = { ...datosBase, nif: '' };
 

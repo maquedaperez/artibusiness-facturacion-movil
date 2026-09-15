@@ -3,6 +3,7 @@ import { CustomersRepository } from '../../ports/customers.repository';
 import { ApiService } from '../../../services/api.service';
 import { ClienteMock, Destinatario } from '../../../services/mock-facturas.service';
 import { PaginaResultado } from '../../../shared/types/pagination';
+import { validarNif } from '../../../shared/utils/validar-nif';
 
 // Fase 3 del plan de integración de Emitidas (2026-08-20): ClientesController es nuevo
 // (Controllers/ClientesController.cs + Services/ClienteService.cs), calcado de
@@ -30,13 +31,17 @@ type ClienteApi = {
   apellido2: string | null;
   nombreCompleto: string | null;
   dni: string | null;
+  // sujeto.esEmpresa (2026-09-15). Opcional: un backend sin el PR de clientes no lo manda.
+  esEmpresa?: boolean;
   direccionFacturacion: DireccionApi | null;
 };
 
-// Igual que en Recibidas/Emitidas: un CIF de empresa empieza siempre por letra, un DNI/NIE
-// de particular por dígito (o X/Y/Z, que aquí caen del lado "empresa" por simplicidad — dato
-// solo cosmético, ver factura-detalle.page.html).
+// Solo cuando el backend no manda esEmpresa (2026-09-15). Un NIF válido dice su tipo: CIF es
+// empresa; DNI y NIE, particular. Antes se miraba solo si empezaba por letra, y un NIE (X, Y, Z)
+// salía como empresa. Si el NIF no es válido se mantiene esa regla antigua.
 function esEmpresaDesdeNif(nif: string | null | undefined): boolean {
+  const resultado = validarNif(nif);
+  if (resultado.valido) return resultado.tipo === 'CIF';
   return !/^\d/.test((nif ?? '').trim());
 }
 
@@ -46,7 +51,7 @@ function mapearCliente(dto: ClienteApi): ClienteMock {
     id: dto.idCliente,
     nif: dto.dni?.trim() || '',
     nombre,
-    esEmpresa: esEmpresaDesdeNif(dto.dni),
+    esEmpresa: dto.esEmpresa ?? esEmpresaDesdeNif(dto.dni),
     direccion: dto.direccionFacturacion?.direccion?.trim() || undefined,
     poblacion: dto.direccionFacturacion?.poblacion?.trim() || undefined,
     cp: dto.direccionFacturacion?.codigoPostal?.trim() || undefined,
@@ -61,6 +66,7 @@ type CrearClienteApi = {
   apellido1?: string;
   apellido2?: string;
   nif: string;
+  esEmpresa?: boolean;
   direccion: string;
   codigoPostal: string;
   poblacion: string;
@@ -106,6 +112,9 @@ export class HttpCustomersRepository extends CustomersRepository {
     const body: CrearClienteApi = {
       nombre: data.nombre,
       nif: data.nif,
+      // Antes no se mandaba y todo cliente creado desde la app quedaba como particular
+      // (2026-09-15). El backend lo contrasta con el NIF.
+      esEmpresa: data.esEmpresa,
       direccion: data.direccion ?? '',
       codigoPostal: data.cp ?? '',
       poblacion: data.poblacion ?? '',
