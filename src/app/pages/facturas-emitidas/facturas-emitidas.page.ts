@@ -27,6 +27,8 @@ import { PagosService } from '../../services/pagos.service';
 import { pedirConfirmacion } from '../../shared/utils/confirmacion';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
 import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
+import { avisoDeFirmaFallida } from '../../shared/utils/aviso-de-firma';
+import { TenantService } from '../../services/tenant.service';
 
 @Component({
   selector: 'app-facturas-emitidas',
@@ -49,6 +51,7 @@ export class FacturasEmitidasPage implements OnInit {
   private route = inject(ActivatedRoute);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
+  private tenant = inject(TenantService);
   private transloco = inject(TranslocoService);
   private pagosService = inject(PagosService);
 
@@ -446,14 +449,17 @@ export class FacturasEmitidasPage implements OnInit {
       if (this.esCreditosAgotados(e)) {
         await this.mostrarAvisoCreditosAgotados();
       } else {
-        await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.sign.error')), 'danger');
+        // En la cuenta demo no hay certificado: ahí un fallo del servicio de firma se explica en vez
+        // de enseñar el error interno (2026-09-15, ver avisoDeFirmaFallida).
+        const aviso = await avisoDeFirmaFallida(e, () => this.tenant.esEntornoDePruebas(), clave => this.transloco.translate(clave));
+        await this.showToast(aviso.mensaje, aviso.color);
       }
     } finally {
       this.procesandoAeatIds.delete(f.id);
     }
   }
 
-  private async showToast(message: string, color: 'success' | 'danger' = 'success') {
+  private async showToast(message: string, color: 'success' | 'danger' | 'medium' = 'success') {
     const toast = await this.toastCtrl.create({ message, duration: duracionDeToast(message), position: 'bottom', color });
     await toast.present();
   }

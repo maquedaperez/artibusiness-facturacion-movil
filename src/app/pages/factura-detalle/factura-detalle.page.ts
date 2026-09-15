@@ -34,6 +34,8 @@ import { pedirConfirmacion } from '../../shared/utils/confirmacion';
 import { RECTIFICATIVAS_DISPONIBLES, STRIPE_CONNECT_DISPONIBLE, SUBSANACION_DISPONIBLE } from '../../core/providers/funcionalidades-pendientes';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
 import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
+import { avisoDeFirmaFallida } from '../../shared/utils/aviso-de-firma';
+import { TenantService } from '../../services/tenant.service';
 
 /**
  * Redondea a centimos. El euro no tiene mas divisiones, asi que cualquier resto por debajo de eso
@@ -63,6 +65,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   private modalCtrl = inject(ModalController);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
+  private tenant = inject(TenantService);
   private transloco = inject(TranslocoService);
   private location = inject(Location);
 
@@ -1091,7 +1094,10 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       await this.showToast(this.transloco.translate('invoices.issued.detail.signedSuccess'));
       this.volver();
     } catch (e: any) {
-      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.sign.error')), 'danger');
+      // En la cuenta demo no hay certificado: ahí un fallo del servicio de firma se explica en vez
+      // de enseñar el error interno (2026-09-15, ver avisoDeFirmaFallida).
+      const aviso = await avisoDeFirmaFallida(e, () => this.tenant.esEntornoDePruebas(), clave => this.transloco.translate(clave));
+      await this.showToast(aviso.mensaje, aviso.color);
     } finally {
       this.firmando = false;
     }
@@ -1469,7 +1475,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
     }
   }
 
-  private async showToast(message: string, color: 'success' | 'danger' = 'success') {
+  private async showToast(message: string, color: 'success' | 'danger' | 'medium' = 'success') {
     const toast = await this.toastCtrl.create({ message, duration: duracionDeToast(message), position: 'bottom', color });
     await toast.present();
   }
