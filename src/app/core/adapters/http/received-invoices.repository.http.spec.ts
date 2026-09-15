@@ -4,6 +4,7 @@ import { HttpReceivedInvoicesRepository } from './received-invoices.repository.h
 import { MockReceivedInvoicesRepository } from '../mock/received-invoices.repository.mock';
 import { FacturaRecibida, MockFacturasService } from '../../../services/mock-facturas.service';
 import { ApiService, HttpError } from '../../../services/api.service';
+import { LimpiezaDeSesionService } from '../../../services/limpieza-de-sesion.service';
 import { esDocumentoBancarioAnalizado } from '../../models/documento-bancario';
 import { ProveedorNoEncontradoOcrError, ResultadoProcesamientoDocumento } from '../../ports/received-invoices.repository';
 import { provideTranslocoTesting } from '../../i18n/testing/transloco-testing.providers';
@@ -813,6 +814,32 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
         { id: 1, label: 'Transferencia — Sabadell' },
         { id: 2, label: 'Contado' },
       ]);
+    });
+
+    // Cambio de empresa (demo 2026-09-14): antes el catálogo de la primera empresa se quedaba
+    // para toda la vida de la app.
+    it('al cambiar de sesión obtenerMediosPago() vuelve a preguntar al backend', async () => {
+      apiSpy.post.and.resolveTo([{ idMedioPago: 1, descFormaPago: 'Transferencia', descripcion: 'Sabadell' }]);
+      await repo.obtenerMediosPago();
+
+      TestBed.inject(LimpiezaDeSesionService).limpiar();
+      apiSpy.post.and.resolveTo([{ idMedioPago: 7, descFormaPago: 'Contado', descripcion: null }]);
+      const opciones = await repo.obtenerMediosPago();
+
+      expect(opciones).toEqual([{ id: 7, label: 'Contado' }]);
+    });
+
+    it('un borrador local sin guardar no pasa a la sesión siguiente', async () => {
+      TestBed.inject(MockFacturasService).crearManual({
+        proveedorNombre: 'Proveedor de otra empresa', proveedorNif: 'B00000000', numFactura: 'X-1',
+        fecha: '2026-09-15', vencimiento: '', concepto: '', formaPago: '', lineas: [],
+        retencionPct: 0, pagada: false, estado: 'borrador',
+      } as any);
+      expect((await repo.listar()).some(f => f.esBorradorLocal)).toBeTrue();
+
+      TestBed.inject(LimpiezaDeSesionService).limpiar();
+
+      expect((await repo.listar()).some(f => f.esBorradorLocal)).toBeFalse();
     });
 
     it('obtenerPorcentajesIva() reutiliza el catálogo de Impuestos, sin duplicados y ordenado', async () => {

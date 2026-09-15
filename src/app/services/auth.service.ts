@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { ApiService } from './api.service';
 import { TenantService } from './tenant.service';
+import { LimpiezaDeSesionService } from './limpieza-de-sesion.service';
 import { Preferences } from '@capacitor/preferences';
 
 export type User = {
@@ -59,6 +60,7 @@ export type LoginResult =
 export class AuthService {
   private api = inject(ApiService);
   private tenant = inject(TenantService);
+  private limpiezaDeSesion = inject(LimpiezaDeSesionService);
 
   private readonly TOKEN_KEY = 'arti_access_token';
   private readonly USER_KEY = 'arti_user';
@@ -101,6 +103,9 @@ export class AuthService {
   }
 
 logout(): void {
+  // Lo que había en memoria era de esta sesión: catálogos y borradores de ESTA empresa
+  // (2026-09-15, ver LimpiezaDeSesionService).
+  this.limpiezaDeSesion.limpiar();
   localStorage.removeItem(this.TOKEN_KEY);
   localStorage.removeItem(this.USER_KEY);
   localStorage.removeItem(this.EMPLOYEE_ID_KEY);
@@ -143,6 +148,9 @@ logout(): void {
         empresaNombre: res?.userCompany ?? res?.UserCompany ?? res?.empresaNombre ?? '',
       };
 
+      // También al entrar, no solo al salir: una sesión nueva puede llegar sin haber pasado por
+      // logout() (entrar con otro usuario encima de una sesión abierta).
+      this.limpiezaDeSesion.limpiar();
       localStorage.setItem(this.TOKEN_KEY, token);
       localStorage.setItem(this.USER_KEY, JSON.stringify(user));
       localStorage.setItem(this.EMPLOYEE_ID_KEY, String(empId!));
@@ -199,6 +207,8 @@ logout(): void {
       empresaNombre: res?.userCompany ?? res?.UserCompany ?? res?.empresaNombre ?? '',
     };
 
+    // Igual que en login(): la sesión nueva no hereda nada de la anterior.
+    this.limpiezaDeSesion.limpiar();
     localStorage.setItem(this.TOKEN_KEY, token);
     localStorage.setItem(this.USER_KEY, JSON.stringify(user));
     localStorage.setItem(this.EMPLOYEE_ID_KEY, String(empId!));

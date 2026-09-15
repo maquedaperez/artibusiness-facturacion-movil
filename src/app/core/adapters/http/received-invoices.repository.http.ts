@@ -6,6 +6,8 @@ import {
 } from '../../ports/received-invoices.repository';
 import { MockReceivedInvoicesRepository } from '../mock/received-invoices.repository.mock';
 import { ApiService, HttpError } from '../../../services/api.service';
+import { LimpiezaDeSesionService } from '../../../services/limpieza-de-sesion.service';
+import { CatalogoEnMemoria } from '../../../shared/utils/catalogo-en-memoria';
 import {
   AccionesPermitidas, ConfiguracionRetencion, FacturaRecibida, IRPF_RATES, LineaFactura, TotalesFactura,
   calcularTotalesLineas,
@@ -475,11 +477,22 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
 
   // Catálogos de referencia (Impuestos, TipoFactura): se resuelven una sola vez por sesión
   // — no cambian sin cerrar sesión, así que no tiene sentido pedirlos antes de cada línea o
-  // cada guardado. Cacheadas como Promise (no como valor ya resuelto) para que llamadas
-  // simultáneas mientras la primera todavía está en vuelo no disparen una segunda petición.
-  private impuestosCache: Promise<ImpuestoApi[]> | null = null;
-  private tipoFacturaCache: Promise<TipoFacturaApi> | null = null;
-  private mediosPagoCache: Promise<MedioPagoApi[]> | null = null;
+  // cada guardado. Ver CatalogoEnMemoria.
+  //
+  // "Por sesión" no se cumplía hasta el 2026-09-15: duraban toda la vida de la app y cambiar de
+  // empresa no los tocaba. Ahora se olvidan al cambiar de sesión (LimpiezaDeSesionService).
+  private impuestosCache = new CatalogoEnMemoria<ImpuestoApi[]>();
+  private tipoFacturaCache = new CatalogoEnMemoria<TipoFacturaApi>();
+  private mediosPagoCache = new CatalogoEnMemoria<MedioPagoApi[]>();
+
+  constructor() {
+    super();
+    inject(LimpiezaDeSesionService).registrar(() => {
+      this.impuestosCache.olvidar();
+      this.tipoFacturaCache.olvidar();
+      this.mediosPagoCache.olvidar();
+    });
+  }
 
   async listar(filtros?: FiltrosListarRecibidas): Promise<FacturaRecibida[]> {
     // Corrección 2026-08-14: 'top' SÍ lo soporta el backend (Enumerar aplica TOP N cuando
@@ -928,13 +941,10 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   // Enumerar (el backend devuelve 400 sin él); aquí solo pedimos IVA — Recibidas no maneja
   // IPSI/IGIC (Canarias/Ceuta/Melilla) todavía.
   private async obtenerImpuestos(): Promise<ImpuestoApi[]> {
-    if (!this.impuestosCache) {
-      this.impuestosCache = this.api.post<ImpuestoApi[]>(
-        `${IMPUESTOS_BASE_PATH}/Enumerar`,
-        { tipo: TIPO_IMPUESTO_IVA },
-      );
-    }
-    return this.impuestosCache;
+    return this.impuestosCache.obtener(() => this.api.post<ImpuestoApi[]>(
+      `${IMPUESTOS_BASE_PATH}/Enumerar`,
+      { tipo: TIPO_IMPUESTO_IVA },
+    ));
   }
 
   // Clave de idempotencia para X-Request-ID (2026-08-31) — hash SHA-256 del contenido del
@@ -974,17 +984,11 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   // es el único TipoFactura configurado para "Facturas" en esta empresa (fijo, no varía
   // durante el uso de la app).
   private async obtenerTipoFactura(): Promise<TipoFacturaApi> {
-    if (!this.tipoFacturaCache) {
-      this.tipoFacturaCache = this.api.get<TipoFacturaApi>(`${RECIBIDAS_BASE_PATH}/TipoFactura`);
-    }
-    return this.tipoFacturaCache;
+    return this.tipoFacturaCache.obtener(() => this.api.get<TipoFacturaApi>(`${RECIBIDAS_BASE_PATH}/TipoFactura`));
   }
 
   private async obtenerMediosPagoApi(): Promise<MedioPagoApi[]> {
-    if (!this.mediosPagoCache) {
-      this.mediosPagoCache = this.api.post<MedioPagoApi[]>(`${MEDIOS_PAGO_BASE_PATH}/Enumerar`, {});
-    }
-    return this.mediosPagoCache;
+    return this.mediosPagoCache.obtener(() => this.api.post<MedioPagoApi[]>(`${MEDIOS_PAGO_BASE_PATH}/Enumerar`, {}));
   }
 
   // Catálogo seleccionable para el desplegable "Forma de pago" del detalle — a diferencia

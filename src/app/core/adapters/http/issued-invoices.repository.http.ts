@@ -4,6 +4,8 @@ import { CobroFactura, DatosGuardarFacturaEmitida, EstadoStripeConnect, IssuedIn
 import { MedioPagoOpcion } from '../../ports/received-invoices.repository';
 import { MockIssuedInvoicesRepository } from '../mock/issued-invoices.repository.mock';
 import { ApiService } from '../../../services/api.service';
+import { LimpiezaDeSesionService } from '../../../services/limpieza-de-sesion.service';
+import { CatalogoEnMemoria } from '../../../shared/utils/catalogo-en-memoria';
 import {
   AccionesPermitidas, Destinatario, EstadoAeat, EstadoFactura, FacturaEmitida, LineaFactura, Numerador, TotalesFactura,
   fechaLocalHoy,
@@ -398,21 +400,28 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   private api = inject(ApiService);
   private transloco = inject(TranslocoService);
 
-  private impuestosCache: Promise<ImpuestoApi[]> | null = null;
-  private mediosPagoCache: Promise<MedioPagoApi[]> | null = null;
+  // Catálogos de la empresa, una vez por sesión: se olvidan al cambiar de sesión (2026-09-15, ver
+  // LimpiezaDeSesionService). Antes duraban toda la vida de la app y, tras pasar a otra empresa,
+  // se seguían ofreciendo las formas de pago y los IVA de la anterior.
+  private impuestosCache = new CatalogoEnMemoria<ImpuestoApi[]>();
+  private mediosPagoCache = new CatalogoEnMemoria<MedioPagoApi[]>();
+
+  constructor() {
+    super();
+    inject(LimpiezaDeSesionService).registrar(() => {
+      this.impuestosCache.olvidar();
+      this.mediosPagoCache.olvidar();
+    });
+  }
 
   private async obtenerImpuestosApi(): Promise<ImpuestoApi[]> {
-    if (!this.impuestosCache) {
-      this.impuestosCache = this.api.post<ImpuestoApi[]>(`${IMPUESTOS_BASE_PATH}/Enumerar`, { tipo: TIPO_IMPUESTO_IVA });
-    }
-    return this.impuestosCache;
+    return this.impuestosCache.obtener(() =>
+      this.api.post<ImpuestoApi[]>(`${IMPUESTOS_BASE_PATH}/Enumerar`, { tipo: TIPO_IMPUESTO_IVA }));
   }
 
   private async obtenerMediosPagoApi(): Promise<MedioPagoApi[]> {
-    if (!this.mediosPagoCache) {
-      this.mediosPagoCache = this.api.post<MedioPagoApi[]>(`${MEDIOS_PAGO_BASE_PATH}/Enumerar`, {});
-    }
-    return this.mediosPagoCache;
+    return this.mediosPagoCache.obtener(() =>
+      this.api.post<MedioPagoApi[]>(`${MEDIOS_PAGO_BASE_PATH}/Enumerar`, {}));
   }
 
   async obtenerPorcentajesIva(): Promise<number[]> {

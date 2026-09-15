@@ -5,6 +5,7 @@ import { fechaLocalHoy } from '../../../services/mock-facturas.service';
 import { MockIssuedInvoicesRepository } from '../mock/issued-invoices.repository.mock';
 import { MockFacturasService } from '../../../services/mock-facturas.service';
 import { ApiService } from '../../../services/api.service';
+import { LimpiezaDeSesionService } from '../../../services/limpieza-de-sesion.service';
 import { provideTranslocoTesting } from '../../i18n/testing/transloco-testing.providers';
 
 const TRADUCCIONES_TEST = {
@@ -110,6 +111,55 @@ describe('HttpIssuedInvoicesRepository — Fase 2 (listar/obtenerPorId reales)',
     expect(facturas.length).toBe(1);
     expect(facturas[0].id).toBe(local.id);
     expect(facturas[0].esBorradorLocal).toBeTrue();
+  });
+
+  // Cambio de empresa (demo 2026-09-14): la empresa demo ofrecía las formas de pago de ARTI
+  // Software, porque el catálogo se pedía una vez en la vida de la app.
+  it('al cambiar de sesión vuelve a pedir las formas de pago en vez de dar las de la empresa anterior', async () => {
+    await repo.obtenerMediosPago();
+    await repo.obtenerMediosPago();
+    const pedidas = () => apiSpy.post.calls.allArgs().filter(([path]) => path === '/api/MediosPago/Enumerar').length;
+    expect(pedidas()).toBe(1);
+
+    TestBed.inject(LimpiezaDeSesionService).limpiar();
+    await repo.obtenerMediosPago();
+
+    expect(pedidas()).toBe(2);
+  });
+
+  it('al cambiar de sesión también vuelve a pedir el catálogo de IVA', async () => {
+    await repo.obtenerPorcentajesIva();
+
+    TestBed.inject(LimpiezaDeSesionService).limpiar();
+    await repo.obtenerPorcentajesIva();
+
+    const pedidas = apiSpy.post.calls.allArgs().filter(([path]) => path === '/api/Impuesto/Enumerar').length;
+    expect(pedidas).toBe(2);
+  });
+
+  // Peor que el desplegable: guardar ese borrador en la otra empresa lo daba de alta allí.
+  it('un borrador sin guardar no aparece en la lista de la sesión siguiente', async () => {
+    repo.crearBorrador(1, { nombre: 'Cliente de otra empresa', nif: '12345678Z', esEmpresa: false });
+    expect((await repo.listar('borrador')).length).toBe(1);
+
+    TestBed.inject(LimpiezaDeSesionService).limpiar();
+
+    expect((await repo.listar('borrador')).length).toBe(0);
+  });
+
+  it('si el catálogo falla una vez, el siguiente intento vuelve a preguntar', async () => {
+    let fallar = true;
+    apiSpy.post.and.callFake((path: string) => {
+      if (path === '/api/MediosPago/Enumerar') {
+        return fallar ? Promise.reject(new Error('sin cobertura')) : Promise.resolve(MEDIOS_PAGO_API as any);
+      }
+      return Promise.resolve([] as any);
+    });
+
+    await expectAsync(repo.obtenerMediosPago()).toBeRejected();
+    fallar = false;
+
+    expect((await repo.obtenerMediosPago()).length).toBe(1);
   });
 
   it('obtenerPorId() mapea el detalle real, incluidas las líneas resolviendo idImpuesto al % real', async () => {

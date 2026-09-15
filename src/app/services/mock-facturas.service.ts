@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { TranslocoService } from '@jsverse/transloco';
 import { PaginaResultado } from '../shared/types/pagination';
 import { DOCUMENTO_DE_BORRADOR_DISPONIBLE } from '../core/providers/funcionalidades-pendientes';
+import { LimpiezaDeSesionService } from './limpieza-de-sesion.service';
 
 export type EstadoFactura = 'borrador' | 'contabilizada' | 'firmada';
 // 'PendienteReenvioTecnico' (2026-09-04): fallo de RED al enviar a la AEAT, que el propio
@@ -584,6 +585,19 @@ let nextProveedorId = 100;
 @Injectable({ providedIn: 'root' })
 export class MockFacturasService {
   private transloco = inject(TranslocoService);
+
+  // Los borradores sin guardar son de la sesión en la que se crearon (2026-09-15). Sin esto, uno
+  // creado en una empresa aparecía en la lista de la siguiente, y guardarlo allí lo daba de alta
+  // en la empresa equivocada.
+  constructor() {
+    inject(LimpiezaDeSesionService).registrar(() => this.descartarBorradoresLocales());
+  }
+
+  // Solo los borradores locales: los datos de ejemplo fijos del modo demo se quedan.
+  descartarBorradoresLocales(): void {
+    this.emitidas = this.emitidas.filter(f => !f.esBorradorLocal);
+    this.recibidas = this.recibidas.filter(f => !f.esBorradorLocal);
+  }
 
   private emisor: EmisorFiscal = {
     esEmpresa: true,
