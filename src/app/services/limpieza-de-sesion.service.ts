@@ -11,23 +11,57 @@ import { Injectable } from '@angular/core';
  * sesión solo borraba el token: nada de lo que había en memoria se enteraba.
  *
  * No era solo un desplegable raro. Con el catálogo de IVA pasaba lo mismo, y un borrador sin
- * guardar de una empresa aparecía en la lista de la otra: guardarlo allí lo habría creado en la
- * empresa equivocada.
+ * guardar de una empresa aparecía en la lista de la otra: guardarlo allí lo habría dado de alta
+ * en la empresa equivocada.
  *
- * TODA CACHÉ EN MEMORIA CON DATOS DE UNA EMPRESA TIENE QUE REGISTRARSE AQUÍ. AuthService llama a
- * limpiar() al cerrar sesión y justo antes de guardar el token de una sesión nueva, que cubre
- * cerrar sesión, "Cambiar empresa", la sesión caducada y entrar con otro usuario.
+ * DOS CLASES DE COSAS, porque no cuesta lo mismo tirarlas:
+ * - registrar(): lo que se puede volver a pedir sin perder nada (catálogos). Se tira en CADA
+ *   cambio de sesión, aunque se vuelva a la misma empresa.
+ * - registrarSoloAlCambiarDeEmpresa(): lo que el usuario perdería (borradores sin guardar). Solo
+ *   se tira si la sesión nueva es de OTRA empresa u OTRO usuario. Pedido por Abraham: cerrar
+ *   sesión y volver a entrar en la misma empresa —o que caduque la sesión— no puede costarle una
+ *   factura a medias.
+ *
+ * TODA CACHÉ EN MEMORIA CON DATOS DE UNA EMPRESA TIENE QUE REGISTRARSE AQUÍ. AuthService avisa
+ * con cerrarSesion() al salir y con iniciarSesion() justo antes de guardar el token nuevo, lo que
+ * cubre cerrar sesión, "Cambiar empresa", la sesión caducada y entrar con otro usuario encima de
+ * una sesión abierta.
  */
 @Injectable({ providedIn: 'root' })
 export class LimpiezaDeSesionService {
-  private readonly limpiezas = new Set<() => void>();
+  private readonly deLaSesion = new Set<() => void>();
+  private readonly deLaEmpresa = new Set<() => void>();
+
+  // Empresa y usuario de la última sesión que se cerró. Hace falta porque al volver a entrar ya
+  // no queda ningún usuario guardado con el que comparar: logout() lo borra.
+  private identidadAnterior: string | null = null;
 
   registrar(limpiar: () => void): void {
-    this.limpiezas.add(limpiar);
+    this.deLaSesion.add(limpiar);
   }
 
-  limpiar(): void {
-    for (const limpiar of this.limpiezas) {
+  registrarSoloAlCambiarDeEmpresa(limpiar: () => void): void {
+    this.deLaEmpresa.add(limpiar);
+  }
+
+  cerrarSesion(identidad: string | null): void {
+    if (identidad) this.identidadAnterior = identidad;
+    this.ejecutar(this.deLaSesion);
+  }
+
+  /**
+   * @param anterior identidad de la sesión que sigue abierta al entrar, si la hay (entrar con
+   *   otro usuario sin haber cerrado sesión). Si no, se compara con la última que se cerró.
+   */
+  iniciarSesion(anterior: string | null, nueva: string): void {
+    this.ejecutar(this.deLaSesion);
+    const previa = anterior ?? this.identidadAnterior;
+    if (previa !== null && previa !== nueva) this.ejecutar(this.deLaEmpresa);
+    this.identidadAnterior = nueva;
+  }
+
+  private ejecutar(limpiezas: Set<() => void>): void {
+    for (const limpiar of limpiezas) {
       try {
         limpiar();
       } catch {

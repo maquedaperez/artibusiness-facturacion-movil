@@ -97,15 +97,23 @@ export class AuthService {
     return null;
   }
 
+  // Qué empresa y qué usuario son (2026-09-15): decide si los borradores sin guardar pasan a la
+  // sesión siguiente. Solo si es exactamente la misma empresa y el mismo usuario.
+  private identidadDeSesion(user: User | null): string | null {
+    if (!user) return null;
+    return [user.tenantKey ?? '', user.company ?? '', (user.email ?? user.id ?? '').toLowerCase()].join('|');
+  }
+
   getUser(): User | null {
     const raw = localStorage.getItem(this.USER_KEY);
     return raw ? (JSON.parse(raw) as User) : null;
   }
 
 logout(): void {
-  // Lo que había en memoria era de esta sesión: catálogos y borradores de ESTA empresa
-  // (2026-09-15, ver LimpiezaDeSesionService).
-  this.limpiezaDeSesion.limpiar();
+  // Lo que había en memoria era de esta sesión (2026-09-15, ver LimpiezaDeSesionService). Antes
+  // de borrar el usuario: hace falta saber de qué empresa era para decidir, al volver a entrar,
+  // si los borradores sin guardar se conservan.
+  this.limpiezaDeSesion.cerrarSesion(this.identidadDeSesion(this.getUser()));
   localStorage.removeItem(this.TOKEN_KEY);
   localStorage.removeItem(this.USER_KEY);
   localStorage.removeItem(this.EMPLOYEE_ID_KEY);
@@ -149,8 +157,9 @@ logout(): void {
       };
 
       // También al entrar, no solo al salir: una sesión nueva puede llegar sin haber pasado por
-      // logout() (entrar con otro usuario encima de una sesión abierta).
-      this.limpiezaDeSesion.limpiar();
+      // logout() (entrar con otro usuario encima de una sesión abierta). Antes de guardar el
+      // usuario nuevo, que es con el que se compara la sesión anterior.
+      this.limpiezaDeSesion.iniciarSesion(this.identidadDeSesion(this.getUser()), this.identidadDeSesion(user)!);
       localStorage.setItem(this.TOKEN_KEY, token);
       localStorage.setItem(this.USER_KEY, JSON.stringify(user));
       localStorage.setItem(this.EMPLOYEE_ID_KEY, String(empId!));
@@ -208,7 +217,7 @@ logout(): void {
     };
 
     // Igual que en login(): la sesión nueva no hereda nada de la anterior.
-    this.limpiezaDeSesion.limpiar();
+    this.limpiezaDeSesion.iniciarSesion(this.identidadDeSesion(this.getUser()), this.identidadDeSesion(user)!);
     localStorage.setItem(this.TOKEN_KEY, token);
     localStorage.setItem(this.USER_KEY, JSON.stringify(user));
     localStorage.setItem(this.EMPLOYEE_ID_KEY, String(empId!));

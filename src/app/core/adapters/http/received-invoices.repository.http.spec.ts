@@ -822,14 +822,14 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       apiSpy.post.and.resolveTo([{ idMedioPago: 1, descFormaPago: 'Transferencia', descripcion: 'Sabadell' }]);
       await repo.obtenerMediosPago();
 
-      TestBed.inject(LimpiezaDeSesionService).limpiar();
+      TestBed.inject(LimpiezaDeSesionService).cerrarSesion('arti|9|abraham');
       apiSpy.post.and.resolveTo([{ idMedioPago: 7, descFormaPago: 'Contado', descripcion: null }]);
       const opciones = await repo.obtenerMediosPago();
 
       expect(opciones).toEqual([{ id: 7, label: 'Contado' }]);
     });
 
-    it('un borrador local sin guardar no pasa a la sesión siguiente', async () => {
+    it('un borrador local sin guardar no pasa a OTRA empresa', async () => {
       TestBed.inject(MockFacturasService).crearManual({
         proveedorNombre: 'Proveedor de otra empresa', proveedorNif: 'B00000000', numFactura: 'X-1',
         fecha: '2026-09-15', vencimiento: '', concepto: '', formaPago: '', lineas: [],
@@ -837,7 +837,9 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       } as any);
       expect((await repo.listar()).some(f => f.esBorradorLocal)).toBeTrue();
 
-      TestBed.inject(LimpiezaDeSesionService).limpiar();
+      const limpieza = TestBed.inject(LimpiezaDeSesionService);
+      limpieza.cerrarSesion('arti|9|abraham');
+      limpieza.iniciarSesion(null, 'arti|4|abraham');
 
       expect((await repo.listar()).some(f => f.esBorradorLocal)).toBeFalse();
     });

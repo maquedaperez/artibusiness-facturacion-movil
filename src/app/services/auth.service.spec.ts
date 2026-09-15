@@ -9,12 +9,18 @@ import { LimpiezaDeSesionService } from './limpieza-de-sesion.service';
 describe('AuthService — la sesión nueva no hereda la memoria de la anterior', () => {
   let auth: AuthService;
   let apiSpy: jasmine.SpyObj<ApiService>;
-  let limpiar: jasmine.Spy;
+  let catalogos: jasmine.Spy;
+  let borradores: jasmine.Spy;
+
+  const entrar = (company: number, username = 'abraham@artisoftware.com') => {
+    apiSpy.post.and.resolveTo({ token: `token-${company}-${username}`, employeeId: 7, userEmail: username } as any);
+    return auth.login({ tenantKey: 'arti', company, businessUnit: 1, username, password: 'p' });
+  };
 
   beforeEach(() => {
     apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['post']);
     const tenantSpy = jasmine.createSpyObj<TenantService>('TenantService', ['getTenantConfig']);
-    tenantSpy.getTenantConfig.and.resolveTo({ key: 'demo', company: 4, businessUnit: 1 } as any);
+    tenantSpy.getTenantConfig.and.resolveTo({ key: 'arti', company: 4, businessUnit: 1 } as any);
 
     TestBed.configureTestingModule({
       providers: [
@@ -23,7 +29,11 @@ describe('AuthService — la sesión nueva no hereda la memoria de la anterior',
       ],
     });
     auth = TestBed.inject(AuthService);
-    limpiar = spyOn(TestBed.inject(LimpiezaDeSesionService), 'limpiar');
+    const limpieza = TestBed.inject(LimpiezaDeSesionService);
+    catalogos = jasmine.createSpy('catalogos');
+    borradores = jasmine.createSpy('borradores');
+    limpieza.registrar(catalogos);
+    limpieza.registrarSoloAlCambiarDeEmpresa(borradores);
   });
 
   afterEach(() => {
@@ -33,38 +43,70 @@ describe('AuthService — la sesión nueva no hereda la memoria de la anterior',
     localStorage.removeItem('arti_session_expiry');
   });
 
-  it('cerrar sesión limpia lo que había en memoria', () => {
+  it('cerrar sesión tira los catálogos, no los borradores sin guardar', async () => {
+    await entrar(9);
+    catalogos.calls.reset();
+
     auth.logout();
 
-    expect(limpiar).toHaveBeenCalled();
+    expect(catalogos).toHaveBeenCalled();
+    expect(borradores).not.toHaveBeenCalled();
   });
 
-  // Entrar con otro usuario o en otra empresa sin haber pasado por logout() también cuenta.
-  it('entrar con usuario y contraseña limpia antes de guardar el token nuevo', async () => {
-    let tokenAlLimpiar: string | null = 'sin llamar';
-    limpiar.and.callFake(() => { tokenAlLimpiar = localStorage.getItem('arti_access_token'); });
-    localStorage.setItem('arti_access_token', 'token-empresa-9');
-    apiSpy.post.and.resolveTo({ token: 'token-empresa-4', employeeId: 7 } as any);
+  it('salir y volver a la misma empresa conserva los borradores sin guardar', async () => {
+    await entrar(9);
+    auth.logout();
 
-    await auth.login({ tenantKey: 'demo', company: 4, businessUnit: 1, username: 'u', password: 'p' });
+    await entrar(9);
 
-    expect(tokenAlLimpiar).toBe('token-empresa-9');
-    expect(localStorage.getItem('arti_access_token')).toBe('token-empresa-4');
+    expect(borradores).not.toHaveBeenCalled();
   });
 
-  it('entrar con el código MFA también limpia', async () => {
-    apiSpy.post.and.resolveTo({ token: 'token-mfa', employeeId: 7 } as any);
+  // EL CASO DE LA DEMO (2026-09-14): de ARTI Software (9) a la empresa demo (4).
+  it('salir y entrar en otra empresa tira los borradores de la anterior', async () => {
+    await entrar(9);
+    auth.logout();
 
-    await auth.verifyMfaCode('reto', '123456', 'u');
+    await entrar(4);
 
-    expect(limpiar).toHaveBeenCalled();
+    expect(borradores).toHaveBeenCalledTimes(1);
   });
 
-  it('un login que pide MFA todavía no limpia: la sesión nueva aún no ha empezado', async () => {
-    apiSpy.post.and.resolveTo({ challengeId: 'reto', maskedEmail: 'u***@x.com' } as any);
+  it('entrar en otra empresa sin haber cerrado sesión también los tira', async () => {
+    await entrar(9);
 
-    await auth.login({ tenantKey: 'demo', company: 4, businessUnit: 1, username: 'u', password: 'p' });
+    await entrar(4);
 
-    expect(limpiar).not.toHaveBeenCalled();
+    expect(borradores).toHaveBeenCalledTimes(1);
+  });
+
+  it('la limpieza se hace antes de guardar el token nuevo', async () => {
+    await entrar(9);
+    let tokenAlLimpiar = null as string | null;
+    catalogos.and.callFake(() => { tokenAlLimpiar = localStorage.getItem('arti_access_token'); });
+
+    await entrar(4);
+
+    expect(tokenAlLimpiar).toBe('token-9-abraham@artisoftware.com');
+    expect(localStorage.getItem('arti_access_token')).toBe('token-4-abraham@artisoftware.com');
+  });
+
+  it('entrar con el código MFA en otra empresa también tira los borradores', async () => {
+    await entrar(9);
+    auth.logout();
+    apiSpy.post.and.resolveTo({ token: 'token-mfa', employeeId: 7, userEmail: 'abraham@artisoftware.com' } as any);
+
+    await auth.verifyMfaCode('reto', '123456', 'abraham@artisoftware.com');
+
+    expect(borradores).toHaveBeenCalledTimes(1);
+  });
+
+  it('un login que pide MFA todavía no limpia nada: la sesión nueva aún no ha empezado', async () => {
+    apiSpy.post.and.resolveTo({ challengeId: 'reto', maskedEmail: 'a***@artisoftware.com' } as any);
+
+    await auth.login({ tenantKey: 'arti', company: 4, businessUnit: 1, username: 'u', password: 'p' });
+
+    expect(catalogos).not.toHaveBeenCalled();
+    expect(borradores).not.toHaveBeenCalled();
   });
 });

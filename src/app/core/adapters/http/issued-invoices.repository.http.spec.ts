@@ -121,7 +121,7 @@ describe('HttpIssuedInvoicesRepository — Fase 2 (listar/obtenerPorId reales)',
     const pedidas = () => apiSpy.post.calls.allArgs().filter(([path]) => path === '/api/MediosPago/Enumerar').length;
     expect(pedidas()).toBe(1);
 
-    TestBed.inject(LimpiezaDeSesionService).limpiar();
+    TestBed.inject(LimpiezaDeSesionService).cerrarSesion('arti|9|abraham');
     await repo.obtenerMediosPago();
 
     expect(pedidas()).toBe(2);
@@ -130,21 +130,34 @@ describe('HttpIssuedInvoicesRepository — Fase 2 (listar/obtenerPorId reales)',
   it('al cambiar de sesión también vuelve a pedir el catálogo de IVA', async () => {
     await repo.obtenerPorcentajesIva();
 
-    TestBed.inject(LimpiezaDeSesionService).limpiar();
+    TestBed.inject(LimpiezaDeSesionService).cerrarSesion('arti|9|abraham');
     await repo.obtenerPorcentajesIva();
 
     const pedidas = apiSpy.post.calls.allArgs().filter(([path]) => path === '/api/Impuesto/Enumerar').length;
     expect(pedidas).toBe(2);
   });
 
-  // Peor que el desplegable: guardar ese borrador en la otra empresa lo daba de alta allí.
-  it('un borrador sin guardar no aparece en la lista de la sesión siguiente', async () => {
+  // Peor que el desplegable: guardar ese borrador en la otra empresa lo habría dado de alta allí.
+  it('un borrador sin guardar no aparece en la lista de OTRA empresa', async () => {
     repo.crearBorrador(1, { nombre: 'Cliente de otra empresa', nif: '12345678Z', esEmpresa: false });
     expect((await repo.listar('borrador')).length).toBe(1);
 
-    TestBed.inject(LimpiezaDeSesionService).limpiar();
+    const limpieza = TestBed.inject(LimpiezaDeSesionService);
+    limpieza.cerrarSesion('arti|9|abraham');
+    limpieza.iniciarSesion(null, 'arti|4|abraham');
 
     expect((await repo.listar('borrador')).length).toBe(0);
+  });
+
+  // Pedido por Abraham (2026-09-15): salir y volver a la misma empresa no cuesta la factura.
+  it('un borrador sin guardar sigue ahí al salir y volver a la MISMA empresa', async () => {
+    repo.crearBorrador(1, { nombre: 'Cliente', nif: '12345678Z', esEmpresa: false });
+
+    const limpieza = TestBed.inject(LimpiezaDeSesionService);
+    limpieza.cerrarSesion('arti|9|abraham');
+    limpieza.iniciarSesion(null, 'arti|9|abraham');
+
+    expect((await repo.listar('borrador')).length).toBe(1);
   });
 
   it('si el catálogo falla una vez, el siguiente intento vuelve a preguntar', async () => {

@@ -586,11 +586,15 @@ let nextProveedorId = 100;
 export class MockFacturasService {
   private transloco = inject(TranslocoService);
 
-  // Los borradores sin guardar son de la sesión en la que se crearon (2026-09-15). Sin esto, uno
-  // creado en una empresa aparecía en la lista de la siguiente, y guardarlo allí lo daba de alta
-  // en la empresa equivocada.
+  // Los borradores sin guardar son de la empresa en la que se crearon (2026-09-15). Sin esto, uno
+  // creado en una empresa aparecía en la lista de la siguiente, y guardarlo allí lo habría dado
+  // de alta en la empresa equivocada.
+  //
+  // Solo al cambiar de empresa o de usuario, no en cualquier cierre de sesión: salir y volver a
+  // la misma empresa, o que caduque la sesión, no puede costar una factura a medias. Ojo: siguen
+  // viviendo solo en memoria, así que cerrar la app los pierde igual que antes.
   constructor() {
-    inject(LimpiezaDeSesionService).registrar(() => this.descartarBorradoresLocales());
+    inject(LimpiezaDeSesionService).registrarSoloAlCambiarDeEmpresa(() => this.descartarBorradoresLocales());
   }
 
   // Solo los borradores locales: los datos de ejemplo fijos del modo demo se quedan.
