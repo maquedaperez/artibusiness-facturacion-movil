@@ -68,6 +68,12 @@ describe('validarNif', () => {
     expect(validarNif('FR12345678901').valido).toBeFalse();
   });
 
+  // Mismo caso que NifEspanolTests del backend: en .NET \d acepta dígitos de ancho completo y
+  // allí daba un 500. Aquí \d solo acepta 0-9; se fija para que las dos sigan de acuerdo.
+  it('con dígitos de ancho completo es formato inválido, igual que en el backend', () => {
+    expect(validarNif('１２３４５６７８Z')).toEqual(jasmine.objectContaining({ valido: false, motivo: 'formato' }));
+  });
+
   it('vacío se distingue de mal escrito', () => {
     expect(validarNif('  ')).toEqual(jasmine.objectContaining({ valido: false, motivo: 'vacio' }));
     expect(validarNif(undefined)).toEqual(jasmine.objectContaining({ valido: false, motivo: 'vacio' }));
