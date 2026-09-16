@@ -20,7 +20,7 @@ export const environment = {
   features: {
     enableQuickSave: true,
     enableServerAttachments: true,
-    // Ver environment.ts: espera a que el PR 54 esté publicado en el backend.
-    enableConvertToTicket: false,
+    // Ver environment.ts: el PR 54 ya está publicado en los dos backends.
+    enableConvertToTicket: true,
   },
 };

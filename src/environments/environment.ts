@@ -8,9 +8,9 @@ export const environment = {
   features: {
     enableQuickSave: true,
     enableServerAttachments: true,
-    // Apagado hasta que Jose publique el PR 54 (POST .../ConvertirEnTicket). Con el endpoint
-    // sin publicar, el botón existe y responde 404: en una demo eso es un aviso rojo delante
-    // del cliente. Se enciende el día que esté arriba, que es cambiar este false.
-    enableConvertToTicket: false,
+    // Encendido el 2026-09-16: Jose mergeó y publicó el PR 54, y se ha comprobado que
+    // POST /api/FacturasRecibidas/{id}/ConvertirEnTicket responde 401 (o sea, que la ruta
+    // existe) tanto en Development como en Producción — no 404.
+    enableConvertToTicket: true,
   },
 };
