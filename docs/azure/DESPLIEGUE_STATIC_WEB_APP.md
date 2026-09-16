@@ -23,20 +23,28 @@ qué queda por tocar en el front cuando el recurso exista.
 - **El `postbuild` no estorba**: `scripts/generar-redirects-de-pruebas.mjs` solo escribe algo
   si la variable `BRANCH` vale `pruebas`, y esa variable la pone Netlify. Fuera de Netlify no
   hace nada.
-- **`docs/azure/azure-static-web-apps.yml`** — el workflow de GitHub Actions ya escrito. No
-  está en `.github/workflows/` a propósito: sin el recurso creado no existe el secreto del
-  token y fallaría en cada push, ensuciando el repo de ejecuciones en rojo.
+- **El despliegue, ya escrito, en las dos versiones** — según dónde acabe viviendo el repo:
+  - `docs/azure/azure-static-web-apps.yml` para GitHub Actions.
+  - `docs/azure/azure-pipelines-static-web-app.yml` para Azure DevOps.
+
+  Ninguno está en su sitio definitivo a propósito: sin el recurso creado no existe el token y
+  fallarían en cada push, ensuciando el repo de ejecuciones en rojo. Se mueve uno de los dos
+  el día que exista el recurso.
 
 ## 2. Lo que tiene que hacer Jose
 
 1. **Crear el recurso** Static Web App (región West Europe; plan Free para empezar — ver el
-   punto 6), con origen GitHub, repo `maquedaperez/artibusiness-facturacion-movil`, rama
-   `main`, y *build preset* **Custom**: app location `/`, api location vacío, output location
-   `www`.
-2. Al crearlo, Azure añade el secreto `AZURE_STATIC_WEB_APPS_API_TOKEN` al repositorio y
-   commitea su propio workflow en `.github/workflows/`. Si ese workflow no compila bien
+   punto 6). El origen depende de dónde esté el repo ese día:
+   - **GitHub** (como está hoy): repo `maquedaperez/artibusiness-facturacion-movil`, rama
+     `main`, *build preset* **Custom** con app location `/`, api location vacío y output
+     location `www`.
+   - **Other** (si ya se ha movido a Azure DevOps): no pide repositorio; el despliegue lo hace
+     el pipeline. Ver el punto 5.
+2. Con origen GitHub, Azure añade el secreto `AZURE_STATIC_WEB_APPS_API_TOKEN` al repositorio
+   y commitea su propio workflow en `.github/workflows/`. Si ese workflow no compila bien
    (Oryx a veces elige otra versión de Node), se sustituye por el de `docs/azure/`, que compila
-   con `npm ci && npm run build` y solo sube el resultado.
+   con `npm ci && npm run build` y solo sube el resultado. Con origen **Other** no se crea
+   nada: el token se copia a mano desde *Overview → Manage deployment token*.
 3. **CORS — esto es lo que rompe si se olvida.** Azure Portal → App Service → API → CORS, hay
    que dar de alta el origen nuevo en tres sitios:
    - `configurationapidispatcher-…` → **nuevo**. Hoy no hace falta porque Netlify lo proxea
@@ -76,7 +84,24 @@ qué queda por tocar en el front cuando el recurso exista.
    Netlify levantado una semana por si hay que volver atrás.
 6. Cuando esté estable: borrar el sitio de Netlify, `netlify.toml` y el apaño de `pruebas`.
 
-## 5. Lo que Static Web Apps no puede hacer
+## 5. Si el repo se mueve a Azure DevOps
+
+Se puede, y el sitio no se entera: la Static Web App no necesita saber de dónde viene lo que
+se le sube, solo acepta el token. Hay que tener en cuenta tres cosas:
+
+- **Netlify se queda sin fuente.** Hoy compila desde GitHub. El día que el repo se mueva, deja
+  de desplegar — no se rompe lo que ya está publicado, pero no vuelve a actualizarse, y con él
+  se va el despliegue de la rama `pruebas`. Por eso conviene **no mover el repo y cambiar de
+  hosting a la vez**: primero la Static Web App funcionando con el repo donde está, y cuando
+  esté probada, el traslado.
+- **El pipeline** es `docs/azure/azure-pipelines-static-web-app.yml`: se mueve a la raíz como
+  `azure-pipelines.yml`. Necesita agente Linux (la tarea `AzureStaticWebApp` no corre en
+  Windows) y el token guardado como variable **secreta**
+  `AZURE_STATIC_WEB_APPS_API_TOKEN`.
+- **Los entornos de preview automáticos son cosa de GitHub.** Desde Azure DevOps se crean a
+  mano con el parámetro `deployment_environment` de la tarea, y hacen falta plan Standard.
+
+## 6. Lo que Static Web Apps no puede hacer
 
 - **No hace de proxy hacia URLs externas.** Lo único parecido son los *linked backends*, y solo
   bajo `/api`, solo en plan Standard y solo hacia recursos de Azure de la misma suscripción.
@@ -86,7 +111,7 @@ qué queda por tocar en el front cuando el recurso exista.
   entorno fijo de `pruebas` como el de Netlify hace falta plan Standard y un segundo workflow
   con `deployment_environment: pruebas`.
 
-## 6. Coste
+## 7. Coste
 
 Free: 100 GB de banda al mes, dominios propios con certificado incluido, sin SLA — de sobra
 para lo que hay hoy. Standard (unos 9 $ al mes por aplicación, confirmar en el portal) añade

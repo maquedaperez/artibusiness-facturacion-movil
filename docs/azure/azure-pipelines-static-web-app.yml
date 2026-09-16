@@ -1,0 +1,49 @@
+# Pipeline de despliegue a Azure Static Web Apps DESDE AZURE DEVOPS.
+#
+# Alternativa a docs/azure/azure-static-web-apps.yml (ese es para GitHub Actions). Se usa uno
+# u otro, según dónde acabe viviendo el repositorio. NO ESTÁ ACTIVO: cuando el repo esté en
+# Azure DevOps, este fichero se mueve a la raíz como azure-pipelines.yml y se crea el pipeline
+# apuntándolo.
+#
+# EL TOKEN. Al crear la Static Web App con origen "Other" (que es lo que hay que elegir si el
+# repo no está en GitHub), Azure no genera nada: hay que copiar el deployment token desde el
+# portal (Static Web App -> Overview -> Manage deployment token) y guardarlo en el pipeline
+# como VARIABLE SECRETA llamada AZURE_STATIC_WEB_APPS_API_TOKEN. Secreta de verdad, con el
+# candado: ese token despliega en el sitio sin más credenciales.
+#
+# EL AGENTE TIENE QUE SER LINUX. La tarea AzureStaticWebApp solo corre en Linux.
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - task: NodeTool@0
+    displayName: Node 20
+    inputs:
+      versionSpec: '20.x'
+
+  - script: npm ci
+    displayName: Instalar dependencias
+
+  # La imagen ubuntu-latest trae Google Chrome y karma lo encuentra en el PATH. Si algún día
+  # dejara de encontrarlo, el arreglo es exportar CHROME_BIN=/usr/bin/google-chrome aquí.
+  - script: npm run test:ci
+    displayName: Tests
+
+  - script: npm run build
+    displayName: Compilar
+
+  # Se compila arriba y aquí solo se sube (skip_app_build), para que un fallo de compilación
+  # salga en su propio paso y con su log, en vez de dentro del contenedor de Azure.
+  - task: AzureStaticWebApp@0
+    displayName: Desplegar
+    inputs:
+      app_location: 'www'
+      output_location: ''
+      skip_app_build: true
+      skip_api_build: true
+      azure_static_web_apps_api_token: $(AZURE_STATIC_WEB_APPS_API_TOKEN)
