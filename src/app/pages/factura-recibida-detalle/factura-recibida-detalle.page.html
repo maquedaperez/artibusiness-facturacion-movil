@@ -11,7 +11,9 @@
 
 <ion-content class="ion-padding">
 
-  <app-demo-banner></app-demo-banner>
+  <!-- El mismo texto que el listado: estos datos son REALES (vienen del backend), lo que es de
+       pruebas es el entorno. El cartel por defecto dice "datos simulados", que aqui seria falso. -->
+  <app-demo-banner [titulo]="'common.demoBanner.recibidasTitulo' | transloco"></app-demo-banner>
 
   <ion-chip *ngIf="origenOcr" color="tertiary" class="mock-chip">
     <ion-label>{{ 'invoices.received.detail.ocrChip' | transloco }}</ion-label>

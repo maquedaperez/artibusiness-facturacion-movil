@@ -35,10 +35,16 @@
     </ion-card-content>
   </ion-card>
 
-  <!-- Oculta mientras EmisorRepository sea el mock: esta tarjeta muestra "Mi Empresa de
-       Ejemplo S.L." / B00000000, que NO son los datos del usuario ni los que salen en sus
-       facturas (esos los pone el backend desde la ficha real de la empresa al contabilizar).
-       Ver DATOS_EMISOR_DISPONIBLES en core/providers/funcionalidades-pendientes.ts. -->
+  <!-- OJO, ESTE COMENTARIO DECIA UNA MENTIRA (corregido 2026-09-16): decia que la tarjeta
+       estaba "oculta mientras EmisorRepository sea el mock", con una guarda
+       DATOS_EMISOR_DISPONIBLES que NO EXISTE en ninguna parte. La tarjeta se ve siempre.
+       Y lo que ensena es "Mi Empresa de Ejemplo S.L." / B00000000, porque EmisorRepository
+       sigue siendo el mock: NO son los datos del usuario ni los que salen en sus facturas
+       (esos los pone el backend desde la ficha real de la empresa al contabilizar).
+       Que siga visible es decision de producto (2026-09-02, ver la cabecera de
+       core/providers/funcionalidades-pendientes.ts): son pantallas que se quieren usar en
+       cuanto el backend las sirva. Pendiente de decidir si en produccion, con clientes de
+       verdad, conviene avisar de que son datos de ejemplo. -->
   <ion-card class="compact-card" button (click)="irADatosEmisor()" *ngIf="emisor as e">
     <ion-card-header>
       <ion-card-title>{{ 'profile.fiscalData' | transloco }}</ion-card-title>
