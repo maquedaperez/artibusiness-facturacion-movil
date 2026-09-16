@@ -23,6 +23,17 @@ describe('avisosDelLectorEnCastellano', () => {
     expect(avisos).toEqual([NUESTRO_DESCUADRE]);
   });
 
+  // El mismo aviso lo escriben DOS sitios con finales distintos: el backend ("Revisa la
+  // factura.") y esta app ("Revisa las líneas antes de guardar."). La regla mira el principio,
+  // que es igual en los dos — si alguno cambia esa frase, este test lo caza.
+  it('también reconoce el aviso de descuadre que escribe el backend', () => {
+    const delBackend = 'El total calculado a partir de las líneas (41,77 €) no coincide con el total declarado en el documento original (45,95 €). Revisa la factura.';
+
+    const avisos = avisosDelLectorEnCastellano([DESCUADRE_LINEAS, delBackend], traducir);
+
+    expect(avisos).toEqual([delBackend]);
+  });
+
   it('sin aviso nuestro, el del lector se enseña en castellano y con los importes', () => {
     const avisos = avisosDelLectorEnCastellano([DESCUADRE_LINEAS], traducir);
 
