@@ -119,6 +119,8 @@
 "common.states.calculating";"Elementos comunes/compartidos";"Calculando…";"Calculating…";"Обчислення…";"no"
 "common.withholdingLabel";"Elementos comunes/compartidos";"Retención";"Withholding";"Утримання податку";"si"
 "common.yes";"Elementos comunes/compartidos";"Sí";"Yes";"Так";"no"
+"errors.operationInProgress";"Avisos de error comunes";"Esta operación ya se está realizando. Espera unos segundos y vuelve a intentarlo.";"This operation is already running. Wait a few seconds and try again.";"Ця операція вже виконується. Зачекайте кілька секунд і спробуйте знову.";"si"
+"errors.provinceNotFound";"Avisos de error comunes";"La provincia «{{provincia}}» no está dada de alta en esta empresa. Comprueba cómo se escribe (por ejemplo, «A Coruña» en lugar de «La Coruña»).";"The province «{{provincia}}» is not registered for this company. Check the spelling (for example, «A Coruña» instead of «La Coruña»).";"Провінцію «{{provincia}}» не зареєстровано для цієї компанії. Перевірте написання (наприклад, «A Coruña», а не «La Coruña»).";"si"
 "errors.sessionCompanyNotFound";"Errores generales del frontend";"No se ha podido identificar la empresa de tu sesión. Vuelve a iniciar sesión e inténtalo de nuevo.";"Could not identify your session's company. Log in again and try again.";"Не вдалося визначити компанію вашого сеансу. Увійдіть знову та спробуйте ще раз.";"no"
 "invoices.issued.actions.copyAria";"Facturas emitidas";"Copiar / Duplicar";"Copy / Duplicate";"Копіювати / Дублювати";"no"
 "invoices.issued.actions.deleteAria";"Facturas emitidas";"Eliminar borrador";"Delete draft";"Видалити чернетку";"no"

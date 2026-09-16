@@ -64,6 +64,37 @@ export function pareceMensajeDelSistema(mensaje: string): boolean {
   return FIRMAS_DEL_SISTEMA.some(firma => firma.test(mensaje));
 }
 
+export type Traducir = (clave: string, params?: Record<string, unknown>) => string;
+
+/**
+ * Mensajes que SÍ son nuestros, y en castellano, pero escritos para quien programa (2026-09-16).
+ *
+ * El caso que lo motivó, visto en la demo: al contabilizar salía un aviso rojo con
+ *
+ *     No se pudo obtener el bloqueo 'contabilizar-emitida-83036' para la empresa 5
+ *     (sp_getapplock devolvió -1).
+ *
+ * Es cierto y es útil en un log, pero a quien está usando la app no le dice nada: lo que le pasa
+ * es que esa factura ya se está contabilizando (o acaba de intentarse) y tiene que esperar. Lo
+ * mismo con el id interno de la empresa, que se cuela al final de varios mensajes del backend.
+ */
+const BLOQUEO_EN_CURSO = /sp_getapplock|No se pudo obtener el bloqueo/i;
+const PROVINCIA_DESCONOCIDA = /^No existe la provincia\s+'(.+?)'/i;
+
+/**
+ * Traductor por defecto para los mensajes de arriba.
+ *
+ * Se registra UNA vez al arrancar (AppComponent) en vez de pasarlo por los 44 sitios que llaman
+ * a mensajeDeError: lo que se quiere garantizar es que un texto así no llegue NUNCA a una
+ * pantalla, y eso no se consigue si hay que acordarse de pasarlo en cada llamada nueva. Quien
+ * quiera pasar el suyo (un test, un servicio sin inyección) puede seguir haciéndolo.
+ */
+let traductorPorDefecto: Traducir | null = null;
+
+export function configurarTraductorDeErrores(traducir: Traducir | null): void {
+  traductorPorDefecto = traducir;
+}
+
 export function esMensajePresentable(mensaje: string | null | undefined): boolean {
   const texto = (mensaje ?? '').trim();
   if (!texto) return false;
@@ -90,11 +121,26 @@ export function esMensajePresentable(mensaje: string | null | undefined): boolea
  * `respaldo` es obligatorio y siempre debe venir traducido: es lo que se enseña en el caso
  * malo, que es justo cuando peor viene un texto en inglés o en jerga.
  */
-export function mensajeDeError(error: unknown, respaldo: string): string {
+export function mensajeDeError(error: unknown, respaldo: string, traducir?: Traducir): string {
   const bruto = (error as { message?: string } | undefined)?.message;
-  if (!esMensajePresentable(bruto)) return respaldo;
-  return (bruto as string)
+  const traductor = traducir ?? traductorPorDefecto;
+
+  const cuerpo = (bruto ?? '')
     .replace(PREFIJO_HTTP, '')
     .replace(CODIGO_AL_FINAL, '')
-    .trim() || respaldo;
+    .trim();
+
+  // Sin traductor se enseña el respaldo de la pantalla, que también está traducido: peor es
+  // enseñar el nombre de un cerrojo de SQL Server.
+  if (BLOQUEO_EN_CURSO.test(cuerpo)) {
+    return traductor ? traductor('errors.operationInProgress') : respaldo;
+  }
+
+  const provincia = cuerpo.match(PROVINCIA_DESCONOCIDA);
+  if (provincia && traductor) {
+    return traductor('errors.provinceNotFound', { provincia: provincia[1] });
+  }
+
+  if (!esMensajePresentable(bruto)) return respaldo;
+  return cuerpo || respaldo;
 }

@@ -96,6 +96,51 @@ describe('mensajeDeError', () => {
       expect(mensajeDeError(error, RESPALDO)).toBe("Ya existe un cliente con NIF 'A95758389' para la empresa 4.");
     });
 
+    // Visto en la demo (2026-09-16): al contabilizar salia un aviso rojo con el nombre de un
+    // cerrojo de SQL Server. Es cierto y sirve para el log, pero a quien usa la app no le dice
+    // nada — lo que le pasa es que esa factura ya se esta contabilizando.
+    describe('el bloqueo de una operacion ya en curso', () => {
+      const traducir = (clave: string, params?: Record<string, unknown>) =>
+        clave === 'errors.operationInProgress' ? 'Espera unos segundos.' : `${clave}:${JSON.stringify(params)}`;
+
+      it('el mensaje de sp_getapplock no llega nunca al usuario', () => {
+        const error = new Error(
+          "No se pudo obtener el bloqueo 'contabilizar-emitida-83036' para la empresa 5 (sp_getapplock devolvio -1).");
+
+        expect(mensajeDeError(error, RESPALDO, traducir)).toBe('Espera unos segundos.');
+      });
+
+      it('sin traductor se ensena el respaldo de la pantalla, nunca el cerrojo', () => {
+        const error = new Error(
+          "No se pudo obtener el bloqueo 'cobrar-emitida-83036' para la empresa 5 (sp_getapplock devolvio -1).");
+
+        expect(mensajeDeError(error, RESPALDO)).toBe(RESPALDO);
+      });
+
+      // Pasa por el mismo camino que contabilizar: el catalogo de tickets tambien se serializa.
+      it('vale para cualquier recurso, no solo para contabilizar', () => {
+        const error = new Error("No se pudo obtener el bloqueo 'ocr-ticket-catalogo' para la empresa 9 (sp_getapplock devolvio -1).");
+
+        expect(mensajeDeError(error, RESPALDO, traducir)).toBe('Espera unos segundos.');
+      });
+    });
+
+    // Tambien de la demo: dar de alta un cliente de Arteixo escribiendo "La Coruna" cuando el
+    // catalogo de la empresa la tiene como "A Coruna".
+    it('la provincia desconocida se explica y dice que mirar', () => {
+      const error = new Error("No existe la provincia 'La Coruna' para la empresa 5.");
+      const traducir = (clave: string, params?: Record<string, unknown>) =>
+        `${clave}|${(params as { provincia?: string })?.provincia}`;
+
+      expect(mensajeDeError(error, RESPALDO, traducir)).toBe('errors.provinceNotFound|La Coruna');
+    });
+
+    it('sin traductor, la provincia desconocida se sigue ensenando tal cual', () => {
+      const error = new Error("No existe la provincia 'La Coruna' para la empresa 5.");
+
+      expect(mensajeDeError(error, RESPALDO)).toBe("No existe la provincia 'La Coruna' para la empresa 5.");
+    });
+
     // Un mensaje nuestro puede nombrar cosas en ingles sin ser ingles: no puede perderse.
     it('un mensaje nuestro que nombra Stripe o un request-id se sigue ensenando', () => {
       const error = new Error('No se pudo abrir el pago de Stripe (request-id 8f2c).');

@@ -742,7 +742,9 @@
     }
   },
   "errors": {
-    "sessionCompanyNotFound": "Could not identify your session's company. Log in again and try again."
+    "sessionCompanyNotFound": "Could not identify your session's company. Log in again and try again.",
+    "operationInProgress": "This operation is already running. Wait a few seconds and try again.",
+    "provinceNotFound": "The province «{{provincia}}» is not registered for this company. Check the spelling (for example, «A Coruña» instead of «La Coruña»)."
   },
   "validation": {
     "fieldRequired": "This field is required."

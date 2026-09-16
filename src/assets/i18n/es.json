@@ -742,7 +742,9 @@
     }
   },
   "errors": {
-    "sessionCompanyNotFound": "No se ha podido identificar la empresa de tu sesión. Vuelve a iniciar sesión e inténtalo de nuevo."
+    "sessionCompanyNotFound": "No se ha podido identificar la empresa de tu sesión. Vuelve a iniciar sesión e inténtalo de nuevo.",
+    "operationInProgress": "Esta operación ya se está realizando. Espera unos segundos y vuelve a intentarlo.",
+    "provinceNotFound": "La provincia «{{provincia}}» no está dada de alta en esta empresa. Comprueba cómo se escribe (por ejemplo, «A Coruña» en lugar de «La Coruña»)."
   },
   "validation": {
     "fieldRequired": "Este campo es obligatorio."
