@@ -33,6 +33,7 @@ import {
 import { addIcons } from 'ionicons';
 import { chevronForwardOutline } from 'ionicons/icons';
 import { VERSION_APP } from '../../../environments/version';
+import { pedirConfirmacion } from '../../shared/utils/confirmacion';
 import { STRIPE_CONNECT_DISPONIBLE } from '../../core/providers/funcionalidades-pendientes';
 
 @Component({
@@ -192,25 +193,24 @@ export class PerfilPage {
   }
 
   async changeTenant() {
-    // Los textos del alert se resuelven con transloco.translate() (no un pipe: no hay
-    // template Angular dentro de las opciones de AlertController) — mismo namespace
-    // 'profile.*'/'common.actions.*' que ya usa el resto de la app, sin duplicar claves.
-    const alert = await this.alertCtrl.create({
+    // Los textos se resuelven con transloco.translate() (no un pipe: no hay template Angular
+    // dentro de las opciones de AlertController) — mismo namespace 'profile.*'/'common.actions.*'
+    // que ya usa el resto de la app, sin duplicar claves.
+    //
+    // Nada dentro de un handler de Ionic: espera al handler antes de cerrar, así que el diálogo
+    // se quedaba encima mientras se limpiaba la sesión y se navegaba. Ver
+    // shared/utils/confirmacion.ts.
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('profile.changeCompany'),
       message: this.transloco.translate('profile.changeCompanyConfirm'),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('common.actions.yesContinue'),
-          role: 'destructive',
-          handler: async () => {
-            await this.tenant.clearTenantKey();
-            this.auth.logout();
-            await this.router.navigateByUrl('/setup', { replaceUrl: true });
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('common.actions.yesContinue'),
+      rolConfirmar: 'destructive',
     });
-    await alert.present();
+    if (!confirmado) return;
+
+    await this.tenant.clearTenantKey();
+    this.auth.logout();
+    await this.router.navigateByUrl('/setup', { replaceUrl: true });
   }
 }

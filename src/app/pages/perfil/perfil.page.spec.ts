@@ -1,5 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
+import { AlertController } from '@ionic/angular/standalone';
 import { PerfilPage } from './perfil.page';
+import { AuthService } from '../../services/auth.service';
+import { TenantService } from '../../services/tenant.service';
+import { simularConfirmacion, simularCancelacion } from '../../shared/utils/testing/confirmacion-testing';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { LanguageService } from '../../core/i18n/language.service';
 import { PagosService, EstadoPagos } from '../../services/pagos.service';
@@ -172,6 +177,34 @@ describe('PerfilPage', () => {
     // — y una version que miente es peor que no tener ninguna.
     it('tiene formato AAAA.MM.DD, con un sufijo opcional', () => {
       expect(component.versionApp).toMatch(/^\d{4}\.\d{2}\.\d{2}(\.\d+)?$/);
+    });
+  });
+  // Barrido del front (2026-09-16): "Cambiar empresa" hacia el trabajo dentro del handler de
+  // Ionic, que espera al handler antes de cerrar — el dialogo se quedaba encima mientras se
+  // limpiaba la sesion y se navegaba.
+  describe('cambiar de empresa', () => {
+    it('limpia la clave, cierra sesion y manda a /setup', async () => {
+      const limpiarSpy = spyOn(TestBed.inject(TenantService), 'clearTenantKey').and.resolveTo();
+      const logoutSpy = spyOn(TestBed.inject(AuthService), 'logout');
+      const navegar = spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
+      simularConfirmacion(TestBed.inject(AlertController));
+
+      await component.changeTenant();
+
+      expect(limpiarSpy).toHaveBeenCalled();
+      expect(logoutSpy).toHaveBeenCalled();
+      expect(navegar).toHaveBeenCalledWith('/setup', { replaceUrl: true });
+    });
+
+    it('si se cancela, no toca nada', async () => {
+      const limpiarSpy = spyOn(TestBed.inject(TenantService), 'clearTenantKey');
+      const logoutSpy = spyOn(TestBed.inject(AuthService), 'logout');
+      simularCancelacion(TestBed.inject(AlertController));
+
+      await component.changeTenant();
+
+      expect(limpiarSpy).not.toHaveBeenCalled();
+      expect(logoutSpy).not.toHaveBeenCalled();
     });
   });
 });

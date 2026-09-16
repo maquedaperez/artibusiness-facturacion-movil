@@ -145,3 +145,94 @@ describe('ProveedorSelectorComponent — precarga desde un escaneo (datosInicial
     expect(component.modoNuevo).toBeFalse();
   });
 });
+
+// El alta de clientes validaba el NIF desde el 14-09 y la de proveedores no (barrido del
+// front, 2026-09-16): se daba de alta con cualquier cosa escrita en el campo.
+describe('ProveedorSelectorComponent — alta con NIF', () => {
+  let component: ProveedorSelectorComponent;
+  let fixture: ComponentFixture<ProveedorSelectorComponent>;
+  let suppliersRepoSpy: jasmine.SpyObj<SuppliersRepository>;
+
+  const completo = {
+    nombre: 'Renfe Viajeros', direccion: 'Avenida de la Ciudad de Barcelona 8',
+    poblacion: 'Madrid', cp: '28007', provincia: 'Madrid',
+  };
+
+  beforeEach(() => {
+    suppliersRepoSpy = jasmine.createSpyObj('SuppliersRepository', ['buscar', 'crearAdHoc']);
+    suppliersRepoSpy.buscar.and.returnValue(Promise.resolve({ items: [], total: 0, page: 1, pageSize: 20 }));
+    suppliersRepoSpy.crearAdHoc.and.returnValue(Promise.resolve({ id: 9, nif: 'A86868189', nombre: 'Renfe Viajeros' }));
+
+    TestBed.configureTestingModule({
+      imports: [ProveedorSelectorComponent],
+      providers: [
+        provideIonicAngular(),
+        ...provideTranslocoTesting(),
+        { provide: SuppliersRepository, useValue: suppliersRepoSpy },
+      ],
+    });
+    fixture = TestBed.createComponent(ProveedorSelectorComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.modoNuevo = true;
+  });
+
+  // Letra de control mal = NIF español mal escrito, casi siempre un dedazo: eso sí se bloquea.
+  it('un NIF con la letra cambiada no llega al backend', async () => {
+    component.nuevo = { ...completo, nif: 'A86868180' };
+
+    await component.confirmarNuevo();
+
+    expect(suppliersRepoSpy.crearAdHoc).not.toHaveBeenCalled();
+    expect(component.nifIncorrecto).toBeTrue();
+    expect(component.errorMsg).toBe(component.avisoNif);
+  });
+
+  // Un proveedor extranjero (un hotel, Amazon, un billete de fuera) no tiene NIF español y es
+  // de lo más normal en una factura escaneada. Se avisa, pero se deja dar de alta: el endpoint
+  // de proveedores tampoco lo rechaza.
+  it('un NIF que no es español avisa pero NO impide darlo de alta', async () => {
+    component.nuevo = { ...completo, nif: 'FR40303265045' };
+
+    await component.confirmarNuevo();
+
+    expect(component.avisoNif).toBeTruthy();
+    expect(component.nifIncorrecto).toBeFalse();
+    expect(suppliersRepoSpy.crearAdHoc).toHaveBeenCalledWith(jasmine.objectContaining({ nif: 'FR40303265045' }));
+  });
+
+  // Escribirlo con guiones o espacios NO es un error: se limpia en el propio campo para que se
+  // vea lo que se va a guardar.
+  it('un NIF correcto escrito con guiones se guarda normalizado', async () => {
+    component.nuevo = { ...completo, nif: 'a-86.868 189' };
+
+    await component.confirmarNuevo();
+
+    expect(component.nuevo.nif).toBe('A86868189');
+    expect(suppliersRepoSpy.crearAdHoc).toHaveBeenCalledWith(jasmine.objectContaining({ nif: 'A86868189' }));
+  });
+
+  it('dos pulsaciones seguidas solo dan de alta una vez', async () => {
+    suppliersRepoSpy.crearAdHoc.and.returnValue(
+      new Promise(resolve => setTimeout(() => resolve({ id: 9, nif: 'A86868189', nombre: 'Renfe Viajeros' }), 20)));
+    component.nuevo = { ...completo, nif: 'A86868189' };
+
+    const primera = component.confirmarNuevo();
+    await component.confirmarNuevo();
+    await primera;
+
+    expect(suppliersRepoSpy.crearAdHoc).toHaveBeenCalledTimes(1);
+    expect(component.guardando).toBeFalse();
+  });
+
+  it('corregir el NIF borra el aviso anterior', async () => {
+    component.nuevo = { ...completo, nif: 'A86868180' };
+    await component.confirmarNuevo();
+    expect(component.avisoNif).toBeTruthy();
+
+    component.limpiarAvisoNif();
+
+    expect(component.avisoNif).toBe('');
+    expect(component.errorMsg).toBe('');
+  });
+});

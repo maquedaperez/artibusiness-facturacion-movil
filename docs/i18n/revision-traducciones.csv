@@ -315,6 +315,8 @@
 "invoices.issued.tabs.posted";"Facturas emitidas";"Contabilizadas";"Posted";"Проведені";"no"
 "invoices.issued.tabs.signed";"Facturas emitidas";"Firmadas";"Signed";"Підписані";"no"
 "invoices.issued.title";"Facturas emitidas";"Facturas emitidas";"Issued invoices";"Видані рахунки";"no"
+"invoices.received.supplierSelector.nifInvalidControl";"Alta de proveedor desde el selector";"La letra de control del NIF/CIF no es correcta. Comprueba que está bien escrito.";"The tax ID check letter is not correct. Please make sure it is written correctly.";"Контрольна літера податкового номера невірна. Перевірте написання.";"si"
+"invoices.received.supplierSelector.nifNotSpanish";"Alta de proveedor desde el selector";"No parece un NIF español. Si el proveedor es extranjero puedes continuar; si no, revísalo.";"This does not look like a Spanish tax ID. If the supplier is foreign you can continue; otherwise, check it.";"Це не схоже на іспанський податковий номер. Якщо постачальник іноземний, можна продовжити; якщо ні — перевірте.";"si"
 "invoices.received.actions.copyAria";"Facturas recibidas";"Copiar / Duplicar";"Copy / Duplicate";"Копіювати / Дублювати";"no"
 "invoices.received.actions.deleteAria";"Facturas recibidas";"Eliminar factura";"Delete invoice";"Видалити рахунок";"no"
 "invoices.received.actions.downloadAria";"Facturas recibidas";"Descargar documento adjunto";"Download attached document";"Завантажити прикріплений документ";"no"

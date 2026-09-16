@@ -14,8 +14,9 @@ import { addIcons } from 'ionicons';
 import { closeOutline, addOutline } from 'ionicons/icons';
 
 import { ProveedorMock } from '../../services/mock-facturas.service';
-import { SuppliersRepository } from '../../core/ports';
+import { SuppliersRepository } from '../../core/ports';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
+import { validarNif } from '../../shared/utils/validar-nif';
 
 const MIN_CARACTERES_BUSQUEDA = 2;
 const DEBOUNCE_MS = 350;
@@ -88,8 +89,18 @@ type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error'
         </ion-item>
 
         <ion-item>
-          <ion-input [label]="'invoices.received.supplierSelector.nifCif' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.nif"></ion-input>
+          <ion-input
+            [label]="'invoices.received.supplierSelector.nifCif' | transloco"
+            labelPlacement="stacked"
+            [(ngModel)]="nuevo.nif"
+            (ionBlur)="comprobarNif()"
+            (ionInput)="limpiarAvisoNif()"
+          ></ion-input>
         </ion-item>
+
+        <ion-text [color]="nifIncorrecto ? 'danger' : 'warning'" *ngIf="avisoNif">
+          <p class="ion-no-margin aviso-nif">{{ avisoNif }}</p>
+        </ion-text>
 
         <ion-item>
           <ion-input [label]="'invoices.received.supplierSelector.address' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.direccion"></ion-input>
@@ -135,6 +146,11 @@ type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error'
       gap: 8px;
       padding-top: 12px;
     }
+
+    .aviso-nif {
+      padding: 4px 16px 0;
+      font-size: .85rem;
+    }
   `],
 })
 export class ProveedorSelectorComponent implements OnInit, OnDestroy {
@@ -157,6 +173,10 @@ export class ProveedorSelectorComponent implements OnInit, OnDestroy {
   estado: EstadoBusqueda = 'inicial';
   modoNuevo = false;
   errorMsg = '';
+  avisoNif = '';
+  // Separa "está mal escrito" de "no es español": lo primero se bloquea, lo segundo solo se
+  // avisa. Ver comprobarNif().
+  nifIncorrecto = false;
 
   nuevo: Omit<ProveedorMock, 'id'> = {
     nombre: '', nif: '', direccion: '', poblacion: '', cp: '', provincia: '',
@@ -220,10 +240,55 @@ export class ProveedorSelectorComponent implements OnInit, OnDestroy {
 
   guardando = false;
 
+  // El alta de CLIENTES ya validaba el NIF desde el 14-09 y la de proveedores no: se podía dar
+  // de alta un proveedor con el NIF mal escrito sin que nadie se enterara. Misma función que
+  // allí (shared/utils/validar-nif.ts) y mismo criterio con los guiones y espacios: un NIF
+  // correcto escrito con ellos no es un error, se deja limpio en el propio campo.
+  //
+  // PERO AQUÍ NO SE BLOQUEA IGUAL QUE EN CLIENTES, a propósito. Un proveedor extranjero es de
+  // lo más normal en facturas escaneadas (un hotel, Amazon, un billete de fuera) y su número
+  // no tiene por qué parecerse a un NIF español. El endpoint de proveedores tampoco valida
+  // nada (solo exige que no venga vacío), así que:
+  //   - letra de control incorrecta -> es un NIF español mal escrito: se bloquea.
+  //   - formato que no es español    -> puede ser de fuera: se avisa y se deja continuar.
+  comprobarNif(): boolean {
+    this.avisoNif = '';
+    this.nifIncorrecto = false;
+    if (!this.nuevo.nif.trim()) return false;
+
+    const resultado = validarNif(this.nuevo.nif);
+    if (resultado.valido) {
+      this.nuevo.nif = resultado.normalizado;
+      return true;
+    }
+    if (resultado.motivo === 'control') {
+      this.nifIncorrecto = true;
+      this.avisoNif = this.transloco.translate('invoices.received.supplierSelector.nifInvalidControl');
+      return false;
+    }
+    this.avisoNif = this.transloco.translate('invoices.received.supplierSelector.nifNotSpanish');
+    return false;
+  }
+
+  limpiarAvisoNif() {
+    if (this.errorMsg && this.errorMsg === this.avisoNif) this.errorMsg = '';
+    this.avisoNif = '';
+    this.nifIncorrecto = false;
+  }
+
   async confirmarNuevo() {
+    // Reentrada: el botón ya lleva [disabled], pero dos toques en el mismo frame llegan los dos
+    // antes de que Angular pinte el disabled.
+    if (this.guardando) return;
     this.errorMsg = '';
     if (!this.nuevo.nombre.trim() || !this.nuevo.nif.trim()) {
       this.errorMsg = this.transloco.translate('invoices.received.supplierSelector.nameNifRequired');
+      return;
+    }
+    this.comprobarNif();
+    if (this.nifIncorrecto) {
+      // También junto al botón: es donde mira quien acaba de pulsarlo.
+      this.errorMsg = this.avisoNif;
       return;
     }
     if (!this.nuevo.direccion?.trim() || !this.nuevo.cp?.trim() || !this.nuevo.poblacion?.trim() || !this.nuevo.provincia?.trim()) {

@@ -605,6 +605,8 @@
         "newSupplier": "Proveedor nuevo",
         "nameLabel": "Nombre / Razón social",
         "nifCif": "NIF/CIF",
+        "nifInvalidControl": "La letra de control del NIF/CIF no es correcta. Comprueba que está bien escrito.",
+        "nifNotSpanish": "No parece un NIF español. Si el proveedor es extranjero puedes continuar; si no, revísalo.",
         "address": "Dirección",
         "city": "Población",
         "postalCode": "Código postal",

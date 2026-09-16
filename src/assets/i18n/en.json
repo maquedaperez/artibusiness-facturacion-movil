@@ -605,6 +605,8 @@
         "newSupplier": "New supplier",
         "nameLabel": "Name / Legal name",
         "nifCif": "Tax ID",
+        "nifInvalidControl": "The tax ID check letter is not correct. Please make sure it is written correctly.",
+        "nifNotSpanish": "This does not look like a Spanish tax ID. If the supplier is foreign you can continue; otherwise, check it.",
         "address": "Address",
         "city": "City",
         "postalCode": "Postal code",
