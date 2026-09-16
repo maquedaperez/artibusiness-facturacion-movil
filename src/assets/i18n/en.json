@@ -512,7 +512,7 @@
       },
       "convertTicket": {
         "header": "Convert to receipt",
-        "message": "The invoice will be recorded as an expense: the full amount counts as the taxable base and VAT will no longer be deductible. The supplier becomes the generic one, and the original is kept in the description. Continue?",
+        "message": "The full amount will be recorded as an expense, VAT included and not deductible. The invoice number, the lines and the original document are kept. The supplier becomes the generic one, and the original is noted in the description. Continue?",
         "success": "Invoice converted to a receipt.",
         "error": "The invoice could not be converted to a receipt.",
         "saveFirst": "Save the invoice before converting it to a receipt."
