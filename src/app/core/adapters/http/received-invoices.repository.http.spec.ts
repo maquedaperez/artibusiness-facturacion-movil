@@ -11,7 +11,13 @@ import { provideTranslocoTesting } from '../../i18n/testing/transloco-testing.pr
 
 const TRADUCCIONES_TEST = {
   es: {
-    ocr: { extractionError: 'No se pudo extraer información del documento. Inténtalo de nuevo o crea la factura manualmente.' },
+    ocr: {
+      extractionError: 'No se pudo extraer información del documento. Inténtalo de nuevo o crea la factura manualmente.',
+      readerWarnings: {
+        totalsMismatch: 'El lector avisa de que el total de las líneas ({{lineas}}) no coincide con el del documento ({{documento}}).',
+        bankPartial: 'El lector ha reconocido el documento bancario, pero no ha podido leer los movimientos ni los totales.',
+      },
+    },
     invoices: {
       received: {
         errors: {
@@ -474,8 +480,13 @@ describe('HttpReceivedInvoicesRepository.crearDesdeOcr — mapeo de la respuesta
 
     // El aviso propio del OCR se conserva aunque nuestro cálculo ya cuadre — es
     // información sobre la consistencia interna del documento, no de nuestro cálculo.
+    // Desde el 2026-09-16 se enseña en castellano, con los importes del propio aviso
+    // (ver avisosDelLectorEnCastellano): el lector lo manda en inglés.
     expect(factura.avisosOcr?.length).toBe(1);
-    expect(factura.avisosOcr?.[0]).toContain('Significant discrepancy');
+    expect(factura.avisosOcr?.[0]).not.toContain('Significant discrepancy');
+    expect(factura.avisosOcr?.[0]).toContain('El lector avisa');
+    expect(factura.avisosOcr?.[0]).toContain('72,89');
+    expect(factura.avisosOcr?.[0]).toContain('36,49');
   });
 
   it('sin avisos del OCR y con el total cuadrado, avisosOcr queda sin definir (no un array vacío)', async () => {

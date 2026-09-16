@@ -14,6 +14,7 @@ import {
 } from '../../../services/mock-facturas.service';
 import { formatEuros } from '../../../shared/utils/format-euros';
 import { limpiarNombreProveedor } from '../../../shared/utils/limpiar-nombre-proveedor';
+import { Traducir, avisosDelLectorEnCastellano } from '../../../shared/utils/avisos-del-lector';
 import { DocumentoBancarioAnalizado } from '../../models/documento-bancario';
 
 // Confirmado contra el código real de WebAPIARTIBusiness (Controllers/DocumentoController.cs
@@ -120,6 +121,7 @@ function esDocumentoBancario(documento: OcrAnalyzeResponse['document']): boolean
 function construirDocumentoBancario(
   respuesta: OcrAnalyzeResponse,
   file: File,
+  traducir: Traducir,
   adjunto?: { documentoUrl: string; documentoNombre: string },
 ): DocumentoBancarioAnalizado {
   const procesado = respuesta.document;
@@ -138,9 +140,13 @@ function construirDocumentoBancario(
   const confianza = typeof procesado.confidence === 'number' && Number.isFinite(procesado.confidence)
     ? procesado.confidence
     : undefined;
-  const avisos = Array.isArray(procesado.warnings)
-    ? procesado.warnings.filter((aviso): aviso is string => typeof aviso === 'string' && !!aviso.trim())
-    : [];
+  // En castellano y sin repetir lo que ya decimos nosotros (2026-09-16): el lector los manda en
+  // inglés y aquí no pasan por el backend. Ver avisosDelLectorEnCastellano.
+  const avisos = avisosDelLectorEnCastellano(
+    Array.isArray(procesado.warnings)
+      ? procesado.warnings.filter((aviso): aviso is string => typeof aviso === 'string' && !!aviso.trim())
+      : [],
+    traducir);
   const nombreRespuesta = typeof respuesta.filename === 'string' ? respuesta.filename.trim() : '';
   const requestId = typeof respuesta.request_id === 'string' ? respuesta.request_id.trim() : '';
 
@@ -475,6 +481,10 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   private api = inject(ApiService);
   private transloco = inject(TranslocoService);
 
+  // Se pasa a funciones de módulo (construirDocumentoBancario, avisosDelLectorEnCastellano), que
+  // no tienen inyección — atada aquí para no repetir el lambda en cada llamada.
+  private traducir: Traducir = (clave, params) => this.transloco.translate(clave, params);
+
   // Catálogos de referencia (Impuestos, TipoFactura): se resuelven una sola vez por sesión
   // — no cambian sin cerrar sesión, así que no tiene sentido pedirlos antes de cada línea o
   // cada guardado. Ver CatalogoEnMemoria.
@@ -709,7 +719,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     // incompleta. Se resuelve ANTES de mirar document.invoke (aquí siempre viene null) para
     // no caer en el error genérico de "no se pudo extraer información".
     if (esDocumentoBancario(respuesta.document)) {
-      return construirDocumentoBancario(respuesta, file, documento);
+      return construirDocumentoBancario(respuesta, file, this.traducir, documento);
     }
 
     if (!respuesta.document.invoice) {
@@ -806,6 +816,8 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       }
     }
 
+    const avisosFinales = avisosDelLectorEnCastellano(avisosOcr, this.traducir);
+
     return this.mockAdapter.registrarRecibidaExtraida({
       proveedor: inv.issuer?.legal_name?.trim() || `Proveedor detectado (${nombreArchivo})`,
       proveedorNif: inv.issuer?.tax_id?.trim() || undefined,
@@ -830,7 +842,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       origenOcr: true,
       documentoUrl: documento.documentoUrl,
       documentoNombre: documento.documentoNombre,
-      avisosOcr: avisosOcr.length > 0 ? avisosOcr : undefined,
+      avisosOcr: avisosFinales.length > 0 ? avisosFinales : undefined,
       documentoHash: documentoHash ?? undefined,
     });
   }
@@ -892,7 +904,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     if (esObjeto(resultado) && 'document' in resultado) {
       if (esDocumentoBancario((resultado as OcrAnalyzeResponse).document)) {
         const adjunto = await this.mockAdapter.adjuntarDocumento(file);
-        return construirDocumentoBancario(resultado as OcrAnalyzeResponse, file, adjunto);
+        return construirDocumentoBancario(resultado as OcrAnalyzeResponse, file, this.traducir, adjunto);
       }
       throw new Error('El lector no ha podido extraer una factura de este documento.');
     }
@@ -902,7 +914,10 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     const catalogoImpuestos = await this.obtenerImpuestos();
     factura.lineas = (resultadoFactura.factura.lineas ?? []).map(l => mapearLinea(l, () => this.nuevoIdLinea(), catalogoImpuestos));
     if (resultadoFactura.avisos?.length) {
-      factura.avisosOcr = [...(factura.avisosOcr ?? []), ...resultadoFactura.avisos];
+      // El backend reenvía los avisos del lector tal cual (en inglés): se traducen aquí, junto a
+      // los suyos propios, que ya vienen en castellano y no se tocan.
+      factura.avisosOcr = avisosDelLectorEnCastellano(
+        [...(factura.avisosOcr ?? []), ...resultadoFactura.avisos], this.traducir);
     }
     // Ticket/factura simplificada sin destinatario identificado (2026-08-29): se decide por el
     // código estable 'tratamiento', nunca por el texto (en español) que ya viene en 'avisos' —

@@ -657,6 +657,10 @@
     "fileTooLarge": "The file is too large (10 MB max). Try a lower-resolution photo or a lighter PDF.",
     "badge": "OCR",
     "savedWithWarnings": "Invoice saved, but with warnings: {{aviso}}",
+    "readerWarnings": {
+      "totalsMismatch": "The reader reports that the line total ({{lineas}}) does not match the document total ({{documento}}).",
+      "bankPartial": "The reader recognised the bank document but could not read its entries or totals."
+    },
     "savedSuccess": "Invoice saved from \"{{archivo}}\": {{proveedor}}.",
     "saveGenericError": "Could not save the invoice. Try again.",
     "supplierNotFoundDraft": "Supplier not found in the system. A draft has been opened: register it manually before saving.",
