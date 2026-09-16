@@ -179,4 +179,69 @@ describe('FacturasEmitidasPage', () => {
       expect(component.errorCarga).toBeFalse();
     });
   });
+  // El estado AEAT que guardamos al contabilizar es una foto del momento: la AEAT obliga a
+  // esperar entre envios (control de flujo global, ~60 s), asi que contabilizar dos veces
+  // seguidas deja la segunda en PendienteEnvio hasta que el despachador de FacturaE la manda.
+  // El detalle ya lo refrescaba al abrir la factura; el listado se quedaba congelado, y con
+  // tickets —que se emiten en cadena— eso es lo normal, no la excepcion.
+  describe('refresco del estado AEAT desde el listado', () => {
+    function facturaConEstadoAeat(id: number, estadoAeat: FacturaEmitida['estadoAeat']): FacturaEmitida {
+      return { ...facturaDe('Cliente', 'Concepto'), id, estado: 'contabilizada', estadoAeat };
+    }
+
+    it('solo pregunta por las que siguen en vuelo', async () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      spyOn(repo, 'listar').and.resolveTo([
+        facturaConEstadoAeat(1, 'PendienteEnvio'),
+        facturaConEstadoAeat(2, 'Correcto'),
+        facturaConEstadoAeat(3, 'PendienteReenvioTecnico'),
+        facturaConEstadoAeat(4, 'RechazadoAeat'),
+      ]);
+      const refrescar = spyOn(repo, 'refrescarEstadoAeat').and.resolveTo(null);
+
+      await component.refresh();
+      await Promise.resolve();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(refrescar.calls.allArgs().map(a => a[0]).sort()).toEqual([1, 3]);
+    });
+
+    it('lo que conteste el servidor se ve en la fila, sin recargar la lista', async () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      spyOn(repo, 'listar').and.resolveTo([facturaConEstadoAeat(7, 'PendienteEnvio')]);
+      spyOn(repo, 'refrescarEstadoAeat').and.resolveTo(
+        { ...facturaConEstadoAeat(7, 'Correcto'), avisoAeat: undefined });
+
+      await component.refresh();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(component.facturas[0].estadoAeat).toBe('Correcto');
+    });
+
+    // Si el refresco fallara, la fila se queda como estaba: refrescarEstadoAeat devuelve null
+    // en vez de lanzar, justo para que esto no pueda romper la pantalla.
+    it('si no se puede refrescar, la lista no se toca', async () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      spyOn(repo, 'listar').and.resolveTo([facturaConEstadoAeat(8, 'PendienteEnvio')]);
+      spyOn(repo, 'refrescarEstadoAeat').and.resolveTo(null);
+
+      await component.refresh();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(component.facturas[0].estadoAeat).toBe('PendienteEnvio');
+    });
+
+    // Una lista larga de facturas en vuelo no puede disparar una peticion por cada una.
+    it('no pregunta por mas de diez de golpe', async () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const muchas = Array.from({ length: 25 }, (_, i) => facturaConEstadoAeat(100 + i, 'PendienteEnvio'));
+      spyOn(repo, 'listar').and.resolveTo(muchas);
+      const refrescar = spyOn(repo, 'refrescarEstadoAeat').and.resolveTo(null);
+
+      await component.refresh();
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(refrescar.calls.count()).toBe(10);
+    });
+  });
 });

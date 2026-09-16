@@ -637,7 +637,7 @@
   },
   "verifactu": {
     "estados": {
-      "pendienteEnvio": "Pendiente de envío",
+      "pendienteEnvio": "En cola de envío",
       "pendienteReenvioTecnico": "Pendiente de reenvío (se reintenta solo)",
       "correcto": "Correcto",
       "aceptadoConErrores": "Aceptado con errores",

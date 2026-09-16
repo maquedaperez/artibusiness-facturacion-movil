@@ -525,7 +525,7 @@
 "verifactu.errors.yaAnulada";"VeriFactu / AEAT";"Esta factura ya está anulada.";"This invoice is already cancelled.";"Цей рахунок уже анульовано.";"si"
 "verifactu.estados.aceptadoConErrores";"VeriFactu / AEAT";"Aceptado con errores";"Accepted with errors";"Прийнято з помилками";"si"
 "verifactu.estados.correcto";"VeriFactu / AEAT";"Correcto";"Accepted";"Прийнято";"si"
-"verifactu.estados.pendienteEnvio";"VeriFactu / AEAT";"Pendiente de envío";"Pending submission";"Очікує відправлення";"si"
+"verifactu.estados.pendienteEnvio";"Estados de VERI*FACTU";"En cola de envío";"Queued for sending";"У черзі на відправлення";"si"
 "verifactu.estados.rechazadoAeat";"VeriFactu / AEAT";"Rechazado por AEAT";"Rejected by the AEAT";"Відхилено AEAT";"si"
 "verifactu.estados.requiereRevisionManual";"VeriFactu / AEAT";"Requiere revisión manual";"Requires manual review";"Потребує ручної перевірки";"si"
 "verifactu.estados.sinDatos";"VeriFactu / AEAT";"—";"—";"—";"si"

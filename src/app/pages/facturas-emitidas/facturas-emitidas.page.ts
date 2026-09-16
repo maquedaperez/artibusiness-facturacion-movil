@@ -19,7 +19,7 @@ import {
   copyOutline, downloadOutline, shareSocialOutline, trashOutline,
 } from 'ionicons/icons';
 
-import { AccionesPermitidas, EstadoFactura, FacturaEmitida, Numerador } from '../../services/mock-facturas.service';
+import { AccionesPermitidas, EstadoAeat, EstadoFactura, FacturaEmitida, Numerador } from '../../services/mock-facturas.service';
 import { IssuedInvoicesRepository } from '../../core/ports';
 import { DemoBannerComponent } from '../../shared/demo-banner/demo-banner.component';
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
@@ -145,6 +145,8 @@ export class FacturasEmitidasPage implements OnInit {
       if (idPeticion !== this.peticionListarEnCurso) return;
       this.facturas = resultado;
       this.errorCarga = false;
+      // Sin await: la lista ya está en pantalla y esto solo puede mejorarla.
+      void this.refrescarEstadosAeatEnVuelo(idPeticion);
     } catch (e: any) {
       if (idPeticion !== this.peticionListarEnCurso) return;
       // Bug real encontrado en revisión (2026-09-02): el catch solo mostraba un toast y dejaba
@@ -158,6 +160,48 @@ export class FacturasEmitidasPage implements OnInit {
       await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.issued.list.loadError')), 'danger');
     } finally {
       if (idPeticion === this.peticionListarEnCurso) this.cargando = false;
+    }
+  }
+
+  /**
+   * Vuelve a preguntar por las facturas cuyo estado AEAT todavía puede cambiar solo.
+   *
+   * POR QUÉ HACE FALTA (2026-09-17). El estado que guardamos al contabilizar es una FOTO del
+   * momento en que FacturaE contestó, y muchas veces ese momento es "todavía no se ha enviado":
+   * la AEAT obliga a esperar entre envíos (control de flujo, ~60 s, y es GLOBAL de toda la
+   * instalación, no por empresa), así que contabilizar dos veces seguidas deja la segunda en
+   * PendienteEnvio hasta que el despachador de FacturaE la manda, medio minuto después.
+   *
+   * El detalle ya lo refrescaba al abrir la factura (ver factura-detalle.page.ts), pero el
+   * LISTADO no: se quedaba diciendo "pendiente de envío" hasta que entrabas en una por una.
+   * Salta a la vista con tickets, que se emiten en cadena y caen todos dentro de la espera.
+   *
+   * Solo se preguntan las que siguen en vuelo —una factura ya resuelta no vuelve a cambiar— y
+   * con un tope, para que una lista larga no dispare una ristra de peticiones.
+   */
+  private static readonly ESTADOS_AEAT_EN_VUELO: EstadoAeat[] = ['PendienteEnvio', 'PendienteReenvioTecnico'];
+  private static readonly MAXIMO_REFRESCOS_AEAT = 10;
+
+  private async refrescarEstadosAeatEnVuelo(idPeticion: number) {
+    const enVuelo = this.facturas
+      .filter(f => f.estadoAeat != null && FacturasEmitidasPage.ESTADOS_AEAT_EN_VUELO.includes(f.estadoAeat))
+      .slice(0, FacturasEmitidasPage.MAXIMO_REFRESCOS_AEAT);
+
+    for (const factura of enVuelo) {
+      const actualizada = await this.invoicesRepo.refrescarEstadoAeat(factura.id);
+      // Entre pregunta y pregunta el usuario ha podido cambiar de pestaña o de serie: lo que se
+      // refrescó ya no es lo que hay en pantalla.
+      if (idPeticion !== this.peticionListarEnCurso) return;
+      if (!actualizada) continue;
+
+      const fila = this.facturas.find(f => f.id === factura.id);
+      if (!fila) continue;
+      // Solo los campos del desenlace fiscal: la fila del listado y el detalle no traen
+      // exactamente los mismos datos, y sustituirla entera haría desaparecer los que solo
+      // rellena listar().
+      fila.estadoAeat = actualizada.estadoAeat;
+      fila.avisoAeat = actualizada.avisoAeat;
+      fila.estadoSubsanacion = actualizada.estadoSubsanacion;
     }
   }
 
