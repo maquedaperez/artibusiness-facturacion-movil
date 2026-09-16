@@ -6,12 +6,12 @@ import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import { AuthService } from '../../services/auth.service';
 
-import { IonContent, IonItem, IonInput, IonButton, IonText } from '@ionic/angular/standalone';
+import { IonContent, IonItem, IonInput, IonButton, IonText, IonSpinner } from '@ionic/angular/standalone';
 
 @Component({
   selector: 'app-mfa',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, TranslocoPipe, IonContent, IonItem, IonInput, IonButton, IonText],
+  imports: [CommonModule, ReactiveFormsModule, TranslocoPipe, IonContent, IonItem, IonInput, IonButton, IonText, IonSpinner],
   templateUrl: './mfa.page.html',
   styleUrls: ['./mfa.page.scss'],
 })
@@ -26,6 +26,14 @@ export class MfaPage implements OnDestroy {
   submitted = false;
   errorMsg = '';
   successMsg = '';
+  // Verificar y reenviar se bloquean entre sí: reenviar mientras se comprueba un código
+  // invalidaría el que se está verificando.
+  verificando = false;
+  reenviando = false;
+
+  get algoEnCurso(): boolean {
+    return this.verificando || this.reenviando;
+  }
 
   challengeId = '';
   maskedEmail = '';
@@ -84,21 +92,27 @@ export class MfaPage implements OnDestroy {
   }
 
   async submit() {
+    if (this.algoEnCurso) return;
     this.submitted = true;
     this.errorMsg = '';
     if (this.form.invalid) return;
 
+    this.verificando = true;
     try {
       await this.auth.verifyMfaCode(this.challengeId, this.form.value.code!, this.username);
       await this.router.navigateByUrl('/app', { replaceUrl: true });
     } catch (e: any) {
       this.errorMsg = this.transloco.translate('auth.mfa.errorInvalidOrExpired');
+    } finally {
+      this.verificando = false;
     }
   }
 
   async resend() {
+    if (this.algoEnCurso) return;
     this.errorMsg = '';
     this.successMsg = '';
+    this.reenviando = true;
     try {
       const result = await this.auth.resendMfaCode(this.username);
       this.expiresAt = result.expiresAt ?? Date.now() + 5 * 60_000;
@@ -106,6 +120,8 @@ export class MfaPage implements OnDestroy {
       this.successMsg = this.transloco.translate('auth.mfa.resendSuccess');
     } catch (e: any) {
       this.errorMsg = this.transloco.translate('auth.mfa.resendError');
+    } finally {
+      this.reenviando = false;
     }
   }
 

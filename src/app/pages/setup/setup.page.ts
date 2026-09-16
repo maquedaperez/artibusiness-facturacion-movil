@@ -6,7 +6,7 @@ import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 
 import {
   IonContent, IonHeader, IonTitle, IonToolbar,
-  IonItem, IonInput, IonButton, IonText
+  IonItem, IonInput, IonButton, IonText, IonSpinner
 } from '@ionic/angular/standalone';
 
 import { TenantService } from '../../services/tenant.service';
@@ -22,7 +22,7 @@ import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
     TranslocoPipe,
     LanguageSelectorComponent,
     IonContent, IonHeader, IonTitle, IonToolbar,
-    IonItem, IonInput, IonButton, IonText
+    IonItem, IonInput, IonButton, IonText, IonSpinner
   ],
   templateUrl: './setup.page.html',
   styleUrls: ['./setup.page.scss'],
@@ -47,6 +47,7 @@ openLink() {
 }
 
 async submit() {
+  if (this.loading) return;
   this.submitted = true;
   this.invalidTenant = false;
   this.errorMsg = '';

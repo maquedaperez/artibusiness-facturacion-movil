@@ -66,6 +66,9 @@
       "passwordLabel": "Contraseña",
       "passwordInvalid": "Contraseña incorrecta.",
       "submit": "Entrar",
+      "signingIn": "Entrando…",
+      "showPassword": "Mostrar contraseña",
+      "hidePassword": "Ocultar contraseña",
       "forgotPassword": "¿Has olvidado tu contraseña?",
       "changeAccessKey": "Cambiar clave de acceso",
       "biometricReason": "Accede con Face ID",
@@ -81,7 +84,9 @@
       "codeLabel": "Código de validación",
       "codeInvalid": "Introduce un código válido de 6 dígitos.",
       "submit": "Validar",
+      "verifying": "Comprobando…",
       "resend": "Reenviar código",
+      "resending": "Reenviando…",
       "backToLogin": "Volver al inicio de sesión",
       "errorInvalidOrExpired": "Código incorrecto o expirado. Inténtalo de nuevo.",
       "resendSuccess": "Código reenviado correctamente.",
@@ -91,6 +96,7 @@
       "instructions": "Introduce tu usuario o email y te enviaremos las instrucciones para recuperar el acceso.",
       "identifierLabel": "Usuario o email",
       "submit": "Enviar",
+      "sending": "Enviando…",
       "backToLogin": "Volver al inicio de sesión",
       "successAlert": "Si el usuario existe, se enviarán las instrucciones.",
       "errorAlert": "No se pudo enviar la solicitud."
@@ -102,6 +108,7 @@
       "keyRequired": "La clave es obligatoria (mín. 3 caracteres).",
       "keyInvalid": "La clave no es válida. Revisa la clave y prueba de nuevo.",
       "submit": "Continuar",
+      "checking": "Comprobando…",
       "requestAccess": "Solicitar acceso",
       "errorServer": "Error al conectar con el servidor."
     }

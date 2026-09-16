@@ -66,6 +66,9 @@
       "passwordLabel": "Password",
       "passwordInvalid": "Incorrect password.",
       "submit": "Log in",
+      "signingIn": "Signing in…",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
       "forgotPassword": "Forgot your password?",
       "changeAccessKey": "Change access key",
       "biometricReason": "Sign in with Face ID",
@@ -81,7 +84,9 @@
       "codeLabel": "Verification code",
       "codeInvalid": "Enter a valid 6-digit code.",
       "submit": "Verify",
+      "verifying": "Verifying…",
       "resend": "Resend code",
+      "resending": "Resending…",
       "backToLogin": "Back to login",
       "errorInvalidOrExpired": "Incorrect or expired code. Try again.",
       "resendSuccess": "Code resent successfully.",
@@ -91,6 +96,7 @@
       "instructions": "Enter your username or email and we'll send you instructions to recover access.",
       "identifierLabel": "Username or email",
       "submit": "Send",
+      "sending": "Sending…",
       "backToLogin": "Back to login",
       "successAlert": "If the user exists, the instructions will be sent.",
       "errorAlert": "Could not send the request."
@@ -102,6 +108,7 @@
       "keyRequired": "The key is required (min. 3 characters).",
       "keyInvalid": "The key is not valid. Check it and try again.",
       "submit": "Continue",
+      "checking": "Checking…",
       "requestAccess": "Request access",
       "errorServer": "Could not connect to the server."
     }

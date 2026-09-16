@@ -38,15 +38,17 @@
           <p class="ion-no-margin ion-margin-top"><small>{{ successMsg }}</small></p>
         </ion-text>
 
-        <ion-button expand="block" class="ion-margin-top" type="submit">
-          {{ 'auth.mfa.submit' | transloco }}
+        <ion-button expand="block" class="ion-margin-top" type="submit" [disabled]="algoEnCurso">
+          <ion-spinner *ngIf="verificando" slot="start" name="dots"></ion-spinner>
+          {{ (verificando ? 'auth.mfa.verifying' : 'auth.mfa.submit') | transloco }}
         </ion-button>
 
-        <ion-button expand="block" fill="clear" type="button" (click)="resend()">
-          {{ 'auth.mfa.resend' | transloco }}
+        <ion-button expand="block" fill="clear" type="button" [disabled]="algoEnCurso" (click)="resend()">
+          <ion-spinner *ngIf="reenviando" slot="start" name="dots"></ion-spinner>
+          {{ (reenviando ? 'auth.mfa.resending' : 'auth.mfa.resend') | transloco }}
         </ion-button>
 
-        <ion-button expand="block" fill="clear" type="button" (click)="backToLogin()">
+        <ion-button expand="block" fill="clear" type="button" [disabled]="algoEnCurso" (click)="backToLogin()">
           {{ 'auth.mfa.backToLogin' | transloco }}
         </ion-button>
 

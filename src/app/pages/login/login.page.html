@@ -27,8 +27,19 @@
               formControlName="password"
               [label]="'auth.login.passwordLabel' | transloco"
               label-placement="stacked"
-              type="password">
+              [type]="verContrasena ? 'text' : 'password'">
             </ion-input>
+            <!-- type="button" es imprescindible: dentro de un <form>, un botón sin tipo envía
+                 el formulario, así que el ojo habría intentado iniciar sesión. -->
+            <ion-button
+              slot="end"
+              fill="clear"
+              type="button"
+              class="ojo-contrasena"
+              [attr.aria-label]="(verContrasena ? 'auth.login.hidePassword' : 'auth.login.showPassword') | transloco"
+              (click)="alternarVerContrasena()">
+              <ion-icon slot="icon-only" [name]="verContrasena ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+            </ion-button>
           </ion-item>
 
           <ion-text color="danger" *ngIf="submitted && form.controls.password.invalid">
@@ -39,8 +50,9 @@
             <p style="margin: 12px 0 0 0; font-size: 14px; text-align: center;">{{ errorMsg }}</p>
           </ion-text>
 
-          <ion-button type="submit" expand="block" class="ion-margin-top">
-            {{ 'auth.login.submit' | transloco }}
+          <ion-button type="submit" expand="block" class="ion-margin-top" [disabled]="entrando">
+            <ion-spinner *ngIf="entrando" slot="start" name="dots"></ion-spinner>
+            {{ (entrando ? 'auth.login.signingIn' : 'auth.login.submit') | transloco }}
           </ion-button>
 
           <ion-button
@@ -49,6 +61,7 @@
             class="forgot"
             routerLink="/forgot-password"
             type="button"
+            [disabled]="entrando"
           >
             {{ 'auth.login.forgotPassword' | transloco }}
           </ion-button>

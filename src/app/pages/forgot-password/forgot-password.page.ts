@@ -13,7 +13,10 @@ import {
   IonInput,
   IonButton,
   IonText,
+  IonSpinner,
+  ToastController,
 } from '@ionic/angular/standalone';
+import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
 
 @Component({
   selector: 'app-forgot-password',
@@ -29,6 +32,7 @@ import {
     IonInput,
     IonButton,
     IonText,
+    IonSpinner,
   ],
   templateUrl: './forgot-password.page.html',
   styleUrls: ['./forgot-password.page.scss'],
@@ -39,19 +43,23 @@ export class ForgotPasswordPage {
   private tenant = inject(TenantService);
   private router = inject(Router);
   private transloco = inject(TranslocoService);
+  private toastCtrl = inject(ToastController);
 
   submitted = false;
+  enviando = false;
 
   form = this.fb.group({
     identifier: ['', Validators.required],
   });
 
   async submit() {
+    if (this.enviando) return;
     this.submitted = true;
     if (this.form.invalid) return;
 
     const identifier = this.form.value.identifier!;
 
+    this.enviando = true;
     try {
       const tenantKey = (await this.tenant.getTenantKey())?.trim();
       if (!tenantKey) {
@@ -61,9 +69,23 @@ export class ForgotPasswordPage {
 
       await this.auth.forgotPassword(tenantKey, identifier);
 
-      alert(this.transloco.translate('auth.forgotPassword.successAlert'));
+      await this.mostrarAviso(this.transloco.translate('auth.forgotPassword.successAlert'), 'success');
     } catch {
-      alert(this.transloco.translate('auth.forgotPassword.errorAlert'));
+      await this.mostrarAviso(this.transloco.translate('auth.forgotPassword.errorAlert'), 'danger');
+    } finally {
+      this.enviando = false;
     }
+  }
+
+  // Era el único sitio de la app con el alert() del navegador: un cuadro del sistema, con el
+  // dominio escrito encima, que no se parece a ningún otro aviso de la aplicación.
+  private async mostrarAviso(message: string, color: 'success' | 'danger') {
+    const toast = await this.toastCtrl.create({
+      message,
+      duration: duracionDeToast(message),
+      position: 'bottom',
+      color,
+    });
+    await toast.present();
   }
 }

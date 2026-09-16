@@ -42,8 +42,15 @@
             <small>{{ 'auth.setup.keyInvalid' | transloco }}</small>
           </ion-text>
 
-          <ion-button expand="block" class="ion-margin-top" type="submit">
-            {{ 'auth.setup.submit' | transloco }}
+          <!-- errorMsg se calculaba en submit() y no se pintaba en ningún sitio: si el
+               dispatcher fallaba, la pantalla se quedaba muda. -->
+          <ion-text color="danger" *ngIf="errorMsg">
+            <small>{{ errorMsg }}</small>
+          </ion-text>
+
+          <ion-button expand="block" class="ion-margin-top" type="submit" [disabled]="loading">
+            <ion-spinner *ngIf="loading" slot="start" name="dots"></ion-spinner>
+            {{ (loading ? 'auth.setup.checking' : 'auth.setup.submit') | transloco }}
           </ion-button>
 
           <div class="ion-text-center ion-margin-top">

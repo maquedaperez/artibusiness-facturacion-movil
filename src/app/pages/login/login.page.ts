@@ -9,7 +9,9 @@ import { TenantService } from '../../services/tenant.service';
 import { Preferences } from '@capacitor/preferences';
 import { BiometricAuth } from '@aparajita/capacitor-biometric-auth';
 
-import { IonContent, IonItem, IonInput, IonButton, IonText } from '@ionic/angular/standalone';
+import { IonContent, IonItem, IonInput, IonButton, IonText, IonIcon, IonSpinner } from '@ionic/angular/standalone';
+import { addIcons } from 'ionicons';
+import { eyeOutline, eyeOffOutline } from 'ionicons/icons';
 import { LanguageSelectorComponent } from '../../shared/language-selector/language-selector.component';
 
 const SAVED_USERNAME_KEY = 'saved_username';
@@ -29,6 +31,8 @@ const SAVED_PASSWORD_KEY = 'saved_password';
     IonInput,
     IonButton,
     IonText,
+    IonIcon,
+    IonSpinner,
   ],
   templateUrl: './login.page.html',
   styleUrls: ['./login.page.scss'],
@@ -44,11 +48,24 @@ export class LoginPage implements OnInit {
   tenantKeyLabel = '';
   errorMsg = '';
   hasBiometrics = false;
+  // Sin esto, el botón admitía todos los toques que se le dieran: cada uno lanzaba su propio
+  // login, y el usuario no tenía ninguna señal de que la primera petición estuviera en curso.
+  entrando = false;
+  // Igual que en la web: poder mirar lo que se ha escrito antes de enviarlo.
+  verContrasena = false;
 
   form = this.fb.group({
     username: ['', Validators.required],
     password: ['', [Validators.required, Validators.minLength(4)]],
   });
+
+  constructor() {
+    addIcons({ eyeOutline, eyeOffOutline });
+  }
+
+  alternarVerContrasena() {
+    this.verContrasena = !this.verContrasena;
+  }
 
 async ngOnInit() {
   const cfg = await this.tenant.getTenantConfig();
@@ -120,6 +137,7 @@ async ngOnInit() {
   }
 
   async submit() {
+    if (this.entrando) return;
     this.submitted = true;
     this.errorMsg = '';
 
@@ -132,13 +150,18 @@ async ngOnInit() {
   }
 
   private async doLogin(username: string, password: string) {
-    const cfg = await this.tenant.getTenantConfig();
-    if (!cfg) {
-      await this.router.navigateByUrl('/setup', { replaceUrl: true });
-      return;
-    }
-
+    if (this.entrando) return;
+    // La bandera se pone AQUÍ, antes del primer await: si se pusiera después de resolver la
+    // configuración, dos toques seguidos pasarían los dos por la guarda (los dos la leerían
+    // en false) y se mandarían dos logins. Es el mismo despiste que tenía Recibidas.
+    this.entrando = true;
     try {
+      const cfg = await this.tenant.getTenantConfig();
+      if (!cfg) {
+        await this.router.navigateByUrl('/setup', { replaceUrl: true });
+        return;
+      }
+
       const result = await this.auth.login({
         tenantKey: cfg.key,
         company: cfg.company,
@@ -178,6 +201,10 @@ async ngOnInit() {
       } else {
         this.errorMsg = this.transloco.translate('auth.login.errorGeneric');
       }
+    } finally {
+      // También tras navegar: si se vuelve al login con el botón atrás, el formulario tiene
+      // que estar operativo otra vez.
+      this.entrando = false;
     }
   }
 }
