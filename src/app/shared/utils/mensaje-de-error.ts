@@ -32,6 +32,38 @@ const PREFIJO_HTTP = /^HTTP\s*\d{3}\s*-?\s*/i;
 // usuario no le dice nada, así que se recorta solo al mostrarlo.
 const CODIGO_AL_FINAL = /\s*\[[A-Z][A-Z0-9_]{2,}\]\s*$/;
 
+// Errores del sistema, del navegador o de un plugin del movil. Llegan como un Error normal,
+// igual que los nuestros, y acababan en el aviso rojo tal cual: en ingles y escritos para un
+// programador. Reales, vistos probando la app:
+//
+//     Missing parent directory - possibly recursive=false was passed
+//     Failed to fetch
+//
+// (2026-09-16, pedido por Jose para que la demo no ensene textos en ingles.)
+//
+// SE RECONOCEN POR SU FIRMA, NO POR "PARECER INGLES". Un primer intento descartaba cualquier
+// mensaje con palabras inglesas y sin palabras castellanas: eso habria borrado tambien NUESTROS
+// mensajes cuando la app esta en ingles o en ucraniano, que es justo cuando mas falta hacen.
+// Estas expresiones solo casan con textos que ningun mensaje de producto escribiria.
+//
+// La lista crece cuando aparezca un caso nuevo: lo que no este aqui se sigue enseñando, porque
+// perder un motivo real es peor que enseñar una frase en ingles.
+const FIRMAS_DEL_SISTEMA: RegExp[] = [
+  /missing parent directory/i,          // Filesystem de Capacitor (iOS/Android)
+  /^failed to fetch/i,                  // fetch, Chrome
+  /^load failed/i,                      // fetch, Safari
+  /network request failed/i,            // WebView
+  /NSURLErrorDomain|NSCocoaErrorDomain/, // iOS
+  /\bERR_[A-Z_]{3,}\b/,                 // Chrome (ERR_INTERNET_DISCONNECTED...)
+  /unexpected token .* in JSON|JSON\.parse/i,
+  /\bjava\.[a-z]+\.[A-Za-z]+Exception\b|android\.[a-z]+\./,
+  /possibly recursive=false/i,
+];
+
+export function pareceMensajeDelSistema(mensaje: string): boolean {
+  return FIRMAS_DEL_SISTEMA.some(firma => firma.test(mensaje));
+}
+
 export function esMensajePresentable(mensaje: string | null | undefined): boolean {
   const texto = (mensaje ?? '').trim();
   if (!texto) return false;
@@ -47,6 +79,8 @@ export function esMensajePresentable(mensaje: string | null | undefined): boolea
   if (/[{}]/.test(cuerpo) || cuerpo.includes('\\"')) return false;
   // Un stack trace o una excepción de .NET que se haya colado.
   if (/\bat\s+\w+\.\w+|Exception:|System\./.test(cuerpo)) return false;
+  // Un error del sistema en ingles: se ensena el respaldo, que si esta traducido.
+  if (pareceMensajeDelSistema(cuerpo)) return false;
   return true;
 }
 

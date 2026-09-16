@@ -55,4 +55,52 @@ describe('mensajeDeError', () => {
     expect(esMensajePresentable('System.NullReferenceException: Object reference not set')).toBeFalse();
     expect(esMensajePresentable('   at WebAPIARTIBusiness.Services.FacturaEmitidaService.Guardar')).toBeFalse();
   });
+
+  // Errores del sistema, del navegador o de un plugin del movil (2026-09-16). Llegan como un
+  // Error normal y acababan en el aviso rojo, en ingles. Textos reales vistos probando la app.
+  describe('errores del sistema en ingles', () => {
+    const RESPALDO = 'No se pudo descargar la factura. Intentalo de nuevo.';
+
+    it('el fallo del iPhone al escribir el fichero no se ensena tal cual', () => {
+      const error = new Error('Missing parent directory - possibly recursive=false was passed');
+
+      expect(mensajeDeError(error, RESPALDO)).toBe(RESPALDO);
+    });
+
+    it('tampoco un fallo de red del navegador', () => {
+      expect(mensajeDeError(new Error('Failed to fetch'), RESPALDO)).toBe(RESPALDO);
+      expect(mensajeDeError(new Error('Network request failed'), RESPALDO)).toBe(RESPALDO);
+    });
+
+    it('ni un error del sistema de iOS', () => {
+      const error = new Error('The operation could not be completed. (NSURLErrorDomain error -1009.)');
+
+      expect(mensajeDeError(error, RESPALDO)).toBe(RESPALDO);
+    });
+
+    it('ni un fallo de conexion de Chrome', () => {
+      expect(mensajeDeError(new Error('net::ERR_INTERNET_DISCONNECTED'), RESPALDO)).toBe(RESPALDO);
+    });
+
+    // LO QUE NO PUEDE PASAR: con la app en ingles, NUESTROS mensajes tambien estan en ingles.
+    // Filtrar "por parecer ingles" los habria borrado justo cuando mas falta hacen.
+    it('un mensaje NUESTRO en ingles se sigue ensenando', () => {
+      const error = new Error('The invoice needs at least one line.');
+
+      expect(mensajeDeError(error, RESPALDO)).toBe('The invoice needs at least one line.');
+    });
+
+    it('un mensaje nuestro en castellano se sigue ensenando', () => {
+      const error = new Error("Ya existe un cliente con NIF 'A95758389' para la empresa 4.");
+
+      expect(mensajeDeError(error, RESPALDO)).toBe("Ya existe un cliente con NIF 'A95758389' para la empresa 4.");
+    });
+
+    // Un mensaje nuestro puede nombrar cosas en ingles sin ser ingles: no puede perderse.
+    it('un mensaje nuestro que nombra Stripe o un request-id se sigue ensenando', () => {
+      const error = new Error('No se pudo abrir el pago de Stripe (request-id 8f2c).');
+
+      expect(mensajeDeError(error, RESPALDO)).toContain('Stripe');
+    });
+  });
 });
