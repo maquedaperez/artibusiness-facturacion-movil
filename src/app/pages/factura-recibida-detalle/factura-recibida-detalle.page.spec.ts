@@ -144,6 +144,7 @@ describe('FacturaRecibidaDetallePage', () => {
 
     // Todavía no existe en el servidor: no hay nada que convertir.
     it('una factura nueva sin guardar no ofrece convertirse en ticket', () => {
+      component.convertirEnTicketDisponible = true;
       expect(component.puedeConvertirEnTicket).toBeFalse();
     });
 
@@ -440,10 +441,19 @@ describe('FacturaRecibidaDetallePage', () => {
     // Convertir en ticket (2026-09-16, pedido por Jose): el caso es un billete de tren a
     // nombre de una persona, que como factura no vale pero como gasto sí.
     it('ofrece convertirla en ticket: ya existe en el servidor y sigue siendo editable', () => {
+      component.convertirEnTicketDisponible = true;
       expect(component.puedeConvertirEnTicket).toBeTrue();
     });
 
+    // Mientras el endpoint no esté publicado en el backend, el botón no existe: pulsarlo solo
+    // daría un 404 en rojo.
+    it('con el flag apagado no ofrece convertirla en ticket', () => {
+      component.convertirEnTicketDisponible = false;
+      expect(component.puedeConvertirEnTicket).toBeFalse();
+    });
+
     it('convertirEnTicket llama al repositorio y refresca la factura con lo que devuelve', async () => {
+      component.convertirEnTicketDisponible = true;
       simularConfirmacion(TestBed.inject(AlertController));
       const repo = TestBed.inject(ReceivedInvoicesRepository);
       const convertida = { ...component.working, id: 501, proveedor: 'Proveedor Genérico SIN IVA', proveedorNif: undefined };
@@ -457,6 +467,7 @@ describe('FacturaRecibidaDetallePage', () => {
     });
 
     it('si la conversión falla, la factura se queda como estaba', async () => {
+      component.convertirEnTicketDisponible = true;
       simularConfirmacion(TestBed.inject(AlertController));
       const repo = TestBed.inject(ReceivedInvoicesRepository);
       spyOn(repo, 'convertirEnTicket').and.rejectWith(new Error('Esta factura ya está registrada como ticket.'));
@@ -468,6 +479,7 @@ describe('FacturaRecibidaDetallePage', () => {
     });
 
     it('si el usuario cancela, no se convierte nada', async () => {
+      component.convertirEnTicketDisponible = true;
       simularCancelacion(TestBed.inject(AlertController));
       const convertirSpy = spyOn(TestBed.inject(ReceivedInvoicesRepository), 'convertirEnTicket');
 
@@ -598,6 +610,7 @@ describe('FacturaRecibidaDetallePage', () => {
 
     // Una factura ya contabilizada no se toca: tampoco para pasarla a gastos.
     it('no ofrece convertirla en ticket', () => {
+      component.convertirEnTicketDisponible = true;
       expect(component.puedeConvertirEnTicket).toBeFalse();
     });
 

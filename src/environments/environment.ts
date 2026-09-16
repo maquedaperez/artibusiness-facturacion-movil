@@ -8,5 +8,9 @@ export const environment = {
   features: {
     enableQuickSave: true,
     enableServerAttachments: true,
+    // Apagado hasta que Jose publique el PR 54 (POST .../ConvertirEnTicket). Con el endpoint
+    // sin publicar, el botón existe y responde 404: en una demo eso es un aviso rojo delante
+    // del cliente. Se enciende el día que esté arriba, que es cambiar este false.
+    enableConvertToTicket: false,
   },
 };

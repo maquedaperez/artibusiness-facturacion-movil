@@ -32,6 +32,7 @@ import { PagosService } from '../../services/pagos.service';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
 import { pedirConfirmacion } from '../../shared/utils/confirmacion';
 import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
+import { environment } from '../../../environments/environment';
 
 type FacturaRecibidaForm = Omit<FacturaRecibida, 'id' | 'origenOcr'>;
 
@@ -178,8 +179,12 @@ export class FacturaRecibidaDetallePage implements OnInit {
   // editable. Una recién escaneada sin guardar no tiene nada que convertir todavía.
   convirtiendoEnTicket = false;
 
+  // El flag lo lee una propiedad, no el getter, para que un test pueda apagarlo o encenderlo
+  // sin tocar el environment (que es una constante compilada).
+  convertirEnTicketDisponible = environment.features?.enableConvertToTicket ?? false;
+
   get puedeConvertirEnTicket(): boolean {
-    return !this.esNueva && this.facturaId != null && this.esEditable;
+    return this.convertirEnTicketDisponible && !this.esNueva && this.facturaId != null && this.esEditable;
   }
 
   get pagadaEditable(): boolean {
