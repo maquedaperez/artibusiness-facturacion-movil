@@ -1,0 +1,32 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": [
+      "/assets/*",
+      "/*.{js,css,map,json,webmanifest,txt,xml,ico,png,jpg,jpeg,gif,svg,webp,avif,woff,woff2,ttf,eot,wasm,pdf}"
+    ]
+  },
+  "routes": [
+    {
+      "route": "/index.html",
+      "headers": {
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "route": "/assets/i18n/*",
+      "headers": {
+        "cache-control": "no-cache"
+      }
+    }
+  ],
+  "mimeTypes": {
+    ".json": "application/json",
+    ".webmanifest": "application/manifest+json",
+    ".wasm": "application/wasm"
+  },
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
+  }
+}

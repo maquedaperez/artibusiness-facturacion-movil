@@ -12,6 +12,13 @@ export type TenantConfig = {
 
 const CONFIG_API_URL_NATIVE = 'https://configurationapidispatcher-h2g0g4amcgdmaddh.westeurope-01.azurewebsites.net/api/configuration';
 // En web se pasa por un proxy same-origin (netlify.toml / proxy.conf.js) para evitar CORS.
+//
+// OJO AL MUDARSE A AZURE STATIC WEB APPS: allí este proxy NO EXISTE — Static Web Apps no
+// reenvía a URLs externas — y esta ruta devolvería el index.html de la app, con lo que el
+// login no arranca. Hay que llamar a CONFIG_API_URL_NATIVE directamente, y para eso el
+// dispatcher tiene que admitir el origen en su CORS (Azure Portal -> App Service -> API ->
+// CORS), incluido el de Netlify si los dos sitios van a convivir. Ver
+// docs/azure/DESPLIEGUE_STATIC_WEB_APP.md.
 const CONFIG_API_URL_WEB = '/config-api/configuration';
 
 @Injectable({ providedIn: 'root' })

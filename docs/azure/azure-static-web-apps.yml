@@ -1,0 +1,62 @@
+# Workflow de despliegue a Azure Static Web Apps.
+#
+# NO ESTÁ ACTIVO. Vive en docs/ a propósito: hasta que el recurso exista no hay secreto
+# AZURE_STATIC_WEB_APPS_API_TOKEN en el repositorio y este workflow fallaría en cada push.
+# Cuando Jose cree la Static Web App, se mueve a .github/workflows/ (y se borra el que Azure
+# haya commiteado por su cuenta, para no desplegar dos veces).
+#
+# Compila aquí en vez de dejárselo a Azure (skip_app_build) por dos motivos: fija Node 20 en
+# vez de la que elija Oryx, y así el paso de build falla en Actions, con su log, en lugar de
+# dentro del contenedor de Azure.
+name: Azure Static Web Apps
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches: [main]
+
+jobs:
+  build_and_deploy:
+    if: github.event_name == 'push' || github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    name: Compilar y desplegar
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Los tests necesitan Chrome; ubuntu-latest ya lo trae y karma.conf.js usa
+      # ChromeHeadlessCI (--no-sandbox), que es justo para esto.
+      - run: npm run test:ci
+
+      - run: npm run build
+
+      - name: Desplegar
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: www
+          output_location: ''
+          skip_app_build: true
+          skip_api_build: true
+
+  # Al cerrar un PR, borra su entorno de preview.
+  close_pull_request:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Cerrar entorno de preview
+    steps:
+      - name: Cerrar
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: close
