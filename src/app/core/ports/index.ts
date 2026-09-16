@@ -2,6 +2,7 @@ export { EmisorRepository } from './emisor.repository';
 export { CustomersRepository } from './customers.repository';
 export { SuppliersRepository } from './suppliers.repository';
 export { CatalogRepository } from './catalog.repository';
+export { ProvincesRepository, Provincia } from './provinces.repository';
 export { SubscriptionsRepository } from './subscriptions.repository';
 export { IssuedInvoicesRepository, DatosGuardarFacturaEmitida, DiferenciaCampoFiscal, PrevisualizacionSubsanacion } from './issued-invoices.repository';
 export {

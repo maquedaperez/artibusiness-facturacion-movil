@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideIonicAngular } from '@ionic/angular/standalone';
 import { ProveedorSelectorComponent } from './proveedor-selector.component';
-import { SuppliersRepository } from '../../core/ports';
+import { ProvincesRepository, SuppliersRepository } from '../../core/ports';
 import { ProveedorMock } from '../../services/mock-facturas.service';
 import { PaginaResultado } from '../../shared/types/pagination';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
@@ -25,6 +25,9 @@ describe('ProveedorSelectorComponent — búsqueda bajo demanda', () => {
         provideIonicAngular(),
         ...provideTranslocoTesting(),
         { provide: SuppliersRepository, useValue: suppliersRepoSpy },
+        // El campo de provincia es ahora un buscador con el catalogo de la empresa; sin
+        // catalogo se comporta como el texto libre de siempre (ver el componente).
+        { provide: ProvincesRepository, useValue: { enumerar: () => Promise.resolve([]) } },
       ],
     });
     fixture = TestBed.createComponent(ProveedorSelectorComponent);
@@ -115,6 +118,9 @@ describe('ProveedorSelectorComponent — precarga desde un escaneo (datosInicial
         provideIonicAngular(),
         ...provideTranslocoTesting(),
         { provide: SuppliersRepository, useValue: suppliersRepoSpy },
+        // El campo de provincia es ahora un buscador con el catalogo de la empresa; sin
+        // catalogo se comporta como el texto libre de siempre (ver el componente).
+        { provide: ProvincesRepository, useValue: { enumerar: () => Promise.resolve([]) } },
       ],
     });
     fixture = TestBed.createComponent(ProveedorSelectorComponent);
@@ -169,6 +175,9 @@ describe('ProveedorSelectorComponent — alta con NIF', () => {
         provideIonicAngular(),
         ...provideTranslocoTesting(),
         { provide: SuppliersRepository, useValue: suppliersRepoSpy },
+        // El campo de provincia es ahora un buscador con el catalogo de la empresa; sin
+        // catalogo se comporta como el texto libre de siempre (ver el componente).
+        { provide: ProvincesRepository, useValue: { enumerar: () => Promise.resolve([]) } },
       ],
     });
     fixture = TestBed.createComponent(ProveedorSelectorComponent);

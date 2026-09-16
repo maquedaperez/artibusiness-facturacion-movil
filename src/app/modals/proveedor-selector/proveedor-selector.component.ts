@@ -13,6 +13,7 @@ import {
 import { addIcons } from 'ionicons';
 import { closeOutline, addOutline } from 'ionicons/icons';
 
+import { BuscadorDeProvinciaComponent } from '../../shared/buscador-de-provincia/buscador-de-provincia.component';
 import { ProveedorMock } from '../../services/mock-facturas.service';
 import { SuppliersRepository } from '../../core/ports';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
@@ -27,7 +28,7 @@ type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error'
   selector: 'app-proveedor-selector',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, TranslocoPipe,
+    CommonModule, FormsModule, TranslocoPipe, BuscadorDeProvinciaComponent,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonSearchbar, IonList, IonItem, IonLabel, IonInput, IonText, IonSpinner,
   ],
@@ -114,9 +115,11 @@ type EstadoBusqueda = 'inicial' | 'buscando' | 'ok' | 'sin-resultados' | 'error'
           <ion-input [label]="'invoices.received.supplierSelector.postalCode' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.cp"></ion-input>
         </ion-item>
 
-        <ion-item>
-          <ion-input [label]="'invoices.received.supplierSelector.province' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.provincia"></ion-input>
-        </ion-item>
+        <app-buscador-de-provincia
+          [(valor)]="nuevo.provincia"
+          [etiqueta]="'invoices.received.supplierSelector.province' | transloco"
+          [textoNoEstaEnElCatalogo]="'invoices.received.supplierSelector.provinceNotInCatalog' | transloco"
+        ></app-buscador-de-provincia>
 
         <ion-text color="danger" *ngIf="errorMsg">
           <p class="ion-padding-top">{{ errorMsg }}</p>

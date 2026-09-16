@@ -13,6 +13,7 @@ import {
 import { addIcons } from 'ionicons';
 import { closeOutline, personAddOutline } from 'ionicons/icons';
 
+import { BuscadorDeProvinciaComponent } from '../../shared/buscador-de-provincia/buscador-de-provincia.component';
 import { ClienteMock, Destinatario } from '../../services/mock-facturas.service';
 import { CustomersRepository, IssuedInvoicesRepository, MedioPagoOpcion } from '../../core/ports';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
@@ -34,7 +35,7 @@ export type SeleccionCliente = { cliente: ClienteMock; esNuevo: boolean };
   selector: 'app-cliente-selector',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, TranslocoPipe,
+    CommonModule, FormsModule, TranslocoPipe, BuscadorDeProvinciaComponent,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton, IonIcon,
     IonSearchbar, IonList, IonItem, IonLabel, IonCheckbox, IonInput, IonSelect, IonSelectOption, IonText, IonSpinner,
   ],
@@ -121,9 +122,11 @@ export type SeleccionCliente = { cliente: ClienteMock; esNuevo: boolean };
           <ion-input [label]="'invoices.issued.clientSelector.postalCode' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.cp"></ion-input>
         </ion-item>
 
-        <ion-item>
-          <ion-input [label]="'invoices.issued.clientSelector.province' | transloco" labelPlacement="stacked" [(ngModel)]="nuevo.provincia"></ion-input>
-        </ion-item>
+        <app-buscador-de-provincia
+          [(valor)]="nuevo.provincia"
+          [etiqueta]="'invoices.issued.clientSelector.province' | transloco"
+          [textoNoEstaEnElCatalogo]="'invoices.issued.clientSelector.provinceNotInCatalog' | transloco"
+        ></app-buscador-de-provincia>
 
         <ion-item>
           <ion-select [label]="'invoices.issued.clientSelector.paymentMethod' | transloco" labelPlacement="stacked" interface="popover" [(ngModel)]="idMedioPago">

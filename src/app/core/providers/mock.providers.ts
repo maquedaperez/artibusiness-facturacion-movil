@@ -2,7 +2,7 @@ import { Provider } from '@angular/core';
 
 import {
   EmisorRepository, CustomersRepository, SuppliersRepository,
-  CatalogRepository, SubscriptionsRepository,
+  CatalogRepository, SubscriptionsRepository, ProvincesRepository,
   IssuedInvoicesRepository, ReceivedInvoicesRepository,
 } from '../ports';
 
@@ -17,6 +17,7 @@ import { HttpIssuedInvoicesRepository } from '../adapters/http/issued-invoices.r
 import { HttpReceivedInvoicesRepository } from '../adapters/http/received-invoices.repository.http';
 import { HttpSuppliersRepository } from '../adapters/http/suppliers.repository.http';
 import { HttpCustomersRepository } from '../adapters/http/customers.repository.http';
+import { HttpProvincesRepository } from '../adapters/http/provinces.repository.http';
 
 /**
  * Único punto de la app que decide qué implementación de cada puerto se inyecta.
@@ -69,6 +70,10 @@ export const MOCK_REPOSITORY_PROVIDERS: Provider[] = [
   MockSuppliersRepository,
   { provide: SuppliersRepository, useClass: HttpSuppliersRepository },
   { provide: CatalogRepository, useClass: MockCatalogRepository },
+  // ProvincesRepository habla con el backend real (POST /api/Provincias/Enumerar, PR 55). No
+  // hace falta esperar a que esté publicado: mientras responda 404 el adaptador devuelve una
+  // lista vacía y el campo de provincia sigue siendo texto libre, como hasta ahora.
+  { provide: ProvincesRepository, useClass: HttpProvincesRepository },
   { provide: SubscriptionsRepository, useClass: MockSubscriptionsRepository },
   MockIssuedInvoicesRepository,
   { provide: IssuedInvoicesRepository, useClass: HttpIssuedInvoicesRepository },

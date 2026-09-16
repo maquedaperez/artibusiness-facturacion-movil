@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ModalController, provideIonicAngular } from '@ionic/angular/standalone';
 import { ClienteSelectorComponent } from './cliente-selector.component';
-import { CustomersRepository, IssuedInvoicesRepository } from '../../core/ports';
+import { CustomersRepository, IssuedInvoicesRepository, ProvincesRepository } from '../../core/ports';
 import { ClienteMock } from '../../services/mock-facturas.service';
 import { PaginaResultado } from '../../shared/types/pagination';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
@@ -48,6 +48,10 @@ describe('ClienteSelectorComponent — búsqueda bajo demanda', () => {
         ...provideTranslocoTesting(TRADUCCIONES_TEST),
         { provide: CustomersRepository, useValue: customersRepoSpy },
         { provide: IssuedInvoicesRepository, useValue: issuedRepoSpy },
+        // Lo usa el campo de provincia (buscador con el catalogo de la empresa). Solo se crea
+        // en modo alta, asi que sin esto un test futuro de esa parte fallaria con un NG0201
+        // que no dice nada.
+        { provide: ProvincesRepository, useValue: { enumerar: () => Promise.resolve([]) } },
       ],
     });
     fixture = TestBed.createComponent(ClienteSelectorComponent);
@@ -177,6 +181,10 @@ describe('ClienteSelectorComponent — alta rápida ("Cliente nuevo")', () => {
         ...provideTranslocoTesting(TRADUCCIONES_TEST),
         { provide: CustomersRepository, useValue: customersRepoSpy },
         { provide: IssuedInvoicesRepository, useValue: issuedRepoSpy },
+        // Lo usa el campo de provincia (buscador con el catalogo de la empresa). Solo se crea
+        // en modo alta, asi que sin esto un test futuro de esa parte fallaria con un NG0201
+        // que no dice nada.
+        { provide: ProvincesRepository, useValue: { enumerar: () => Promise.resolve([]) } },
         { provide: ModalController, useValue: modalCtrlSpy },
       ],
     });
