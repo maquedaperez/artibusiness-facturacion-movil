@@ -29,6 +29,7 @@ import {
 } from '../../core/models/documento-bancario';
 import { DocumentoBancarioComponent } from '../../modals/documento-bancario/documento-bancario.component';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
+import { pedirConfirmacion } from '../../shared/utils/confirmacion';
 import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
 
 @Component({
@@ -67,6 +68,10 @@ export class FacturasRecibidasPage {
   facturas: FacturaRecibida[] = [];
   processing = false;
   cargando = false;
+  // Ids con una acción en curso (2026-09-16) — mismo blindaje que Facturas Emitidas, donde se
+  // vieron en los logs dos peticiones casi simultáneas contabilizando la misma factura. Aquí
+  // no había ninguno: los botones de la fila admitían todos los toques que se les dieran.
+  procesandoIds = new Set<number>();
 
   // El endpoint CrearDesdeDocumento (escanea + guarda + sube el PDF al blob, todo de una
   // vez) es lo que hay detrás de los dos botones de escanear/adjuntar — mientras el flag
@@ -490,33 +495,34 @@ export class FacturasRecibidasPage {
   // actualizar() borraría todas las líneas reales de la factura.
   async confirmarContabilizar(event: Event, f: FacturaRecibida) {
     event.stopPropagation();
+    if (this.procesandoIds.has(f.id)) return;
     const completa = await this.invoicesRepo.obtenerPorId(f.id);
     if (!completa) {
       await this.showToast(this.transloco.translate('invoices.received.list.loadFullError'), 'danger');
       return;
     }
 
-    const alert = await this.alertCtrl.create({
+    // Sin handler de Ionic: espera a que termine antes de cerrar, así que la confirmación se
+    // quedaba en pantalla toda la llamada. Ver shared/utils/confirmacion.ts.
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.received.post.header'),
       message: this.transloco.translate('invoices.received.post.message', { num: completa.numFactura, proveedor: completa.proveedor, importe: this.formatEuros(this.invoicesRepo.totales(completa).total) }),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('invoices.received.actions.post'),
-          handler: async () => {
-            try {
-              const { id: _id, origenOcr: _ocr, ...resto } = completa;
-              await this.invoicesRepo.actualizar(completa.id, { ...resto, estado: 'revisada' });
-              await this.refresh();
-              await this.showToast(this.transloco.translate('invoices.received.post.success'));
-            } catch (e) {
-              await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.post.error')), 'danger');
-            }
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('invoices.received.actions.post'),
     });
-    await alert.present();
+    if (!confirmado || this.procesandoIds.has(f.id)) return;
+
+    this.procesandoIds.add(f.id);
+    try {
+      const { id: _id, origenOcr: _ocr, ...resto } = completa;
+      await this.invoicesRepo.actualizar(completa.id, { ...resto, estado: 'revisada' });
+      await this.refresh();
+      await this.showToast(this.transloco.translate('invoices.received.post.success'));
+    } catch (e) {
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.post.error')), 'danger');
+    } finally {
+      this.procesandoIds.delete(f.id);
+    }
   }
 
   async duplicar(event: Event, f: FacturaRecibida) {
@@ -526,16 +532,20 @@ export class FacturasRecibidasPage {
     // directamente desde la lista producía un borrador con 0 líneas y, por tanto, 0,00 €
     // en todo. Se pide el detalle completo antes de duplicar, igual que ya hacía el botón
     // de copiar dentro de la propia página de detalle.
+    if (this.procesandoIds.has(f.id)) return;
     const completa = await this.invoicesRepo.obtenerPorId(f.id) ?? f;
     const numFacturaNueva = await this.pedirNumeroFacturaCopia(completa.proveedor);
-    if (numFacturaNueva == null) return; // cancelado en el diálogo
+    if (numFacturaNueva == null || this.procesandoIds.has(f.id)) return; // cancelado en el diálogo
 
+    this.procesandoIds.add(f.id);
     try {
       await this.invoicesRepo.duplicar(completa, numFacturaNueva);
       await this.refresh();
       await this.showToast(this.transloco.translate('invoices.received.duplicate.success', { proveedor: completa.proveedor }));
     } catch (e: any) {
       await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.duplicate.error')), 'danger');
+    } finally {
+      this.procesandoIds.delete(f.id);
     }
   }
 
@@ -609,6 +619,7 @@ export class FacturasRecibidasPage {
 
   async confirmarEliminar(event: Event, f: FacturaRecibida) {
     event.stopPropagation();
+    if (this.procesandoIds.has(f.id)) return;
     // Defensa en profundidad (el icono ya está oculto por accionesPermitidas(f).eliminar):
     // no tiene sentido dejar borrar desde la app algo marcado como ya pagado, ni una
     // factura ya contabilizada (regla confirmada por el jefe, reunión 2026-08-17) — el
@@ -622,27 +633,25 @@ export class FacturasRecibidasPage {
       return;
     }
 
-    const alert = await this.alertCtrl.create({
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.received.delete.header'),
       message: this.transloco.translate('invoices.received.delete.message', { proveedor: f.proveedor }),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('common.actions.delete'),
-          role: 'destructive',
-          handler: async () => {
-            try {
-              await this.invoicesRepo.eliminar(f.id);
-              await this.refresh();
-              await this.showToast(this.transloco.translate('invoices.received.delete.success'));
-            } catch (e) {
-              await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.delete.error')), 'danger');
-            }
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('common.actions.delete'),
+      rolConfirmar: 'destructive',
     });
-    await alert.present();
+    if (!confirmado || this.procesandoIds.has(f.id)) return;
+
+    this.procesandoIds.add(f.id);
+    try {
+      await this.invoicesRepo.eliminar(f.id);
+      await this.refresh();
+      await this.showToast(this.transloco.translate('invoices.received.delete.success'));
+    } catch (e) {
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.delete.error')), 'danger');
+    } finally {
+      this.procesandoIds.delete(f.id);
+    }
   }
 
   // Duración proporcional al texto (2026-08-28): los avisos del OCR (proveedor genérico,

@@ -491,6 +491,7 @@
       },
       "actions": {
         "post": "Contabilizar",
+        "posting": "Contabilizando…",
         "copyAria": "Copiar / Duplicar",
         "downloadAria": "Descargar documento adjunto",
         "shareAria": "Compartir documento adjunto",
@@ -514,6 +515,7 @@
         "header": "Convertir en ticket",
         "message": "El importe total se registrará como gasto, con el IVA incluido y sin derecho a deducción. Se conservan el número, las líneas y el documento original. El proveedor pasa a ser el genérico y el original queda anotado en el concepto. ¿Continuar?",
         "success": "Factura convertida en ticket.",
+        "converting": "Convirtiendo…",
         "error": "No se pudo convertir la factura en ticket.",
         "saveFirst": "Guarda la factura antes de convertirla en ticket."
       },

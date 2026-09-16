@@ -132,6 +132,7 @@
             *ngIf="f.estado === 'borrador'"
             size="small"
             class="accion-principal"
+            [disabled]="procesandoIds.has(f.id)"
             (click)="confirmarContabilizar($event, f)"
           >
             <ion-icon slot="start" name="checkmark-circle-outline"></ion-icon>
@@ -141,7 +142,7 @@
           <span class="acciones-secundarias">
             <ion-button
               *ngIf="accionesPermitidas(f).copiar"
-              fill="clear" size="small" [attr.aria-label]="'invoices.received.actions.copyAria' | transloco"
+              fill="clear" size="small" [disabled]="procesandoIds.has(f.id)" [attr.aria-label]="'invoices.received.actions.copyAria' | transloco"
               (click)="duplicar($event, f)"
             >
               <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
@@ -162,7 +163,7 @@
             </ion-button>
             <ion-button
               *ngIf="accionesPermitidas(f).eliminar"
-              fill="clear" size="small" color="danger" [attr.aria-label]="'invoices.received.actions.deleteAria' | transloco"
+              fill="clear" size="small" color="danger" [disabled]="procesandoIds.has(f.id)" [attr.aria-label]="'invoices.received.actions.deleteAria' | transloco"
               (click)="confirmarEliminar($event, f)"
             >
               <ion-icon slot="icon-only" name="trash-outline"></ion-icon>

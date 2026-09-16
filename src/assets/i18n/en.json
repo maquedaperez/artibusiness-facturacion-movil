@@ -491,6 +491,7 @@
       },
       "actions": {
         "post": "Post",
+        "posting": "Posting…",
         "copyAria": "Copy / Duplicate",
         "downloadAria": "Download attached document",
         "shareAria": "Share attached document",
@@ -514,6 +515,7 @@
         "header": "Convert to receipt",
         "message": "The full amount will be recorded as an expense, VAT included and not deductible. The invoice number, the lines and the original document are kept. The supplier becomes the generic one, and the original is noted in the description. Continue?",
         "success": "Invoice converted to a receipt.",
+        "converting": "Converting…",
         "error": "The invoice could not be converted to a receipt.",
         "saveFirst": "Save the invoice before converting it to a receipt."
       },

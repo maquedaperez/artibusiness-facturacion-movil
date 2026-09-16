@@ -47,11 +47,12 @@
         <!-- Los dos botones reparten el ancho y pueden encoger: con textos largos (o en otro
              idioma) uno se salía de la pantalla, como pasó en Recibidas el 2026-09-14. -->
         <div class="acciones-proveedor" *ngIf="esEditable">
-          <ion-button size="small" fill="outline" (click)="elegirProveedor()">
+          <ion-button size="small" fill="outline" [disabled]="algoEnCurso" (click)="elegirProveedor()">
             {{ 'invoices.received.detail.changeSupplier' | transloco }}
           </ion-button>
-          <ion-button *ngIf="puedeConvertirEnTicket" size="small" fill="outline" [disabled]="convirtiendoEnTicket" (click)="confirmarConvertirEnTicket()">
-            {{ 'invoices.received.detail.convertToTicket' | transloco }}
+          <ion-button *ngIf="puedeConvertirEnTicket" size="small" fill="outline" [disabled]="algoEnCurso" (click)="confirmarConvertirEnTicket()">
+            <ion-spinner *ngIf="convirtiendoEnTicket" slot="start" name="dots"></ion-spinner>
+            {{ (convirtiendoEnTicket ? 'invoices.received.convertTicket.converting' : 'invoices.received.detail.convertToTicket') | transloco }}
           </ion-button>
         </div>
       </ng-container>
@@ -189,7 +190,7 @@
       </p>
 
       <div class="doc-actions">
-        <ion-button *ngIf="esEditable" size="small" fill="outline" [disabled]="adjuntando" (click)="triggerAdjuntar()">
+        <ion-button *ngIf="esEditable" size="small" fill="outline" [disabled]="algoEnCurso" (click)="triggerAdjuntar()">
           <ion-spinner *ngIf="adjuntando" slot="start" name="dots"></ion-spinner>
           <ion-icon *ngIf="!adjuntando" slot="start" name="attach-outline"></ion-icon>
           {{ (adjuntando ? 'invoices.received.detail.attaching' : (working.documentoNombre ? 'invoices.received.detail.changeDocument' : 'invoices.received.detail.attachDocument')) | transloco }}
@@ -210,7 +211,7 @@
 <ion-footer *ngIf="esNueva || facturaId !== null">
   <div class="footer-actions">
     <div class="acciones-secundarias" *ngIf="!esNueva">
-      <ion-button *ngIf="accionesPermitidas().copiar" fill="clear" size="small" [attr.aria-label]="'invoices.received.actions.copyAria' | transloco" (click)="duplicar()">
+      <ion-button *ngIf="accionesPermitidas().copiar" fill="clear" size="small" [disabled]="algoEnCurso" [attr.aria-label]="'invoices.received.actions.copyAria' | transloco" (click)="duplicar()">
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
       <ion-button *ngIf="accionesPermitidas().descargar && working.documentoUrl" fill="clear" size="small" [attr.aria-label]="'invoices.received.actions.downloadAria' | transloco" (click)="descargarAdjunto()">
@@ -219,20 +220,21 @@
       <ion-button *ngIf="accionesPermitidas().compartir && working.documentoUrl" fill="clear" size="small" [attr.aria-label]="'invoices.received.actions.shareAria' | transloco" (click)="compartirAdjunto()">
         <ion-icon slot="icon-only" name="share-social-outline"></ion-icon>
       </ion-button>
-      <ion-button *ngIf="accionesPermitidas().eliminar" fill="clear" size="small" color="danger" [attr.aria-label]="'invoices.received.actions.deleteAria' | transloco" (click)="confirmarEliminar()">
+      <ion-button *ngIf="accionesPermitidas().eliminar" fill="clear" size="small" color="danger" [disabled]="algoEnCurso" [attr.aria-label]="'invoices.received.actions.deleteAria' | transloco" (click)="confirmarEliminar()">
         <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
       </ion-button>
     </div>
 
-    <ion-button *ngIf="esEditable" expand="block" [disabled]="guardando" (click)="guardar()">
+    <ion-button *ngIf="esEditable" expand="block" [disabled]="algoEnCurso" (click)="guardar()">
       <ion-spinner *ngIf="guardando" slot="start" name="dots"></ion-spinner>
       <ion-icon *ngIf="!guardando" slot="start" name="create-outline"></ion-icon>
       {{ (guardando ? 'invoices.received.detail.saving' : 'invoices.received.detail.save') | transloco }}
     </ion-button>
 
-    <ion-button *ngIf="esEditable && !esNueva" expand="block" fill="outline" [disabled]="guardando" (click)="confirmarContabilizar()">
-      <ion-icon slot="start" name="checkmark-done-outline"></ion-icon>
-      {{ 'invoices.received.actions.post' | transloco }}
+    <ion-button *ngIf="esEditable && !esNueva" expand="block" fill="outline" [disabled]="algoEnCurso" (click)="confirmarContabilizar()">
+      <ion-spinner *ngIf="contabilizando" slot="start" name="dots"></ion-spinner>
+      <ion-icon *ngIf="!contabilizando" slot="start" name="checkmark-done-outline"></ion-icon>
+      {{ (contabilizando ? 'invoices.received.actions.posting' : 'invoices.received.actions.post') | transloco }}
     </ion-button>
   </div>
 </ion-footer>

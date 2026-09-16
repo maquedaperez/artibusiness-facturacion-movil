@@ -522,17 +522,57 @@ describe('FacturaRecibidaDetallePage', () => {
         retencionPct: 0, pagada: false, estado: 'revisada', origenOcr: false,
         accountingLocked: true,
       });
-      const alertCtrl = TestBed.inject(AlertController);
-      spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
-        const boton = opts.buttons.find((b: any) => b.text === 'Contabilizar');
-        await boton.handler();
-        return { present: async () => {} } as any;
-      });
+      simularConfirmacion(TestBed.inject(AlertController));
 
       await component.confirmarContabilizar();
 
       expect(actualizarSpy).toHaveBeenCalledWith(501, jasmine.objectContaining({ estado: 'revisada' }));
       expect(component.esEditable).toBeFalse(); // bloqueada de inmediato, sin recargar
+    });
+
+    // Si duplicar falla, la bandera tiene que quedar limpia: si no, algoEnCurso deja la
+    // pantalla entera bloqueada hasta recargar.
+    it('un fallo al duplicar no deja la pantalla bloqueada', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      spyOn(repo, 'duplicar').and.rejectWith(new Error('numero repetido'));
+      spyOn(component as any, 'pedirNumeroFacturaCopia').and.resolveTo('F-501-COPIA');
+
+      await component.duplicar();
+
+      expect(component.duplicando).toBeFalse();
+      expect(component.algoEnCurso).toBeFalse();
+    });
+
+    // Doble pulsación (2026-09-16). 'Contabilizar' llevaba [disabled]="guardando", una bandera
+    // que confirmarContabilizar() nunca ponía: dos toques mandaban la factura dos veces. Es la
+    // misma clase de fallo que ya dio un incidente real en Emitidas.
+    it('dos pulsaciones seguidas de Contabilizar mandan una sola peticion', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      const actualizarSpy = spyOn(repo, 'actualizar').and.callFake(
+        () => new Promise(resolve => setTimeout(() => resolve({ ...component.working, id: 501, origenOcr: false, accountingLocked: true } as any), 20)));
+      simularConfirmacion(TestBed.inject(AlertController));
+
+      const primera = component.confirmarContabilizar();
+      await component.confirmarContabilizar();
+      await primera;
+
+      expect(actualizarSpy).toHaveBeenCalledTimes(1);
+      expect(component.contabilizando).toBeFalse();
+    });
+
+    // Mientras se contabiliza no se puede borrar, ni guardar, ni convertir en ticket: es lo
+    // que impide dejar la factura a medias entre dos acciones.
+    it('mientras una accion esta en vuelo, las demas no entran', async () => {
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      const eliminarSpy = spyOn(repo, 'eliminar');
+      component.contabilizando = true;
+
+      await component.confirmarEliminar();
+      await component.guardar();
+
+      expect(eliminarSpy).not.toHaveBeenCalled();
+      expect(component.algoEnCurso).toBeTrue();
+      component.contabilizando = false;
     });
   });
 

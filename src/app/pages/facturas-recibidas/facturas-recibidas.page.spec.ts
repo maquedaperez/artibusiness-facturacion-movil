@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { AlertController, LoadingController, ModalController, ToastController, provideIonicAngular } from '@ionic/angular/standalone';
+import { simularConfirmacion } from '../../shared/utils/testing/confirmacion-testing';
 import { FacturasRecibidasPage } from './facturas-recibidas.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { FacturaRecibida } from '../../services/mock-facturas.service';
@@ -520,12 +521,7 @@ describe('FacturasRecibidasPage', () => {
     spyOn(repo, 'obtenerPorId').and.resolveTo(detalleCompleto);
     const actualizarSpy = spyOn(repo, 'actualizar').and.resolveTo({ ...detalleCompleto, estado: 'revisada', accountingLocked: true });
     const refreshSpy = spyOn(component, 'refresh').and.resolveTo();
-    const alertCtrl = TestBed.inject(AlertController);
-    spyOn(alertCtrl, 'create').and.callFake(async (opts: any) => {
-      const boton = opts.buttons.find((b: any) => b.text === 'Contabilizar');
-      await boton.handler();
-      return { present: async () => {} } as any;
-    });
+    simularConfirmacion(TestBed.inject(AlertController));
 
     await component.confirmarContabilizar(new Event('click'), filaDeLista);
 
@@ -535,6 +531,29 @@ describe('FacturasRecibidasPage', () => {
       lineas: detalleCompleto.lineas,
     }));
     expect(refreshSpy).toHaveBeenCalled();
+  });
+
+  // Doble pulsación (2026-09-16): los botones de la fila no tenían ninguna protección — dos
+  // toques seguidos contabilizaban la misma factura dos veces. Es lo que ya se blindó en
+  // Facturas Emitidas tras verlo en los logs de verdad.
+  it('dos pulsaciones seguidas sobre la misma fila contabilizan una sola vez', async () => {
+    const repo = TestBed.inject(ReceivedInvoicesRepository);
+    const filaDeLista: FacturaRecibida = {
+      id: 602, proveedor: 'Endesa', numFactura: 'F-602', fecha: '2026-08-01',
+      lineas: [], retencionPct: 0, pagada: false, estado: 'borrador', origenOcr: false,
+    };
+    spyOn(repo, 'obtenerPorId').and.resolveTo(filaDeLista);
+    const actualizarSpy = spyOn(repo, 'actualizar').and.callFake(
+      () => new Promise(resolve => setTimeout(() => resolve({ ...filaDeLista, estado: 'revisada' } as any), 20)));
+    spyOn(component, 'refresh').and.resolveTo();
+    simularConfirmacion(TestBed.inject(AlertController));
+
+    const primera = component.confirmarContabilizar(new Event('click'), filaDeLista);
+    await component.confirmarContabilizar(new Event('click'), filaDeLista);
+    await primera;
+
+    expect(actualizarSpy).toHaveBeenCalledTimes(1);
+    expect(component.procesandoIds.has(602)).toBeFalse();
   });
 
   it('si no se puede obtener el detalle completo, no contabiliza (no llega a abrir el diálogo)', async () => {

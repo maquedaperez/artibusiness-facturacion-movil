@@ -178,6 +178,18 @@ export class FacturaRecibidaDetallePage implements OnInit {
   // Convertir en ticket (2026-09-16): solo una factura que ya existe en el servidor y sigue
   // editable. Una recién escaneada sin guardar no tiene nada que convertir todavía.
   convirtiendoEnTicket = false;
+  contabilizando = false;
+  eliminando = false;
+  duplicando = false;
+
+  // Mismo patrón que Facturas Emitidas (ver factura-detalle.page.ts): una bandera por acción
+  // para el spinner, y este getter para que mientras una está en vuelo no entre ninguna otra.
+  // Aquí faltaba: 'Contabilizar' llevaba [disabled]="guardando", que confirmarContabilizar()
+  // nunca ponía — protección de mentira. Dos toques seguidos mandaban dos veces la factura.
+  get algoEnCurso(): boolean {
+    return this.guardando || this.contabilizando || this.convirtiendoEnTicket
+      || this.eliminando || this.duplicando || this.adjuntando;
+  }
 
   // El flag lo lee una propiedad, no el getter, para que un test pueda apagarlo o encenderlo
   // sin tocar el environment (que es una constante compilada).
@@ -201,10 +213,11 @@ export class FacturaRecibidaDetallePage implements OnInit {
   }
 
   async duplicar() {
-    if (this.facturaId == null) return;
+    if (this.facturaId == null || this.algoEnCurso) return;
     const numFacturaNueva = await this.pedirNumeroFacturaCopia();
-    if (numFacturaNueva == null) return; // cancelado en el diálogo
+    if (numFacturaNueva == null || this.algoEnCurso) return; // cancelado en el diálogo
 
+    this.duplicando = true;
     try {
       // Objeto completo, no solo el id — mismo motivo que accionesPermitidas() unas líneas
       // arriba: el repositorio ya no busca la factura en ningún almacén propio, la recibe
@@ -215,6 +228,10 @@ export class FacturaRecibidaDetallePage implements OnInit {
       this.router.navigate(['/app/recibidas', copia.id], { replaceUrl: true });
     } catch (e: any) {
       await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.duplicate.error')), 'danger');
+    } finally {
+      // Sin esto, un fallo al duplicar dejaba la bandera puesta y algoEnCurso bloqueaba TODOS
+      // los botones de la pantalla hasta recargarla.
+      this.duplicando = false;
     }
   }
 
@@ -520,7 +537,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
   }
 
   async guardar() {
-    if (this.guardando) return;
+    if (this.algoEnCurso) return;
 
     this.errorMsg = '';
     if (!this.working.proveedor.trim() || !this.working.numFactura.trim()) {
@@ -611,29 +628,32 @@ export class FacturaRecibidaDetallePage implements OnInit {
   // más: es un paso explícito y confirmado, y tras aceptar la factura queda bloqueada para
   // editar (esEditable pasa a depender de accountingLocked, que ahora vendrá en true).
   async confirmarContabilizar() {
-    if (this.esNueva || this.facturaId == null || !this.esEditable) return;
+    if (this.esNueva || this.facturaId == null || !this.esEditable || this.algoEnCurso) return;
 
-    const alert = await this.alertCtrl.create({
+    // Nada dentro de un handler de Ionic: espera al handler antes de cerrar el diálogo, así
+    // que la confirmación se quedaba en pantalla toda la llamada al backend mientras el botón
+    // de abajo ya decía "Contabilizando…". Ver shared/utils/confirmacion.ts — esto se corrigió
+    // en Emitidas el 2026-09-03 y aquí se quedó sin portar.
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.received.post.header'),
       message: this.transloco.translate('invoices.received.post.message', { num: this.working.numFactura, proveedor: this.working.proveedor, importe: this.formatEuros(this.totales().total) }),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('invoices.received.actions.post'),
-          handler: async () => {
-            try {
-              const guardada = await this.invoicesRepo.actualizar(this.facturaId!, { ...this.working, estado: 'revisada' });
-              this.facturaId = guardada.id;
-              this.sincronizarWorkingDesde(guardada);
-              await this.showToast(this.transloco.translate('invoices.received.post.success'));
-            } catch (e) {
-              await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.post.error')), 'danger');
-            }
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('invoices.received.actions.post'),
     });
-    await alert.present();
+    // Se vuelve a mirar: entre abrir el diálogo y aceptarlo puede haber entrado otra acción.
+    if (!confirmado || this.algoEnCurso) return;
+
+    this.contabilizando = true;
+    try {
+      const guardada = await this.invoicesRepo.actualizar(this.facturaId!, { ...this.working, estado: 'revisada' });
+      this.facturaId = guardada.id;
+      this.sincronizarWorkingDesde(guardada);
+      await this.showToast(this.transloco.translate('invoices.received.post.success'));
+    } catch (e) {
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.post.error')), 'danger');
+    } finally {
+      this.contabilizando = false;
+    }
   }
 
   /**
@@ -645,7 +665,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
    * se refresca lo que devuelve.
    */
   async confirmarConvertirEnTicket() {
-    if (!this.puedeConvertirEnTicket || this.convirtiendoEnTicket) return;
+    if (!this.puedeConvertirEnTicket || this.algoEnCurso) return;
 
     const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.received.convertTicket.header'),
@@ -653,7 +673,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
       textoCancelar: this.transloco.translate('common.actions.cancel'),
       textoConfirmar: this.transloco.translate('invoices.received.detail.convertToTicket'),
     });
-    if (!confirmado || this.convirtiendoEnTicket) return;
+    if (!confirmado || this.algoEnCurso) return;
 
     this.convirtiendoEnTicket = true;
     try {
@@ -669,7 +689,7 @@ export class FacturaRecibidaDetallePage implements OnInit {
   }
 
   async confirmarEliminar() {
-    if (this.facturaId == null) return;
+    if (this.facturaId == null || this.algoEnCurso) return;
     // Defensa en profundidad (el botón ya está oculto por accionesPermitidas().eliminar):
     // no tiene sentido dejar borrar desde la app algo marcado como ya pagado (sin ningún
     // movimiento contable real detrás) ni una factura ya contabilizada (regla confirmada
@@ -683,27 +703,25 @@ export class FacturaRecibidaDetallePage implements OnInit {
       return;
     }
 
-    const alert = await this.alertCtrl.create({
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
       header: this.transloco.translate('invoices.received.delete.header'),
       message: this.transloco.translate('invoices.received.delete.messageWithNumber', { num: this.working.numFactura, proveedor: this.working.proveedor }),
-      buttons: [
-        { text: this.transloco.translate('common.actions.cancel'), role: 'cancel' },
-        {
-          text: this.transloco.translate('common.actions.delete'),
-          role: 'destructive',
-          handler: async () => {
-            try {
-              await this.invoicesRepo.eliminar(this.facturaId!);
-              await this.showToast(this.transloco.translate('invoices.received.delete.success'));
-              this.volver();
-            } catch (e) {
-              await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.delete.error')), 'danger');
-            }
-          },
-        },
-      ],
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('common.actions.delete'),
+      rolConfirmar: 'destructive',
     });
-    await alert.present();
+    if (!confirmado || this.algoEnCurso) return;
+
+    this.eliminando = true;
+    try {
+      await this.invoicesRepo.eliminar(this.facturaId!);
+      await this.showToast(this.transloco.translate('invoices.received.delete.success'));
+      this.volver();
+    } catch (e) {
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.delete.error')), 'danger');
+    } finally {
+      this.eliminando = false;
+    }
   }
 
   // Duración proporcional al texto (2026-08-28) — mismo criterio que facturas-recibidas.page.ts.
