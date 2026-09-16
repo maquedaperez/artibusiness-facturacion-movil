@@ -6,6 +6,7 @@ import { FacturaRecibidaDetallePage } from './factura-recibida-detalle.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { ApiService } from '../../services/api.service';
 import { ReceivedInvoicesRepository } from '../../core/ports';
+import { simularConfirmacion, simularCancelacion } from '../../shared/utils/testing/confirmacion-testing';
 import { FacturaRecibida } from '../../services/mock-facturas.service';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 
@@ -139,6 +140,11 @@ describe('FacturaRecibidaDetallePage', () => {
     // nada más pulsar Guardar la primera vez, sin que el usuario lo pidiera nunca.
     it('nace en Borrador, nunca Contabilizada', () => {
       expect(component.working.estado).toBe('borrador');
+    });
+
+    // Todavía no existe en el servidor: no hay nada que convertir.
+    it('una factura nueva sin guardar no ofrece convertirse en ticket', () => {
+      expect(component.puedeConvertirEnTicket).toBeFalse();
     });
 
     it('crearManual() da de alta la factura y actualiza esNueva/facturaId con la respuesta real', async () => {
@@ -431,6 +437,45 @@ describe('FacturaRecibidaDetallePage', () => {
       expect(component.esEditable).toBeTrue();
     });
 
+    // Convertir en ticket (2026-09-16, pedido por Jose): el caso es un billete de tren a
+    // nombre de una persona, que como factura no vale pero como gasto sí.
+    it('ofrece convertirla en ticket: ya existe en el servidor y sigue siendo editable', () => {
+      expect(component.puedeConvertirEnTicket).toBeTrue();
+    });
+
+    it('convertirEnTicket llama al repositorio y refresca la factura con lo que devuelve', async () => {
+      simularConfirmacion(TestBed.inject(AlertController));
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      const convertida = { ...component.working, id: 501, proveedor: 'Proveedor Genérico SIN IVA', proveedorNif: undefined };
+      const convertirSpy = spyOn(repo, 'convertirEnTicket').and.resolveTo(convertida as any);
+
+      await component.confirmarConvertirEnTicket();
+
+      expect(convertirSpy).toHaveBeenCalledWith(501);
+      expect(component.working.proveedor).toBe('Proveedor Genérico SIN IVA');
+      expect(component.convirtiendoEnTicket).toBeFalse();
+    });
+
+    it('si la conversión falla, la factura se queda como estaba', async () => {
+      simularConfirmacion(TestBed.inject(AlertController));
+      const repo = TestBed.inject(ReceivedInvoicesRepository);
+      spyOn(repo, 'convertirEnTicket').and.rejectWith(new Error('Esta factura ya está registrada como ticket.'));
+
+      await component.confirmarConvertirEnTicket();
+
+      expect(component.working.proveedor).toBe('Iberdrola');
+      expect(component.convirtiendoEnTicket).toBeFalse();
+    });
+
+    it('si el usuario cancela, no se convierte nada', async () => {
+      simularCancelacion(TestBed.inject(AlertController));
+      const convertirSpy = spyOn(TestBed.inject(ReceivedInvoicesRepository), 'convertirEnTicket');
+
+      await component.confirmarConvertirEnTicket();
+
+      expect(convertirSpy).not.toHaveBeenCalled();
+    });
+
     it('reconstruye el ivaPct real de la línea (no 0%) y conserva idLineaBackend', () => {
       expect(component.working.lineas[0].ivaPct).toBe(21);
       expect(component.working.lineas[0].idLineaBackend).toBe(20);
@@ -549,6 +594,11 @@ describe('FacturaRecibidaDetallePage', () => {
 
     it('NO es editable (estado 132 = contabilizada)', () => {
       expect(component.esEditable).toBeFalse();
+    });
+
+    // Una factura ya contabilizada no se toca: tampoco para pasarla a gastos.
+    it('no ofrece convertirla en ticket', () => {
+      expect(component.puedeConvertirEnTicket).toBeFalse();
     });
 
     // Regla confirmada por el jefe (reunión 2026-08-17): una factura ya contabilizada no

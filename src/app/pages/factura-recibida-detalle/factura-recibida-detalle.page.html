@@ -44,9 +44,16 @@
       <ng-container *ngIf="working.proveedor; else sinProveedor">
         <p class="ion-no-margin"><strong>{{ working.proveedor }}</strong></p>
         <p class="ion-no-margin" *ngIf="working.proveedorNif">{{ working.proveedorNif }}</p>
-        <ion-button *ngIf="esEditable" size="small" fill="outline" class="ion-margin-top" (click)="elegirProveedor()">
-          {{ 'invoices.received.detail.changeSupplier' | transloco }}
-        </ion-button>
+        <!-- Los dos botones reparten el ancho y pueden encoger: con textos largos (o en otro
+             idioma) uno se salía de la pantalla, como pasó en Recibidas el 2026-09-14. -->
+        <div class="acciones-proveedor" *ngIf="esEditable">
+          <ion-button size="small" fill="outline" (click)="elegirProveedor()">
+            {{ 'invoices.received.detail.changeSupplier' | transloco }}
+          </ion-button>
+          <ion-button *ngIf="puedeConvertirEnTicket" size="small" fill="outline" [disabled]="convirtiendoEnTicket" (click)="confirmarConvertirEnTicket()">
+            {{ 'invoices.received.detail.convertToTicket' | transloco }}
+          </ion-button>
+        </div>
       </ng-container>
 
       <ng-template #sinProveedor>

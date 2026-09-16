@@ -30,6 +30,7 @@ import { LineasEditorComponent } from '../../shared/lineas-editor/lineas-editor.
 import { compartirBlob, descargarBlob } from '../../shared/utils/compartir-documento';
 import { PagosService } from '../../services/pagos.service';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
+import { pedirConfirmacion } from '../../shared/utils/confirmacion';
 import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
 
 type FacturaRecibidaForm = Omit<FacturaRecibida, 'id' | 'origenOcr'>;
@@ -173,6 +174,14 @@ export class FacturaRecibidaDetallePage implements OnInit {
   // ya es real (recién guardada esta sesión, o leída del backend), cambiarla aquí sería
   // fingir un cambio de estado de pago sin ningún movimiento contable real detrás (fuera de
   // alcance de esta app: pagos vía agt_caja). Se muestra como dato de solo lectura.
+  // Convertir en ticket (2026-09-16): solo una factura que ya existe en el servidor y sigue
+  // editable. Una recién escaneada sin guardar no tiene nada que convertir todavía.
+  convirtiendoEnTicket = false;
+
+  get puedeConvertirEnTicket(): boolean {
+    return !this.esNueva && this.facturaId != null && this.esEditable;
+  }
+
   get pagadaEditable(): boolean {
     return this.esNueva;
   }
@@ -620,6 +629,38 @@ export class FacturaRecibidaDetallePage implements OnInit {
       ],
     });
     await alert.present();
+  }
+
+  /**
+   * Pasa la factura a ticket: proveedor genérico e IVA no deducible (2026-09-16, pedido por
+   * Jose — el caso del billete de tren a nombre de una persona).
+   *
+   * Lo hace el backend entero (POST ConvertirEnTicket): el impuesto "no deducible" no es "el
+   * que esté al 0 %" y el proveedor genérico se resuelve por empresa. Aquí solo se confirma y
+   * se refresca lo que devuelve.
+   */
+  async confirmarConvertirEnTicket() {
+    if (!this.puedeConvertirEnTicket || this.convirtiendoEnTicket) return;
+
+    const { confirmado } = await pedirConfirmacion(this.alertCtrl, {
+      header: this.transloco.translate('invoices.received.convertTicket.header'),
+      message: this.transloco.translate('invoices.received.convertTicket.message'),
+      textoCancelar: this.transloco.translate('common.actions.cancel'),
+      textoConfirmar: this.transloco.translate('invoices.received.detail.convertToTicket'),
+    });
+    if (!confirmado || this.convirtiendoEnTicket) return;
+
+    this.convirtiendoEnTicket = true;
+    try {
+      const convertida = await this.invoicesRepo.convertirEnTicket(this.facturaId!);
+      this.facturaId = convertida.id;
+      this.sincronizarWorkingDesde(convertida);
+      await this.showToast(this.transloco.translate('invoices.received.convertTicket.success'));
+    } catch (e) {
+      await this.showToast(mensajeDeError(e, this.transloco.translate('invoices.received.convertTicket.error')), 'danger');
+    } finally {
+      this.convirtiendoEnTicket = false;
+    }
   }
 
   async confirmarEliminar() {

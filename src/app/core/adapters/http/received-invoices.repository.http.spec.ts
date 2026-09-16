@@ -827,6 +827,48 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       ]);
     });
 
+    // Convertir en ticket (2026-09-16): la regla la aplica el backend (proveedor genérico e
+    // impuesto no deducible son suyos, por empresa); aquí solo se pide y se mapea la respuesta,
+    // que tiene la misma forma que la de CrearDesdeDocumento.
+    it('convertirEnTicket llama al endpoint de la factura y mapea lo que devuelve', async () => {
+      apiSpy.post.and.callFake((path: string) => {
+        if (path === '/api/FacturasRecibidas/501/ConvertirEnTicket') {
+          return Promise.resolve({
+            factura: {
+              idFacturaRecibida: 501, numFacRec: 'BILLETE-1', idProveedor: 777, nombreProveedor: 'Proveedor Genérico SIN IVA',
+              concepto: 'Billete de tren · Original: RENFE', total: 121, iva: 0, suplidos: 0, irpf: 0, importe: 121,
+              pagada: false, estado: 131, escaneada: true,
+              fechaFactura: '2026-09-10', fechaVencimiento: '2026-09-10', idMedioPago: null, idTipoFactura: 1,
+              lineas: [{ idFacturaRecibidaLinea: 900, descripcion: 'Billete Madrid-Sevilla', cantidad: 1, precioUnitario: 121, importe: 121, idImpuesto: 99 }],
+            },
+            avisos: ['Convertida en ticket: el importe completo se registra como gasto y el IVA no es deducible.'],
+            tratamiento: 'TICKET_IVA_NO_DEDUCIBLE',
+            requiereRevision: true,
+          } as any);
+        }
+        return Promise.resolve([] as any);
+      });
+
+      const factura = await repo.convertirEnTicket(501);
+
+      expect(apiSpy.post).toHaveBeenCalledWith('/api/FacturasRecibidas/501/ConvertirEnTicket', {});
+      expect(factura.proveedor).toBe('Proveedor Genérico SIN IVA');
+      expect(factura.avisosOcr?.some(a => a.includes('IVA no es deducible'))).toBeTrue();
+    });
+
+    it('un borrador local sin guardar no se manda a convertir', async () => {
+      const local = TestBed.inject(MockFacturasService).crearManual({
+        proveedorNombre: 'Proveedor', proveedorNif: 'B00000000', numFactura: 'X-1',
+        fecha: '2026-09-16', vencimiento: '', concepto: '', formaPago: '', lineas: [],
+        retencionPct: 0, pagada: false, estado: 'borrador',
+      } as any);
+      apiSpy.post.calls.reset();
+
+      await expectAsync(repo.convertirEnTicket(local.id)).toBeRejected();
+
+      expect(apiSpy.post).not.toHaveBeenCalledWith(`/api/FacturasRecibidas/${local.id}/ConvertirEnTicket`, {});
+    });
+
     // Cambio de empresa (demo 2026-09-14): antes el catálogo de la primera empresa se quedaba
     // para toda la vida de la app.
     it('al cambiar de sesión obtenerMediosPago() vuelve a preguntar al backend', async () => {

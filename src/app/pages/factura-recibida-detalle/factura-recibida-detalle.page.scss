@@ -170,3 +170,17 @@
     font-size: 19px;
   }
 }
+
+.acciones-proveedor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+
+  ion-button {
+    flex: 1 1 auto;
+    // Sin esto, un texto largo impide que el botón encoja y el segundo se sale de la pantalla.
+    min-width: 0;
+    margin: 0;
+  }
+}

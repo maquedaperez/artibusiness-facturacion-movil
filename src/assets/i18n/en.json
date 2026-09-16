@@ -510,6 +510,13 @@
         "success": "Invoice posted.",
         "error": "Could not post the invoice."
       },
+      "convertTicket": {
+        "header": "Convert to receipt",
+        "message": "The invoice will be recorded as an expense: the full amount counts as the taxable base and VAT will no longer be deductible. The supplier becomes the generic one, and the original is kept in the description. Continue?",
+        "success": "Invoice converted to a receipt.",
+        "error": "The invoice could not be converted to a receipt.",
+        "saveFirst": "Save the invoice before converting it to a receipt."
+      },
       "duplicate": {
         "numberDialogHeader": "Number of the new invoice",
         "numberDialogMessage": "The invoice from {{proveedor}} (supplier, lines, amounts...) will be copied and saved directly. The rest of the data can be adjusted afterwards.",
@@ -539,6 +546,7 @@
         "loading": "Loading invoice...",
         "supplierSection": "Supplier",
         "changeSupplier": "Change supplier",
+        "convertToTicket": "Convert to receipt",
         "selectSupplier": "Select supplier",
         "invoiceDataSection": "Invoice details",
         "numberLabel": "Number",

@@ -909,7 +909,24 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
       throw new Error('El lector no ha podido extraer una factura de este documento.');
     }
 
-    const resultadoFactura = resultado as CrearDesdeDocumentoApi;
+    return this.mapearResultadoDeDocumento(resultado as CrearDesdeDocumentoApi);
+  }
+
+  /**
+   * Convierte una factura ya guardada en ticket (2026-09-16). El backend responde con la misma
+   * forma que CrearDesdeDocumento, así que se reutiliza su mapeo tal cual.
+   */
+  async convertirEnTicket(id: number): Promise<FacturaRecibida> {
+    // Un borrador local todavía no existe para el backend: no hay nada que convertir.
+    if (await this.esBorradorLocalSinGuardar(id)) {
+      throw new Error(this.transloco.translate('invoices.received.convertTicket.saveFirst'));
+    }
+
+    const resultado = await this.api.post<CrearDesdeDocumentoApi>(`${RECIBIDAS_BASE_PATH}/${id}/ConvertirEnTicket`, {});
+    return this.mapearResultadoDeDocumento(resultado);
+  }
+
+  private async mapearResultadoDeDocumento(resultadoFactura: CrearDesdeDocumentoApi): Promise<FacturaRecibida> {
     const factura = mapearCabecera(resultadoFactura.factura);
     const catalogoImpuestos = await this.obtenerImpuestos();
     factura.lineas = (resultadoFactura.factura.lineas ?? []).map(l => mapearLinea(l, () => this.nuevoIdLinea(), catalogoImpuestos));

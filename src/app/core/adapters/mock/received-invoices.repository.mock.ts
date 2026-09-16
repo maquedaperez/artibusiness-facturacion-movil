@@ -71,6 +71,29 @@ export class MockReceivedInvoicesRepository extends ReceivedInvoicesRepository {
   // Sin backend real detrás en modo mock no hay manera de simular de verdad "guardar sin
   // revisión" (no hay nada que guardar de verdad) — se reutiliza la misma simulación de OCR
   // que crearDesdeOcr, sigue quedando como borrador local editable en este modo.
+  // Modo mock puro: la conversión de verdad la hace el backend (proveedor genérico e impuesto
+  // no deducible son suyos, por empresa). Aquí solo se refleja el resultado para que la pantalla
+  // se comporte igual mientras se prueba sin servidor.
+  async convertirEnTicket(id: number): Promise<FacturaRecibida> {
+    const factura = await this.obtenerPorId(id);
+    if (!factura) throw new Error(this.transloco.translate('invoices.received.convertTicket.error'));
+
+    const lineas = factura.lineas.map(l => ({
+      ...l,
+      precioUnitario: Math.round(l.precioUnitario * (1 + (l.ivaPct ?? 0) / 100) * 100) / 100,
+      ivaPct: 0,
+    }));
+
+    return this.actualizar(id, {
+      ...factura,
+      proveedor: 'Proveedor Genérico SIN IVA',
+      proveedorNif: undefined,
+      idProveedor: undefined,
+      lineas,
+      avisosOcr: [this.transloco.translate('ocr.ticketIvaNoDeducible')],
+    });
+  }
+
   crearDesdeDocumentoDirecto(file: File): Promise<FacturaRecibida> {
     return this.mock.crearDesdeOcr(file);
   }

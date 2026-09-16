@@ -510,6 +510,13 @@
         "success": "Factura contabilizada.",
         "error": "No se pudo contabilizar la factura."
       },
+      "convertTicket": {
+        "header": "Convertir en ticket",
+        "message": "La factura pasará a registrarse como gasto: el importe completo cuenta como base y el IVA dejará de ser deducible. El proveedor pasa a ser el genérico, y el original se guarda en el concepto. ¿Continuar?",
+        "success": "Factura convertida en ticket.",
+        "error": "No se pudo convertir la factura en ticket.",
+        "saveFirst": "Guarda la factura antes de convertirla en ticket."
+      },
       "duplicate": {
         "numberDialogHeader": "Número de la nueva factura",
         "numberDialogMessage": "Se copiará la factura de {{proveedor}} (proveedor, líneas, importes...) y se guardará directamente. El resto de datos se pueden ajustar después.",
@@ -539,6 +546,7 @@
         "loading": "Cargando factura...",
         "supplierSection": "Proveedor",
         "changeSupplier": "Cambiar proveedor",
+        "convertToTicket": "Convertir en ticket",
         "selectSupplier": "Seleccionar proveedor",
         "invoiceDataSection": "Datos de la factura",
         "numberLabel": "Número",

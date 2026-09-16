@@ -164,4 +164,15 @@ export abstract class ReceivedInvoicesRepository {
   // la copia nunca hereda el del original (sería un número repetido). El propio número se
   // pide al usuario justo antes de llamar aquí (ver el alert en las páginas que lo usan).
   abstract duplicar(factura: FacturaRecibida, numFacturaNueva: string): Promise<FacturaRecibida>;
+
+  /**
+   * Convierte una factura YA GUARDADA en ticket: proveedor genérico e IVA no deducible
+   * (2026-09-16, pedido por Jose). El caso es un billete de tren a nombre de una persona, que
+   * como factura no vale pero como gasto sí.
+   *
+   * La regla vive en el backend a propósito: el impuesto "no deducible" no es "el que esté al
+   * 0 %" (una empresa puede tener también Exento y No sujeto) y el proveedor genérico se
+   * identifica por un código de configuración. Aquí solo se pide la conversión.
+   */
+  abstract convertirEnTicket(id: number): Promise<FacturaRecibida>;
 }
