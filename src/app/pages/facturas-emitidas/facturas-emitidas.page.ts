@@ -112,9 +112,12 @@ export class FacturasEmitidasPage implements OnInit {
   private async cargarNumeradores() {
     try {
       const numeradores = await this.invoicesRepo.obtenerNumeradores();
-      if (numeradores.length > 0) this.numeradores = numeradores;
+      // Si el catálogo real viene vacío se deja vacío: enseñar las series de ejemplo del mock
+      // ('Serie A 2026') como si fueran de la empresa es peor que no enseñar ninguna — filtrar
+      // por ellas no encuentra nada y parece que se han perdido las facturas.
+      this.numeradores = numeradores;
     } catch {
-      // Se mantienen los numeradores de ejemplo del mock.
+      this.numeradores = [];
     }
   }
 

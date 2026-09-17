@@ -348,6 +348,7 @@
         "totalDue": "Total a pagar",
         "saving": "Guardando...",
         "saveDraft": "Guardar borrador",
+        "seriesUnavailable": "No se han podido cargar las series de facturación. Inténtalo de nuevo en un momento.",
         "correctInvoice": "Subsanar factura",
         "cancelling": "Anulando…",
         "cancelInvoice": "Anular factura",

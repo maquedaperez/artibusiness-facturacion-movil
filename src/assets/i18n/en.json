@@ -348,6 +348,7 @@
         "totalDue": "Total due",
         "saving": "Saving...",
         "saveDraft": "Save draft",
+        "seriesUnavailable": "The invoice series could not be loaded. Please try again in a moment.",
         "correctInvoice": "Correct invoice record",
         "cancelling": "Cancelling…",
         "cancelInvoice": "Cancel invoice",

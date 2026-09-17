@@ -135,6 +135,16 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // que la caja use el de la factura, como hacia antes.
   catalogoMediosEsReal = false;
 
+  // Lo mismo con las SERIES, y por el mismo motivo (2026-09-17). Si el catálogo real no llega
+  // —el endpoint falla, o Azure arranca en frío—, this.numeradores se queda con los de ejemplo
+  // del mock ('Serie A 2026', id 1). Crear una factura completa con ese id no da un error
+  // limpio: el backend puede ACEPTARLO, porque el id 1 seguramente existe de verdad en la
+  // empresa, y la factura acabaría numerada en una serie que el usuario nunca eligió.
+  //
+  // Los tickets ya estaban blindados así desde el 2026-09-02 (ver serieSimplificadaNoConfigurada
+  // y el comentario de cargarCatalogos); esto cierra el mismo agujero para las completas.
+  catalogoNumeradoresEsReal = false;
+
   working: FacturaEmitida | null = null;
   errorMsg = '';
 
@@ -298,6 +308,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       const numeradores = await this.invoicesRepo.obtenerNumeradores();
       if (numeradores.length > 0) {
         this.numeradores = numeradores;
+        this.catalogoNumeradoresEsReal = true;
         if (this.esNueva) {
           // Facturas simplificadas emitidas: Nombre es literalmente la Serie del numerador
           // (ver FacturaEmitidaService.ObtenerNumeradoresAsync), así que "FS" identifica la
@@ -393,6 +404,13 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       // Solo alcanzable para "Factura completa" — una simplificada siempre arranca por
       // iniciarSimplificada() (nunca por aquí, ver el paso inicial en el HTML): no
       // implementamos una "simplificada con destinatario identificado desde el principio".
+      //
+      // Sin catálogo real no se crea nada: ver catalogoNumeradoresEsReal. Es preferible pedir
+      // que se reintente a numerar la factura en una serie que el usuario no ha elegido.
+      if (!this.catalogoNumeradoresEsReal) {
+        await this.showToast(this.transloco.translate('invoices.issued.detail.seriesUnavailable'), 'danger');
+        return false;
+      }
       const numeradorId = this.numeradorSeleccionado ?? this.numeradores[0]?.id;
       if (numeradorId == null) return false;
       const creada = this.invoicesRepo.crearBorrador(numeradorId, destinatario);

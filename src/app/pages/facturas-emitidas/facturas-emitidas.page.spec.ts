@@ -244,4 +244,35 @@ describe('FacturasEmitidasPage', () => {
       expect(refrescar.calls.count()).toBe(10);
     });
   });
+  // Blindaje 2026-09-17: ensenar las series de ejemplo del mock ('Serie A 2026') como si fueran
+  // de la empresa es peor que no ensenar ninguna — filtrar por ellas no encuentra nada y parece
+  // que se han perdido las facturas.
+  describe('catalogo de series', () => {
+    it('si el catalogo real no carga, no quedan las series de ejemplo', async () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      spyOn(repo, 'obtenerNumeradores').and.rejectWith(new Error('500'));
+
+      await (component as any).cargarNumeradores();
+
+      expect(component.numeradores).toEqual([]);
+    });
+
+    it('si el catalogo real viene vacio, tampoco', async () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      spyOn(repo, 'obtenerNumeradores').and.resolveTo([]);
+
+      await (component as any).cargarNumeradores();
+
+      expect(component.numeradores).toEqual([]);
+    });
+
+    it('con catalogo real, se usan las series de la empresa', async () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      spyOn(repo, 'obtenerNumeradores').and.resolveTo([{ id: 9, nombre: 'FAR/17-' }]);
+
+      await (component as any).cargarNumeradores();
+
+      expect(component.numeradores.map(n => n.nombre)).toEqual(['FAR/17-']);
+    });
+  });
 });

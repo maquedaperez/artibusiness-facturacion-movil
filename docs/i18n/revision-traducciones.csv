@@ -211,6 +211,7 @@
 "invoices.issued.deleteDraft.header";"Facturas emitidas";"Eliminar borrador";"Delete draft";"Видалити чернетку";"no"
 "invoices.issued.deleteDraft.message";"Facturas emitidas";"¿Eliminar el borrador {{num}} de {{cliente}}? Esta acción no se puede deshacer.";"Delete draft {{num}} for {{cliente}}? This action cannot be undone.";"Видалити чернетку {{num}} для {{cliente}}? Цю дію неможливо скасувати.";"no"
 "invoices.issued.deleteDraft.success";"Facturas emitidas";"Borrador eliminado.";"Draft deleted.";"Чернетку видалено.";"no"
+"invoices.issued.detail.seriesUnavailable";"Detalle de factura emitida";"No se han podido cargar las series de facturación. Inténtalo de nuevo en un momento.";"The invoice series could not be loaded. Please try again in a moment.";"Не вдалося завантажити серії рахунків. Спробуйте ще раз за мить.";"si"
 "invoices.issued.detail.aeatStatus";"Facturas emitidas";"Estado AEAT:";"AEAT status:";"Статус AEAT:";"si"
 "invoices.issued.detail.base";"Facturas emitidas";"Base";"Base";"База";"no"
 "invoices.issued.detail.cancelConfirm";"Facturas emitidas";"Sí, anular";"Yes, cancel it";"Так, анулювати";"no"

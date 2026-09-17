@@ -83,6 +83,40 @@ describe('FacturaDetallePage', () => {
       component.numeradores = [NUMERADOR_FS, NUMERADOR_COMPLETA];
     });
 
+    // Blindaje 2026-09-17: si el catalogo real de series no llega (endpoint caido, Azure en
+    // frio), this.numeradores se queda con los del mock ('Serie A 2026', id 1). Crear con ese id
+    // no da un error limpio: el backend puede ACEPTARLO porque el id 1 existe de verdad, y la
+    // factura acabaria numerada en una serie que el usuario nunca eligio. Los tickets ya estaban
+    // blindados asi; esto cierra el mismo agujero para las completas.
+    it('sin catalogo real de series no se crea la factura completa, y se avisa', async () => {
+      component.esNueva = true;
+      component.catalogoNumeradoresEsReal = false;
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const crearSpy = spyOn(repo, 'crearBorrador');
+      const toastSpy = spyOn(TestBed.inject(ToastController), 'create').and.callThrough();
+      mockearSeleccionDeClienteReal();
+
+      await component.elegirCliente();
+
+      expect(crearSpy).not.toHaveBeenCalled();
+      expect(toastSpy).toHaveBeenCalledWith(jasmine.objectContaining({ color: 'danger' }));
+      expect(component.esNueva).toBeTrue();
+    });
+
+    it('con el catalogo real cargado, la creacion sigue igual que siempre', async () => {
+      component.esNueva = true;
+      component.catalogoNumeradoresEsReal = true;
+      component.numeradorSeleccionado = NUMERADOR_COMPLETA.id;
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const crearSpy = spyOn(repo, 'crearBorrador').and.callThrough();
+      mockearSeleccionDeClienteReal();
+
+      await component.elegirCliente();
+
+      expect(crearSpy).toHaveBeenCalled();
+      expect(crearSpy.calls.mostRecent().args[0]).toBe(NUMERADOR_COMPLETA.id);
+    });
+
     it('bloquea la conversión si la factura ya se guardó de verdad (número real ya reservado)', async () => {
       component.working = facturaSimplificadaLocal({ esBorradorLocal: false });
       const toastCtrl = TestBed.inject(ToastController);
