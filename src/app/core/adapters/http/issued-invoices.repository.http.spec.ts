@@ -295,6 +295,65 @@ describe('HttpIssuedInvoicesRepository — Fase 2 (listar/obtenerPorId reales)',
       { id: 2, nombre: 'Serie 2' },
     ]);
   });
+
+  // BUG REAL, primer intento del dia en la demo (2026-09-17): contabilizar pedia a la vez la
+  // factura y el catalogo de medios de pago con un Promise.all. Si el catalogo fallaba —Azure
+  // arrancando en frio— el Promise.all se rompia entero y la pantalla decia "No se pudo
+  // contabilizar la factura"... con la factura YA contabilizada en el servidor. Y quien lo leia
+  // pulsaba Guardar, que respondia que ya no era un borrador: dos avisos contradictorios por un
+  // catalogo que solo sirve para poner una etiqueta.
+  describe('una accion fiscal no puede fallar por culpa de un catalogo', () => {
+    function facturaContabilizadaApi() {
+      return {
+        idFacturaEmitida: 500, numFactura: 'ART99', idEmpresa: 5, idCliente: 1,
+        clienteVisualizacion: 'Cliente', razonSocialNif: 'B00000000', concepto: 'prueba',
+        fechaFactura: '2026-09-17', fechaVencimiento: '2026-09-17', idNumerador: 1, idMedioPago: 3,
+        estado: 132, estadoAeat: 'Correcto', total: 100, iva: 21, suplidos: 0, irpf: 0,
+        totalFactura: 121, cobrada: 0, importeCobrado: 0, esSimplificada: false, lineas: [],
+      };
+    }
+
+    it('contabilizar sale bien aunque el catalogo de medios de pago falle', async () => {
+      apiSpy.post.and.callFake((path: string) => {
+        if (path === '/api/MediosPago/Enumerar') return Promise.reject(new Error('HTTP 500'));
+        if (path === '/api/Impuesto/Enumerar') return Promise.resolve(IMPUESTOS_API as any);
+        if (path === '/api/FacturaEmitida/500/Contabilizar') return Promise.resolve(facturaContabilizadaApi() as any);
+        return Promise.resolve([] as any);
+      });
+
+      const factura = await repo.contabilizar(500);
+
+      expect(factura.estado).toBe('contabilizada');
+      // Sin catalogo no se sabe como se llama el medio de pago, y no pasa nada: se ensena el id.
+      expect(factura.medioPago).toContain('3');
+    });
+
+    it('firmar tampoco', async () => {
+      apiSpy.post.and.callFake((path: string) => {
+        if (path === '/api/MediosPago/Enumerar') return Promise.reject(new Error('HTTP 500'));
+        if (path === '/api/Impuesto/Enumerar') return Promise.resolve(IMPUESTOS_API as any);
+        if (path === '/api/FacturaEmitida/500/Firmar') return Promise.resolve({ ...facturaContabilizadaApi(), estado: 133 } as any);
+        return Promise.resolve([] as any);
+      });
+
+      const factura = await repo.firmar(500);
+
+      expect(factura.estado).toBe('firmada');
+    });
+
+    it('y el listado tampoco se queda vacio por eso', async () => {
+      apiSpy.post.and.callFake((path: string) => {
+        if (path === '/api/MediosPago/Enumerar') return Promise.reject(new Error('HTTP 500'));
+        if (path === '/api/Impuesto/Enumerar') return Promise.resolve(IMPUESTOS_API as any);
+        if (path === '/api/FacturaEmitida/Enumerar') return Promise.resolve([facturaContabilizadaApi()] as any);
+        return Promise.resolve([] as any);
+      });
+
+      const facturas = await repo.listar('contabilizada');
+
+      expect(facturas.length).toBe(1);
+    });
+  });
 });
 
 describe('HttpIssuedInvoicesRepository.guardar — Fase 4 (alta/edición real)', () => {

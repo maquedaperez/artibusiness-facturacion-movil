@@ -419,6 +419,27 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       this.api.post<ImpuestoApi[]>(`${IMPUESTOS_BASE_PATH}/Enumerar`, { tipo: TIPO_IMPUESTO_IVA }));
   }
 
+  /**
+   * El catalogo SOLO para poner la etiqueta del medio de pago al mapear una factura.
+   *
+   * BUG REAL (2026-09-17, primer intento del dia en la demo): contabilizar pedia a la vez la
+   * factura y este catalogo con un Promise.all. Si el catalogo fallaba —arranque en frio de
+   * Azure, un tiempo de espera— el Promise.all se rompia ENTERO y la pantalla decia "No se pudo
+   * contabilizar la factura"... con la factura ya contabilizada en el servidor. Y quien lo leia
+   * pulsaba Guardar, que entonces respondia que ya no era un borrador: dos avisos contradictorios
+   * por un catalogo de adorno.
+   *
+   * Una accion fiscal que ha salido bien no puede convertirse en un error por no saber como se
+   * llama la forma de pago. Sin catalogo se ensena "Medio de pago 3" y ya esta.
+   */
+  private async mediosPagoParaMapear(): Promise<MedioPagoApi[]> {
+    try {
+      return await this.obtenerMediosPagoApi();
+    } catch {
+      return [];
+    }
+  }
+
   private async obtenerMediosPagoApi(): Promise<MedioPagoApi[]> {
     return this.mediosPagoCache.obtener(() =>
       this.api.post<MedioPagoApi[]>(`${MEDIOS_PAGO_BASE_PATH}/Enumerar`, {}));
@@ -620,7 +641,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
     const [cabeceras, mediosPago, locales] = await Promise.all([
       this.api.post<FacturaEmitidaCabeceraApi[]>(`${EMITIDAS_BASE_PATH}/Enumerar`, body),
-      this.obtenerMediosPagoApi(),
+      this.mediosPagoParaMapear(),
       // Mismos filtros que la petición real — un borrador local recién creado con
       // crearBorrador() ya nace con el numerador elegido por el usuario, así que filtrar
       // igual no lo oculta salvo que de verdad no encaje con lo que se está mirando.
@@ -643,7 +664,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     try {
       const [dto, mediosPago] = await Promise.all([
         this.api.get<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}`),
-        this.obtenerMediosPagoApi(),
+        this.mediosPagoParaMapear(),
       ]);
       if (dto) {
         return await this.mapearDetalle(dto, mediosPago ?? []);
@@ -864,7 +885,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
     const [dto, mediosPago] = await Promise.all([
       this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Contabilizar`, {}),
-      this.obtenerMediosPagoApi(),
+      this.mediosPagoParaMapear(),
     ]);
     return this.mapearDetalle(dto, mediosPago ?? []);
   }
@@ -876,7 +897,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
     const [dto, mediosPago] = await Promise.all([
       this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Firmar`, {}),
-      this.obtenerMediosPagoApi(),
+      this.mediosPagoParaMapear(),
     ]);
     return this.mapearDetalle(dto, mediosPago ?? []);
   }
@@ -901,7 +922,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     try {
       const [dto, mediosPago] = await Promise.all([
         this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/RefrescarEstadoAeat`, {}),
-        this.obtenerMediosPagoApi(),
+        this.mediosPagoParaMapear(),
       ]);
       return this.mapearDetalle(dto, mediosPago ?? []);
     } catch {
@@ -916,7 +937,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
     const [dto, mediosPago] = await Promise.all([
       this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Anular`, {}),
-      this.obtenerMediosPagoApi(),
+      this.mediosPagoParaMapear(),
     ]);
     return this.mapearDetalle(dto, mediosPago ?? []);
   }
@@ -932,7 +953,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
     const [dto, mediosPago] = await Promise.all([
       this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Rectificar`, { motivo }),
-      this.obtenerMediosPagoApi(),
+      this.mediosPagoParaMapear(),
     ]);
     return this.mapearDetalle(dto, mediosPago ?? []);
   }
@@ -944,7 +965,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
 
     const [dto, mediosPago] = await Promise.all([
       this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Subsanar`, { motivo }),
-      this.obtenerMediosPagoApi(),
+      this.mediosPagoParaMapear(),
     ]);
     return this.mapearDetalle(dto, mediosPago ?? []);
   }
@@ -966,7 +987,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       // idMedioPago es lo que acaba en el libro de caja (issue #76): sin el, la caja guardaba el
       // medio de pago DE LA FACTURA en vez del que el usuario acaba de elegir al cobrar.
       this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Cobros`, { medio, importe, idempotencyKey, idMedioPago }),
-      this.obtenerMediosPagoApi(),
+      this.mediosPagoParaMapear(),
     ]);
     return this.mapearDetalle(dto, mediosPago ?? []);
   }
@@ -1008,7 +1029,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   async enviarPorCorreo(id: number, email: string): Promise<FacturaEmitida> {
     const [dto, mediosPago] = await Promise.all([
       this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/EnviarCorreo`, { email }),
-      this.obtenerMediosPagoApi(),
+      this.mediosPagoParaMapear(),
     ]);
     return this.mapearDetalle(dto, mediosPago ?? []);
   }
