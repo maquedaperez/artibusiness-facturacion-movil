@@ -43,9 +43,15 @@
       </ion-item>
 
       <ng-container *ngIf="!esSimplificada">
-        <ion-button expand="block" class="ion-margin-top" (click)="elegirCliente()">
-          <ion-icon slot="start" name="person-circle-outline"></ion-icon>
-          {{ 'invoices.issued.detail.chooseClientAndStart' | transloco }}
+        <!-- Bloqueado mientras cargan las series, igual que el boton de ticket de abajo
+             (2026-09-17). Sin esto, en un arranque en frio de Azure se podia elegir cliente y
+             solo despues descubrir que no habia catalogo real: el aviso rojo de
+             catalogoNumeradoresEsReal aparecia con el trabajo ya hecho. Mejor que el boton
+             diga que esta cargando. -->
+        <ion-button expand="block" class="ion-margin-top" [disabled]="cargandoCatalogos" (click)="elegirCliente()">
+          <ion-spinner *ngIf="cargandoCatalogos" slot="start" name="dots"></ion-spinner>
+          <ion-icon *ngIf="!cargandoCatalogos" slot="start" name="person-circle-outline"></ion-icon>
+          {{ (cargandoCatalogos ? 'invoices.issued.simplified.loadingSeries' : 'invoices.issued.detail.chooseClientAndStart') | transloco }}
         </ion-button>
       </ng-container>
 
