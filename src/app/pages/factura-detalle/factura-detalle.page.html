@@ -274,11 +274,14 @@
           {{ (enviandoCorreo ? 'invoices.issued.simplified.sending' : (f.emailUltimoEnvio ? 'invoices.issued.simplified.resend' : 'invoices.issued.simplified.send')) | transloco }}
         </ion-button>
 
+        <!-- Sin la dirección de correo (2026-09-17): el dato es de la FACTURA, no de quien la
+             mira, así que en una empresa compartida se estaría enseñando el correo de otra
+             persona. Se dice QUE se envió y CUÁNDO, que es lo que aporta algo. -->
         <ion-text color="medium" *ngIf="f.emailUltimoEnvio">
           <p class="ion-no-margin">
-            {{ 'invoices.issued.simplified.lastSentTo' | transloco: { email: f.emailUltimoEnvio } }}
             <span *ngIf="f.estadoUltimoEnvio === 'Enviado'">{{ 'invoices.issued.simplified.sentOk' | transloco: { fecha: f.fechaUltimoEnvioCorrecto } }}</span>
             <span *ngIf="f.estadoUltimoEnvio === 'Fallido'" class="envio-error">{{ 'invoices.issued.simplified.sentError' | transloco: { motivo: f.errorUltimoEnvio } }}</span>
+            <span *ngIf="f.estadoUltimoEnvio !== 'Enviado' && f.estadoUltimoEnvio !== 'Fallido'">{{ 'invoices.issued.simplified.alreadySent' | transloco }}</span>
           </p>
         </ion-text>
 

@@ -232,7 +232,11 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       this.facturaId = id;
       this.working = structuredClone(factura);
       this.marcarSinCambiosPendientes();
-      this.emailEnvio = factura.emailUltimoEnvio ?? '';
+      // NO se precarga con el correo del último envío (2026-09-17). Ese dato vive en la
+      // FACTURA, no en quien la mira: en una empresa compartida —la demo pública, sin ir más
+      // lejos, pero también una gestoría— cualquiera que abra la factura estaría viendo la
+      // dirección de correo de otra persona. Quien reenvíe, que la escriba.
+      this.emailEnvio = '';
 
       // Sin esperar: la factura ya está en pantalla y esto solo puede mejorar lo que se ve.
       this.refrescarEstadoAeatSiSigueEnVuelo();

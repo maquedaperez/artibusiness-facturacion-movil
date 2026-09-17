@@ -1200,6 +1200,24 @@ describe('FacturaDetallePage', () => {
       await component['cargarFactura'](f.id);
     }
 
+    // Privacidad (2026-09-17, visto en la demo publica): el correo del ultimo envio es un dato
+    // de la FACTURA, no de quien la mira. Si se precargara en el campo, cualquiera que abriera
+    // esa factura en una empresa compartida —la demo, o una gestoria— estaria viendo la
+    // direccion de otra persona. Se puede reenviar, pero escribiendola.
+    it('el correo del ultimo envio NO se precarga en el campo', async () => {
+      await cargar(ticketGuardado({
+        estado: 'contabilizada',
+        emailUltimoEnvio: 'alguien@ejemplo.com',
+        estadoUltimoEnvio: 'Enviado',
+        fechaUltimoEnvioCorrecto: '2026-09-16',
+      } as any));
+
+      expect(component.emailEnvio).toBe('');
+      // El dato sigue en la factura: se usa para saber QUE ya se envio (boton "Reenviar"),
+      // solo que no se ensena.
+      expect(component.working!.emailUltimoEnvio).toBe('alguien@ejemplo.com');
+    });
+
     // El backend rechaza CUALQUIER edicion de una factura ya cobrada con un 409, asi que el
     // guardado previo incondicional hacia imposible contabilizar un ticket cobrado — justo el
     // flujo que la propia pantalla invita a seguir con "Pagado — pendiente de contabilizar".
