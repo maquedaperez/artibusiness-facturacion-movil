@@ -117,21 +117,30 @@
   color: var(--texto-secundario);
 }
 
+// Etiquetas de estado como PASTILLAS (2026-09-17, visto probando la demo). En texto plano, el
+// estado AEAT en ambar sobre blanco no se leia — y es justo el que avisa de que algo requiere
+// atencion. Con fondo tenue y texto oscuro se lee de un vistazo, y de paso las cuatro etiquetas
+// de la fila (estado AEAT, anulada, subsanada, cobrada) se ven como lo que son: marcas de estado.
 .aeat {
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   white-space: nowrap;
   flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  line-height: 1.35;
 }
 
-.aeat-success { color: var(--ion-color-success); }
-.aeat-warning { color: var(--ion-color-warning); }
-.aeat-danger { color: var(--ion-color-danger); }
-.aeat-medium { color: var(--ion-color-medium); }
+// Un color por estado, SIEMPRE oscuro sobre un fondo tenue del mismo tono. El ambar de Ionic
+// (#ffc409) como texto era el caso peor: "Requiere revision manual" no habia quien lo leyera.
+.aeat-success { color: var(--ion-color-success-shade); background: rgba(var(--ion-color-success-rgb), .12); }
+.aeat-warning { color: #8a5a00; background: rgba(255, 196, 9, .22); }
+.aeat-danger  { color: #a02128; background: rgba(160, 33, 40, .12); }
+.aeat-medium  { color: #4a4a4a; background: rgba(74, 74, 74, .12); }
 // El verde de "cobrado" NO sale de --ion-color-success: en este tema ese color es AZUL a
 // proposito (ver variables.scss), el mismo que ya usa el estado AEAT "Correcto" de al lado. Si
 // la etiqueta de cobrada compartiera color con el estado AEAT, las dos dirian lo mismo de lejos.
-.aeat-cobrado { color: var(--color-cobrado); }
+.aeat-cobrado { color: var(--color-cobrado); background: rgba(19, 115, 51, .12); }
 
 .row-actions {
   margin-top: 8px;

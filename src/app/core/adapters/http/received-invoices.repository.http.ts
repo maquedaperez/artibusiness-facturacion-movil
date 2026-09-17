@@ -923,10 +923,17 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     }
 
     const resultado = await this.api.post<CrearDesdeDocumentoApi>(`${RECIBIDAS_BASE_PATH}/${id}/ConvertirEnTicket`, {});
-    return this.mapearResultadoDeDocumento(resultado);
+    // Sin el aviso generico de ticket (2026-09-17, visto en la demo): el backend ya explica en
+    // sus propios avisos que el importe va entero a gasto y que el IVA no se deduce. El nuestro
+    // ademas dice "este documento no identifica fiscalmente a tu empresa", que es verdad cuando
+    // se escanea un ticket, pero NO cuando has convertido tu una factura a mano.
+    return this.mapearResultadoDeDocumento(resultado, { conAvisoDeTicket: false });
   }
 
-  private async mapearResultadoDeDocumento(resultadoFactura: CrearDesdeDocumentoApi): Promise<FacturaRecibida> {
+  private async mapearResultadoDeDocumento(
+    resultadoFactura: CrearDesdeDocumentoApi,
+    opciones: { conAvisoDeTicket?: boolean } = {},
+  ): Promise<FacturaRecibida> {
     const factura = mapearCabecera(resultadoFactura.factura);
     const catalogoImpuestos = await this.obtenerImpuestos();
     factura.lineas = (resultadoFactura.factura.lineas ?? []).map(l => mapearLinea(l, () => this.nuevoIdLinea(), catalogoImpuestos));
@@ -939,7 +946,7 @@ export class HttpReceivedInvoicesRepository extends ReceivedInvoicesRepository {
     // Ticket/factura simplificada sin destinatario identificado (2026-08-29): se decide por el
     // código estable 'tratamiento', nunca por el texto (en español) que ya viene en 'avisos' —
     // el aviso que se muestra aquí es el traducido de la propia app, no el del backend.
-    if (resultadoFactura.tratamiento === TRATAMIENTO_TICKET_IVA_NO_DEDUCIBLE) {
+    if (resultadoFactura.tratamiento === TRATAMIENTO_TICKET_IVA_NO_DEDUCIBLE && (opciones.conAvisoDeTicket ?? true)) {
       factura.avisosOcr = [...(factura.avisosOcr ?? []), this.transloco.translate('ocr.ticketIvaNoDeducible')];
     }
     if (resultadoFactura.tratamiento === TRATAMIENTO_FACTURA_DESTINATARIO_NO_COINCIDENTE) {

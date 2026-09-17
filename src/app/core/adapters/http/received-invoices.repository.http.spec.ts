@@ -856,6 +856,33 @@ describe('HttpReceivedInvoicesRepository — listar/obtenerPorId/eliminar/duplic
       expect(factura.avisosOcr?.some(a => a.includes('IVA no es deducible'))).toBeTrue();
     });
 
+    // Visto en la demo (2026-09-17): al convertir salian CUATRO avisos, y el ultimo decia "este
+    // documento no identifica fiscalmente a tu empresa" — cierto al escanear un ticket, falso
+    // cuando has convertido tu una factura a mano. El backend ya explica lo del IVA en los suyos.
+    it('no repite el aviso generico de ticket: el backend ya lo explica', async () => {
+      apiSpy.post.and.callFake((path: string) => {
+        if (path === '/api/FacturasRecibidas/501/ConvertirEnTicket') {
+          return Promise.resolve({
+            factura: {
+              idFacturaRecibida: 501, numFacRec: 'BILLETE-1', idProveedor: 777, nombreProveedor: 'Proveedor Generico SIN IVA',
+              concepto: 'Billete de tren', total: 121, iva: 0, suplidos: 0, irpf: 0, importe: 121,
+              pagada: false, estado: 131, escaneada: true,
+              fechaFactura: '2026-09-10', fechaVencimiento: '2026-09-10', idMedioPago: null, idTipoFactura: 1, lineas: [],
+            },
+            avisos: ['Convertida en ticket: el importe total se registra como gasto, con el IVA incluido y sin derecho a deduccion.'],
+            tratamiento: 'TICKET_IVA_NO_DEDUCIBLE',
+            requiereRevision: true,
+          } as any);
+        }
+        return Promise.resolve([] as any);
+      });
+
+      const factura = await repo.convertirEnTicket(501);
+
+      expect(factura.avisosOcr?.length).toBe(1);
+      expect(factura.avisosOcr?.[0]).toContain('Convertida en ticket');
+    });
+
     it('un borrador local sin guardar no se manda a convertir', async () => {
       const local = TestBed.inject(MockFacturasService).crearManual({
         proveedorNombre: 'Proveedor', proveedorNif: 'B00000000', numFactura: 'X-1',
