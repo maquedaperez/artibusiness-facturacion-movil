@@ -109,9 +109,13 @@
 
 .row-meta {
   display: flex;
+  // Envuelve (2026-09-17): al pasar las etiquetas a pastillas cada una ocupa 16px mas de
+  // ancho, y esta fila ya iba justa en un movil estrecho con dos a la vez ("Requiere revision
+  // manual" + "Cobrada"). Con nowrap en las pastillas y sin wrap aqui, se salian de la tarjeta.
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 4px 8px;
   margin-top: 3px;
   font-size: 12px;
   color: var(--texto-secundario);
@@ -126,7 +130,7 @@
   font-weight: 700;
   white-space: nowrap;
   flex-shrink: 0;
-  padding: 3px 8px;
+  padding: 3px 7px;
   border-radius: 999px;
   line-height: 1.35;
 }
