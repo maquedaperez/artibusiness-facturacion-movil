@@ -234,10 +234,6 @@ export type FacturaEmitida = {
   // Envío por correo — solo último estado (sin histórico completo, ver
   // docs/FACTURAS_SIMPLIFICADAS_MVP.md del backend). Undefined si nunca se ha intentado enviar.
   emailUltimoEnvio?: string;
-  // Correo de quien creó la factura (usuarioCreacion en el backend). Solo lo rellena el
-  // adaptador real al leer el DETALLE — el listado no lo trae. Se usa para decidir si se puede
-  // enseñar la dirección del último envío: ver factura-detalle.page.ts.
-  usuarioCreacion?: string;
   estadoUltimoEnvio?: 'Enviado' | 'Fallido';
   fechaUltimoEnvioCorrecto?: string;
   errorUltimoEnvio?: string;

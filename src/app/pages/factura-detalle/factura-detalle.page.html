@@ -280,13 +280,12 @@
           {{ (enviandoCorreo ? 'invoices.issued.simplified.sending' : (f.emailUltimoEnvio ? 'invoices.issued.simplified.resend' : 'invoices.issued.simplified.send')) | transloco }}
         </ion-button>
 
-        <!-- La direccion solo si la factura la creaste TU (2026-09-17, ver
-             puedeVerCorreoDelUltimoEnvio): el dato es de la FACTURA, no de quien la mira, asi
-             que en una empresa compartida —una gestoria— quien abriera la de un companero
-             estaria viendo el correo de un tercero. Si es tuya, esconderlo solo estorba. -->
+        <!-- La direccion se ensena SIEMPRE (decision de Abraham, 2026-09-17): es el correo del
+             CLIENTE al que se mando la factura, no el de un companero, y si el envio rebota es
+             justo lo que hay que poder mirar. Ver el comentario de cargarFactura en el .ts. -->
         <ion-text color="medium" *ngIf="f.emailUltimoEnvio">
           <p class="ion-no-margin">
-            <span *ngIf="puedeVerCorreoDelUltimoEnvio">{{ 'invoices.issued.simplified.lastSentTo' | transloco: { email: f.emailUltimoEnvio } }}</span>
+            <span>{{ 'invoices.issued.simplified.lastSentTo' | transloco: { email: f.emailUltimoEnvio } }}</span>
             <span *ngIf="f.estadoUltimoEnvio === 'Enviado'">{{ 'invoices.issued.simplified.sentOk' | transloco: { fecha: f.fechaUltimoEnvioCorrecto } }}</span>
             <span *ngIf="f.estadoUltimoEnvio === 'Fallido'" class="envio-error">{{ 'invoices.issued.simplified.sentError' | transloco: { motivo: f.errorUltimoEnvio } }}</span>
             <span *ngIf="f.estadoUltimoEnvio !== 'Enviado' && f.estadoUltimoEnvio !== 'Fallido'">{{ 'invoices.issued.simplified.alreadySent' | transloco }}</span>

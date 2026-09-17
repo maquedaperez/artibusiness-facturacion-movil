@@ -5,7 +5,6 @@ import { ActivatedRoute } from '@angular/router';
 import { AlertController, ModalController, ToastController, provideIonicAngular } from '@ionic/angular/standalone';
 import { Capacitor } from '@capacitor/core';
 import { FacturaDetallePage } from './factura-detalle.page';
-import { AuthService } from '../../services/auth.service';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { provideTranslocoTesting } from '../../core/i18n/testing/transloco-testing.providers';
 import { IssuedInvoicesRepository } from '../../core/ports';
@@ -1205,49 +1204,19 @@ describe('FacturaDetallePage', () => {
     // de la FACTURA, no de quien la mira. Si se precargara en el campo, cualquiera que abriera
     // esa factura en una empresa compartida —la demo, o una gestoria— estaria viendo la
     // direccion de otra persona. Se puede reenviar, pero escribiendola.
-    it('el correo del ultimo envio NO se ensena si la factura es de otra persona', async () => {
-      spyOn(TestBed.inject(AuthService), 'getUser').and.returnValue({ email: 'yo@empresa.com' } as any);
+    // El correo del ultimo envio se ensena SIEMPRE (decision de Abraham, 2026-09-17): es el
+    // del CLIENTE al que se mando la factura, no el de un companero, y si el envio rebota o va
+    // a la direccion equivocada es justo lo que hay que poder mirar. En la demo publica, que
+    // era el caso que preocupaba, cada usuario ya solo ve sus propias facturas.
+    it('el correo del ultimo envio se precarga para poder reenviar sin teclearlo', async () => {
       await cargar(ticketGuardado({
         estado: 'contabilizada',
-        usuarioCreacion: 'otra.persona@empresa.com',
-        emailUltimoEnvio: 'cliente@ejemplo.com',
-        estadoUltimoEnvio: 'Enviado',
-        fechaUltimoEnvioCorrecto: '2026-09-16',
-      } as any));
-
-      expect(component.emailEnvio).toBe('');
-      expect(component.puedeVerCorreoDelUltimoEnvio).toBeFalse();
-      // El dato sigue ahi: se usa para saber QUE ya se envio (el boton dice "Reenviar").
-      expect(component.working!.emailUltimoEnvio).toBe('cliente@ejemplo.com');
-    });
-
-    // Si la factura la creaste tu, ese correo es tuyo: esconderlo solo obliga a teclearlo otra
-    // vez para reenviar. Es el caso normal en la demo, donde cada uno solo ve las suyas.
-    it('si la factura es tuya, el correo se precarga y se ensena', async () => {
-      spyOn(TestBed.inject(AuthService), 'getUser').and.returnValue({ email: 'Yo@Empresa.com' } as any);
-      await cargar(ticketGuardado({
-        estado: 'contabilizada',
-        usuarioCreacion: 'yo@empresa.com',
         emailUltimoEnvio: 'cliente@ejemplo.com',
         estadoUltimoEnvio: 'Enviado',
         fechaUltimoEnvioCorrecto: '2026-09-16',
       } as any));
 
       expect(component.emailEnvio).toBe('cliente@ejemplo.com');
-      expect(component.puedeVerCorreoDelUltimoEnvio).toBeTrue();
-    });
-
-    // Un backend anterior que no mande usuarioCreacion: ante la duda, no se ensena el correo
-    // de nadie.
-    it('sin saber quien la creo, no se ensena', async () => {
-      spyOn(TestBed.inject(AuthService), 'getUser').and.returnValue({ email: 'yo@empresa.com' } as any);
-      await cargar(ticketGuardado({
-        estado: 'contabilizada',
-        emailUltimoEnvio: 'cliente@ejemplo.com',
-        estadoUltimoEnvio: 'Enviado',
-      } as any));
-
-      expect(component.puedeVerCorreoDelUltimoEnvio).toBeFalse();
     });
 
     // El backend rechaza CUALQUIER edicion de una factura ya cobrada con un 409, asi que el
