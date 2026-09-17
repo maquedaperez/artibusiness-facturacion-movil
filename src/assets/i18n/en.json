@@ -316,6 +316,7 @@
         "sending": "Sending…",
         "send": "Send by email",
         "resend": "Resend by email",
+        "lastSentTo": "Last sent to {{email}}.",
         "sentOk": "Last sent on {{fecha}}.",
         "alreadySent": "It has already been sent by email.",
         "sentError": "Failed: {{motivo}}",

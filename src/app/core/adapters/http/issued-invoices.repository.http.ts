@@ -246,6 +246,8 @@ type FacturaEmitidaDetalleApi = {
   esSimplificada: boolean;
   urlQr: string | null;
   emailUltimoEnvio: string | null;
+  // Quién creó la factura. El listado (FacturaEmitidaCabeceraModel) NO lo trae; el detalle sí.
+  usuarioCreacion?: string | null;
   fechaUltimoEnvioCorrecto: string | null;
   estadoUltimoEnvio: string | null;
   errorUltimoEnvio: string | null;
@@ -580,6 +582,7 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       esSimplificada: dto.esSimplificada,
       urlQr: dto.urlQr ?? undefined,
       emailUltimoEnvio: dto.emailUltimoEnvio ?? undefined,
+      usuarioCreacion: dto.usuarioCreacion ?? undefined,
       fechaUltimoEnvioCorrecto: dto.fechaUltimoEnvioCorrecto ? dto.fechaUltimoEnvioCorrecto.slice(0, 10) : undefined,
       estadoUltimoEnvio: dto.estadoUltimoEnvio === 'Enviado' || dto.estadoUltimoEnvio === 'Fallido' ? dto.estadoUltimoEnvio : undefined,
       errorUltimoEnvio: dto.errorUltimoEnvio ?? undefined,

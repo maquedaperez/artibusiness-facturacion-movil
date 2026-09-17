@@ -36,6 +36,7 @@ import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
 import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
 import { avisoDeFirmaFallida } from '../../shared/utils/aviso-de-firma';
 import { TenantService } from '../../services/tenant.service';
+import { AuthService } from '../../services/auth.service';
 
 /**
  * Redondea a centimos. El euro no tiene mas divisiones, asi que cualquier resto por debajo de eso
@@ -66,6 +67,8 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
   private tenant = inject(TenantService);
+  // Solo para saber si la factura la creo quien la esta mirando (ver esFacturaPropia).
+  private auth = inject(AuthService);
   private transloco = inject(TranslocoService);
   private location = inject(Location);
 
@@ -232,11 +235,12 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
       this.facturaId = id;
       this.working = structuredClone(factura);
       this.marcarSinCambiosPendientes();
-      // NO se precarga con el correo del último envío (2026-09-17). Ese dato vive en la
-      // FACTURA, no en quien la mira: en una empresa compartida —la demo pública, sin ir más
-      // lejos, pero también una gestoría— cualquiera que abra la factura estaría viendo la
-      // dirección de correo de otra persona. Quien reenvíe, que la escriba.
-      this.emailEnvio = '';
+      // Se precarga SOLO si la factura es tuya (2026-09-17). El dato vive en la FACTURA, no en
+      // quien la mira: en una empresa compartida —una gestoría con tres administrativos— quien
+      // abriera la factura de un compañero estaría viendo la dirección de correo de un tercero.
+      // Pero si la creaste tú, ese correo es tuyo y esconderlo solo estorba: te obliga a
+      // teclearlo otra vez para reenviar.
+      this.emailEnvio = this.esFacturaPropia(factura) ? (factura.emailUltimoEnvio ?? '') : '';
 
       // Sin esperar: la factura ya está en pantalla y esto solo puede mejorar lo que se ve.
       this.refrescarEstadoAeatSiSigueEnVuelo();
@@ -680,6 +684,24 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   // backend responde con error (p. ej. credenciales de FacturaE sin configurar todavía, o un
   // rechazo real de la AEAT), se muestra el motivo y la factura se queda tal cual estaba
   // (el backend no cambia nada si la llamada a FacturaE falla).
+  /**
+   * ¿La creó quien la está mirando? Se compara el usuarioCreacion que guarda el backend con el
+   * correo de la sesión, sin distinguir mayúsculas (los dos salen del mismo sitio: el claim de
+   * correo del token).
+   *
+   * Si el backend no manda usuarioCreacion —un despliegue anterior— se responde que NO: ante la
+   * duda, no se enseña la dirección de nadie.
+   */
+  private esFacturaPropia(factura: FacturaEmitida | null): boolean {
+    const creador = factura?.usuarioCreacion?.trim().toLowerCase();
+    const yo = this.auth.getUser()?.email?.trim().toLowerCase();
+    return !!creador && !!yo && creador === yo;
+  }
+
+  get puedeVerCorreoDelUltimoEnvio(): boolean {
+    return this.esFacturaPropia(this.working);
+  }
+
   async confirmarContabilizar() {
     if (!this.working || this.facturaId == null || this.algoEnCurso) return;
 
