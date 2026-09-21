@@ -84,6 +84,32 @@ describe('conEsperaDelServicioFiscal', () => {
     expect(aviso.message).toBe('Contabilizando…');
   }));
 
+  // Con la cobertura perdida a mitad, la petición puede quedarse colgada mucho rato: la pantalla que
+  // bloquea todo no puede dejar al usuario atrapado. La operación sigue y su resultado llega igual.
+  it('si pasa demasiado tiempo, quita la espera para no dejar a nadie atrapado, y la operación sigue', fakeAsync(() => {
+    const op = operacionControlada<string>();
+    let resultado: string | undefined;
+    conEsperaDelServicioFiscal<string>(loadingCtrl, textos, () => op.promesa).then(r => (resultado = r));
+    flushMicrotasks();
+
+    tick(PLAZOS_DE_ESPERA.maximo - 1);
+    expect(aviso.dismiss).not.toHaveBeenCalled();
+
+    tick(1);
+    expect(aviso.dismiss).toHaveBeenCalled();
+    expect(resultado).toBeUndefined();
+
+    op.terminar('contabilizada');
+    flushMicrotasks();
+    expect(resultado).toBe('contabilizada');
+  }));
+
+  // El tope de seguridad tiene que quedar por encima de lo que espera la API a FacturaE (150 s):
+  // si no, se quitaría la espera en el caso normal de la primera factura del día.
+  it('el tope de seguridad no corta la espera normal de la primera factura del día', () => {
+    expect(PLAZOS_DE_ESPERA.maximo).toBeGreaterThan(150_000);
+  });
+
   // Un adorno no puede impedir contabilizar.
   it('si la pantalla de espera no se puede abrir, la operación se hace igual', fakeAsync(() => {
     loadingCtrl.create.and.rejectWith(new Error('overlay no disponible'));

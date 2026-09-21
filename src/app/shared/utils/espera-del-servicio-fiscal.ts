@@ -14,7 +14,7 @@ export interface TextosDeEspera {
  * A partir de cuándo se cambia el texto. Exportado para que los tests puedan adelantar el reloj
  * sin repetir los números.
  */
-export const PLAZOS_DE_ESPERA = { lento: 8_000, casiListo: 40_000 };
+export const PLAZOS_DE_ESPERA = { lento: 8_000, casiListo: 40_000, maximo: 180_000 };
 
 /**
  * Los textos de la espera, con el inicial de la operación ("Contabilizando…", "Firmando…") y los
@@ -43,6 +43,12 @@ export function textosDeEspera(traducir: (clave: string) => string, claveInicial
  * Si la pantalla no se puede abrir, la operación se ejecuta igual, sin ella: un adorno no puede
  * impedir contabilizar (ya pasó en Recibidas, 2026-09-14, que un aviso que no se abría dejaba los
  * botones bloqueados).
+ *
+ * Y a los 3 minutos se quita sola, aunque la operación siga en marcha. La app no pone límite de
+ * espera a las peticiones (Android no tiene ninguno; iOS, 10 minutos), así que si se pierde la
+ * cobertura a mitad, esta pantalla —que bloquea todo— dejaría al usuario atrapado sin más salida
+ * que matar la app. Con el servidor sano nunca se llega: la API espera a FacturaE 150 s como mucho.
+ * No hay riesgo de repetir la operación: quien llama mantiene su botón desactivado hasta que acabe.
  */
 export async function conEsperaDelServicioFiscal<T>(
   loadingCtrl: LoadingController,
@@ -61,6 +67,7 @@ export async function conEsperaDelServicioFiscal<T>(
     ? [
         setTimeout(() => { aviso!.message = textos.lento; }, PLAZOS_DE_ESPERA.lento),
         setTimeout(() => { aviso!.message = textos.casiListo; }, PLAZOS_DE_ESPERA.casiListo),
+        setTimeout(() => { void aviso!.dismiss().catch(() => undefined); }, PLAZOS_DE_ESPERA.maximo),
       ]
     : [];
 
