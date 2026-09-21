@@ -250,6 +250,10 @@
         "shareAria": "Share document",
         "deleteAria": "Delete draft"
       },
+      "fiscalServiceWait": {
+        "slow": "The first operation of the day takes a little longer: we are getting the service ready. Please don't close the app.",
+        "almost": "Almost there…"
+      },
       "empty": {
         "noneInState": "There are no invoices with status",
         "noResultsFor": "No results for \"{{query}}\".",

@@ -97,6 +97,10 @@ export class MockIssuedInvoicesRepository extends IssuedInvoicesRepository {
     return null;
   }
 
+  despertarServicioFiscal(): void {
+    // Sin backend real no hay nada que despertar.
+  }
+
   // El modo mock puro no emite rectificativas: es un circuito fiscal real, no algo que tenga
   // sentido simular. Mismo criterio que el resto de acciones de VERI*FACTU aqui.
   async rectificar(id: number, _motivo: string): Promise<FacturaEmitida> {

@@ -812,3 +812,66 @@ describe('masRecientePrimero — ordena por cuando se contabilizo', () => {
     expect(ordenar(f(1, '2026-09-01'), f(2, '2026-09-05'))).toEqual([2, 1]);
   });
 });
+
+// Despertar FacturaE (2026-09-21): su base se duerme por la pausa automatica y la primera factura
+// del dia tenia que esperar a que arrancara todo. Lo que no puede fallar: que llame a la puerta,
+// que no lo haga a cada paso, y que nunca moleste al usuario si algo va mal.
+describe('HttpIssuedInvoicesRepository.despertarServicioFiscal — que la primera factura del dia no espere', () => {
+  let repo: HttpIssuedInvoicesRepository;
+  let apiSpy: jasmine.SpyObj<ApiService>;
+  let ahora: number;
+
+  beforeEach(() => {
+    apiSpy = jasmine.createSpyObj<ApiService>('ApiService', ['post', 'get']);
+    apiSpy.post.and.resolveTo(undefined as any);
+    ahora = new Date('2026-09-22T09:00:00').getTime();
+    spyOn(Date, 'now').and.callFake(() => ahora);
+
+    TestBed.configureTestingModule({
+      providers: [
+        ...provideTranslocoTesting(TRADUCCIONES_TEST),
+        HttpIssuedInvoicesRepository,
+        MockIssuedInvoicesRepository,
+        MockFacturasService,
+        { provide: ApiService, useValue: apiSpy },
+      ],
+    });
+    repo = TestBed.inject(HttpIssuedInvoicesRepository);
+  });
+
+  const vecesQueDesperto = () =>
+    apiSpy.post.calls.allArgs().filter(([ruta]) => ruta === '/api/ServicioFiscal/Despertar').length;
+
+  it('llama a la puerta del servicio fiscal', () => {
+    repo.despertarServicioFiscal();
+
+    expect(apiSpy.post).toHaveBeenCalledWith('/api/ServicioFiscal/Despertar', {});
+  });
+
+  it('como mucho una vez cada 10 minutos: FacturaE no se vuelve a dormir antes', () => {
+    repo.despertarServicioFiscal();
+    ahora += 9 * 60_000;
+    repo.despertarServicioFiscal();
+    expect(vecesQueDesperto()).toBe(1);
+
+    ahora += 60_000;
+    repo.despertarServicioFiscal();
+    expect(vecesQueDesperto()).toBe(2);
+  });
+
+  // Mientras el backend no publique el endpoint responde 404: se ignora y todo sigue como antes.
+  it('nunca falla, ni con el endpoint todavia sin publicar', async () => {
+    apiSpy.post.and.rejectWith(new Error('HTTP 404'));
+
+    expect(() => repo.despertarServicioFiscal()).not.toThrow();
+    await Promise.resolve();
+  });
+
+  it('al cerrar sesion vuelve a despertar enseguida: con otra empresa puede ser otro FacturaE', () => {
+    repo.despertarServicioFiscal();
+    TestBed.inject(LimpiezaDeSesionService).cerrarSesion(null);
+    repo.despertarServicioFiscal();
+
+    expect(vecesQueDesperto()).toBe(2);
+  });
+});

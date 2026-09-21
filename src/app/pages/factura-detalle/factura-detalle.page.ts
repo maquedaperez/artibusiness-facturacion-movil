@@ -11,7 +11,7 @@ import {
   IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonIcon, IonContent, IonFooter,
   IonItem, IonInput, IonSelect, IonSelectOption, IonText, IonBadge,
   IonCard, IonCardContent, IonSpinner,
-  ModalController, AlertController, ToastController,
+  ModalController, AlertController, ToastController, LoadingController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -35,6 +35,7 @@ import { RECTIFICATIVAS_DISPONIBLES, STRIPE_CONNECT_DISPONIBLE, SUBSANACION_DISP
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
 import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
 import { avisoDeFirmaFallida } from '../../shared/utils/aviso-de-firma';
+import { conEsperaDelServicioFiscal, textosDeEspera } from '../../shared/utils/espera-del-servicio-fiscal';
 import { TenantService } from '../../services/tenant.service';
 
 /**
@@ -65,6 +66,7 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
   private modalCtrl = inject(ModalController);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
+  private loadingCtrl = inject(LoadingController);
   private tenant = inject(TenantService);
   private transloco = inject(TranslocoService);
   private location = inject(Location);
@@ -724,7 +726,8 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
     }
     this.contabilizando = true;
     try {
-      this.working = await this.invoicesRepo.contabilizar(this.facturaId!);
+      this.working = await conEsperaDelServicioFiscal(this.loadingCtrl, textosDeEspera(k => this.transloco.translate(k), 'invoices.issued.actions.posting'),
+        () => this.invoicesRepo.contabilizar(this.facturaId!));
       this.marcarSinCambiosPendientes();
       await this.showToast(this.transloco.translate('invoices.issued.detail.postedSuccess'));
       this.volver();
@@ -1118,7 +1121,8 @@ export class FacturaDetallePage implements OnInit, OnDestroy, PuedeSalirDeLaPant
 
     this.firmando = true;
     try {
-      this.working = await this.invoicesRepo.firmar(this.facturaId!);
+      this.working = await conEsperaDelServicioFiscal(this.loadingCtrl, textosDeEspera(k => this.transloco.translate(k), 'invoices.issued.actions.signing'),
+        () => this.invoicesRepo.firmar(this.facturaId!));
       this.marcarSinCambiosPendientes();
       await this.showToast(this.transloco.translate('invoices.issued.detail.signedSuccess'));
       this.volver();

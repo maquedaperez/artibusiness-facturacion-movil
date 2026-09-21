@@ -250,6 +250,10 @@
         "shareAria": "Compartir documento",
         "deleteAria": "Eliminar borrador"
       },
+      "fiscalServiceWait": {
+        "slow": "La primera operación del día tarda un poco más: estamos preparando el servicio. No cierres la app.",
+        "almost": "Ya casi está…"
+      },
       "empty": {
         "noneInState": "No hay facturas con el estado",
         "noResultsFor": "Sin resultados para \"{{query}}\".",

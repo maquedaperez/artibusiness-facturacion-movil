@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
-import { AlertController } from '@ionic/angular/standalone';
+import { AlertController, LoadingController, Platform } from '@ionic/angular/standalone';
 import { FacturasEmitidasPage } from './facturas-emitidas.page';
 import { MOCK_REPOSITORY_PROVIDERS } from '../../core/providers/mock.providers';
 import { IssuedInvoicesRepository } from '../../core/ports';
@@ -273,6 +273,44 @@ describe('FacturasEmitidasPage', () => {
       await (component as any).cargarNumeradores();
 
       expect(component.numeradores.map(n => n.nombre)).toEqual(['FAR/17-']);
+    });
+  });
+
+  // Despertar FacturaE (2026-09-21): su base se duerme por la pausa automatica, y la primera factura
+  // del dia tenia que esperar a que arrancara todo con el usuario pensando que la app se habia colgado.
+  describe('que la primera factura del dia no espere', () => {
+    it('al entrar en la pantalla despierta el servicio fiscal (es la pestana con la que se abre la app)', () => {
+      const despertar = spyOn(TestBed.inject(IssuedInvoicesRepository), 'despertarServicioFiscal');
+
+      component.ionViewWillEnter();
+
+      expect(despertar).toHaveBeenCalled();
+    });
+
+    it('al volver la app a primer plano tambien, aunque no se vuelva a entrar en la pantalla', () => {
+      const despertar = spyOn(TestBed.inject(IssuedInvoicesRepository), 'despertarServicioFiscal');
+
+      TestBed.inject(Platform).resume.next();
+
+      expect(despertar).toHaveBeenCalled();
+    });
+
+    it('contabilizar desde la lista ensena una espera que bloquea la pantalla, y la quita al terminar', async () => {
+      const repo = TestBed.inject(IssuedInvoicesRepository);
+      const factura = { ...facturaDe('Cliente Real SL', 'Servicio'), id: 700 };
+      spyOn(repo, 'contabilizar').and.resolveTo({ ...factura, estado: 'contabilizada' });
+      const aviso = jasmine.createSpyObj<HTMLIonLoadingElement>('aviso', ['present', 'dismiss']);
+      aviso.present.and.resolveTo();
+      aviso.dismiss.and.resolveTo(true);
+      const crear = spyOn(TestBed.inject(LoadingController), 'create').and.resolveTo(aviso);
+      simularConfirmacion(TestBed.inject(AlertController));
+
+      await component.confirmarContabilizar(new Event('click'), factura);
+
+      expect(crear).toHaveBeenCalled();
+      expect(aviso.present).toHaveBeenCalled();
+      expect(repo.contabilizar).toHaveBeenCalledWith(700);
+      expect(aviso.dismiss).toHaveBeenCalled();
     });
   });
 });

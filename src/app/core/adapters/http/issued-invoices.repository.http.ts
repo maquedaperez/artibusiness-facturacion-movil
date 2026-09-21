@@ -28,6 +28,9 @@ const EMITIDAS_BASE_PATH = '/api/FacturaEmitida';
 // mismo endpoint de capacidades/estado que usa el resto del módulo de Connect
 // (PagosConnectController), no algo propio de Facturas Emitidas.
 const PAGOS_CONNECT_BASE_PATH = '/api/PagosConnect';
+const SERVICIO_FISCAL_BASE_PATH = '/api/ServicioFiscal';
+// FacturaE se apaga tras un rato sin peticiones: despertarlo más a menudo no aporta nada.
+const INTERVALO_MINIMO_ENTRE_DESPERTARES_MS = 10 * 60 * 1000;
 
 // Confirmado por código (WebAPIARTIBusiness/Models/ARTIBusinessAPIContext.cs y
 // ARTIBusinessCoreDLL/Models/ARTIBusinessCoreDLLContext.cs, idénticos): el backend usa bytes
@@ -406,11 +409,16 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   private impuestosCache = new CatalogoEnMemoria<ImpuestoApi[]>();
   private mediosPagoCache = new CatalogoEnMemoria<MedioPagoApi[]>();
 
+  // Cuándo se despertó FacturaE por última vez (ver despertarServicioFiscal). Se olvida con la
+  // sesión: tras cambiar de empresa hay que volver a despertar, puede ser otro FacturaE.
+  private ultimoDespertar = 0;
+
   constructor() {
     super();
     inject(LimpiezaDeSesionService).registrar(() => {
       this.impuestosCache.olvidar();
       this.mediosPagoCache.olvidar();
+      this.ultimoDespertar = 0;
     });
   }
 
@@ -928,6 +936,22 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     } catch {
       return null;
     }
+  }
+
+  // Despertar FacturaE (2026-09-21). Su base se duerme por la pausa automática cuando FacturaE lleva
+  // un rato apagado, y la primera operación del día tenía que esperar a que arrancara todo: del
+  // orden de un minuto, con el usuario pensando que la app se había colgado. Esto llama a la puerta
+  // al entrar en Emitidas, y para cuando el usuario crea la factura y pulsa Contabilizar ya está
+  // despierto.
+  //
+  // Sin esperar la respuesta —el backend tarda lo que tarde FacturaE en arrancar— y como mucho una
+  // vez cada 10 minutos. Nunca falla: mientras el endpoint no esté publicado responde 404, se
+  // ignora, y todo sigue exactamente como antes.
+  despertarServicioFiscal(): void {
+    const ahora = Date.now();
+    if (ahora - this.ultimoDespertar < INTERVALO_MINIMO_ENTRE_DESPERTARES_MS) return;
+    this.ultimoDespertar = ahora;
+    void this.api.post<void>(`${SERVICIO_FISCAL_BASE_PATH}/Despertar`, {}).catch(() => undefined);
   }
 
   async anular(id: number): Promise<FacturaEmitida> {

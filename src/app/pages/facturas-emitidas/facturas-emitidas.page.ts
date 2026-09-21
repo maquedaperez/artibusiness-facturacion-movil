@@ -1,4 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { formatEuros as formatEurosUtil, formatFecha as formatFechaUtil } from '../../shared/utils/format-euros';
@@ -11,7 +12,7 @@ import {
   IonSelect, IonSelectOption, IonSearchbar, IonItem, IonInput,
   IonCard, IonCardContent,
   IonText, IonIcon, IonButton, IonFab, IonFabButton, IonSpinner,
-  AlertController, ToastController,
+  AlertController, ToastController, LoadingController, Platform,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -28,6 +29,7 @@ import { pedirConfirmacion } from '../../shared/utils/confirmacion';
 import { mensajeDeError } from '../../shared/utils/mensaje-de-error';
 import { duracionDeToast } from '../../shared/utils/duracion-de-toast';
 import { avisoDeFirmaFallida } from '../../shared/utils/aviso-de-firma';
+import { conEsperaDelServicioFiscal, textosDeEspera } from '../../shared/utils/espera-del-servicio-fiscal';
 import { TenantService } from '../../services/tenant.service';
 
 @Component({
@@ -51,6 +53,7 @@ export class FacturasEmitidasPage implements OnInit {
   private route = inject(ActivatedRoute);
   private alertCtrl = inject(AlertController);
   private toastCtrl = inject(ToastController);
+  private loadingCtrl = inject(LoadingController);
   private tenant = inject(TenantService);
   private transloco = inject(TranslocoService);
   private pagosService = inject(PagosService);
@@ -77,6 +80,9 @@ export class FacturasEmitidasPage implements OnInit {
       documentTextOutline, checkmarkCircleOutline, ribbonOutline, addOutline, filterOutline,
       copyOutline, downloadOutline, shareSocialOutline, trashOutline,
     });
+    // Al volver la app a primer plano —abierta desde ayer, por ejemplo— también se despierta
+    // FacturaE: ahí no hay login ni se vuelve a entrar en esta pantalla. Ver despertarServicioFiscal.
+    inject(Platform).resume.pipe(takeUntilDestroyed()).subscribe(() => this.invoicesRepo.despertarServicioFiscal());
   }
 
   ngOnInit() {
@@ -124,6 +130,9 @@ export class FacturasEmitidasPage implements OnInit {
   ionViewWillEnter() {
     this.sincronizarEstadoDesdeQueryParam();
     this.refresh();
+    // Es la pestaña con la que se abre la app, así que esto cubre también el login: para cuando el
+    // usuario crea una factura y la contabiliza, FacturaE ya está despierto (2026-09-21).
+    this.invoicesRepo.despertarServicioFiscal();
   }
 
   onEstadoChange(value: EstadoFactura) {
@@ -462,7 +471,8 @@ export class FacturasEmitidasPage implements OnInit {
 
     this.procesandoAeatIds.add(f.id);
     try {
-      await this.invoicesRepo.contabilizar(f.id);
+      await conEsperaDelServicioFiscal(this.loadingCtrl, textosDeEspera(k => this.transloco.translate(k), 'invoices.issued.actions.posting'),
+        () => this.invoicesRepo.contabilizar(f.id));
       await this.refresh();
       await this.showToast(this.transloco.translate('invoices.issued.post.success', { cliente: f.destinatario.nombre }));
     } catch (e: any) {
@@ -489,7 +499,8 @@ export class FacturasEmitidasPage implements OnInit {
 
     this.procesandoAeatIds.add(f.id);
     try {
-      await this.invoicesRepo.firmar(f.id);
+      await conEsperaDelServicioFiscal(this.loadingCtrl, textosDeEspera(k => this.transloco.translate(k), 'invoices.issued.actions.signing'),
+        () => this.invoicesRepo.firmar(f.id));
       await this.refresh();
       await this.showToast(this.transloco.translate('invoices.issued.sign.success', { cliente: f.destinatario.nombre }));
     } catch (e: any) {

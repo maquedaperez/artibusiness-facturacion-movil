@@ -122,6 +122,10 @@ export abstract class IssuedInvoicesRepository {
    * y el día que el backend esté publicado empieza a funcionar solo.
    */
   abstract refrescarEstadoAeat(id: number): Promise<FacturaEmitida | null>;
+  // Despierta el servicio fiscal (FacturaE) sin esperar respuesta (2026-09-21): su base se duerme
+  // por la pausa automática y la primera operación del día tendría que esperar a que arranque. Se
+  // llama al entrar en Emitidas y al volver la app a primer plano. Nunca falla ni lanza.
+  abstract despertarServicioFiscal(): void;
   // Fase 7 (Subsanar, 2026-08-24): NO es un editor de la factura — cliente/líneas/importes no
   // cambian (si de verdad están mal, corresponde una rectificativa, no esto). Vuelve a emitir el
   // registro fiscal a partir de los mismos datos ya guardados, con un motivo obligatorio, y
