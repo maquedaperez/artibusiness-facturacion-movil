@@ -422,6 +422,29 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     });
   }
 
+  /**
+   * El catalogo de IVA SOLO para mapear una factura que ya viene del backend.
+   *
+   * MISMO BUG que el de los medios de pago (2026-09-17), que se arreglo entonces y aqui se quedo
+   * sin arreglar: contabilizar llamaba a la API, la factura SE CONTABILIZABA de verdad, y despues
+   * mapearDetalle pedia este catalogo para poner el % de cada linea. Si esa segunda llamada
+   * fallaba —primera del dia, base despertando, Azure en frio— la excepcion subia y la pantalla
+   * decia "No se pudo contabilizar la factura" con la factura YA contabilizada. Al volver a
+   * pulsar, el backend respondia "Solo se puede contabilizar una factura en borrador" (visto el
+   * 2026-09-23).
+   *
+   * Sin catalogo, las lineas se ensenan al 0% —igual que cuando el id_impuesto ya no existe— y la
+   * siguiente lectura de la factura las recupera bien. Los totales no dependen de esto:
+   * vienen calculados del backend (totalesReales).
+   */
+  private async impuestosParaMapear(): Promise<ImpuestoApi[]> {
+    try {
+      return await this.obtenerImpuestosApi();
+    } catch {
+      return [];
+    }
+  }
+
   private async obtenerImpuestosApi(): Promise<ImpuestoApi[]> {
     return this.impuestosCache.obtener(() =>
       this.api.post<ImpuestoApi[]>(`${IMPUESTOS_BASE_PATH}/Enumerar`, { tipo: TIPO_IMPUESTO_IVA }));
@@ -535,8 +558,15 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
     };
   }
 
-  private async mapearDetalle(dto: FacturaEmitidaDetalleApi, mediosPago: MedioPagoApi[]): Promise<FacturaEmitida> {
-    const catalogoImpuestos = await this.obtenerImpuestosApi();
+  private async mapearDetalle(
+    dto: FacturaEmitidaDetalleApi,
+    mediosPago: MedioPagoApi[],
+    // Las acciones fiscales (contabilizar, firmar, anular...) pasan aqui el catalogo ya resuelto
+    // con impuestosParaMapear(), que nunca lanza: una accion que ha salido bien no puede
+    // convertirse en un error por no poder leer un catalogo.
+    impuestos?: ImpuestoApi[],
+  ): Promise<FacturaEmitida> {
+    const catalogoImpuestos = impuestos ?? await this.obtenerImpuestosApi();
     const lineas: LineaFactura[] = (dto.lineas ?? []).map(l => {
       const impuesto = catalogoImpuestos.find(i => i.idImpuesto === l.idImpuesto);
       return {
@@ -886,16 +916,46 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
   // distinguir un id local de uno real: si sigue en el almacén del mock, hay que guardarla
   // primero (la pantalla de detalle ya lo hace; aquí se deja como error explícito para
   // cualquier otro punto de entrada, como el botón directo del listado).
+  /**
+   * Red de seguridad de las acciones fiscales (2026-09-23).
+   *
+   * Contabilizar o firmar tarda, y por el camino se puede perder la respuesta (corte de red,
+   * tiempo agotado del movil, un 500 del backend DESPUES de haber guardado). El trabajo fiscal
+   * ya esta hecho y registrado en la AEAT, pero el usuario ve un error y vuelve a pulsar.
+   *
+   * Antes de dar el error por bueno se vuelve a leer la factura: si ya esta en el estado que
+   * buscabamos, se devuelve como exito. Si sigue como estaba, o no se puede ni leer, se lanza el
+   * error original, nunca uno nuevo.
+   */
+  private async yaQuedoHecha(id: number, estados: EstadoFactura[], error: unknown): Promise<FacturaEmitida> {
+    try {
+      const factura = await this.obtenerPorId(id);
+      if (factura && estados.includes(factura.estado)) return factura;
+    } catch {
+      // Se ignora: manda el error original de la accion.
+    }
+    throw error;
+  }
+
   async contabilizar(id: number): Promise<FacturaEmitida> {
     if (await this.esBorradorLocalSinGuardar(id)) {
       throw new Error(this.transloco.translate('verifactu.errors.guardarAntesDeContabilizar'));
     }
 
-    const [dto, mediosPago] = await Promise.all([
+    try {
+      return await this.contabilizarEnBackend(id);
+    } catch (error) {
+      return this.yaQuedoHecha(id, ['contabilizada', 'firmada'], error);
+    }
+  }
+
+  private async contabilizarEnBackend(id: number): Promise<FacturaEmitida> {
+    const [dto, mediosPago, impuestos] = await Promise.all([
       this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Contabilizar`, {}),
       this.mediosPagoParaMapear(),
+      this.impuestosParaMapear(),
     ]);
-    return this.mapearDetalle(dto, mediosPago ?? []);
+    return this.mapearDetalle(dto, mediosPago ?? [], impuestos);
   }
 
   async firmar(id: number): Promise<FacturaEmitida> {
@@ -903,11 +963,20 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       throw new Error(this.transloco.translate('verifactu.errors.firmarBorrador'));
     }
 
-    const [dto, mediosPago] = await Promise.all([
+    try {
+      return await this.firmarEnBackend(id);
+    } catch (error) {
+      return this.yaQuedoHecha(id, ['firmada'], error);
+    }
+  }
+
+  private async firmarEnBackend(id: number): Promise<FacturaEmitida> {
+    const [dto, mediosPago, impuestos] = await Promise.all([
       this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Firmar`, {}),
       this.mediosPagoParaMapear(),
+      this.impuestosParaMapear(),
     ]);
-    return this.mapearDetalle(dto, mediosPago ?? []);
+    return this.mapearDetalle(dto, mediosPago ?? [], impuestos);
   }
 
   // Fase 7 (Anular, 2026-08-22): llama de verdad a FacturaEmitidaController.Anular
@@ -959,11 +1028,12 @@ export class HttpIssuedInvoicesRepository extends IssuedInvoicesRepository {
       throw new Error(this.transloco.translate('verifactu.errors.anularBorrador'));
     }
 
-    const [dto, mediosPago] = await Promise.all([
+    const [dto, mediosPago, impuestos] = await Promise.all([
       this.api.post<FacturaEmitidaDetalleApi>(`${EMITIDAS_BASE_PATH}/${id}/Anular`, {}),
       this.mediosPagoParaMapear(),
+      this.impuestosParaMapear(),
     ]);
-    return this.mapearDetalle(dto, mediosPago ?? []);
+    return this.mapearDetalle(dto, mediosPago ?? [], impuestos);
   }
 
   // Fase 7 (Subsanar, 2026-08-24): llama de verdad a FacturaEmitidaController.Subsanar

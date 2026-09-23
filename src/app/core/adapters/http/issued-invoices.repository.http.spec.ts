@@ -341,6 +341,78 @@ describe('HttpIssuedInvoicesRepository — Fase 2 (listar/obtenerPorId reales)',
       expect(factura.estado).toBe('firmada');
     });
 
+    // 2026-09-23: el mismo bug seguia vivo con el catalogo de IVA. La factura se contabilizaba de
+    // verdad y la pantalla decia "No se pudo contabilizar la factura"; al reintentar, el backend
+    // respondia "Solo se puede contabilizar una factura en borrador".
+    it('contabilizar sale bien aunque el catalogo de IVA falle', async () => {
+      apiSpy.post.and.callFake((path: string) => {
+        if (path === '/api/Impuesto/Enumerar') return Promise.reject(new Error('HTTP 500'));
+        if (path === '/api/MediosPago/Enumerar') return Promise.resolve(MEDIOS_PAGO_API as any);
+        if (path === '/api/FacturaEmitida/500/Contabilizar') return Promise.resolve({
+          ...facturaContabilizadaApi(),
+          lineas: [{ idFacturaLinea: 1, descripcion: 'Servicio', cantidad: 1, precioUnitario: 100, descuento: 0, idImpuesto: 10 }],
+        } as any);
+        return Promise.resolve([] as any);
+      });
+
+      const factura = await repo.contabilizar(500);
+
+      expect(factura.estado).toBe('contabilizada');
+      // Sin catalogo no se sabe el % de la linea: se ensena 0 y la siguiente lectura lo arregla.
+      expect(factura.lineas[0].ivaPct).toBe(0);
+    });
+
+    it('firmar tampoco falla por el catalogo de IVA', async () => {
+      apiSpy.post.and.callFake((path: string) => {
+        if (path === '/api/Impuesto/Enumerar') return Promise.reject(new Error('HTTP 500'));
+        if (path === '/api/MediosPago/Enumerar') return Promise.resolve(MEDIOS_PAGO_API as any);
+        if (path === '/api/FacturaEmitida/500/Firmar') return Promise.resolve({ ...facturaContabilizadaApi(), estado: 133 } as any);
+        return Promise.resolve([] as any);
+      });
+
+      expect((await repo.firmar(500)).estado).toBe('firmada');
+    });
+
+    // Red de seguridad: si se pierde la respuesta (corte de red, tiempo agotado, 500 despues de
+    // guardar), la factura YA esta contabilizada en la AEAT. No se puede ensenar un error.
+    it('si la llamada falla pero la factura ya quedo contabilizada, se devuelve como exito', async () => {
+      apiSpy.post.and.callFake((path: string) => {
+        if (path === '/api/Impuesto/Enumerar') return Promise.resolve(IMPUESTOS_API as any);
+        if (path === '/api/MediosPago/Enumerar') return Promise.resolve(MEDIOS_PAGO_API as any);
+        if (path === '/api/FacturaEmitida/500/Contabilizar') return Promise.reject(new Error('HTTP 500 - se perdio la respuesta'));
+        return Promise.resolve([] as any);
+      });
+      apiSpy.get.and.resolveTo(facturaContabilizadaApi() as any);
+
+      const factura = await repo.contabilizar(500);
+
+      expect(factura.estado).toBe('contabilizada');
+    });
+
+    it('si la llamada falla y la factura sigue en borrador, se lanza el error original', async () => {
+      apiSpy.post.and.callFake((path: string) => {
+        if (path === '/api/Impuesto/Enumerar') return Promise.resolve(IMPUESTOS_API as any);
+        if (path === '/api/MediosPago/Enumerar') return Promise.resolve(MEDIOS_PAGO_API as any);
+        if (path === '/api/FacturaEmitida/500/Contabilizar') return Promise.reject(new Error('HTTP 502 - FacturaE no responde'));
+        return Promise.resolve([] as any);
+      });
+      apiSpy.get.and.resolveTo({ ...facturaContabilizadaApi(), estado: 131 } as any);
+
+      await expectAsync(repo.contabilizar(500)).toBeRejectedWithError(/HTTP 502/);
+    });
+
+    it('si tampoco se puede releer la factura, se lanza el error original', async () => {
+      apiSpy.post.and.callFake((path: string) => {
+        if (path === '/api/Impuesto/Enumerar') return Promise.resolve(IMPUESTOS_API as any);
+        if (path === '/api/MediosPago/Enumerar') return Promise.resolve(MEDIOS_PAGO_API as any);
+        if (path === '/api/FacturaEmitida/500/Contabilizar') return Promise.reject(new Error('HTTP 502 - FacturaE no responde'));
+        return Promise.resolve([] as any);
+      });
+      apiSpy.get.and.rejectWith(new Error('HTTP 503'));
+
+      await expectAsync(repo.contabilizar(500)).toBeRejectedWithError(/HTTP 502/);
+    });
+
     it('y el listado tampoco se queda vacio por eso', async () => {
       apiSpy.post.and.callFake((path: string) => {
         if (path === '/api/MediosPago/Enumerar') return Promise.reject(new Error('HTTP 500'));
